@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "note": "TEMPLATE only — replace with your own targets (or add via scripts/registry.py). Epitope/hotspot residues use PDB author numbering of the cited structure and MUST be remapped to 1-based sequence indices (scripts/pdb_utils.remap_to_seq_index) before use by tools that expect sequence indices. Always verify epitope_resnums and any published_binders against the cited structure/literature before a real campaign.",
+  "targets": [
+    {
+      "name": "<your target>",
+      "aliases": ["<alias>"],
+      "type": "<target class>",
+      "pdb_id": "<PDBID>",
+      "target_chain": "<C>",
+      "epitope_resnums": [],
+      "epitope_status": "define and verify the epitope from <PDBID>",
+      "published_binders": []
+    }
+  ]
+}

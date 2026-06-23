@@ -1,0 +1,157 @@
+{
+  "skill_name": "boltz2-nim",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to predict the structure of insulin using Boltz2. The sequence is MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN. Use the hosted NVIDIA API.",
+      "expected_output": "A working Python script that calls the hosted Boltz2 endpoint with the NGC_API_KEY as a Bearer token, submits the insulin sequence as a protein polymer, saves the returned mmCIF structure to a .cif file, and prints the confidence score.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL (health.api.nvidia.com)",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/boltz2/predict'"
+        },
+        {
+          "id": "bearer-auth-header",
+          "description": "Sets Authorization header with Bearer token from environment variable",
+          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
+        },
+        {
+          "id": "protein-molecule-type",
+          "description": "Polymer payload sets molecule_type to 'protein'",
+          "check": "Script contains 'molecule_type' and 'protein'"
+        },
+        {
+          "id": "saves-cif-output",
+          "description": "Saves the returned structure to a .cif file",
+          "check": "Script writes structure content to a file with .cif extension"
+        },
+        {
+          "id": "reports-confidence-score",
+          "description": "Prints or displays the confidence_scores from the response",
+          "check": "Script references 'confidence_scores' from the response"
+        },
+        {
+          "id": "api-key-from-env",
+          "description": "Reads NGC_API_KEY from environment, not hardcoded",
+          "check": "Script uses os.environ or os.getenv to read NGC_API_KEY"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have a protein target (sequence: MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID) and I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to it and get a binding affinity score. Use the hosted API. My NGC_API_KEY is already set in my environment.",
+      "expected_output": "A working Python script that submits a protein+ligand request with predict_affinity=true on the ligand, saves the structure, and prints pIC50, log IC50, and binding probability from the affinities response.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/boltz2/predict'"
+        },
+        {
+          "id": "smiles-in-ligand",
+          "description": "Includes ligand with the aspirin SMILES string",
+          "check": "Script contains 'smiles' and 'CC(=O)OC1=CC=CC=C1C(=O)O'"
+        },
+        {
+          "id": "predict-affinity-flag",
+          "description": "Sets predict_affinity=True on the ligand",
+          "check": "Script contains 'predict_affinity' and 'True'"
+        },
+        {
+          "id": "affinity-output-pic50",
+          "description": "Reads and reports affinity_pic50 from response",
+          "check": "Script references 'affinity_pic50' or 'affinities'"
+        },
+        {
+          "id": "affinity-output-pred-value",
+          "description": "Reads and reports affinity_pred_value (log IC50)",
+          "check": "Script references 'affinity_pred_value'"
+        },
+        {
+          "id": "affinity-output-binary-prob",
+          "description": "Reads and reports affinity_probability_binary",
+          "check": "Script references 'affinity_probability_binary'"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Help me set up the Boltz2 NIM locally with Docker. I have an A100 GPU and my NGC_API_KEY is set. Once it's running, predict the structure of this short peptide: ACDEFGHIKLMNPQRSTVWY",
+      "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run health checks, then send a no Authorization local request to localhost:8000 and save the output .cif file.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docker-login-nvcr",
+          "description": "Includes docker login command for nvcr.io with $oauthtoken",
+          "check": "Output contains 'docker login nvcr.io' and 'oauthtoken'"
+        },
+        {
+          "id": "docker-run-gpus",
+          "description": "docker run command includes --gpus flag",
+          "check": "Output contains 'docker run' and '--gpus'"
+        },
+        {
+          "id": "env-contract-and-cache",
+          "description": "Local setup uses the repo env contract and LOCAL_NIM_CACHE",
+          "check": "Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE into the container"
+        },
+        {
+          "id": "docker-image-tag",
+          "description": "References the correct container image nvcr.io/nim/mit/boltz2",
+          "check": "Output contains 'nvcr.io/nim/mit/boltz2'"
+        },
+        {
+          "id": "health-check-loop",
+          "description": "Includes a health check before submitting the prediction",
+          "check": "Output contains health check against localhost:8000/v1/health/ready"
+        },
+        {
+          "id": "local-endpoint-url",
+          "description": "Prediction uses local endpoint without hosted auth",
+          "check": "Script contains 'localhost:8000/biology/mit/boltz2/predict' and the local request uses no Authorization header"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I want to predict a protein-DNA complex with Boltz2, and I already generated an A3M alignment with MSA-Search for the protein. Protein chain A: MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT. DNA chain B: ATCGATCGATCG. Show me how to include the precomputed A3M in the hosted API request, save the mmCIF, and print the confidence score. My NGC_API_KEY is already set.",
+      "expected_output": "A Python script that calls the hosted Boltz2 endpoint with Bearer auth and submits a multi-polymer protein-DNA payload where the protein polymer contains an MSA dict whose A3M record uses alignment, format, and rank fields, not the stale data field. The script saves the returned mmCIF and prints confidence_scores.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/boltz2/predict'"
+        },
+        {
+          "id": "bearer-auth-header",
+          "description": "Sets Authorization header with Bearer token from environment variable",
+          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
+        },
+        {
+          "id": "protein-dna-polymers",
+          "description": "Payload includes both protein and DNA polymers",
+          "check": "Script payload contains both a protein polymer and a dna polymer"
+        },
+        {
+          "id": "msa-record-shape",
+          "description": "Uses the validated Boltz2 MSA record shape on the protein polymer",
+          "check": "Script nests an msa dict under the protein polymer and the A3M record contains 'alignment', 'format', and 'rank'"
+        },
+        {
+          "id": "no-stale-data-field",
+          "description": "Does not use the stale MSA data field",
+          "check": "Script does not use {'data': ...} or a 'data' field inside the MSA record"
+        },
+        {
+          "id": "saves-cif-and-confidence",
+          "description": "Saves the returned structure and reports confidence_scores",
+          "check": "Script writes structure content to a .cif file and references 'confidence_scores' from the response"
+        }
+      ]
+    }
+  ]
+}

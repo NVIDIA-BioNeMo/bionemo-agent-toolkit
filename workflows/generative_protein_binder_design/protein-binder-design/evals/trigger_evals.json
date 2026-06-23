@@ -1,0 +1,20 @@
+[
+  {"query": "Design a de novo protein binder against PD-L1", "should_trigger": true},
+  {"query": "Run an RFdiffusion + ProteinMPNN + Boltz2 binder design campaign against the SARS-CoV-2 RBD", "should_trigger": true},
+  {"query": "I want to design a minibinder targeting these epitope residues on my protein", "should_trigger": true},
+  {"query": "Generate binder backbones with hotspots, design sequences, and validate the interface with ipTM", "should_trigger": true},
+  {"query": "Design and rank de novo binders for IL-7Ralpha and compare them to published binders", "should_trigger": true},
+  {"query": "Build a protein binder against this target and tell me the success rate with controls", "should_trigger": true},
+  {"query": "Scaffold a motif into a binder and check self-consistency RMSD", "should_trigger": true},
+  {"query": "End-to-end binder design pipeline against a protein target using BioNeMo NIMs", "should_trigger": true},
+  {"query": "Design protein binders to neutralize a cytokine and validate them in silico", "should_trigger": true},
+  {"query": "Make a binder for my target and shortlist the top 20 designs", "should_trigger": true},
+  {"query": "Just predict the structure of this single protein sequence with Boltz2", "should_trigger": false},
+  {"query": "Dock this small molecule into my protein and score the pose", "should_trigger": false},
+  {"query": "Generate drug-like molecules similar to ibuprofen", "should_trigger": false},
+  {"query": "Run a virtual screening campaign of a compound library against a kinase", "should_trigger": false},
+  {"query": "Design a sequence for this exact backbone with ProteinMPNN only", "should_trigger": false},
+  {"query": "Build an MSA for this protein sequence", "should_trigger": false},
+  {"query": "Predict binding affinity (pIC50) for this protein-ligand pair", "should_trigger": false},
+  {"query": "How do I visualize a CIF file in PyMOL?", "should_trigger": false}
+]

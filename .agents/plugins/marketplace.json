@@ -1,0 +1,20 @@
+{
+    "name": "bionemo-agent-toolkit",
+    "interface": {
+        "displayName": "NVIDIA BioNeMo Agent Toolkit"
+    },
+    "plugins": [
+        {
+            "name": "bionemo-agent-toolkit",
+            "source": {
+                "source": "local",
+                "path": "./plugins/bionemo-agent-toolkit"
+            },
+            "policy": {
+                "installation": "AVAILABLE",
+                "authentication": "ON_INSTALL"
+            },
+            "category": "Science"
+        }
+    ]
+}

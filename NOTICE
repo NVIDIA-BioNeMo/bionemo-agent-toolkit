@@ -1,0 +1,28 @@
+BioNeMo Agent Toolkit
+Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+This project is dual-licensed:
+
+  - Source code (scripts, tests, build tooling) is licensed under the
+    Apache License, Version 2.0. See LICENSE-APACHE-2.0 for the full text,
+    or visit http://www.apache.org/licenses/LICENSE-2.0
+
+  - Skills, documentation, and content files (SKILL.md, workflow definitions,
+    README files) are additionally available under the Creative Commons
+    Attribution 4.0 International License (CC-BY-4.0). See LICENSE-CC-BY-4.0
+    for the full text, or visit https://creativecommons.org/licenses/by/4.0/
+
+SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
+
+=======================================================================
+ATTRIBUTION REQUIREMENT (CC-BY-4.0)
+=======================================================================
+
+When redistributing or adapting the skills and documentation content
+from this work, the following attribution must be included in a manner
+reasonable to the medium or means used:
+
+  BioNeMo Agent Toolkit
+  Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+  Licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Source: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit

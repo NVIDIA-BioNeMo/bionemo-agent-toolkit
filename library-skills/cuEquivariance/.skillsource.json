@@ -1,0 +1,12 @@
+{
+  "name": "cuequivariance",
+  "repo": "https://github.com/NVIDIA/cuEquivariance.git",
+  "ref": "main",
+  "subpath": "cuequivariance/cuequivariance/SKILL.md",
+  "type": "file",
+  "resolved_sha": "37e2dfea9bdca4b84bfedeb2da7433bf5a484a6e",
+  "generated_by": "build_repo/autogenerate.py",
+  "files": [
+    "SKILL.md"
+  ]
+}

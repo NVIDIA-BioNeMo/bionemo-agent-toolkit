@@ -1,0 +1,13 @@
+BioNeMo Agent Toolkit is dual-licensed:
+
+- Source code (scripts, tests, build tooling) is licensed under the
+  Apache License, Version 2.0. See LICENSE-APACHE-2.0 for the full text.
+
+- Skills, documentation, and other creative/content files (SKILL.md,
+  workflow definitions, README files) are additionally available under
+  the Creative Commons Attribution 4.0 International License (CC-BY-4.0).
+  See LICENSE-CC-BY-4.0 for the full text.
+
+SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
+
+Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.

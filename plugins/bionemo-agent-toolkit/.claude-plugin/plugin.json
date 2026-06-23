@@ -1,0 +1,28 @@
+{
+    "name": "bionemo-agent-toolkit",
+    "version": "0.1.0",
+    "description": "NVIDIA BioNeMo agent skills for life sciences \u2014 protein folding, molecular docking, generative chemistry, genomics, protein design, and biomarker discovery as ready-to-call tools.",
+    "author": {
+        "name": "NVIDIA BioNeMo",
+        "url": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit"
+    },
+    "homepage": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
+    "repository": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
+    "license": "Apache-2.0",
+    "keywords": [
+        "bionemo",
+        "life-sciences",
+        "drug-discovery",
+        "protein-folding",
+        "molecular-docking",
+        "generative-chemistry",
+        "genomics",
+        "protein-design",
+        "cuda-x",
+        "nim"
+    ],
+    "displayName": "NVIDIA BioNeMo Agent Toolkit",
+    "skills": [
+        "./skills/"
+    ]
+}

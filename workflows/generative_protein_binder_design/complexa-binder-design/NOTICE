@@ -1,0 +1,29 @@
+complexa-binder-design (Agent Skill)
+Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This skill orchestrates, but does not redistribute, the following third-party
+components. Each is obtained by the user from its own source under its own license:
+
+- Proteina-Complexa (model + code)
+  https://github.com/NVIDIA-Digital-Bio/Proteina-Complexa
+  https://research.nvidia.com/labs/genair/proteina-complexa/
+  Weights via NGC: nvidia/clara/proteina_complexa
+  See the upstream repository for its license and model terms.
+
+- ipSAE (interaction prediction Score from Aligned Errors)
+  https://github.com/dunbracklab/IPSAE  (ipsae.py)
+  Author: Roland L. Dunbrack Jr., Fox Chase Cancer Center
+  License: MIT.
+  Fetched on demand by scripts/fetch_ipsae.sh into vendor/ipsae/ (not bundled).
+
+- science-skills (UniProt + AlphaFold-DB Stage-1 tooling), vendored under
+  vendor/science-skills/ with a small stdlib-urllib shim (changes noted in-file
+  per Apache-2.0 §4). See vendor/science-skills/VENDOR.md.
+  https://github.com/google-deepmind/science-skills
+  License: Apache-2.0 (see vendor/science-skills/LICENSE).
+
+- BioNeMo NIMs (Boltz2, OpenFold3, MSA-Search) used for independent validation
+  are accessed as services (build.nvidia.com or self-hosted NGC containers) under
+  their respective terms.

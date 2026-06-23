@@ -1,0 +1,157 @@
+{
+  "skill_name": "openfold3-nim",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to predict the structure of a short peptide using OpenFold3. The sequence is MKTVRQERLKSIVRGPKRAKELMSI. Use the hosted NVIDIA API with my NGC_API_KEY already set in environment.",
+      "expected_output": "A Python script that calls the hosted OpenFold3 endpoint with Bearer auth, constructs an inputs payload with the peptide sequence as a protein molecule type including a minimal MSA, saves the returned structure to a PDB or CIF file, and prints the confidence scores.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted OpenFold3 endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold3/predict'"
+        },
+        {
+          "id": "bearer-auth-header",
+          "description": "Sets Authorization header with Bearer token from NGC_API_KEY",
+          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
+        },
+        {
+          "id": "inputs-array-structure",
+          "description": "Payload uses 'inputs' array containing molecule objects",
+          "check": "Script payload contains 'inputs' key with an array/list containing 'molecules'"
+        },
+        {
+          "id": "molecule-type-protein",
+          "description": "Molecule object sets type to 'protein'",
+          "check": "Script contains 'type' and 'protein' in the molecule specification"
+        },
+        {
+          "id": "msa-structure",
+          "description": "MSA field is provided with nested alignment structure",
+          "check": "Script contains 'msa' with an alignment string starting with '>query'"
+        },
+        {
+          "id": "saves-structure-output",
+          "description": "Saves the returned structure to a file and prints confidence scores",
+          "check": "Script writes structure content to a file and references 'confidence_score' or 'structures_with_scores' from the response"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want to predict a protein-ligand complex structure using OpenFold3. My protein sequence is MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID and I want to co-fold it with ATP (CCD code: ATP). Use the hosted API.",
+      "expected_output": "A Python script with two molecules in the payload — a protein with sequence and MSA, and a ligand using ccd_codes set to ATP — calling the hosted endpoint, saving structure output, and printing pLDDT and confidence scores.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold3/predict'"
+        },
+        {
+          "id": "two-molecules",
+          "description": "Payload includes both a protein molecule and a ligand molecule",
+          "check": "Script payload contains both 'type' set to 'protein' and 'type' set to 'ligand' in two separate molecule objects"
+        },
+        {
+          "id": "ccd-codes-field",
+          "description": "Ligand uses ccd_codes field set to ATP",
+          "check": "Script contains 'ccd_codes' and 'ATP'"
+        },
+        {
+          "id": "protein-sequence-present",
+          "description": "The provided protein sequence appears in the payload",
+          "check": "Script contains 'MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID'"
+        },
+        {
+          "id": "confidence-scores-reported",
+          "description": "Prints or displays confidence score and pLDDT from response",
+          "check": "Script references 'confidence_score' and 'complex_plddt_score' or 'plddt' from the response"
+        },
+        {
+          "id": "saves-output-file",
+          "description": "Saves the predicted structure to a PDB or CIF file",
+          "check": "Script writes structure content to a file with .pdb or .cif extension"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Help me set up the OpenFold3 NIM locally with Docker. I have an A100 80GB GPU and NGC_API_KEY is set. After setup, predict the structure of this protein: ACDEFGHIKLMNPQRSTVWY.",
+      "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, running with --gpus 'device=0', --shm-size=16g, and the correct cache mount path, then a health check loop and no-auth prediction script targeting localhost:8000.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docker-login-nvcr",
+          "description": "Includes docker login command for nvcr.io with oauthtoken",
+          "check": "Output contains 'docker login nvcr.io' and 'oauthtoken'"
+        },
+        {
+          "id": "docker-image-tag",
+          "description": "References the correct OpenFold3 container image",
+          "check": "Output contains 'nvcr.io/nim/openfold/openfold3'"
+        },
+        {
+          "id": "single-gpu-flag",
+          "description": "Uses single GPU device specification",
+          "check": "Output contains '--gpus' and 'device=0'"
+        },
+        {
+          "id": "shm-size-flag",
+          "description": "Includes --shm-size flag (required for this NIM)",
+          "check": "Output contains '--shm-size' and '16'"
+        },
+        {
+          "id": "env-contract-and-cache",
+          "description": "Local setup uses the repo env contract and LOCAL_NIM_CACHE",
+          "check": "Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /opt/nim/.cache"
+        },
+        {
+          "id": "local-endpoint-url",
+          "description": "Prediction script targets localhost:8000 without /v1/ prefix",
+          "check": "Script contains 'localhost:8000/biology/openfold/openfold3/predict'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I have a protein-DNA complex I want to predict with OpenFold3 via the hosted API. Protein chain A: MTEYKLVVVGACGVGKSALTIQLIQNHFVDE. DNA chain B: ATCGATCGATCG (sense strand), DNA chain C: CGATCGATCGAT (antisense strand). I want 2 diffusion samples and output in CIF format.",
+      "expected_output": "A Python script with three molecules in the payload (protein + two DNA chains), diffusion_samples set to 2, output_format set to 'cif', using the hosted endpoint. Saves and names the returned CIF files and prints per-sample confidence scores.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold3/predict'"
+        },
+        {
+          "id": "protein-and-dna-molecules",
+          "description": "Payload contains one protein molecule and two DNA molecules",
+          "check": "Script contains 'type' set to 'protein' and 'type' set to 'dna' in the molecules list"
+        },
+        {
+          "id": "dna-sequences-present",
+          "description": "Both DNA sequences appear in the payload",
+          "check": "Script contains 'ATCGATCGATCG' and 'CGATCGATCGAT'"
+        },
+        {
+          "id": "diffusion-samples",
+          "description": "diffusion_samples is set to 2",
+          "check": "Script contains 'diffusion_samples' and '2'"
+        },
+        {
+          "id": "cif-output-format",
+          "description": "output_format is set to 'cif'",
+          "check": "Script contains 'output_format' and 'cif'"
+        },
+        {
+          "id": "multiple-structures-saved",
+          "description": "Script iterates over structures_with_scores to save each sample",
+          "check": "Script iterates over the response structures and saves each to a separate .cif file"
+        }
+      ]
+    }
+  ]
+}

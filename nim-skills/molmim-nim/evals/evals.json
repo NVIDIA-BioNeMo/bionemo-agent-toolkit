@@ -1,0 +1,157 @@
+{
+  "skill_name": "molmim-nim",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use the hosted MolMIM NIM to generate 10 analogs from caffeine SMILES CN1C=NC2=C1C(=O)N(C(=O)N2C)C. Optimize for QED with CMA-ES, keep at least moderate seed similarity, and save the generated SMILES.",
+      "expected_output": "A Python script that calls the hosted MolMIM /generate endpoint with Bearer auth from NGC_API_KEY, uses smi not smiles, algorithm CMA-ES, property_name QED, minimize false, min_similarity, iterations, particles, num_molecules, parses hosted molecules/sample responses with generated fallback, and writes molmim_generated.smi.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted MolMIM generate endpoint",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/nvidia/molmim/generate'"
+        },
+        {
+          "id": "bearer-auth-header",
+          "description": "Sets Authorization header with Bearer token from NGC_API_KEY",
+          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
+        },
+        {
+          "id": "smi-field",
+          "description": "Uses MolMIM's smi field, not GenMol's smiles field",
+          "check": "Script contains 'smi' and does not use 'smiles'"
+        },
+        {
+          "id": "cmaes-qed",
+          "description": "Uses CMA-ES QED optimization with maximize behavior",
+          "check": "Script contains 'algorithm' and 'CMA-ES' and 'property_name' and 'QED' and 'minimize' and 'False'"
+        },
+        {
+          "id": "generated-response",
+          "description": "Parses MolMIM hosted molecules/sample response shape",
+          "check": "Script handles 'molecules' and 'sample' and 'json.loads'"
+        },
+        {
+          "id": "saves-smiles",
+          "description": "Saves generated SMILES to a .smi file",
+          "check": "Script writes generated molecules to '.smi'"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want unguided MolMIM sampling around ibuprofen SMILES CC(C)Cc1ccc(cc1)C(C)C(=O)O using the hosted API. Use algorithm none, a modest scaled_radius, and make clear that hosted MolMIM is generation-only.",
+      "expected_output": "A hosted /generate script using smi, algorithm 'none', num_molecules, scaled_radius, optional min_similarity, parsing hosted molecules/sample SMILES. It should not claim hosted /embedding, /hidden, /decode, or /sampling endpoints.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the hosted MolMIM generate endpoint",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/nvidia/molmim/generate'"
+        },
+        {
+          "id": "algorithm-none",
+          "description": "Uses unguided algorithm none",
+          "check": "Script contains 'algorithm' and 'none'"
+        },
+        {
+          "id": "scaled-radius",
+          "description": "Sets scaled_radius for latent sampling distance",
+          "check": "Script contains 'scaled_radius'"
+        },
+        {
+          "id": "smi-not-safe",
+          "description": "Uses ordinary SMILES and does not use GenMol SAFE masks",
+          "check": "Script contains 'smi' and 'SMILES'"
+        },
+        {
+          "id": "hosted-generation-only",
+          "description": "States hosted MolMIM is generation-only through /generate",
+          "check": "Output contains 'generation-only' and '/generate'"
+        },
+        {
+          "id": "no-hosted-latent-calls",
+          "description": "Does not call a hosted sampling endpoint",
+          "check": "Output contains 'local-only' and '/sampling'"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Help me run MolMIM locally with Docker and do an embedding smoke test. My environment may have NGC_API_KEY or NVIDIA_API_KEY, but the MolMIM docs mention NGC_CLI_API_KEY. LOCAL_NIM_CACHE is set.",
+      "expected_output": "Docker setup commands that source optional .env, map NVIDIA_API_KEY to NGC_API_KEY and NGC_API_KEY to NGC_CLI_API_KEY, docker login to nvcr.io without printing secrets, run nvcr.io/nim/nvidia/molmim:1.0.0 with cache mount /home/nvs/.cache/nim, poll /v1/health/ready, and POST no-auth to localhost:8000/embedding with sequences.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docker-image-tag",
+          "description": "References the correct MolMIM container image",
+          "check": "Output contains 'nvcr.io/nim/nvidia/molmim:1.0.0'"
+        },
+        {
+          "id": "ngc-cli-api-key-mapping",
+          "description": "Maps repo key aliases into NGC_CLI_API_KEY for MolMIM startup",
+          "check": "Output contains 'NGC_CLI_API_KEY' and 'NGC_API_KEY' and 'NVIDIA_API_KEY'"
+        },
+        {
+          "id": "cache-target",
+          "description": "Mounts LOCAL_NIM_CACHE to the documented MolMIM cache path",
+          "check": "Output contains 'LOCAL_NIM_CACHE' and '/home/nvs/.cache/nim'"
+        },
+        {
+          "id": "health-check-loop",
+          "description": "Polls local readiness before inference",
+          "check": "Output contains 'localhost:8000/v1/health/ready'"
+        },
+        {
+          "id": "local-no-auth",
+          "description": "Local inference uses no Authorization header",
+          "check": "Script contains 'localhost:8000/embedding' and 'Content-Type'"
+        },
+        {
+          "id": "embedding-schema",
+          "description": "Embedding smoke test uses sequences and parses embeddings",
+          "check": "Script contains 'sequences' and 'embeddings'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "For a locally hosted MolMIM container, show a latent workflow that obtains hidden states for a seed SMILES, decodes them back to SMILES, and optionally samples nearby molecules. Save the intermediate JSON and validate the generated molecules.",
+      "expected_output": "A local no-auth Python workflow using /hidden with sequences, saving hiddens and mask, POSTing those to /decode, optionally calling /sampling with scaled_radius and num_molecules, saving generated SMILES, and validating parseability/duplicates with RDKit if installed.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "local-hidden-endpoint",
+          "description": "Calls the local hidden endpoint",
+          "check": "Script contains '/hidden' and 'sequences'"
+        },
+        {
+          "id": "hiddens-mask",
+          "description": "Captures hiddens and mask from local hidden response",
+          "check": "Script contains 'hiddens' and 'mask'"
+        },
+        {
+          "id": "decode-endpoint",
+          "description": "Decodes hidden states through the local decode endpoint",
+          "check": "Script contains '/decode'"
+        },
+        {
+          "id": "sampling-endpoint",
+          "description": "Optionally samples nearby molecules through the local sampling endpoint",
+          "check": "Script contains '/sampling' and 'scaled_radius' and 'num_molecules'"
+        },
+        {
+          "id": "local-only-caveat",
+          "description": "Documents that latent endpoints are local-only in the current docs",
+          "check": "Script contains 'http://localhost:8000' and '/hidden'"
+        },
+        {
+          "id": "rdkit-validation",
+          "description": "Validates generated SMILES with RDKit when available",
+          "check": "Script contains 'rdkit' or 'Chem.MolFromSmiles'"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+    "name": "bionemo-agent-toolkit",
+    "version": "0.1.0",
+    "description": "NVIDIA BioNeMo agent skills for life sciences \u2014 protein folding, molecular docking, generative chemistry, genomics, protein design, and biomarker discovery as ready-to-call tools.",
+    "author": {
+        "name": "NVIDIA BioNeMo",
+        "url": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit"
+    },
+    "homepage": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
+    "repository": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
+    "license": "Apache-2.0",
+    "keywords": [
+        "bionemo",
+        "life-sciences",
+        "drug-discovery",
+        "protein-folding",
+        "molecular-docking",
+        "generative-chemistry",
+        "genomics",
+        "protein-design",
+        "cuda-x",
+        "nim"
+    ],
+    "skills": "./skills/",
+    "interface": {
+        "displayName": "NVIDIA BioNeMo Agent Toolkit",
+        "shortDescription": "Turn any agent into a life-science expert with NVIDIA BioNeMo skills.",
+        "longDescription": "A decade of NVIDIA life-sciences libraries, NIMs, and open models as portable agent skills: structure prediction, docking, generative chemistry, genomics, and de novo protein design. The plugin helps an agent pick the right tool, prepare inputs, run it, and interpret outputs.",
+        "developerName": "NVIDIA BioNeMo",
+        "category": "Science",
+        "capabilities": [
+            "Interactive",
+            "Write"
+        ],
+        "brandColor": "#76b900",
+        "defaultPrompt": [
+            "Predict the structure of insulin with Boltz2",
+            "Design a de novo binder for a target with RFdiffusion and ProteinMPNN",
+            "Score a BRCA1 variant with Evo2"
+        ]
+    }
+}

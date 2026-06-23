@@ -1,0 +1,7 @@
+{
+  "_comment": "TEMPLATE only. The authoritative target registry ships with the Proteina-Complexa repo (configs/targets/targets_dict.yaml) — run `complexa target list` in your checkout for the real, full set, and select one with ++generation.task_name=<task_name>. To add your own: `complexa target add <task_name> --pdb target.pdb --chain <C> --span <lo-hi> --hotspots <res,res> --binder-length <lo-hi>` (see references/complexa-cli.md and references/target-and-hotspots.md).",
+  "source": "https://github.com/NVIDIA-Digital-Bio/Proteina-Complexa",
+  "registry": [
+    {"task_name": "<task_name>", "name": "<your target>", "note": "register with `complexa target add`, or pick one from `complexa target list`"}
+  ]
+}
