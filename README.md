@@ -41,7 +41,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | Product | Description | Skills |
 |---------|-------------|--------|
 | **Protein Binder Design** | End-to-end de novo binder design workflows — a NIM route and a Proteina-Complexa route. | [`protein-binder-design`](workflows/generative_protein_binder_design/protein-binder-design), [`complexa-binder-design`](workflows/generative_protein_binder_design/complexa-binder-design) |
-| **Boltz-2** | Biomolecular structure prediction + binding affinity (NIM — hosted API or local container). | [`boltz2-nim`](nim-skills/boltz2-nim) |
+| **Boltz-2** | Biomolecular structure prediction + binding affinity (NIM). | [`boltz2-nim`](nim-skills/boltz2-nim) |
 | **DiffDock** | Small-molecule docking and binding-pose prediction (NIM). | [`diffdock-nim`](nim-skills/diffdock-nim) |
 | **Evo 2** | DNA sequence generation and variant scoring (NIM). | [`evo2-nim`](nim-skills/evo2-nim) |
 | **GenMol** | De novo molecule generation, scaffold decoration, lead optimization (NIM). | [`genmol-nim`](nim-skills/genmol-nim) |
