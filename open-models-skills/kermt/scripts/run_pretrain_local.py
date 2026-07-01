@@ -260,6 +260,12 @@ def _build_argv(
     if applied.get("use_cuikmolmaker_featurization", {}).get("value"):
         argv += ["--use_cuikmolmaker_featurization"]
 
+    # W&B logging (pass-through; pretrain_ddp.py only inits W&B when project is set).
+    if "wandb_project" in applied:
+        argv += ["--wandb_project", str(applied["wandb_project"]["value"])]
+        if "wandb_run_name" in applied:
+            argv += ["--wandb_run_name", str(applied["wandb_run_name"]["value"])]
+
     # Where pretrain_ddp.py auto-resumes from (we'll symlink the user ckpt there).
     argv += ["--save_dir", str(out_dir / "ckpt")]
 
@@ -562,6 +568,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         for f in CMIM_DECODER_FLAGS_FROM_CKPT:
             applied[f] = {"value": saved_args[f], "source": "ckpt_saved_args"}
 
+    # Optional W&B logging: pass-through, no defaults — forwarded only when the
+    # user sets --wandb-project (run name is honored only alongside a project).
+    for f in ("wandb_project", "wandb_run_name"):
+        v = getattr(args, f, None)
+        if v is not None:
+            applied[f] = {"value": v, "source": "user"}
+
     # 5. Build the pretrain_ddp.py argv.
     argv = _build_argv(
         world_size=world_size, gpus_str=gpus_str, out_dir=out_dir, manifest=manifest,
@@ -689,6 +702,11 @@ def main(argv: list[str] | None = None) -> int:
                  ("vocab-loss-weight", float), ("latent-dim", int),
                  ("contrastive-temperature", float)]:
         p.add_argument(f"--{f}", type=t, default=None)
+    # Optional W&B logging (pass-through to pretrain_ddp.py; off unless project is set).
+    p.add_argument("--wandb-project", type=str, default=None,
+                   help="W&B project name. When set, pretrain_ddp.py logs train/val losses.")
+    p.add_argument("--wandb-run-name", type=str, default=None,
+                   help="Optional W&B run name (only used when --wandb-project is set).")
     args = p.parse_args(argv)
 
     try:

@@ -65,6 +65,8 @@ Optional (same as `kermt-continue-pretrain`):
 - Training-hyperparameter overrides (`--epochs N`, `--batch-size N`, lr triple,
   `--warmup-epochs F`, etc.).
 - `--vocab-loss-weight F` / `--latent-dim N` / `--contrastive-temperature F`.
+- `--wandb-project NAME` / `--wandb-run-name NAME` — optional Weights & Biases
+  logging (run name honored only alongside a project). Off by default.
 - `--gpus 0,2`.
 
 ## Workflow

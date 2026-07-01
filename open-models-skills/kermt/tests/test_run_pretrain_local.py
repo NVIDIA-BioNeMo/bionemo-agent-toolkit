@@ -285,6 +285,33 @@ def test_dispatch_hybrid(tmp_path: Path) -> None:
     assert "--vocab_loss_weight" in argv
 
 
+def test_wandb_flags_forwarded_when_set(tmp_path: Path) -> None:
+    ckpt, prep, val = _setup(tmp_path, "grover_base")
+    code, m = _run(
+        "--ckpt", str(ckpt), "--prepare-manifest", str(prep),
+        "--ckpt-validator-out", str(val),
+        "--out", str(tmp_path / "run"), "--gpus", "0", "--dry-run",
+        "--wandb-project", "myproj", "--wandb-run-name", "myrun",
+    )
+    assert code == 0, m
+    argv = m["manifest"]["argv"]
+    assert argv[argv.index("--wandb_project") + 1] == "myproj"
+    assert argv[argv.index("--wandb_run_name") + 1] == "myrun"
+
+
+def test_wandb_flags_absent_by_default(tmp_path: Path) -> None:
+    ckpt, prep, val = _setup(tmp_path, "grover_base")
+    code, m = _run(
+        "--ckpt", str(ckpt), "--prepare-manifest", str(prep),
+        "--ckpt-validator-out", str(val),
+        "--out", str(tmp_path / "run"), "--gpus", "0", "--dry-run",
+    )
+    assert code == 0, m
+    argv = m["manifest"]["argv"]
+    assert "--wandb_project" not in argv
+    assert "--wandb_run_name" not in argv
+
+
 def test_dispatch_rejects_finetuned(tmp_path: Path) -> None:
     ckpt, prep, val = _setup(tmp_path, "finetuned")
     code, m = _run(
