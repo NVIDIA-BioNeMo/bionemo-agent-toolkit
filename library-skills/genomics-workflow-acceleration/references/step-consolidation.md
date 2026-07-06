@@ -63,7 +63,7 @@ Do not only suggest — **make the edits** unless the user asked report-only ("d
 - Remove CPU steps from the default (toggle-off) path during consolidation.
 - Merge variant calling into fq2bam.
 - Remove QC the user still needs without equivalent Parabricks outputs.
-- Edit only `evals/fixtures/` or other read-only eval paths when the user's tree is elsewhere.
+- Edit only `skills/genomics-workflow-acceleration/evals/fixtures/` or other read-only eval paths when the user's tree is elsewhere.
 
 ## ACCELERATION.md snippets
 

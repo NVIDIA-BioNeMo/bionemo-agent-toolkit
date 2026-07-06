@@ -1,0 +1,26 @@
+[
+  {
+    "query": "We have human WGS paired FASTQs and need the fastest Parabricks fq2bam command with BQSR.",
+    "should_trigger": true
+  },
+  {
+    "query": "Which pbrun tool fits Oxford Nanopore FASTQ alignment before germline calling?",
+    "should_trigger": true
+  },
+  {
+    "query": "Check whether Parabricks can run on this GPU node and what container tag to use.",
+    "should_trigger": true
+  },
+  {
+    "query": "Inspect my Nextflow pipeline and add optional GPU branches with a runtime toggle.",
+    "should_trigger": false
+  },
+  {
+    "query": "Map BWA and GATK steps in skills/genomics-workflow-acceleration/evals/fixtures/sample-nextflow to nf-core Parabricks modules.",
+    "should_trigger": false
+  },
+  {
+    "query": "Should I use rna_fq2bam because the project folder name contains RNA for WGS FASTQs?",
+    "should_trigger": true
+  }
+]

@@ -1,0 +1,837 @@
+{
+  "skill_name": "parabricks",
+  "evals": [
+    {
+      "id": 1,
+      "jtbd_category": "Pipeline Throughput",
+      "prompt": "Our WGS lab is still on CPU and each sample takes most of a day from FASTQ to a sorted, deduped, recalibrated BAM. We already have aligned BAMs from an older run and need BQSR tables applied before variant calling on Parabricks 4.7. Which pbrun steps should we use?",
+      "expected_output": "Recommends applybqsr for applying existing recalibration tables, notes when a separate bqsr step is needed to generate tables, confirms Parabricks version/container, identifies BAM and recalibration inputs, and notes fq2bam for new FASTQ alignments rather than applybqsr alone.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-applybqsr-for-applying-bqsr-to-",
+          "description": "Recommends pbrun applybqsr for applying BQSR to existing aligned BAMs",
+          "check": "Response contains 'applybqsr'",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "identifies-bam-cram-paths-and-bqsr-recalibration",
+          "description": "Identifies BAM/CRAM paths and BQSR recalibration table as required inputs",
+          "check": "judge: Identifies BAM/CRAM paths and BQSR recalibration table as required inputs",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "notes-that-new-fastq-to-bam-alignment-should-use",
+          "description": "Notes that new FASTQ-to-BAM alignment should use fq2bam rather than applybqsr alone",
+          "check": "judge: Notes that new FASTQ-to-BAM alignment should use fq2bam rather than applybqsr alone",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "fastq-bam-processing"
+    },
+    {
+      "id": 2,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "hey \u2014 we've got bisulfite WGBS paired FASTQs (human, GRCh38) and want methylation-aware alignments on GPU with Parabricks. what command should we start with?",
+      "expected_output": "Recommends fq2bam_meth, lists methylation-specific reference preparation expectations, identifies FASTQ and reference inputs, and warns against standard fq2bam for bisulfite data.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-fq2bam-meth-for-bisulfite-methy",
+          "description": "Recommends pbrun fq2bam_meth for bisulfite/methylation FASTQ alignment",
+          "check": "Response contains 'fq2bam_meth'",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-reference-or-bisulfite-methylation-prep",
+          "description": "Mentions reference or bisulfite/methylation preparation requirements",
+          "check": "judge: Mentions reference or bisulfite/methylation preparation requirements",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-fastq-paths-and-reference",
+          "description": "Identifies or asks for FASTQ paths and reference before finalizing a command",
+          "check": "judge: Identifies or asks for FASTQ paths and reference before finalizing a command",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-recommend-standard-pbrun-fq2bam-for-bis",
+          "description": "Does not recommend standard pbrun fq2bam for bisulfite data without a warning",
+          "check": "judge: Does not recommend standard pbrun fq2bam for bisulfite data without a warning",
+          "tags": [
+            "guardrails"
+          ]
+        }
+      ],
+      "category": "fastq-bam-processing"
+    },
+    {
+      "id": 3,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "We have Oxford Nanopore WGS FASTQ for one sample and need GPU alignment to BAM before germline calling. Parabricks is new to us \u2014 which preprocessing/alignment tool fits ONT, and what do we run after alignment for variants?",
+      "expected_output": "Recommends minimap2 for ONT FASTQ alignment with long-read context, notes version-specific flags, and recommends ont_germline or another germline caller as a follow-on step rather than short-read fq2bam.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-minimap2-for-ont-fastq-alignmen",
+          "description": "Recommends pbrun minimap2 for ONT FASTQ alignment",
+          "check": "Response contains 'minimap2'",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "mentions-long-read-or-ont-context-rather-than-sh",
+          "description": "Mentions long-read or ONT context rather than short-read fq2bam alone",
+          "check": "judge: Mentions long-read or ONT context rather than short-read fq2bam alone",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "recommends-a-germline-variant-calling-follow-on-",
+          "description": "Recommends a germline variant-calling follow-on (e.g. ont_germline)",
+          "check": "judge: Recommends a germline variant-calling follow-on (e.g. ont_germline)",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "asks-to-confirm-parabricks-version-or-container-",
+          "description": "Asks to confirm Parabricks version or container tag",
+          "check": "judge: Asks to confirm Parabricks version or container tag",
+          "tags": [
+            "input-collection",
+            "guardrails"
+          ]
+        }
+      ],
+      "category": "fastq-bam-processing"
+    },
+    {
+      "id": 4,
+      "jtbd_category": "Adversarial Routing",
+      "prompt": "We have ordinary 30x human WGS paired FASTQs, but someone wrote 'RNA' in the project folder name. I want the fastest Parabricks FASTQ-to-BAM path and downstream germline variants. Should I use rna_fq2bam because of the folder name?",
+      "expected_output": "Rejects routing based on folder name alone, recommends fq2bam for DNA WGS FASTQ, explains rna_fq2bam is for RNA-seq only, and recommends a germline caller for downstream variants.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-fq2bam-for-ordinary-dna-wgs-fas",
+          "description": "Recommends pbrun fq2bam for ordinary DNA WGS FASTQ-to-BAM",
+          "check": "Response contains 'fq2bam'",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "does-not-route-to-rna-fq2bam-based-only-on-a-fol",
+          "description": "Does not route to rna_fq2bam based only on a folder or project name containing RNA",
+          "check": "judge: Does not route to rna_fq2bam based only on a folder or project name containing RNA",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-fastq-reference-read-grou",
+          "description": "Identifies or asks for FASTQ, reference, read group, or known-sites inputs",
+          "check": "judge: Identifies or asks for FASTQ, reference, read group, or known-sites inputs",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "recommends-a-germline-variant-caller-for-downstr",
+          "description": "Recommends a germline variant caller for downstream variants",
+          "check": "judge: Recommends a germline variant caller for downstream variants",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "fastq-bam-processing"
+    },
+    {
+      "id": 5,
+      "jtbd_category": "Pipeline Throughput",
+      "prompt": "Sequencing finished and fq2bam just wrote BAMs. Before we spend GPU hours on variant calling, how do we check if coverage and quality are good enough for a go/no-go on Parabricks 4.7?",
+      "expected_output": "Recommends bammetrics for WGS coverage/QC thresholds or collectmultiplemetrics for broader Picard-style metrics, frames the response as a QC go/no-go decision, and identifies BAM and reference inputs.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-bammetrics-or-collectmultiplemetrics-",
+          "description": "Recommends bammetrics or collectmultiplemetrics (or both with tradeoffs)",
+          "check": "judge: Recommends bammetrics or collectmultiplemetrics (or both with tradeoffs)",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "frames-response-as-a-qc-or-go-no-go-decision-bef",
+          "description": "Frames response as a QC or go/no-go decision before downstream analysis",
+          "check": "judge: Frames response as a QC or go/no-go decision before downstream analysis",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-bam-cram-and-reference-fa",
+          "description": "Identifies or asks for BAM/CRAM and reference FASTA inputs",
+          "check": "judge: Identifies or asks for BAM/CRAM and reference FASTA inputs",
+          "tags": [
+            "input-collection"
+          ]
+        }
+      ],
+      "category": "quality-control"
+    },
+    {
+      "id": 6,
+      "jtbd_category": "Pipeline Throughput",
+      "prompt": "QC time \u2014 whole genome cram, need insert size + gc bias + artifact metrics like CollectMultipleMetrics used to give us. one docker run if possible?",
+      "expected_output": "Recommends collectmultiplemetrics, notes available metric families, identifies CRAM and reference inputs, and does not recommend bammetrics alone when multiple metric families are requested.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-collectmultiplemetrics",
+          "description": "Recommends pbrun collectmultiplemetrics",
+          "check": "judge: Recommends pbrun collectmultiplemetrics",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-multiple-metric-types-e-g-insert-size-g",
+          "description": "Mentions multiple metric types (e.g. insert size, GC bias, or artifacts)",
+          "check": "judge: Mentions multiple metric types (e.g. insert size, GC bias, or artifacts)",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-alignment-file-and-refere",
+          "description": "Identifies or asks for alignment file and reference paths",
+          "check": "judge: Identifies or asks for alignment file and reference paths",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-recommend-bammetrics-alone-when-user-as",
+          "description": "Does not recommend bammetrics alone when user asked for multiple metric families",
+          "check": "judge: Does not recommend bammetrics alone when user asked for multiple metric families",
+          "tags": [
+            "guardrails"
+          ]
+        }
+      ],
+      "category": "quality-control"
+    },
+    {
+      "id": 7,
+      "jtbd_category": "Pipeline Throughput",
+      "prompt": "For a 30x WGS BAM, we only care whether mean coverage is above 25x and pct bases above Q20 \u2014 what's the lightest Parabricks QC command?",
+      "expected_output": "Recommends bammetrics for coverage/threshold-style metrics, connects the recommendation to coverage or quality thresholds, and identifies BAM and reference inputs.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-bammetrics",
+          "description": "Recommends pbrun bammetrics",
+          "check": "judge: Recommends pbrun bammetrics",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "connects-recommendation-to-coverage-or-quality-t",
+          "description": "Connects recommendation to coverage or quality thresholds",
+          "check": "judge: Connects recommendation to coverage or quality thresholds",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-bam-cram-path-and-referen",
+          "description": "Identifies or asks for BAM/CRAM path and reference",
+          "check": "judge: Identifies or asks for BAM/CRAM path and reference",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-route-variant-calling-tools-for-a-qc-on",
+          "description": "Does not route variant calling tools for a QC-only question",
+          "check": "judge: Does not route variant calling tools for a QC-only question",
+          "tags": [
+            "routing",
+            "guardrails",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "quality-control"
+    },
+    {
+      "id": 8,
+      "jtbd_category": "Adversarial Routing",
+      "prompt": "The BAM has low coverage in a few targets. Can bammetrics fix the variants or should I run haplotypecaller from the QC category?",
+      "expected_output": "Explains QC tools only report metrics and do not fix variants, does not treat haplotypecaller as a QC tool, and recommends haplotypecaller or another variant caller when recall is the goal.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "explains-that-bammetrics-or-collectmultiplemetri",
+          "description": "Explains that bammetrics or collectmultiplemetrics report QC metrics and do not fix variants",
+          "check": "judge: Explains that bammetrics and/or collectmultiplemetrics are QC or metrics tools that report statistics and do not fix variants, modify BAMs, or improve coverage",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "does-not-route-haplotypecaller-as-a-quality-cont",
+          "description": "Does not route haplotypecaller as a quality-control tool",
+          "check": "judge: Does not route haplotypecaller as a quality-control tool",
+          "tags": [
+            "guardrails",
+            "routing"
+          ]
+        },
+        {
+          "id": "recommends-a-variant-caller-e-g-haplotypecaller-",
+          "description": "Recommends a variant caller (e.g. haplotypecaller) when variant recall is the goal",
+          "check": "Response contains 'haplotypecaller'",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "rejects-the-idea-of-running-haplotypecaller-from",
+          "description": "Rejects the idea of running haplotypecaller from a QC category to fix coverage or variants",
+          "check": "judge: Rejects the idea of running haplotypecaller from a QC category to fix coverage or variants",
+          "tags": [
+            "guardrails",
+            "routing"
+          ]
+        }
+      ],
+      "category": "quality-control"
+    },
+    {
+      "id": 9,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "New RNA-seq project: paired tumor RNA FASTQs, GRCh38, we need splice-aware alignment to BAM and later fusion detection. We're on Parabricks in Docker with an A100. Walk me through which RNA tools to use first vs second.",
+      "expected_output": "Sequences rna_fq2bam first for splice-aware alignment, then starfusion for fusion detection, and asks for STAR genome library and STAR-Fusion resource paths.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-rna-fq2bam-before-fusion-calling",
+          "description": "Recommends rna_fq2bam before fusion calling",
+          "check": "judge: Recommends rna_fq2bam before fusion calling",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "mentions-starfusion-for-fusion-detection",
+          "description": "Mentions starfusion for fusion detection",
+          "check": "judge: Mentions starfusion for fusion detection",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "asks-for-star-genome-library-or-star-fusion-geno",
+          "description": "Asks for STAR genome library or STAR-Fusion genome resource inputs",
+          "check": "judge: Asks for STAR genome library or STAR-Fusion genome resource inputs",
+          "tags": [
+            "input-collection"
+          ]
+        }
+      ],
+      "category": "rna"
+    },
+    {
+      "id": 10,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "I only have Chimeric.out.junction and Chimeric.out.sam from STAR on disk \u2014 can Parabricks call fusions from that, and which command?",
+      "expected_output": "Recommends starfusion directly, references chimeric junction inputs, asks for STAR-Fusion genome library path, and does not require rna_fq2bam when junction files already exist.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-starfusion",
+          "description": "Recommends pbrun starfusion",
+          "check": "judge: Recommends pbrun starfusion",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "references-chimeric-junction-or-star-fusion-styl",
+          "description": "References chimeric junction or STAR-Fusion style inputs",
+          "check": "judge: References chimeric junction or STAR-Fusion style inputs",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "asks-for-star-fusion-genome-resource-library-pat",
+          "description": "Asks for STAR-Fusion genome resource library path or equivalent",
+          "check": "judge: Asks for STAR-Fusion genome resource library path or equivalent",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-require-rna-fq2bam-when-junction-files-",
+          "description": "Does not require rna_fq2bam when junction files are already provided",
+          "check": "judge: Does not require rna_fq2bam when junction files are already provided",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "rna"
+    },
+    {
+      "id": 11,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "need gpu rna align \u2014 2x150 PE human blood, have ref fasta + star index tarball. not sure if we should markdup. pb 4.7 container on slurm.",
+      "expected_output": "Recommends rna_fq2bam with STAR library handling, identifies FASTQ and genome-lib-dir inputs, discusses duplicate marking only if appropriate for RNA, and notes runtime/Slurm GPU setup if relevant.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-rna-fq2bam",
+          "description": "Recommends pbrun rna_fq2bam",
+          "check": "judge: Recommends pbrun rna_fq2bam",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "mentions-star-genome-library-or-genome-lib-dir",
+          "description": "Mentions STAR genome library or --genome-lib-dir",
+          "check": "judge: Mentions STAR genome library or --genome-lib-dir",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-fastq-and-output-paths-ra",
+          "description": "Identifies or asks for FASTQ and output paths rather than inventing sample names",
+          "check": "judge: Identifies or asks for FASTQ and output paths rather than inventing sample names",
+          "tags": [
+            "input-collection",
+            "guardrails"
+          ]
+        },
+        {
+          "id": "does-not-confuse-rna-alignment-with-dna-pbrun-fq",
+          "description": "Does not confuse RNA alignment with DNA pbrun fq2bam",
+          "check": "judge: Does not confuse RNA alignment with DNA pbrun fq2bam",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "rna"
+    },
+    {
+      "id": 12,
+      "jtbd_category": "Adversarial Routing",
+      "prompt": "We have raw RNA tumor FASTQs and want fusion calls. Can you give me one pbrun starfusion command that takes the FASTQs directly?",
+      "expected_output": "States starfusion does not take raw FASTQs directly, routes first to rna_fq2bam to produce chimeric junction output, then starfusion with STAR-Fusion genome library inputs.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "states-that-pbrun-starfusion-does-not-take-raw-f",
+          "description": "States that pbrun starfusion does not take raw FASTQs directly in the documented workflow",
+          "check": "judge: States that pbrun starfusion does not take raw FASTQs directly in the documented workflow",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "routes-raw-rna-fastqs-first-to-rna-fq2bam",
+          "description": "Routes raw RNA FASTQs first to rna_fq2bam",
+          "check": "judge: Routes raw RNA FASTQs first to rna_fq2bam",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-chimeric-junction-input-as-required-or-",
+          "description": "Mentions chimeric junction input as required or expected for starfusion",
+          "check": "judge: Mentions chimeric junction input as required or expected for starfusion",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "asks-for-star-genome-library-and-star-fusion-gen",
+          "description": "Asks for STAR genome library and STAR-Fusion genome resource paths",
+          "check": "judge: Asks for STAR genome library and STAR-Fusion genome resource paths",
+          "tags": [
+            "input-collection"
+          ]
+        }
+      ],
+      "category": "rna"
+    },
+    {
+      "id": 13,
+      "jtbd_category": "Pipeline Throughput",
+      "prompt": "Clinical lab: sorted, deduped, BQSR'd WGS BAM (GRCh38) from NovaSeq \u2014 we need germline small variants with high sensitivity/specificity on Parabricks. HaplotypeCaller gVCF vs germline pipeline vs DeepVariant \u2014 what should we pick?",
+      "expected_output": "Compares germline, haplotypecaller, deepvariant, and deepvariant_germline options with tradeoffs, recommends at least one caller for prepared BAM input, and identifies BAM and reference/known-sites context.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "discusses-more-than-one-germline-calling-option-",
+          "description": "Discusses more than one germline calling option (e.g. germline, haplotypecaller, or deepvariant)",
+          "check": "judge: Discusses more than one germline calling option (e.g. germline, haplotypecaller, or deepvariant)",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "recommends-at-least-one-specific-germline-caller",
+          "description": "Recommends at least one specific germline caller for prepared BAM input",
+          "check": "judge: Recommends at least one specific germline caller for prepared BAM input",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-bam-input-and-reference-k",
+          "description": "Identifies or asks for BAM input and reference/known-sites context",
+          "check": "judge: Identifies or asks for BAM input and reference/known-sites context",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "variant-calling"
+    },
+    {
+      "id": 14,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "Tumor/normal FFPE exome \u2014 matched normal BAMs are ready. Need somatic SNV/indel calling on GPU with artifact filtering suitable for oncology reports. Which Parabricks somatic path?",
+      "expected_output": "Recommends mutectcaller, somatic, or deepsomatic with tumor-normal context, identifies sample IDs and BAM paths, and provides version-aware guidance for the chosen caller.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-a-somatic-caller-mutectcaller-somatic",
+          "description": "Recommends a somatic caller (mutectcaller, somatic, or deepsomatic)",
+          "check": "judge: Recommends a somatic caller (mutectcaller, somatic, or deepsomatic)",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-tumor-normal-or-matched-normal-context",
+          "description": "Mentions tumor-normal or matched normal context",
+          "check": "judge: Mentions tumor-normal or matched normal context",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "provides-version-aware-command-guidance-for-the-",
+          "description": "Provides version-aware command guidance for the recommended somatic caller",
+          "check": "judge: Provides version-aware command guidance for the recommended somatic caller",
+          "tags": [
+            "routing",
+            "guardrails"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-sample-metadata-or-bam-pa",
+          "description": "Identifies or asks for sample metadata or BAM paths",
+          "check": "judge: Identifies or asks for sample metadata or BAM paths",
+          "tags": [
+            "input-collection"
+          ]
+        }
+      ],
+      "category": "variant-calling"
+    },
+    {
+      "id": 15,
+      "jtbd_category": "Specialized Methods",
+      "prompt": "Population genomics cohort on GRCh38 \u2014 linear reference bias in complex regions is a concern. We have graph resources and want pangenome-aware germline calling. Where do prepon/postpon fit vs pangenome_germline?",
+      "expected_output": "Explains pangenome-aware flow (prepon, pangenome_germline or pangenome_aware_deepvariant, postpon as applicable), identifies graph/reference resource inputs, and does not recommend only linear haplotypecaller without noting pangenome options.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "mentions-pangenome-aware-tools-such-as-prepon-pa",
+          "description": "Mentions pangenome-aware tools such as prepon, pangenome_germline, or pangenome_aware_deepvariant",
+          "check": "judge: Mentions pangenome-aware tools such as prepon, pangenome_germline, or pangenome_aware_deepvariant",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "references-graph-or-pangenome-resources-as-requi",
+          "description": "References graph or pangenome resources as required inputs",
+          "check": "judge: References graph or pangenome resources as required inputs",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "explains-how-prepon-and-or-postpon-relate-to-pan",
+          "description": "Explains how prepon and/or postpon relate to pangenome_germline in the workflow",
+          "check": "judge: Explains how prepon and/or postpon relate to pangenome_germline in the workflow",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "does-not-recommend-only-linear-reference-haploty",
+          "description": "Does not recommend only linear-reference haplotypecaller without noting pangenome options",
+          "check": "judge: Does not recommend only linear-reference haplotypecaller without noting pangenome options",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "variant-calling"
+    },
+    {
+      "id": 16,
+      "jtbd_category": "Adversarial Routing",
+      "prompt": "I only have a joint cohort VCF and want rsID annotation, but I was told variant calling skills know everything. Should I run haplotypecaller again?",
+      "expected_output": "Does not rerun read-level variant callers for annotation-only VCF work, recommends dbsnp for annotation, asks for input VCF and dbSNP resource build compatibility.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "does-not-recommend-haplotypecaller-or-another-re",
+          "description": "Does not recommend haplotypecaller or another read-level caller for annotation-only VCF work",
+          "check": "judge: Does not recommend haplotypecaller or another read-level caller for annotation-only VCF work",
+          "tags": [
+            "guardrails",
+            "routing"
+          ]
+        },
+        {
+          "id": "recommends-pbrun-dbsnp-for-dbsnp-annotation",
+          "description": "Recommends pbrun dbsnp for dbSNP annotation",
+          "check": "judge: Recommends pbrun dbsnp for dbSNP annotation",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "asks-for-input-vcf-and-dbsnp-resource-or-referen",
+          "description": "Asks for input VCF and dbSNP resource or reference build compatibility",
+          "check": "judge: Asks for input VCF and dbSNP resource or reference build compatibility",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "explains-that-the-task-is-post-calling-annotatio",
+          "description": "Explains that the task is post-calling annotation rather than variant calling",
+          "check": "judge: Explains that the task is post-calling annotation rather than variant calling",
+          "tags": [
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "variant-calling"
+    },
+    {
+      "id": 17,
+      "jtbd_category": "Workflow Integration",
+      "prompt": "We have per-sample gVCFs from HaplotypeCaller on 48 unrelated exomes (GRCh38) and need joint genotyping on Parabricks before VCF filtering. What's the right command?",
+      "expected_output": "Recommends genotypegvcf, mentions cohort or multiple GVCF inputs, identifies reference build and GVCF paths, and does not recommend read-level variant callers for joint genotyping only.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-genotypegvcf",
+          "description": "Recommends pbrun genotypegvcf",
+          "check": "judge: Recommends pbrun genotypegvcf",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-cohort-or-multiple-gvcf-inputs",
+          "description": "Mentions cohort or multiple GVCF inputs",
+          "check": "judge: Mentions cohort or multiple GVCF inputs",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-reference-build-or-gvcf-p",
+          "description": "Identifies or asks for reference build or GVCF paths",
+          "check": "judge: Identifies or asks for reference build or GVCF paths",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-recommend-variant-callers-germline-hapl",
+          "description": "Does not recommend variant callers (germline/haplotypecaller) for joint genotyping only",
+          "check": "judge: Does not recommend variant callers (germline/haplotypecaller) for joint genotyping only",
+          "tags": [
+            "guardrails"
+          ]
+        }
+      ],
+      "category": "variant-gvcf-processing"
+    },
+    {
+      "id": 18,
+      "jtbd_category": "Workflow Integration",
+      "prompt": "Joint genotyping failed because gvcf index missing \u2014 do we index first with Parabricks and which tool?",
+      "expected_output": "Recommends indexgvcf before genotypegvcf, explains the index-then-genotype sequence, and identifies GVCF path or format details.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-indexgvcf",
+          "description": "Recommends pbrun indexgvcf",
+          "check": "judge: Recommends pbrun indexgvcf",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-genotypegvcf-as-a-follow-on-step-after-",
+          "description": "Mentions genotypegvcf as a follow-on step after indexing",
+          "check": "judge: Mentions genotypegvcf as a follow-on step after indexing",
+          "tags": [
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-gvcf-path-or-format-detai",
+          "description": "Identifies or asks for GVCF path or format details",
+          "check": "judge: Identifies or asks for GVCF path or format details",
+          "tags": [
+            "input-collection"
+          ]
+        }
+      ],
+      "category": "variant-gvcf-processing"
+    },
+    {
+      "id": 19,
+      "jtbd_category": "Workflow Integration",
+      "prompt": "After joint calling we have a project VCF \u2014 need dbSNP IDs annotated for rsIDs before delivery. Parabricks 4.7, hg38 dbsnp vcf on disk.",
+      "expected_output": "Recommends dbsnp, mentions dbSNP resource compatibility with reference build, asks for input VCF path, and does not recommend genotypegvcf for annotation-only work.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "recommends-pbrun-dbsnp",
+          "description": "Recommends pbrun dbsnp",
+          "check": "judge: Recommends pbrun dbsnp",
+          "tags": [
+            "routing"
+          ]
+        },
+        {
+          "id": "mentions-dbsnp-resource-or-annotation-compatibil",
+          "description": "Mentions dbSNP resource or annotation compatibility with reference build",
+          "check": "judge: Mentions dbSNP resource or annotation compatibility with reference build",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "identifies-or-asks-for-input-vcf-path-or-build-c",
+          "description": "Identifies or asks for input VCF path or build confirmation",
+          "check": "judge: Identifies or asks for input VCF path or build confirmation",
+          "tags": [
+            "input-collection"
+          ]
+        },
+        {
+          "id": "does-not-recommend-genotypegvcf-for-annotation-o",
+          "description": "Does not recommend genotypegvcf for annotation-only task",
+          "check": "judge: Does not recommend genotypegvcf for annotation-only task",
+          "tags": [
+            "guardrails"
+          ]
+        }
+      ],
+      "category": "variant-gvcf-processing"
+    },
+    {
+      "id": 20,
+      "jtbd_category": "Adversarial Routing",
+      "prompt": "We have BAMs from 20 samples and want to jointly genotype them. Can genotypegvcf call variants directly from BAM, or do we skip per-sample gVCFs?",
+      "expected_output": "States genotypegvcf works on gVCF inputs not BAMs, recommends per-sample variant calling first, then indexgvcf/genotypegvcf for joint genotyping.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "states-that-genotypegvcf-expects-gvcf-inputs-rat",
+          "description": "States that genotypegvcf expects gVCF inputs rather than BAM inputs",
+          "check": "judge: States that genotypegvcf expects gVCF inputs rather than BAM inputs",
+          "tags": [
+            "guardrails",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "recommends-per-sample-variant-calling-before-joi",
+          "description": "Recommends per-sample variant calling before joint genotyping",
+          "check": "judge: Recommends per-sample variant calling before joint genotyping",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "mentions-per-sample-gvcfs-as-required-intermedia",
+          "description": "Mentions per-sample gVCFs as required intermediate inputs for genotypegvcf",
+          "check": "judge: Mentions per-sample gVCFs as required intermediate inputs for genotypegvcf",
+          "tags": [
+            "input-collection",
+            "workflow-fit"
+          ]
+        },
+        {
+          "id": "mentions-indexgvcf-or-indexing-requirements-befo",
+          "description": "Mentions indexgvcf or indexing requirements before genotypegvcf when relevant",
+          "check": "judge: Mentions indexgvcf or indexing requirements before genotypegvcf when relevant",
+          "tags": [
+            "routing",
+            "workflow-fit"
+          ]
+        }
+      ],
+      "category": "variant-gvcf-processing"
+    }
+  ]
+}
