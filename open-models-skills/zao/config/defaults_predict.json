@@ -1,0 +1,11 @@
+{
+  "_comment": "Downstream CatBoost defaults for zao-predict. Matches the ZAO TDC ADMET benchmark pipeline (catboost_default): random_strength=2, random_seed=42, and the same per-task loss functions. Override any value with the corresponding --<name> flag.",
+  "random_strength": 2,
+  "random_seed": 42,
+  "classification": {
+    "loss_function": "Logloss"
+  },
+  "regression": {
+    "loss_function": "MAE"
+  }
+}

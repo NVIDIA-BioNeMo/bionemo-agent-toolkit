@@ -44,7 +44,9 @@
                 "kermt-infer",
                 "kermt-monitor",
                 "kermt-pretrain-scratch",
-                "kermt-setup"
+                "kermt-setup",
+                "zao-embed",
+                "zao-predict"
             ]
         }
     ]
