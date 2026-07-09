@@ -7,6 +7,7 @@ description: >-
   whole pipelines — use genomics-workflow-acceleration.
 license: CC-BY-4.0 AND Apache-2.0
 metadata:
+  author: "Angel Pizarro <apizarro@nvidia.com>"
   version: "1.1.0"
   tags:
     - parabricks
@@ -99,6 +100,11 @@ Load only the reference file for the selected tool.
 
 For routing heuristics when multiple tools could apply, see
 [tool-index.md](references/tool-index.md).
+
+**QC vs variant calling:** `bammetrics` and `collectmultiplemetrics` are metrics
+tools only — they do not fix coverage gaps or call variants. Route variant recall
+goals to callers such as `haplotypecaller`, `germline`, or `deepvariant`, not QC
+tools.
 
 ## Runtime Readiness
 

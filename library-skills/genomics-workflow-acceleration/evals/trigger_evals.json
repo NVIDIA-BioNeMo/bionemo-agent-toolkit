@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Inspect the Nextflow workflow at ./my-pipeline for Parabricks acceleration opportunities.",
+    "should_trigger": true
+  },
+  {
+    "query": "Make this genomics pipeline faster and convert CPU steps to Parabricks GPUs in ./workflows/germline.nf",
+    "should_trigger": true
+  },
+  {
+    "query": "Add optional nf-core Parabricks modules in place with params.use_parabricks default false.",
+    "should_trigger": true
+  },
+  {
+    "query": "Which pbrun tool should I use for bisulfite WGBS alignment?",
+    "should_trigger": false
+  },
+  {
+    "query": "Make my genomics pipeline faster and use GPUs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Here are VCF variants for my patient. What treatment should they get?",
+    "should_trigger": false
+  }
+]

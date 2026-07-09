@@ -8,6 +8,7 @@ description: >-
   — use parabricks.
 license: CC-BY-4.0 AND Apache-2.0
 metadata:
+  author: "Angel Pizarro <apizarro@nvidia.com>"
   tags:
     - genomics
     - parabricks
@@ -74,8 +75,17 @@ For deep runtime diagnostics, installation, and per-tool command flags, use the
 If the user asks to make a pipeline faster, improve price/performance, reduce
 runtime/cost, convert to GPUs, or use Parabricks, proceed only when there is an
 inspectable workflow path, repo, or relevant open files. If no path or entrypoint
-is available, ask for the workflow location and framework; do not invent a
+is available, **stop and ask** for the workflow location and framework; do not invent a
 pipeline or step map.
+
+**No path provided — required response shape:**
+
+1. State briefly that Parabricks acceleration requires **reviewing the existing
+   workflow steps** (rules/processes/tasks) before mapping anything to GPU tools.
+2. Ask for the pipeline location (directory, repo, `Snakefile`, WDL, Nextflow
+   entrypoint, or Python script) and which framework is in use.
+3. Do **not** assume a Snakemake/Nextflow/WDL layout, write workflow files, or
+   produce a detailed CPU→Parabricks mapping until real files are available.
 
 Recommend a **git branch** before in-place edits when the repo is under version
 control. If the user has only one copy and no branch, describe the toggle design
@@ -266,7 +276,20 @@ the user asks.
 
 User: "Make my genomics pipeline faster and convert it to GPUs."
 
-Response: ask for workflow path and framework. Do not fabricate a pipeline map.
+Response (template):
+
+> Parabricks acceleration starts by **reviewing your existing workflow steps**
+> (rules, processes, or tasks) so we only map real CPU work to GPU tools.
+>
+> Please share your pipeline location and framework:
+> - path to the repo or workflow directory
+> - entrypoint (`Snakefile`, `main.nf`, WDL, or Python script)
+> - framework if ambiguous (Nextflow, Snakemake, WDL, Python)
+>
+> I won't invent a pipeline map or edit files until I can inspect the actual workflow.
+
+Do not fabricate a pipeline map, write `Snakefile`/`main.nf` examples, or claim
+to see rules/processes that were not read from the user's files.
 
 ### Nextflow inspect (report only)
 

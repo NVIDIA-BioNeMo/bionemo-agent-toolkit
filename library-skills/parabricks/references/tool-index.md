@@ -73,6 +73,10 @@ categories.
   `pangenome_germline`, `prepon`, `postpon`, or
   `pangenome_aware_deepvariant`.
 - Existing BAM QC: consider `bammetrics` or `collectmultiplemetrics`.
+- **QC vs variant calling:** `bammetrics` and `collectmultiplemetrics` report
+  alignment/coverage metrics only. They do not fix low coverage, modify BAMs, or
+  call variants. For variant recall from an existing BAM, use a caller such as
+  `haplotypecaller`, `germline`, or `deepvariant` — not QC tools.
 - GVCF consolidation or genotyping: consider `indexgvcf` and `genotypegvcf`.
 - dbSNP annotation or variant processing: consider `dbsnp`.
 

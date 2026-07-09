@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Minimal Snakemake fixture for eval cases
+configfile: "config.yaml"
+
+SAMPLES = ["sample1"]
+
+rule all:
+    input:
+        expand("results/{sample}.vcf.gz", sample=SAMPLES),
+
+rule bwa_mem:
+    input:
+        r1="data/{sample}_R1.fastq.gz",
+        r2="data/{sample}_R2.fastq.gz",
+        ref="refs/genome.fa",
+    output:
+        bam="results/{sample}.bam",
+    threads: 8
+    shell:
+        """
+        echo "bwa mem stub" > {output.bam}
+        """
+
+rule gatk_haplotypecaller:
+    input:
+        bam="results/{sample}.bam",
+        ref="refs/genome.fa",
+    output:
+        vcf="results/{sample}.vcf.gz",
+    shell:
+        """
+        echo "## stub" | gzip > {output.vcf}
+        """
