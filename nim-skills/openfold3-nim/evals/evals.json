@@ -2,7 +2,7 @@
   "skill_name": "openfold3-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I want to predict the structure of a short peptide using OpenFold3. The sequence is MKTVRQERLKSIVRGPKRAKELMSI. Use the hosted NVIDIA API with my NGC_API_KEY already set in environment.",
       "expected_output": "A Python script that calls the hosted OpenFold3 endpoint with Bearer auth, constructs an inputs payload with the peptide sequence as a protein molecule type including a minimal MSA, saves the returned structure to a PDB or CIF file, and prints the confidence scores.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I want to predict a protein-ligand complex structure using OpenFold3. My protein sequence is MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID and I want to co-fold it with ATP (CCD code: ATP). Use the hosted API.",
       "expected_output": "A Python script with two molecules in the payload — a protein with sequence and MSA, and a ligand using ccd_codes set to ATP — calling the hosted endpoint, saving structure output, and printing pLDDT and confidence scores.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up the OpenFold3 NIM locally with Docker. I have an A100 80GB GPU and NGC_API_KEY is set. After setup, predict the structure of this protein: ACDEFGHIKLMNPQRSTVWY.",
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, running with --gpus 'device=0', --shm-size=16g, and the correct cache mount path, then a health check loop and no-auth prediction script targeting localhost:8000.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I have a protein-DNA complex I want to predict with OpenFold3 via the hosted API. Protein chain A: MTEYKLVVVGACGVGKSALTIQLIQNHFVDE. DNA chain B: ATCGATCGATCG (sense strand), DNA chain C: CGATCGATCGAT (antisense strand). I want 2 diffusion samples and output in CIF format.",
       "expected_output": "A Python script with three molecules in the payload (protein + two DNA chains), diffusion_samples set to 2, output_format set to 'cif', using the hosted endpoint. Saves and names the returned CIF files and prints per-sample confidence scores.",
       "files": [],

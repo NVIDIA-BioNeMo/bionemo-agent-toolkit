@@ -2,7 +2,7 @@
   "skill_name": "boltz2-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I want to predict the structure of insulin using Boltz2. The sequence is MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN. Use the hosted NVIDIA API.",
       "expected_output": "A working Python script that calls the hosted Boltz2 endpoint with the NGC_API_KEY as a Bearer token, submits the insulin sequence as a protein polymer, saves the returned mmCIF structure to a .cif file, and prints the confidence score.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I have a protein target (sequence: MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID) and I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to it and get a binding affinity score. Use the hosted API. My NGC_API_KEY is already set in my environment.",
       "expected_output": "A working Python script that submits a protein+ligand request with predict_affinity=true on the ligand, saves the structure, and prints pIC50, log IC50, and binding probability from the affinities response.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up the Boltz2 NIM locally with Docker. I have an A100 GPU and my NGC_API_KEY is set. Once it's running, predict the structure of this short peptide: ACDEFGHIKLMNPQRSTVWY",
       "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run health checks, then send a no Authorization local request to localhost:8000 and save the output .cif file.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I want to predict a protein-DNA complex with Boltz2, and I already generated an A3M alignment with MSA-Search for the protein. Protein chain A: MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT. DNA chain B: ATCGATCGATCG. Show me how to include the precomputed A3M in the hosted API request, save the mmCIF, and print the confidence score. My NGC_API_KEY is already set.",
       "expected_output": "A Python script that calls the hosted Boltz2 endpoint with Bearer auth and submits a multi-polymer protein-DNA payload where the protein polymer contains an MSA dict whose A3M record uses alignment, format, and rank fields, not the stale data field. The script saves the returned mmCIF and prints confidence_scores.",
       "files": [],
