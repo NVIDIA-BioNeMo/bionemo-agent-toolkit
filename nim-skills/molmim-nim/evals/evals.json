@@ -2,7 +2,7 @@
   "skill_name": "molmim-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "Use the hosted MolMIM NIM to generate 10 analogs from caffeine SMILES CN1C=NC2=C1C(=O)N(C(=O)N2C)C. Optimize for QED with CMA-ES, keep at least moderate seed similarity, and save the generated SMILES.",
       "expected_output": "A Python script that calls the hosted MolMIM /generate endpoint with Bearer auth from NGC_API_KEY, uses smi not smiles, algorithm CMA-ES, property_name QED, minimize false, min_similarity, iterations, particles, num_molecules, parses hosted molecules/sample responses with generated fallback, and writes molmim_generated.smi.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I want unguided MolMIM sampling around ibuprofen SMILES CC(C)Cc1ccc(cc1)C(C)C(=O)O using the hosted API. Use algorithm none, a modest scaled_radius, and make clear that hosted MolMIM is generation-only.",
       "expected_output": "A hosted /generate script using smi, algorithm 'none', num_molecules, scaled_radius, optional min_similarity, parsing hosted molecules/sample SMILES. It should not claim hosted /embedding, /hidden, /decode, or /sampling endpoints.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me run MolMIM locally with Docker and do an embedding smoke test. My environment may have NGC_API_KEY or NVIDIA_API_KEY, but the MolMIM docs mention NGC_CLI_API_KEY. LOCAL_NIM_CACHE is set.",
       "expected_output": "Docker setup commands that source optional .env, map NVIDIA_API_KEY to NGC_API_KEY and NGC_API_KEY to NGC_CLI_API_KEY, docker login to nvcr.io without printing secrets, run nvcr.io/nim/nvidia/molmim:1.0.0 with cache mount /home/nvs/.cache/nim, poll /v1/health/ready, and POST no-auth to localhost:8000/embedding with sequences.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "For a locally hosted MolMIM container, show a latent workflow that obtains hidden states for a seed SMILES, decodes them back to SMILES, and optionally samples nearby molecules. Save the intermediate JSON and validate the generated molecules.",
       "expected_output": "A local no-auth Python workflow using /hidden with sequences, saving hiddens and mask, POSTing those to /decode, optionally calling /sampling with scaled_radius and num_molecules, saving generated SMILES, and validating parseability/duplicates with RDKit if installed.",
       "files": [],

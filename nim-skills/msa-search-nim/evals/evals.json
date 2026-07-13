@@ -2,7 +2,7 @@
   "skill_name": "msa-search-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I want to generate a multiple sequence alignment for my protein sequence using the MSA-Search NIM. My sequence is SGSMKTAISLPDETFDRVSRRASELGMSRSEFFTKAAQR. Search against UniRef30 and ColabFold environmental databases and return the alignment in A3M format. Use the hosted NVIDIA API.",
       "expected_output": "A Python script that calls the hosted MSA-Search endpoint with Bearer auth, sends the sequence with databases=['Uniref30_2302','colabfold_envdb_202108'] and output_alignment_formats=['a3m'], extracts alignments using the same case-sensitive response keys, and saves the returned A3M alignment to a file.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I have a protein complex with two chains and I need paired MSA alignments for it. Chain 1 (hemoglobin alpha): VLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVA. Chain 2 (hemoglobin beta): MHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPYTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAF. Use the hosted API.",
       "expected_output": "A Python script that calls the hosted /paired/predict endpoint with a 'sequences' list containing both chains, extracts per-chain alignments from alignments_by_chain, and saves each chain's alignment to a separate file.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up the MSA-Search NIM locally with Docker and then search for MSA for my protein sequence: MTEYKLVVVGACGVGKSALTIQLIQNHFVDE. I have an A100 GPU. My NGC_API_KEY is set.",
       "expected_output": "Docker setup instructions using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, warning about the 1.4 TB database cache, health-checking the service, then sending a no-auth request to localhost:8000 without a /v1/ prefix.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I need structural templates for my protein sequence to use as input to a structure prediction model. Can you search for structural templates using a local MSA-Search NIM? Sequence: VLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVA. Return up to 20 structures.",
       "expected_output": "A Python script targeting the local /biology/colabfold/msa-search/structure-templates/predict endpoint because the hosted health.api template path returned HTTP 404 in validation, with structural_template_databases=['pdb70_220313'], the sequence, max_structures=20, max_msa_sequences=500 to match NIM_GLOBAL_MAX_MSA_DEPTH, no Authorization header for localhost inference, and parsing/saving both returned mmCIF template structures and search_hits M8 tables.",
       "files": [],

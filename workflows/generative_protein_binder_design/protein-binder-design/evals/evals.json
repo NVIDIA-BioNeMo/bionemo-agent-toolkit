@@ -2,7 +2,7 @@
   "skill_name": "protein-binder-design",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "Design 50 de novo mini-binders against the SARS-CoV-2 RBD (use the target registry entry) at the ACE2-contact epitope. Generate backbones, design 8 sequences each, co-fold the shortlist against the target, and rank by interface confidence. Save a run manifest and a ranked CSV.",
       "expected_output": "An orchestration that composes the rfdiffusion-nim, proteinmpnn-nim, and boltz2-nim/openfold3-nim skills in order, remaps epitope residues, writes a run manifest via scripts/manifest.py, applies the ipTM/pLDDT/RMSD filter, and exports a ranked candidates.csv.",
       "files": [],
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "For my binder campaign against PD-L1, include proper controls and tell me the success rate.",
       "expected_output": "Adds scrambled-sequence negative controls and published-binder positive controls through the same co-folding pipeline, marks them is_control in the manifest, and reports success rate as n_passed / n_candidates.",
       "files": [],
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Continue my interrupted binder run in runs/rbd_binders and only process candidates that are missing scores.",
       "expected_output": "Loads the existing manifest with Manifest.load, identifies candidates lacking the needed scores/artifacts, and resumes without re-running completed stages.",
       "files": [],

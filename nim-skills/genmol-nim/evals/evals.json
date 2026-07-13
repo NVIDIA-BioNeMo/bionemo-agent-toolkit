@@ -2,7 +2,7 @@
   "skill_name": "genmol-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I want to generate 20 drug-like molecules from scratch using GenMol. No scaffold — just generate novel molecules and rank them by drug-likeness. Use the hosted NVIDIA API. My NGC_API_KEY is already set in my environment.",
       "expected_output": "A working Python script that calls the hosted GenMol endpoint with a masked SAFE input for de novo generation, requests 20 molecules with QED scoring, parses the response, and prints the results ranked by score.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I have a pyrrolidinone scaffold (SMILES: C1CC(=O)NC1) that I want to decorate with new fragments to generate drug-like analogs. Generate 10 molecules using GenMol with QED scoring. Use the hosted API.",
       "expected_output": "A Python script that converts the scaffold SMILES to SAFE notation using safe-mol, handles SAFEFragmentationError fallback for simple ring scaffolds, appends a masked fragment token, notes the motif extension two-sided mask pattern, calls the hosted GenMol endpoint, and displays generated molecules sorted by QED score.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up GenMol locally with Docker on my H100 machine. My NGC_API_KEY is set. Once it's running, do a quick de novo generation of 5 molecules.",
       "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run GenMol with correct flags, health-check it, then send a no-auth generation request to localhost:8000 producing 5 molecules.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I have a hit molecule I want to optimize for lipophilicity (LogP). The SMILES is CC1=CC=C(C=C1)NC(=O)C. Generate 30 unique analogs ranked by LogP using GenMol. Use the hosted API.",
       "expected_output": "A Python script that encodes the hit molecule as a SAFE input with a masked fragment for optimization, calls the hosted GenMol endpoint with LogP scoring and unique=True, requests 30 molecules, and displays results sorted by score.",
       "files": [],

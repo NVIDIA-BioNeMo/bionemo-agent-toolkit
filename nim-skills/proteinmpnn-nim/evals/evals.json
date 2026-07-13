@@ -2,7 +2,7 @@
   "skill_name": "proteinmpnn-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I have a protein backbone PDB file (1R42.pdb) and I want to design 10 protein sequences that will fold into it using ProteinMPNN. Use the hosted NVIDIA API. My NGC_API_KEY is set.",
       "expected_output": "A Python script that reads 1R42.pdb, calls the hosted ProteinMPNN endpoint with Bearer auth, sends the PDB content as input_pdb with num_seq_per_target=10, and saves the returned multi-FASTA to a .fa file.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I want to redesign chain A of my protein structure (structure.pdb) while keeping chain B fixed. Generate 5 sequences at sampling temperature 0.2, excluding cysteines. Use the hosted ProteinMPNN API.",
       "expected_output": "A Python script targeting the hosted endpoint with input_pdb_chains=['A'], num_seq_per_target=5, sampling_temp=[0.2], and omit_AAs=['C'], reading structure.pdb and saving the designed sequences.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up ProteinMPNN locally with Docker and design sequences for my structure file backbone.pdb. I have an RTX A6000 GPU. My NGC_API_KEY is set.",
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, using the correct image tag, single GPU flag, and the unique cache mount path /home/nvs/.cache/nim (not /opt/nim/.cache), then a health check and no-auth request script to localhost:8000.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I want to design diverse protein sequences for my scaffold (protein.pdb) to explore sequence space. Use the soluble protein model, generate sequences at three different temperatures (0.1, 0.3, 0.5) to get diverse candidates, and exclude methionine. Use the hosted API.",
       "expected_output": "A Python script with use_soluble_model=True, sampling_temp=[0.1, 0.3, 0.5], and omit_AAs=['M'], calling the hosted endpoint and saving the multi-FASTA output.",
       "files": [],

@@ -1,0 +1,5 @@
+# Local secrets — never commit
+.env
+
+# nv-aces generated eval results (regenerate locally / via CI; never committed)
+**/evals/results/

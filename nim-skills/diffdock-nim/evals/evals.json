@@ -2,7 +2,7 @@
   "skill_name": "diffdock-nim",
   "evals": [
     {
-      "id": 1,
+      "id": "1",
       "prompt": "I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to a protein target. I have the protein structure in protein.pdb. Generate 10 docking poses and show me the confidence scores. Use the hosted NVIDIA DiffDock API.",
       "expected_output": "A Python script that reads protein.pdb and filters to a non-empty ATOM-only receptor, calls the hosted DiffDock endpoint with Bearer auth, ligand_file_type='txt' for SMILES input, num_poses=10, and prints ranked poses with their confidence scores.",
       "files": [],
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "prompt": "I have an SDF file of a drug candidate (ligand.sdf) and want to dock it to my protein (receptor.pdb). Use the DiffDock hosted API to generate 20 poses and save each pose as a separate SDF file named by its rank and confidence score.",
       "expected_output": "A Python script that reads receptor.pdb (ATOM records only) and ligand.sdf, calls the hosted endpoint with ligand_file_type='sdf' and num_poses=20, then saves each SDF pose to a file named with rank and confidence.",
       "files": [],
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "prompt": "Help me set up DiffDock locally with Docker on my GPU. I have an A100 and NGC_API_KEY is set. After setup, dock a small molecule (SMILES: c1ccccc1) to my protein (protein.pdb).",
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, with the exact pinned image tag :2.2.0, NVIDIA_VISIBLE_DEVICES=0 env var, --shm-size=2G and --ulimit flags, health check, then a local no-auth docking script using localhost:8000 without /v1/ prefix.",
       "files": [],
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": "4",
       "prompt": "I want to do a quick docking study with DiffDock using the hosted API. Use these parameters: protein structure in target.pdb, ligand SMILES: CC1=CC=C(C=C1)NC(=O)C, generate 5 poses with save_trajectory set to false. Show me which pose has the highest confidence.",
       "expected_output": "A Python script with ATOM-filtered protein, the provided SMILES as txt ligand, num_poses=5, save_trajectory=False, calling the hosted endpoint and identifying/reporting the highest confidence pose.",
       "files": [],
