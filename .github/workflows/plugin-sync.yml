@@ -1,0 +1,33 @@
+name: plugin-sync
+
+# Fails a PR when the generated plugin payload (plugins/bionemo-agent-toolkit/)
+# has drifted from the source skills — e.g. a skill was added to source but
+# never added to skills.sh.json / regenerated into the plugin.
+#
+# No secrets, no Docker, no external tooling: it enforces the invariant that
+# each plugin skill folder equals its source folder minus evals/.
+
+on:
+  pull_request:
+    paths:
+      - "nim-skills/**"
+      - "library-skills/**"
+      - "open-models-skills/**"
+      - "workflows/**"
+      - "plugins/**"
+      - "skills.sh.json"
+      - "scripts/plugin_sync.py"
+      - ".github/workflows/plugin-sync.yml"
+  push:
+    branches: [main]
+
+jobs:
+  plugin-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check plugin payload is in sync with source skills
+        run: python scripts/plugin_sync.py --check
