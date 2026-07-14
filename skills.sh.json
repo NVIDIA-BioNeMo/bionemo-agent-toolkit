@@ -46,6 +46,13 @@
                 "kermt-pretrain-scratch",
                 "kermt-setup"
             ]
+        },
+        {
+            "title": "Workflows",
+            "skills": [
+                "complexa-binder-design",
+                "protein-binder-design"
+            ]
         }
     ]
 }
