@@ -1,0 +1,84 @@
+{
+  "skill_name": "genomic-intelligence-nim",
+  "evals": [
+    {
+      "id": "1",
+      "prompt": "Predict promoter regions in assets/demo/promoter_tp53.fa using Genomic Intelligence, and tell me how many promoter windows it found. My GI_API_KEY is set.",
+      "expected_output": "Runs the provided gi_predict.py runner for the promoter task on the demo FASTA, then reports summary.promoter_windows / total_windows from the compact stdout JSON.",
+      "files": ["scripts/gi_predict.py", "assets/demo/promoter_tp53.fa"],
+      "assertions": [
+        {
+          "id": "uses-runner",
+          "description": "Uses the provided runner rather than hand-rolling HTTP",
+          "check": "Invokes 'scripts/gi_predict.py' with '--task promoter' (does not build a raw curl/requests call inline)"
+        },
+        {
+          "id": "hosted-endpoint",
+          "description": "Targets the hosted Genomic Intelligence promoter endpoint",
+          "check": "The runner/client contains 'api.genomicintelligence.ai' and '/v1/tasks/{task}/predict' (task = promoter)"
+        },
+        {
+          "id": "bearer-auth",
+          "description": "Authenticates with a Bearer key from GI_API_KEY",
+          "check": "Request sets 'Authorization: Bearer' from 'GI_API_KEY'; no key literal is hard-coded"
+        },
+        {
+          "id": "reports-summary",
+          "description": "Reports the promoter-window headline",
+          "check": "Output reads 'promoter_windows' / 'total_windows' from the response summary"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "prompt": "Predict gene expression for HBB in K562 cells with Genomic Intelligence. I'll let you fetch the sequence.",
+      "expected_output": "Fetches the exact 9,198 bp TSS-centred window for HBB (gi_fetch --for-expression), then runs the expression task with a required cell-type description, reporting log(TPM+1).",
+      "files": ["scripts/gi_predict.py", "scripts/gi_fetch.py"],
+      "assertions": [
+        {
+          "id": "expression-window",
+          "description": "Obtains the exact 9,198 bp expression window",
+          "check": "Uses gi_fetch with '--for-expression' (or otherwise produces a 9,198 bp TSS-centred window) before predicting"
+        },
+        {
+          "id": "description-required",
+          "description": "Passes the required cell-type context",
+          "check": "Runs expression with '--description' set to a cell type such as 'K562'"
+        },
+        {
+          "id": "expression-endpoint",
+          "description": "Calls the expression task",
+          "check": "Runner is invoked with '--task expression'"
+        },
+        {
+          "id": "reports-log-tpm",
+          "description": "Reports the expression prediction",
+          "check": "Output reads 'expression_log_tpm' (log TPM) from the response"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "prompt": "Run de-novo gene annotation on assets/demo/annotation_tp53.fa with Genomic Intelligence and list the transcripts it predicts.",
+      "expected_output": "Runs the annotation task, which submits asynchronously and polls the job endpoint to completion, then reports the predicted transcripts.",
+      "files": ["scripts/gi_predict.py", "assets/demo/annotation_tp53.fa"],
+      "assertions": [
+        {
+          "id": "annotation-task",
+          "description": "Runs the annotation task via the runner",
+          "check": "Runner is invoked with '--task annotation'"
+        },
+        {
+          "id": "async-submit-poll",
+          "description": "Uses the async submit/poll protocol",
+          "check": "Client submits with header 'Prefer: respond-async' and polls '/v1/tasks/jobs/'"
+        },
+        {
+          "id": "reports-transcripts",
+          "description": "Reports predicted transcripts",
+          "check": "Output reads 'transcripts' / 'transcripts_found' from the response"
+        }
+      ]
+    }
+  ]
+}
