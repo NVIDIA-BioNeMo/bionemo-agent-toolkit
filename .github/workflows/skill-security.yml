@@ -1,0 +1,37 @@
+name: skill-security
+
+# Advisory security scan of the skills using SkillSpector (https://github.com/NVIDIA/skillspector).
+# Runs fully offline (--no-llm): no API key, deterministic. Non-blocking for now
+# (continue-on-error) so findings can be reviewed before deciding to gate.
+
+on:
+  pull_request:
+    paths:
+      - "nim-skills/**"
+      - "library-skills/**"
+      - "open-models-skills/**"
+      - "workflows/**"
+      - ".github/workflows/skill-security.yml"
+  push:
+    branches: [main]
+
+jobs:
+  skillspector:
+    runs-on: ubuntu-latest
+    continue-on-error: true          # advisory: does not block merges
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SkillSpector
+        run: pip install "git+https://github.com/NVIDIA/skillspector.git"
+      - name: Scan each skill (offline)
+        run: |
+          find nim-skills library-skills open-models-skills workflows \
+            -name SKILL.md -not -path '*/vendor/*' -not -path '*/evals/*' \
+            | xargs -n1 dirname | sort -u \
+            | while read -r d; do
+                echo "== $d =="
+                skillspector scan "$d" --no-llm
+              done
