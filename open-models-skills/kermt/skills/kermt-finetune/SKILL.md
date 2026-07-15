@@ -31,11 +31,22 @@ launch the runner detached, return a run directory + container name.
 
 Required:
 
-- `--ckpt <path>` — input pretrain checkpoint (grover_base / cmim / hybrid).
-  The validator refuses already-finetuned ckpts with a redirect to
-  `kermt-infer`.
 - `--csv <path>` — labeled CSV. First column is `smiles`; every other column
   is a target.
+
+Checkpoint (optional — defaults to the released model if omitted):
+
+- `--ckpt <path>` — input pretrain checkpoint (grover_base / cmim / hybrid).
+  The validator refuses already-finetuned ckpts with a redirect to
+  `kermt-infer`. **If omitted**, the skill offers to download the released
+  pretrained hybrid model **nvidia/NV-KERMT-70M-v2** and finetune from it —
+  see "Resolve & validate the checkpoint" (workflow step 3).
+- `--pretrained-release` — explicit opt-in to use the released model without
+  the interactive prompt (for non-interactive / agent runs). Mutually
+  exclusive with `--ckpt`.
+- `--model-dir <dir>` — where to save the downloaded bundle (default
+  `$KERMT_REPO/models/NV-KERMT-70M-v2/`). An already-complete bundle there is
+  reused, not re-downloaded.
 
 Optional:
 
@@ -98,7 +109,27 @@ helper bind-mounts them at known container paths.
    RUN_DIR=$KERMT_REPO/runs/finetune_$(date -u +%Y-%m-%dT%H-%M-%SZ)
    ```
 
-3. **Validate the checkpoint.**
+3. **Resolve & validate the checkpoint.**
+
+   **Resolve — only if `--ckpt` was omitted.** Default to the released
+   pretrained hybrid model **nvidia/NV-KERMT-70M-v2**:
+   - **Consent gate.** Unless `--pretrained-release` was passed, ask the user:
+     "No checkpoint given — download the released model nvidia/NV-KERMT-70M-v2
+     (NVIDIA Open Model License, https://huggingface.co/nvidia/NV-KERMT-70M-v2)
+     and finetune from it? [y/N]". **Never download without an explicit yes**
+     (or `--pretrained-release`). If both `--ckpt` and `--pretrained-release`
+     are given, abort — they conflict.
+   - **Save location.** Default `$KERMT_REPO/models/NV-KERMT-70M-v2/`; honor
+     `--model-dir <dir>` if given. An already-complete bundle is reused.
+   - **Download** (foreground; ~282 MB on first fetch):
+     ```
+     $KERMT_REPO/agent/scripts/kermt_container.sh run --model-dir <save-dir> -- \
+         "python agent/scripts/fetch_released_model.py --out /model"
+     ```
+     Parse the JSON; abort on `ok: false` (surface `errors`). On success set
+     `<user-ckpt> = <save-dir>/kermt_contrastive_v2.0.pt`.
+
+   **Validate** the resolved (or user-provided) ckpt:
    ```
    $KERMT_REPO/agent/scripts/kermt_container.sh run --ckpt <user-ckpt> -- \
        "python agent/scripts/check_checkpoint.py --mode finetune_init --ckpt /ckpt"
@@ -215,6 +246,10 @@ helper bind-mounts them at known container paths.
 
 ## Hard rules
 
+- **Never download the released model without consent.** When `--ckpt` is
+  omitted, download `nvidia/NV-KERMT-70M-v2` only after an explicit user "yes"
+  or an explicit `--pretrained-release` flag. `--ckpt` and
+  `--pretrained-release` are mutually exclusive.
 - **Never modify the user's input ckpt.** The runner passes its path via
   `--checkpoint_path`; `task/train.py` loads it read-only into the model and
   attaches a new FFN head. The source file stays untouched.

@@ -48,11 +48,25 @@ prepares the corpus, launches the runner, and returns a run directory.
 
 Required:
 
-- `--ckpt <path>` — the input pretrain checkpoint to continue from. Must be
-  a grover_base (with vocab heads), cmim, or hybrid ckpt; the validator
-  rejects everything else with a redirect to the correct workflow.
 - `--csv <path>` — the pretrain CSV (single column `smiles`). If you have
   separate train/val CSVs, pass `--val-csv <path>` too.
+
+Checkpoint (optional — defaults to the released model if omitted):
+
+- `--ckpt <path>` — the input pretrain checkpoint to continue from. Must be
+  a grover_base (with vocab heads), cmim, or hybrid ckpt; the validator
+  rejects everything else with a redirect to the correct workflow. **If
+  omitted**, the skill offers to download the released pretrained hybrid model
+  **nvidia/NV-KERMT-70M-v2** and continue-pretrain from it — see "Resolve &
+  validate the checkpoint" (workflow step 3). The released bundle ships its
+  three vocab files alongside the ckpt, so the authoritative-vocab pass-through
+  (step 5) works automatically.
+- `--pretrained-release` — explicit opt-in to use the released model without
+  the interactive prompt (for non-interactive / agent runs). Mutually
+  exclusive with `--ckpt`.
+- `--model-dir <dir>` — where to save the downloaded bundle (default
+  `$KERMT_REPO/models/NV-KERMT-70M-v2/`). An already-complete bundle there is
+  reused, not re-downloaded.
 
 Optional:
 
@@ -65,6 +79,10 @@ Optional:
 - `--vocab-loss-weight F` (hybrid only) / `--latent-dim N` /
   `--contrastive-temperature F` (cmim and hybrid only) — loss / decoder
   overrides.
+- `--wandb-project NAME` / `--wandb-run-name NAME` — optional Weights & Biases
+  logging. When `--wandb-project` is set, rank 0 logs train/val losses; the run
+  name is honored only alongside a project. Off by default. (Independent of the
+  ckpt's `wandb_run_id` continuity handling under `--resume`.)
 - `--resume` — see "Modes" section below.
 - `--gpus 0,2` — restrict to a GPU subset. Default uses all visible GPUs.
 - `--from-prepare <dir>` — skip the prepare step and reuse an existing
@@ -149,7 +167,30 @@ host; the helper bind-mounts them at known container paths.
    RUN_DIR=$KERMT_REPO/runs/continue-pretrain_$(date -u +%Y-%m-%dT%H-%M-%SZ)
    ```
 
-3. **Validate the checkpoint.**
+3. **Resolve & validate the checkpoint.**
+
+   **Resolve — only if `--ckpt` was omitted.** Default to the released
+   pretrained hybrid model **nvidia/NV-KERMT-70M-v2**:
+   - **Consent gate.** Unless `--pretrained-release` was passed, ask the user:
+     "No checkpoint given — download the released model nvidia/NV-KERMT-70M-v2
+     (NVIDIA Open Model License, https://huggingface.co/nvidia/NV-KERMT-70M-v2)
+     and continue-pretrain from it? [y/N]". **Never download without an
+     explicit yes** (or `--pretrained-release`). If both `--ckpt` and
+     `--pretrained-release` are given, abort — they conflict.
+   - **Save location.** Default `$KERMT_REPO/models/NV-KERMT-70M-v2/`; honor
+     `--model-dir <dir>` if given. An already-complete bundle is reused.
+   - **Download** (foreground; ~282 MB on first fetch):
+     ```
+     $KERMT_REPO/agent/scripts/kermt_container.sh run --model-dir <save-dir> -- \
+         "python agent/scripts/fetch_released_model.py --out /model"
+     ```
+     Parse the JSON; abort on `ok: false` (surface `errors`). On success set
+     `<user-ckpt> = <save-dir>/kermt_contrastive_v2.0.pt`. The bundle's three
+     vocab files land in `<save-dir>` too, so step 5's `--vocab-dir`
+     auto-detection (which looks in the ckpt's parent directory) finds them
+     with no extra work.
+
+   **Validate** the resolved (or user-provided) ckpt:
    ```
    $KERMT_REPO/agent/scripts/kermt_container.sh run --ckpt <user-ckpt> -- \
        "python agent/scripts/check_checkpoint.py --mode continue_pretrain --ckpt /ckpt"
@@ -228,6 +269,10 @@ host; the helper bind-mounts them at known container paths.
 
 ## Hard rules
 
+- **Never download the released model without consent.** When `--ckpt` is
+  omitted, download `nvidia/NV-KERMT-70M-v2` only after an explicit user "yes"
+  or an explicit `--pretrained-release` flag. `--ckpt` and
+  `--pretrained-release` are mutually exclusive.
 - **Never modify the user's input ckpt.** The runner symlinks it into the
   save_dir; the symlink is what pretrain_ddp.py auto-resumes from. The
   source file stays untouched.

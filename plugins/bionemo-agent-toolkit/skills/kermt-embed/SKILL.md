@@ -29,11 +29,22 @@ SMILES, launch the runner blocking, return the per-readout `.npy` files.
 
 Required:
 
-- `--ckpt <path>` — any encoder-bearing checkpoint. Grover_base, cmim,
-  hybrid, and finetuned ckpts are all accepted. The validator only refuses
-  ckpts with no encoder.
 - `--csv <path>` — SMILES CSV. First column is `smiles`; other columns
   are ignored (no targets needed).
+
+Checkpoint (optional — defaults to the released model if omitted):
+
+- `--ckpt <path>` — any encoder-bearing checkpoint. Grover_base, cmim,
+  hybrid, and finetuned ckpts are all accepted. The validator only refuses
+  ckpts with no encoder. **If omitted**, the skill offers to download the
+  released pretrained hybrid model **nvidia/NV-KERMT-70M-v2** and embed with
+  it — see "Resolve & validate the checkpoint" (workflow step 3).
+- `--pretrained-release` — explicit opt-in to use the released model without
+  the interactive prompt (for non-interactive / agent runs). Mutually
+  exclusive with `--ckpt`.
+- `--model-dir <dir>` — where to save the downloaded bundle (default
+  `$KERMT_REPO/models/NV-KERMT-70M-v2/`). An already-complete bundle there is
+  reused, not re-downloaded.
 
 Optional:
 
@@ -56,7 +67,27 @@ Let `$KERMT_REPO` be the path to your kermt repo checkout.
    RUN_DIR=$KERMT_REPO/runs/embed_$(date -u +%Y-%m-%dT%H-%M-%SZ)
    ```
 
-3. **Validate the checkpoint.**
+3. **Resolve & validate the checkpoint.**
+
+   **Resolve — only if `--ckpt` was omitted.** Default to the released
+   pretrained hybrid model **nvidia/NV-KERMT-70M-v2**:
+   - **Consent gate.** Unless `--pretrained-release` was passed, ask the user:
+     "No checkpoint given — download the released model nvidia/NV-KERMT-70M-v2
+     (NVIDIA Open Model License, https://huggingface.co/nvidia/NV-KERMT-70M-v2)
+     and embed with it? [y/N]". **Never download without an explicit yes** (or
+     `--pretrained-release`). If both `--ckpt` and `--pretrained-release` are
+     given, abort — they conflict.
+   - **Save location.** Default `$KERMT_REPO/models/NV-KERMT-70M-v2/`; honor
+     `--model-dir <dir>` if given. An already-complete bundle is reused.
+   - **Download** (foreground; ~282 MB on first fetch):
+     ```
+     $KERMT_REPO/agent/scripts/kermt_container.sh run --model-dir <save-dir> -- \
+         "python agent/scripts/fetch_released_model.py --out /model"
+     ```
+     Parse the JSON; abort on `ok: false` (surface `errors`). On success set
+     `<user-ckpt> = <save-dir>/kermt_contrastive_v2.0.pt`.
+
+   **Validate** the resolved (or user-provided) ckpt:
    ```
    $KERMT_REPO/agent/scripts/kermt_container.sh run --ckpt <user-ckpt> -- \
        "python agent/scripts/check_checkpoint.py --mode embed --ckpt /ckpt"
@@ -103,6 +134,10 @@ Let `$KERMT_REPO` be the path to your kermt repo checkout.
 
 ## Hard rules
 
+- **Never download the released model without consent.** When `--ckpt` is
+  omitted, download `nvidia/NV-KERMT-70M-v2` only after an explicit user "yes"
+  or an explicit `--pretrained-release` flag. `--ckpt` and
+  `--pretrained-release` are mutually exclusive.
 - **Never modify the user's ckpt.** The runner reads-only via
   `task/extract_embeddings.py`'s `--checkpoint <path>` flag.
 - **Arch comes from the ckpt.** No `--hidden-size` flag etc. on this runner;

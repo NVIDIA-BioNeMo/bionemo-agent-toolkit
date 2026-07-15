@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
 
 # kermt_container.sh — bootstrap helper for the kermt agent skills.
 #
@@ -31,6 +31,8 @@
 #   --ckpt <path>       bind to /ckpt    (read-only; the path is mounted as-is)
 #   --vocab-dir <dir>   bind to /vocab   (read-only)
 #   --run-dir <dir>     bind to /runs    (read-write; created on host if missing)
+#   --model-dir <dir>   bind to /model   (read-write; created on host if missing).
+#                       Target for released-model downloads (fetch_released_model.py).
 #
 # Additional flags for kermt_run_detached:
 #   --name <name>       docker container name (default: kermt-<UTC-timestamp>-<pid>)
@@ -273,6 +275,11 @@ _kermt_parse_mounts() {
         _out+=("-v" "$(realpath "$2"):/runs")
         shift 2; _kermt_consumed=$((_kermt_consumed + 2))
         ;;
+      --model-dir)
+        mkdir -p "$2" || { echo "[kermt] failed to create --model-dir: $2" >&2; return 1; }
+        _out+=("-v" "$(realpath "$2"):/model")
+        shift 2; _kermt_consumed=$((_kermt_consumed + 2))
+        ;;
       *)
         return 0
         ;;
@@ -305,6 +312,16 @@ _kermt_git_env_flags() {
   printf '%s\n%s\n%s\n%s\n' "-e" "KERMT_REPO_COMMIT=$commit" "-e" "KERMT_REPO_DIRTY=$dirty"
 }
 
+# Forward HF_TOKEN into the container when it is set, so fetch_released_model.py
+# can authenticate to Hugging Face. The current release is public (no token
+# needed); this only guards against shared-IP rate limits or a future gated
+# repo. Emits nothing when HF_TOKEN is unset.
+_kermt_hf_env_flags() {
+  if [[ -n "${HF_TOKEN:-}" ]]; then
+    printf '%s\n%s\n' "-e" "HF_TOKEN=$HF_TOKEN"
+  fi
+}
+
 kermt_run() {
   kermt_ensure_image || return $?
   local mount_args=()
@@ -321,6 +338,8 @@ kermt_run() {
   fi
   local git_args=()
   while IFS= read -r line; do git_args+=("$line"); done < <(_kermt_git_env_flags)
+  local hf_args=()
+  while IFS= read -r line; do hf_args+=("$line"); done < <(_kermt_hf_env_flags)
   docker run --rm --gpus "$KERMT_GPUS" \
     --user "$(id -u):$(id -g)" \
     -v "$KERMT_REPO:/workspace" \
@@ -329,6 +348,7 @@ kermt_run() {
     -e PYTHONPATH=/workspace \
     -e HOME=/tmp/kermt-home \
     "${git_args[@]}" \
+    "${hf_args[@]}" \
     "$KERMT_IMAGE" \
     conda run -n kermt --no-capture-output bash -c "$*"
 }
@@ -342,7 +362,7 @@ kermt_run_detached() {
     case "$1" in
       --name) name="$2"; shift 2 ;;
       --) break ;;
-      --data|--ckpt|--vocab-dir|--run-dir) break ;;
+      --data|--ckpt|--vocab-dir|--run-dir|--model-dir) break ;;
       *) break ;;
     esac
   done
@@ -363,6 +383,8 @@ kermt_run_detached() {
   local cid
   local git_args=()
   while IFS= read -r line; do git_args+=("$line"); done < <(_kermt_git_env_flags)
+  local hf_args=()
+  while IFS= read -r line; do hf_args+=("$line"); done < <(_kermt_hf_env_flags)
   cid=$(docker run -d --gpus "$KERMT_GPUS" \
     --user "$(id -u):$(id -g)" \
     --name "$name" \
@@ -372,6 +394,7 @@ kermt_run_detached() {
     -e PYTHONPATH=/workspace \
     -e HOME=/tmp/kermt-home \
     "${git_args[@]}" \
+    "${hf_args[@]}" \
     "$KERMT_IMAGE" \
     conda run -n kermt --no-capture-output bash -c "$*") || return $?
   echo "[kermt] container started: name=$name id=$cid"
@@ -415,6 +438,7 @@ Mount flags (for run / run_detached):
   --ckpt <path>       bind to /ckpt    (read-only)
   --vocab-dir <dir>   bind to /vocab   (read-only)
   --run-dir <dir>     bind to /runs    (read-write; created on host if missing)
+  --model-dir <dir>   bind to /model   (read-write; released-model download target)
 
 Additional flags for run_detached:
   --name <name>       container name (default: kermt-<timestamp>-<pid>)
