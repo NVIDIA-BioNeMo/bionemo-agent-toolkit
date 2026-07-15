@@ -55,6 +55,20 @@
       ],
       "expected_skill": null,
       "expected_script": null
+    },
+    {
+      "id": "kermt-embed-005",
+      "prompt": "I don't have my own KERMT checkpoint. Can you extract per-molecule embeddings for the SMILES in /data/biogen_admet.csv using the publicly released model? I want all four readout types so I can cluster the compounds downstream.",
+      "expected_output": "The agent recognized that no --ckpt was provided and defaulted to the released hybrid model nvidia/NV-KERMT-70M-v2, obtained explicit consent (or honored --pretrained-release) before downloading, fetched the bundle with fetch_released_model.py via huggingface_hub into the --model-dir mount, validated the downloaded checkpoint for an encoder, and ran run_extract_embeddings.py to produce the four readout .npy files.",
+      "assertions": [
+        "The agent read the kermt-embed SKILL.md and, finding no --ckpt, defaulted to the released model nvidia/NV-KERMT-70M-v2 rather than erroring",
+        "The agent obtained explicit user consent (or honored an explicit --pretrained-release flag) before downloading, per the skill's released-model consent gate",
+        "The agent invoked fetch_released_model.py inside the kermt container to download the nvidia/NV-KERMT-70M-v2 bundle via huggingface_hub into the --model-dir mount, reusing an already-complete bundle if present",
+        "The agent validated the downloaded checkpoint using check_checkpoint.py with --mode embed and launched run_extract_embeddings.py, reporting the four readout .npy files (atom_from_atom, bond_from_atom, atom_from_bond, bond_from_bond)",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "kermt-embed",
+      "expected_script": null
     }
   ]
 }
