@@ -2,7 +2,7 @@
 # Sync findings — source compatibility problems
 
 Problems found running the aggregator against each source, mapped to the
-requirements in [`source-repo-requirements.md`](source-repo-requirements.md).
+`SRC-*` requirements in [`../CONTRIBUTING.md`](../CONTRIBUTING.md#source-repo-requirements--what-can-be-ingested).
 **Aggregator-first:** these are tracked to be fixed **upstream** later; the
 aggregator syncs regardless and the divergence appears in the sync PR.
 
