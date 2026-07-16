@@ -3,7 +3,7 @@
 name: KERMT
 repo: NVIDIA-BioNeMo/KERMT
 description: KERMT molecular foundation model — setup, pretraining, finetuning, inference, and embedding skills.
-ref: main
+ref: add-co-located-evals
 # Bulk entry (one path -> one grouped catalog dir). The flat NVIDIA/skills
 # convention is one entry per skill; we use the bulk form because we keep the
 # grouped tree. catalog_dir is kept at DEPTH 1 under the group root (like the

@@ -215,4 +215,4 @@ Refer to [`.claude/skills/_shared/reference/hardware.md`](../_shared/reference/h
 
 For per-axis reference (typical ranges, cost, what gets better/worse), see [reference/sweep_axes.md](reference/sweep_axes.md).
 
-For the user-facing sweep system overview (config generation, output layout), see [`docs/SWEEP.md`](../../../docs/SWEEP.md).
+For the user-facing sweep system overview (config generation, output layout), see [`docs/SWEEP.md`](reference/SWEEP.md).

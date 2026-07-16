@@ -3,7 +3,7 @@
 name: Proteina-Complexa
 repo: NVIDIA-BioNeMo/Proteina-Complexa
 description: Complexa protein-complex design — setup, target definition, design, sweep, and evaluation skills driving the `complexa` CLI.
-ref: dev   # public default branch is `dev`
+ref: aggregator-compat
 # Bulk entry — the complexa-* skills live under .claude/skills/. TODO(verify):
 # public `dev` showed 5 complexa-* skills vs 6 on the old GitLab branch.
 skills:
