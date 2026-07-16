@@ -1,0 +1,44 @@
+name: bionemo-agent-toolkit
+
+version: "1.0.0"
+description: Turn any agent into a life-science expert with NVIDIA BioNeMo skills — protein folding, docking, generative chemistry, genomics, and protein design.
+
+display_name: BioNeMo Agent Toolkit
+short_description: NVIDIA BioNeMo life-science skills — NIMs, CUDA-X libraries, and open models.
+
+category: Science
+
+keywords:
+  - bionemo
+  - protein-folding
+  - molecular-docking
+  - generative-chemistry
+  - genomics
+  - protein-design
+  - drug-discovery
+  - nim
+
+# Curated skills from the grouped catalog. NOTE: unlike NVIDIA/skills these are
+# GROUPED paths (not skills/<name>/). The forked build-plugins.py must resolve
+# include_skills relative to the repo root (not a fixed skills/ root) and key
+# the plugin-tree basename off the last path segment.
+include_skills:
+  # NIM skills (native)
+  - nim-skills/boltz2-nim/
+  - nim-skills/diffdock-nim/
+  - nim-skills/genmol-nim/
+  - nim-skills/msa-search-nim/
+  - nim-skills/openfold3-nim/
+  - nim-skills/proteinmpnn-nim/
+  - nim-skills/rfdiffusion-nim/
+  # Library / CUDA-X
+  - library-skills/nvMolKit/
+  - library-skills/parabricks/
+  # Open models
+  - open-models-skills/kermt/
+  - open-models-skills/proteina-complexa/
+  # Workflows
+  - workflows/generative_protein_binder_design/
+
+# Inherits version/author/homepage/repository/license/brand_color/capabilities
+# from plugins.d/_defaults.yml.

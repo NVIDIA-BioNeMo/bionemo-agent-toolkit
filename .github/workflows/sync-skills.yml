@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 NVIDIA Corporation. All rights reserved.
+#
+# Sync skills from source repos into the bionemo-agent-toolkit catalog.
+# Adapted from NVIDIA/skills' sync-skills.yml, STRIPPED to the aggregation
+# core (no signing / compliance / drift / contact-resolution / tracker steps —
+# NVCARPS is deferred; the review PR is the v1 gate). Adapted for GROUPED
+# catalog dirs: catalog_dir already includes its group prefix
+# (e.g. library-skills/nvMolKit), so the rsync target is $catalog_dir, not
+# skills/$catalog_dir.
+#
+# All sources are PUBLIC GitHub, so no source secret is needed. The only
+# secret is a GitHub App key used to open the PR under an identity whose push
+# triggers downstream checks (the default GITHUB_TOKEN does not).
+
+name: Sync skills from source repos
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # nightly 07:00 UTC — TODO: confirm hour vs internal eval pipeline
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-skills
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint an app token (so the sync PR triggers CI checks)
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.SKILL_SYNC_APP_ID }}
+          private-key: ${{ secrets.SKILL_SYNC_APP_PRIVATE_KEY }}
+
+      - name: Checkout catalog
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Verify yq is available
+        run: yq --version
+
+      - name: Sync skills from source repos
+        run: |
+          set -euo pipefail
+          : > /tmp/rsynced-components.txt
+          : > /tmp/changed-components.txt
+          : > /tmp/failed-components.txt
+
+          # Aggregate per-component files into one config indexed by position.
+          CONFIG=/tmp/components.aggregated.yml
+          yq ea '[.] | {"components": .}' components.d/*.yml > "$CONFIG"
+
+          component_count=$(yq '.components | length' "$CONFIG")
+          for i in $(seq 0 $((component_count - 1))); do
+            name=$(yq -r ".components[$i].name" "$CONFIG")
+            repo=$(yq -r ".components[$i].repo" "$CONFIG")
+            ref=$(yq -r ".components[$i].ref // \"main\"" "$CONFIG")
+            echo "── $name ($repo@$ref) ──"
+
+            # Public repos only → anonymous shallow sparse clone, no token.
+            tmp_dir=".tmp/$(echo "$repo" | tr '/' '-')"
+            if ! git clone --depth 1 --filter=blob:none --sparse \
+                   "https://github.com/${repo}.git" "$tmp_dir" -b "$ref" 2>/dev/null; then
+              echo "  ⚠ clone failed — skipping"
+              echo "- **$name** ($repo): clone failed" >> /tmp/failed-components.txt
+              continue
+            fi
+
+            skill_count=$(yq -r ".components[$i].skills | length" "$CONFIG")
+            sparse_paths=""
+            for j in $(seq 0 $((skill_count - 1))); do
+              sparse_paths="$sparse_paths $(yq -r ".components[$i].skills[$j].path" "$CONFIG")"
+            done
+            (cd "$tmp_dir" && git sparse-checkout set $sparse_paths 2>/dev/null) || true
+
+            synced=false
+            for j in $(seq 0 $((skill_count - 1))); do
+              path=$(yq -r ".components[$i].skills[$j].path" "$CONFIG")
+              catalog_dir=$(yq -r ".components[$i].skills[$j].catalog_dir" "$CONFIG")
+              src="$tmp_dir/$path"
+              if [ -d "$src" ] && [ -n "$(ls -A "$src" 2>/dev/null)" ]; then
+                # GROUPED: catalog_dir already carries its group prefix.
+                mkdir -p "$catalog_dir"
+                rsync -a --delete "$src/" "$catalog_dir/"
+                synced=true
+                echo "  ✓ $path → $catalog_dir/"
+              else
+                echo "  ⚠ $path empty/missing — preserving existing catalog copy"
+                echo "- **$name** ($repo): \`$path\` empty or missing" >> /tmp/failed-components.txt
+              fi
+            done
+
+            if $synced; then
+              echo "- $name" >> /tmp/rsynced-components.txt
+              for j in $(seq 0 $((skill_count - 1))); do
+                catalog_dir=$(yq -r ".components[$i].skills[$j].catalog_dir" "$CONFIG")
+                if [ -n "$(git status --porcelain "$catalog_dir" 2>/dev/null)" ]; then
+                  echo "- $name" >> /tmp/changed-components.txt
+                  break
+                fi
+              done
+            fi
+          done
+          rm -rf .tmp
+
+      - name: Fail if nothing synced
+        run: |
+          if [ ! -s /tmp/rsynced-components.txt ]; then
+            echo "::error::All component checkouts failed — no skills were synced"
+            exit 1
+          fi
+
+      - name: Prune orphaned skill dirs
+        run: |
+          bash .github/scripts/prune-orphans.sh
+          if [ -s /tmp/pruned-orphans.txt ]; then
+            echo "- orphan pruning" >> /tmp/changed-components.txt
+          fi
+
+      # TODO(fork): rebuild the plugin payload with the forked multi-root
+      # build-plugins.py once it lands, so the PR ships skills + plugins
+      # together. Placeholder for now.
+      # - name: Rebuild plugin catalog
+      #   run: python3 .github/scripts/build-plugins.py
+
+      - name: Build sync summary
+        id: summary
+        run: |
+          if [ ! -s /tmp/changed-components.txt ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::All components synced; no upstream content changes"
+            exit 0
+          fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          sort -u -o /tmp/changed-components.txt /tmp/changed-components.txt
+          {
+            echo 'body<<EOFBODY'
+            echo "## Automated skills sync"
+            echo ""
+            echo "**Components updated:**"
+            cat /tmp/changed-components.txt
+            if [ -s /tmp/pruned-orphans.txt ]; then
+              echo ""
+              echo "**Pruned (deregistered from components.d):**"
+              while read -r d; do echo "- \`$d\`"; done < /tmp/pruned-orphans.txt
+            fi
+            if [ -s /tmp/failed-components.txt ]; then
+              echo ""
+              echo "**Failed to sync:**"
+              cat /tmp/failed-components.txt
+            fi
+            echo ""
+            echo "Sourced content changes + any pruning are shown in the diff. Native"
+            echo "skills (NIM, workflows, parabricks, genomics, cuEquivariance) are untouched."
+            echo "Review the diff and merge — nothing merges unattended."
+            echo 'EOFBODY'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        if: steps.summary.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: automated/sync-skills
+          delete-branch: true
+          commit-message: "chore: sync skills from source repos"
+          title: "chore: nightly skills sync"
+          body: ${{ steps.summary.outputs.body }}
