@@ -1,7 +1,7 @@
 # `complexa download` Reference
 
-Full flag matrix, destination layout, NGC source, and ORD rsync fallback for
-every checkpoint Complexa can pull.
+Full flag matrix, destination layout, and NGC source for every checkpoint
+Complexa can pull.
 
 `complexa download` is a thin Python wrapper around `env/download_startup.sh`
 — the CLI argparse (in `src/proteinfoundation/cli/cli_runner.py:download_main`)
@@ -104,11 +104,10 @@ complexa design configs/search_binder_local_pipeline.yaml \
     ++autoencoder_ckpt_path=./ckpts/complexa_ae.ckpt
 ```
 
-> Note: the README also shows a layout with per-variant subdirectories
-> (`ckpts/complexa_protein/`, `ckpts/complexa_ligand/`, `ckpts/complexa_enzyme/`)
-> for the ORD rsync fallback. The `complexa download` script uses a *flat*
-> `./ckpts/` layout. If you mix rsync and `complexa download`, pick one layout
-> and update `ckpt_path` accordingly.
+> Note: `complexa download` always uses a *flat* `./ckpts/` layout. If you
+> downloaded ckpts manually into per-variant subdirectories
+> (`ckpts/complexa_protein/`, etc.), update the pipeline YAML `ckpt_path` to
+> match — or move/symlink into the flat layout.
 
 ---
 
@@ -135,58 +134,6 @@ Example output (post `--complexa-all` + `--af2`, no RF3 or ESMFold):
 
 Read each row as: `<Model name>: <✓ Installed | ○ Missing> (<destination>)`.
 Re-run `complexa download --<flag>` for any row that is missing.
-
----
-
-## ORD rsync fallback
-
-For users behind a firewall that blocks NGC, mirror the same ckpts from ORD.
-Exact paths (from the README's "NVIDIA Internal" section):
-
-### Protein binder
-
-```bash
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_protein/complexa.ckpt
-
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_protein/complexa_ae.ckpt
-```
-
-### Ligand binder
-
-```bash
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_ligand/complexa_ligand.ckpt
-
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_ligand/complexa_ligand_ae.ckpt
-```
-
-### AME (motif scaffolding)
-
-```bash
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_enzyme/complexa_ame.ckpt
-
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    ckpts/complexa_enzyme/complexa_ame_ae.ckpt
-```
-
-### Target data
-
-```bash
-rsync -avP <ORD_HOST>:/path/to/cluster/checkpoints/<checkpoint-name> \
-    $LOCAL_DATA_PATH/
-```
-
-The rsync layout uses `ckpts/complexa_protein/`, `ckpts/complexa_ligand/`,
-`ckpts/complexa_enzyme/` subdirectories. If you use this fallback, set the
-pipeline YAML `ckpt_path` to the matching subdirectory (e.g.
-`ckpt_path: ./ckpts/complexa_protein`).
-
-Replace `<ORD_HOST>` with the actual ORD login host (see internal
-documentation for current value).
 
 ---
 
