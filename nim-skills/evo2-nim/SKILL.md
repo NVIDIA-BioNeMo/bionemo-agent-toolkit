@@ -111,13 +111,15 @@ def clean_dna(value: str) -> str:
     return seq
 
 prompt = clean_dna("ACTGACTGACTGACTG")
+nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000")
 url = (
     "https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate"
-    if HOSTED else "http://localhost:8000/biology/arc/evo2/generate"
+    if HOSTED else f"{nim_url}/biology/arc/evo2/generate"
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    api_key = os.getenv("NGC_API_KEY")
+    headers["Authorization"] = f"Bearer {api_key}"
 
 payload = {
     "sequence": prompt,
@@ -151,15 +153,17 @@ Forward returns base64-encoded NPZ tensors.
 ```python
 import base64
 import io
+import os
 import numpy as np
 import requests
 
+nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000")
 payload = {
     "sequence": clean_dna("ACTGACTGACTG"),
     "output_layers": ["output_layer", "decoder.layers.3.self_attention"],
 }
 response = requests.post(
-    "http://localhost:8000/biology/arc/evo2/forward",
+    f"{nim_url}/biology/arc/evo2/forward",
     headers={"Content-Type": "application/json"},
     json=payload,
     timeout=300,
