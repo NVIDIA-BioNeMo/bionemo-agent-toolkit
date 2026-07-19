@@ -3,10 +3,15 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to predict a monomer protein structure with OpenFold2 using the hosted NVIDIA API. The sequence is MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT. Use selected model 1, skip relaxation for a quick smoke test, and save any returned structure artifacts.",
-      "expected_output": "A Python script that calls the hosted OpenFold2 predict-structure-from-msa-and-template endpoint with Bearer auth from NGC_API_KEY, sends sequence/input_id/selected_models/relax_prediction, includes a minimal A3M alignment, saves the full JSON response, and saves any PDB or mmCIF structure-like text fields.",
+      "prompt": "I want to predict a monomer protein structure with OpenFold2 using the hosted NVIDIA API. The sequence is MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT. Use selected model 1, skip relaxation for a quick smoke test, and save any returned structure artifacts. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted OpenFold2 request using Bearer auth from NGC_API_KEY, with sequence/input_id/selected_models/relax_prediction and a minimal A3M alignment, plus the actual response summary, full JSON response, and any returned PDB or mmCIF structure artifacts.",
       "files": [],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived values and saved artifact paths"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted OpenFold2 endpoint URL",
@@ -38,7 +43,9 @@
           "check": "Script writes JSON response and saves structure text containing 'ATOM' or 'data_' to '.pdb' or '.cif' files"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "Use OpenFold2 hosted API for a monomer with my own MSA and an explicit template. Sequence: ACDEFGHIKLMNPQRSTVWY. I have A3M text and an mmCIF template string in Python variables. Please show the correct payload shape, note any template-format gotchas, and mention that MSA Search is the handoff if I need to generate a deeper A3M alignment.",
@@ -78,6 +85,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me launch the OpenFold2 NIM locally with Docker and then run a no-auth localhost inference. My NGC_API_KEY is set, or NVIDIA_API_KEY may be set instead, and I want to use LOCAL_NIM_CACHE.",
       "expected_output": "Docker setup commands that source optional repo-root .env, support NVIDIA_API_KEY fallback to NGC_API_KEY, require LOCAL_NIM_CACHE, docker login to nvcr.io, run nvcr.io/nim/openfold/openfold2:latest with --gpus device=0 and cache mount /opt/nim/.cache, poll /v1/health/ready, and call localhost:8000/biology/openfold/openfold2/predict-structure-from-msa-and-template with no Authorization.",

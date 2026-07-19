@@ -3,10 +3,17 @@
   "evals": [
     {
       "id": "eval-1-de-novo-hit-discovery",
-      "prompt": "I want to discover new drug-like molecules that could inhibit the EGFR kinase. I have the EGFR crystal structure as a PDB file. Can you run a pipeline that generates novel molecules, docks them to EGFR, and scores their binding affinity? I want to start from scratch — no known scaffold.",
-      "expected_output": "A script or sequence of steps that calls GenMol with a SAFE notation scaffold in the `smiles` field with string-typed temperature and noise, pipes the output SMILES into DiffDock with ligand_file_type set to 'txt', and then calls Boltz2 on top docking hits to predict binding affinity.",
-      "files": [],
+      "prompt": "I want to discover new drug-like molecules that could inhibit the EGFR kinase using the staged receptor at /workspace/input/egfr.pdb. Run the hosted pipeline now: generate novel molecules, dock them to EGFR, and score the top hits for binding affinity. Start from scratch with no known scaffold. For this smoke test, request 10 molecules from GenMol, dock the top 2 candidates with 1 pose each, and run Boltz2 affinity prediction for the best docked hit. Use NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual responses; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted GenMol to DiffDock to Boltz2 pipeline using the staged EGFR receptor and a bounded 10-to-2-to-1 smoke-test fan-out, correct SAFE/typing and ligand handoffs, plus saved artifacts and actual generated molecules, docking scores, and affinity results from all three services.",
+      "files": [
+        "evals/files/egfr.pdb"
+      ],
       "assertions": [
+        {
+          "id": "hosted-pipeline-executed",
+          "description": "Executes all hosted pipeline stages instead of only writing code",
+          "check": "Trajectory shows successful GenMol, DiffDock, and Boltz2 requests, and the final response reports actual response-derived molecules, docking scores, affinity values, and saved artifact paths"
+        },
         {
           "id": "a1-genmol-safe-notation",
           "description": "GenMol smiles field uses SAFE notation, not raw SMILES",
@@ -38,7 +45,9 @@
           "check": "The pipeline correctly reads the `smiles` field from each GenMol response molecule and passes that value as the `ligand` field in the DiffDock request, establishing the handoff between Step 1 and Step 2."
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "eval-2-lead-optimization-scaffold",
       "prompt": "I have a known lead compound with SMILES 'CC1=CC=C(C=C1)NC(=O)C2=CC=CC=C2' that partially inhibits CDK2. I want to generate analogs around this scaffold, dock them to CDK2, and get binding affinity predictions. My CDK2 PDB is ready. Can you help me set up this pipeline?",
