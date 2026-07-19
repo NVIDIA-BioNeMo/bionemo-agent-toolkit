@@ -3,10 +3,17 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I have a protein backbone PDB file (1R42.pdb) and I want to design 10 protein sequences that will fold into it using ProteinMPNN. Use the hosted NVIDIA API. My NGC_API_KEY is set.",
-      "expected_output": "A Python script that reads 1R42.pdb, calls the hosted ProteinMPNN endpoint with Bearer auth, sends the PDB content as input_pdb with num_seq_per_target=10, and saves the returned multi-FASTA to a .fa file.",
-      "files": [],
+      "prompt": "Use the staged protein backbone at /workspace/input/1R42.pdb to design 10 protein sequences that will fold into it using the hosted NVIDIA ProteinMPNN API. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted ProteinMPNN request that reads the staged 1R42.pdb, uses Bearer auth and num_seq_per_target=10, plus the actual returned designed sequences and scores saved as a multi-FASTA artifact.",
+      "files": [
+        "evals/files/1R42.pdb"
+      ],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived designed sequences, scores, and the saved FASTA path"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted ProteinMPNN endpoint URL",
@@ -38,7 +45,9 @@
           "check": "Script accounts for the native/WT FASTA row when present and pairs scores with designed sequences, not the WT row"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "I want to redesign chain A of my protein structure (structure.pdb) while keeping chain B fixed. Generate 5 sequences at sampling temperature 0.2, excluding cysteines. Use the hosted ProteinMPNN API.",
@@ -78,6 +87,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me set up ProteinMPNN locally with Docker and design sequences for my structure file backbone.pdb. I have an RTX A6000 GPU. My NGC_API_KEY is set.",
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, using the correct image tag, single GPU flag, and the unique cache mount path /home/nvs/.cache/nim (not /opt/nim/.cache), then a health check and no-auth request script to localhost:8000.",
