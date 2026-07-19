@@ -3,10 +3,15 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to use Evo 2 from the hosted NVIDIA API to extend this DNA promoter-like sequence: ACTGACTGACTGACTG. Generate 64 bases, keep the request reproducible for development, and save the generated sequence so I can inspect it later.",
-      "expected_output": "A Python script that calls the hosted Evo 2 generation endpoint with Bearer auth, uses exact Evo2 request fields, validates/saves the generated DNA sequence as JSON and FASTA, and reports elapsed timing.",
+      "prompt": "I want to use Evo 2 from the hosted NVIDIA API to extend this DNA promoter-like sequence: ACTGACTGACTGACTG. Generate 64 bases, keep the request reproducible for development, and save the generated sequence so I can inspect it later. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted Evo 2 generation request with Bearer auth and exact request fields, plus actual response-derived DNA, sampled probabilities, elapsed timing, and saved JSON and FASTA artifacts.",
       "files": [],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived DNA, elapsed timing, and saved artifact paths"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted Evo2 generation endpoint",
@@ -38,7 +43,10 @@
           "check": "Script writes a .json file and a .fa or .fasta file"
         }
       ]
-    },
+    }
+  ],
+  "todo": "Waiting on local Docker setup in Harbor before enabling the deferred evals below.",
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "Run Evo 2 locally with Docker and then do a quick DNA generation smoke test against localhost. My NGC_API_KEY and LOCAL_NIM_CACHE are already configured; use the default model unless I set NIM_VARIANT=7b. Please warn me if my GPU is not compatible.",
@@ -112,44 +120,6 @@
           "id": "finite-summary",
           "description": "Checks or reports tensor shape, dtype, and finite numeric values",
           "check": "Script reports 'shape' and 'dtype' and checks 'isfinite' or prints numeric summaries"
-        }
-      ]
-    },
-    {
-      "id": "4",
-      "prompt": "Help me build a small validation script for Evo 2 outputs. It should run a hosted generation request with sampled probabilities, save artifacts, and warn me if the DNA looks low-complexity, has extreme GC, or contains unexpected ambiguous bases.",
-      "expected_output": "A hosted Evo2 validation script that calls the generation endpoint, saves request/response and FASTA artifacts, computes DNA metrics, validates probabilities and timing, and distinguishes warnings from hard failures.",
-      "files": [],
-      "assertions": [
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted Evo2 generation endpoint",
-          "check": "Script contains 'https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate'"
-        },
-        {
-          "id": "sampled-probs-request",
-          "description": "Requests sampled probabilities with exact field name",
-          "check": "Script sets 'enable_sampled_probs' to True or true"
-        },
-        {
-          "id": "artifact-saving",
-          "description": "Saves request, response, FASTA, and metrics artifacts",
-          "check": "Script writes request JSON, response JSON, a .fa or .fasta file, and sequence metrics JSON"
-        },
-        {
-          "id": "probability-validation",
-          "description": "Validates sampled_probs as finite probabilities",
-          "check": "Script checks 'sampled_probs' values are numeric and between 0 and 1"
-        },
-        {
-          "id": "dna-quality-warnings",
-          "description": "Computes GC, low-complexity or homopolymer warnings",
-          "check": "Script calculates GC content and checks low complexity or homopolymer runs"
-        },
-        {
-          "id": "hard-vs-warning",
-          "description": "Distinguishes invalid schema/alphabet failures from scientific quality warnings",
-          "check": "Script separates hard failure conditions from warnings such as extreme GC or low complexity"
         }
       ]
     }
