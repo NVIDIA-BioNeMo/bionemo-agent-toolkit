@@ -36,6 +36,7 @@ include_skills:
   - library-skills/parabricks/
   # Open models
   - open-models-skills/kermt/
+  - open-models-skills/proteina-complexa/
   # Workflows
   - workflows/generative_protein_binder_design/
 

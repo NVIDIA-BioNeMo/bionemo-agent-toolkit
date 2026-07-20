@@ -1,0 +1,60 @@
+{
+  "skill_name": "complexa-sweep",
+  "evals": [
+    {
+      "id": "complexa-sweep-001",
+      "prompt": "Run a complexa sweep over beam_width [4, 8, 16] and nsteps [100, 200, 400] for the PDL1 target using the search_binder_pipeline.",
+      "expected_output": "The agent used complexa-sweep to author or select a sweeper YAML with beam_width and nsteps axes, computed the cartesian product (9 configs), estimated GPU cost, and requested user confirmation before proceeding with launch.",
+      "assertions": [
+        "The agent ran the preflight script and read preflight.json to check GPU availability",
+        "The agent computed the cost estimate (9 configs × 1 target = 9 runs) and presented it to the user for confirmation",
+        "The agent authored or identified a sweeper YAML in configs/sweeps/ with the specified beam_width and nsteps values",
+        "The agent explained the launch mechanism via generate_inference_configs.py --sweeper or SLURM launcher",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-sweep",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-sweep-002",
+      "prompt": "I want to find the optimal generation parameters for my binder design. Can you compare different temperatures (0.5, 1.0, 1.5) and search replicas (2, 4, 8) to see which combination gives the best success rate on the DerF21 target?",
+      "expected_output": "The agent recognized this as a parameter sweep request, set up a cartesian-product scan over bb_ca_temperature and search_replicas, estimated GPU hours for the 9-config sweep, and prepared to generate a ranked summary CSV identifying the best configuration by success rate.",
+      "assertions": [
+        "The agent ran the preflight script to verify GPU availability and environment readiness",
+        "The agent proposed a sweeper YAML with axes for temperature [0.5, 1.0, 1.5] and search_replicas [2, 4, 8]",
+        "The agent calculated and displayed the GPU-hour estimate before proceeding",
+        "The agent described the output format including sweep_summary.csv with success rate ranking",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-sweep",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-sweep-003",
+      "prompt": "We're preparing for a paper submission and need to ablate the reward weights in our Complexa binder pipeline. Specifically, we want a Pareto analysis of binder quality (iPAE) versus wall-clock time across different beam widths and reward scaling factors. Can you set this up for targets 02_PDL1 and 22_DerF21?",
+      "expected_output": "The agent used complexa-sweep to design a multi-target Pareto sweep over beam_width and reward scaling axes, computed the total run count across both targets, flagged the potentially large GPU cost, and outlined how the Pareto frontier would be extracted from the sweep_summary.csv.",
+      "assertions": [
+        "The agent ran preflight and assessed the total cost as n_configs × 2 targets, presenting the GPU-hour estimate with a confirmation gate",
+        "The agent authored a sweeper YAML with axes for beam_width and reward weight scaling factors",
+        "The agent explained that the Pareto frontier (wall-clock vs success/iPAE) would be identified from the aggregated results",
+        "The agent asked the user to confirm the sweep size before launching, given the multi-target multiplication",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-sweep",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-sweep-004",
+      "prompt": "Can you submit my existing Complexa design job to the SLURM cluster with 4 GPUs and a 24-hour time limit? The config is already at configs/inference_configs/inf_pdl1.yaml.",
+      "expected_output": "The agent recognized this as a single-job SLURM submission request (not a parameter sweep) and directed the user to the complexa-slurm skill rather than complexa-sweep.",
+      "assertions": [
+        "The agent did not invoke complexa-sweep or attempt to create a sweeper YAML",
+        "The agent identified this as a cluster submission task appropriate for the complexa-slurm skill",
+        "The agent provided guidance on submitting the single existing config to SLURM without cartesian-product expansion",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": null,
+      "expected_script": null
+    }
+  ]
+}
