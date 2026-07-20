@@ -85,6 +85,12 @@ the same conventions `NVIDIA/skills` uses, so a compliant repo is ingestible by
 
 **Compliance — enforced by `NVIDIA/skills`; deferred here (NVCARPS):**
 - **SRC-10 · Co-located `evals/evals.json`** per skill + a `BENCHMARK.md` report.
+  Eval definitions for a **sourced** skill must live under `evals/` **in the
+  source component repo** — never authored into the catalog copy here. The sync
+  overwrites vendored dirs (`rsync --delete`), so catalog-only evals are
+  silently wiped on the next run. (This is exactly what happened to the KERMT
+  evals — they had been added to the catalog and had to be moved upstream into
+  `evals/` in the KERMT repo. See `docs/sync-findings.md`.)
 - **SRC-11 · Signed + carded** — `skill.oms.sig` (OpenSSF model signature) + `skill-card.md`, via NVIDIA `nvskills-ci`.
 
 > This toolkit is currently **tolerant**: it syncs skills that don't yet meet
