@@ -1,9 +1,10 @@
 ---
 name: kermt-infer
 description: Run predictions with a finetuned KERMT checkpoint on a SMILES-only CSV. The skill validates that the input ckpt has task FFN heads (refuses pretrain ckpts with a redirect to kermt-finetune), validates the CSV, prepares the data (clean + rdkit_2d features), then launches main.py predict inside the kermt container (blocking, minutes-scale).
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: workflow-skill
   risk_tier: skill
 # Line/token budget: targets ~170 lines / ~2000 tokens — well within the

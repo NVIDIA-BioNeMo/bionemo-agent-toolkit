@@ -1,9 +1,10 @@
 ---
 name: kermt-continue-pretrain
 description: Continue pretraining from an existing KERMT checkpoint. The skill validates the user's checkpoint and pretrain CSV, prepares the data into shard/vocab/features form, then launches pretrain_ddp.py inside the kermt container (detached for long runs). Auto-dispatches `--pretrain_mode` based on the checkpoint type (grover_base vocab-only, cmim, or hybrid).
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: workflow-skill
   risk_tier: skill
 # Line/token budget: this file is targeted at ~250 lines / ~3000 tokens —

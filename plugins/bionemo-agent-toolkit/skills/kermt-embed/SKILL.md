@@ -1,9 +1,10 @@
 ---
 name: kermt-embed
 description: Extract per-molecule embeddings from any encoder-bearing KERMT checkpoint (grover_base / cmim / hybrid / finetuned). Writes one .npy per readout type (atom_from_atom, bond_from_atom, atom_from_bond, bond_from_bond) plus canonical_smiles.npy and validity.npy. Calls task/extract_embeddings.py (which featurizes SMILES on the fly — no pre-computed features needed).
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: workflow-skill
   risk_tier: skill
 # Line/token budget: targets ~150 lines / ~1800 tokens — within the

@@ -1,9 +1,10 @@
 ---
 name: kermt-setup
 description: Bootstrap the KERMT agent environment — verify host docker + nvidia-container-toolkit, build the kermt:latest image from the repo's Dockerfile if it doesn't yet exist, and run a GPU smoke test inside the container. Every other kermt-* skill depends on this; invoke it first.
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: atomic-skill
   risk_tier: skill
 # This file is intentionally short (~110 lines, ~1200 tokens) — well within the

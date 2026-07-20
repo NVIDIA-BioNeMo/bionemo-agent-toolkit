@@ -1,9 +1,10 @@
 ---
 name: kermt-add-cmim-pretrain
 description: Convert a grover_base checkpoint (encoder-only or encoder + vocab heads) into a hybrid checkpoint by adding a randomly-initialized cMIM decoder + latent_dist, then continue pretraining on the user's corpus as hybrid (vocab + contrast). Effectively kermt-continue-pretrain with a one-time ckpt-conversion step prepended.
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: workflow-skill
   risk_tier: skill
 # Line/token budget: ~165 lines, ~1900 tokens — well within the

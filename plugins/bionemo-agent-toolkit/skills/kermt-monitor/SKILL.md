@@ -1,9 +1,10 @@
 ---
 name: kermt-monitor
 description: Check progress for a detached KERMT run (pretrain, finetune, or any kermt_run_detached invocation). Reads run.json, queries docker for container state, tails the pretrain/finetune log, and parses progress lines (epoch, step, val loss).
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker and jq. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: atomic-skill
   risk_tier: skill
 # Line/token budget: this file is targeted at ~120 lines / ~1500 tokens — well

@@ -1,9 +1,10 @@
 ---
 name: kermt-finetune
 description: Finetune a pretrained KERMT encoder on a labeled CSV. The skill validates the input checkpoint (must be a pretrain ckpt — grover_base / cmim / hybrid), validates the labeled CSV, prepares the data (clean + features + optional split), then launches main.py finetune inside the kermt container (detached for hours-scale runs). Hyperparameters come from agent/config/defaults_finetune.json with per-flag CLI override.
-license: Apache-2.0 OR CC-BY-4.0
+license: Apache-2.0
 compatibility: Requires docker, nvidia-container-toolkit, and a CUDA-capable NVIDIA GPU. Designed for Claude Code, Codex, and Nemotron.
 metadata:
+  owner: evax@nvidia.com
   classification: workflow-skill
   risk_tier: skill
 # Line/token budget: targets ~250 lines / ~3000 tokens — within the
@@ -18,9 +19,10 @@ launch the runner detached, return a run directory + container name.
 
 ## Hardware requirements
 
-- **GPUs**: 1 (single-GPU). Finetune does not DDP; if you have multiple
-  GPUs visible, pass `--gpus 0` (or whichever id) to select one. Multi-GPU
-  finetune is not currently supported.
+- **GPUs**: 1 by default (single-GPU); pass `--gpus 0` (or whichever id) to
+  select one. For faster training on a multi-GPU host, pass `--num-gpus N`
+  (N>1) to run data-parallel DDP across N GPUs — `--batch-size` is then
+  per-GPU (effective global batch = batch_size × N).
 - **VRAM**: ≥ 8 GB for the default `batch_size 32` configuration. Lower VRAM
   works at smaller batch sizes — pass `--batch-size N` to override.
 - **Disk**: a few GB per run (checkpoint + features + logs).
@@ -83,7 +85,11 @@ Optional:
   finetunes). Both must be set together when N > 0.
 - `--ensemble-size N` / `--num-folds N` — multi-model / k-fold CV. Default 1
   each.
-- `--gpus 0` — single GPU id (default 0). Passing more than one is rejected.
+- `--gpus 0` — single GPU id for single-process finetune (default 0). Ignored
+  when `--num-gpus > 1`.
+- `--num-gpus N` — number of GPUs for data-parallel DDP finetune. Default 1
+  (single-process, unchanged). N>1 runs `main.py finetune` with `WORLD_SIZE=N`
+  (one process per GPU); `--batch-size` is per-GPU.
 - `--from-prepare <dir>` — skip the prepare step and reuse an existing
   `prepare_data.json` in `<dir>`. Useful when iterating on hyperparameters.
 
@@ -223,6 +229,7 @@ helper bind-mounts them at known container paths.
             --dataset-type <type> \\
             --out /runs \\
             [--gpus 0] \\
+            [--num-gpus N] \\
             [--epochs N --batch-size N --init-lr F ...] \\
             [--ffn-num-task-specific-layers N --ffn-task-specific-hidden-size H]"
    ```
@@ -278,8 +285,8 @@ helper bind-mounts them at known container paths.
   step (typically clean_smiles or save_features). Fix and re-run.
 - `ffn_num_task_specific_layers=N>0 but ffn_task_specific_hidden_size is unset`
   → MTL heads need an explicit hidden size. Pass `--ffn-task-specific-hidden-size H`.
-- `finetune is single-GPU` → multi-GPU finetune is not currently supported;
-  pick a single id.
+- `finetune is single-GPU` (from `--gpus 0,1`) → `--gpus` selects one device
+  for single-process finetune. For multi-GPU, use `--num-gpus N` (DDP) instead.
 
 ## Replayability
 
