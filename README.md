@@ -59,6 +59,106 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvMolKit) |
 | **cuEquivariance** | Build equivariant neural-network primitives (segmented tensor products, CG coefficients). | [`cuequivariance`](library-skills/cuEquivariance) |
 
+## Evaluating NIM Skill Lift
+
+NIM skill evaluation has two levels:
+
+1. **Hosted skill lift with ACES/SkillEvaluator.** Each NIM skill ships a
+   single, bounded `evals/evals.json` case plus `evals/config.yml`.
+   `astra-skill-eval` converts the case into Harbor tasks and runs the same
+   prompt both with and without the skill. The task requires a call to the real
+   hosted NVIDIA NIM endpoint; whether each agent successfully discovers and
+   executes that call is part of the measurement. The ACES default grader
+   combines deterministic trajectory checks with LLM judgments to report skill
+   lift.
+2. **Native Harbor tasks (TODO).** Deterministic RLVR-style graders are planned
+   for workflows requiring local GPU deployment, custom scientific scoring, or
+   additional infrastructure. They are not yet shipped as supported evaluation
+   coverage. These tasks will live under `evals/harbor/` and provide their own
+   verifier.
+
+The hosted lift evaluations require `NGC_API_KEY` in the invoking shell; each
+skill's `evals/config.yml` passes it into the Harbor tasks. No local NIM
+deployment is required. The commands below disable the optional Astra viewer
+upload, allow up to twice the default agent runtime, and write reports under
+`.nv-aces-verify/`.
+
+OpenFold3 and the MSA-Search to OpenFold3 workflow are pending validation. Their
+current hosted runs timed out and should not yet be used for pass/fail or model
+comparison.
+
+- **Evo 2**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/evo2-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **OpenFold2**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/openfold2-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **OpenFold3 (pending validation)**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/openfold3-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **Boltz-2**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/boltz2-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **DiffDock**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/diffdock-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **GenMol**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/genmol-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **MolMIM**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/molmim-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **RFdiffusion**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/rfdiffusion-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **MSA-Search**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/msa-search-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **ProteinMPNN**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/proteinmpnn-nim --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **MSA-Search to OpenFold3 workflow (pending validation)**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/meta-skills/msa-structure-prediction-pipeline --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
+- **Generative virtual screening workflow**
+
+  ```bash
+  ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/meta-skills/drug-discovery-pipeline --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
+  ```
+
 Every skill is a directory with a `SKILL.md` (YAML frontmatter + instructions),
 optional `references/`, and optional `scripts/`. The generated, installable plugin
 lives in [`plugins/bionemo-agent-toolkit/`](plugins/bionemo-agent-toolkit).
