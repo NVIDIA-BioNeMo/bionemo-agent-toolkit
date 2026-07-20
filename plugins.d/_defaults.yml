@@ -1,0 +1,24 @@
+# Default fields applied to every plugins.d/<name>.yml. Per-plugin fields win.
+# Files starting with `_` are includes and are NOT themselves built into a plugin.
+# (Adopted from NVIDIA/skills plugins.d/_defaults.yml — kept intentionally
+#  compatible so these artifacts drop into nvidia/skills if skills migrate there.)
+
+version: "1.0.0"
+
+author:
+  name: NVIDIA
+  url: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit
+
+homepage: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit
+repository: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit
+license: Apache-2.0 AND CC-BY-4.0
+
+brand_color: "#76b900"
+
+capabilities:
+  - Interactive
+  - Write
+
+# copy = rsync each curated skill into the plugin tree (real files; required for
+# Codex local install). symlink = link back to the canonical grouped dirs.
+skill_files: copy
