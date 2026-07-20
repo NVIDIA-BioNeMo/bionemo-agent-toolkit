@@ -9,9 +9,12 @@
 # (e.g. library-skills/nvMolKit), so the rsync target is $catalog_dir, not
 # skills/$catalog_dir.
 #
-# All sources are PUBLIC GitHub, so no source secret is needed. The only
-# secret is a GitHub App key used to open the PR under an identity whose push
-# triggers downstream checks (the default GITHUB_TOKEN does not).
+# All sources are PUBLIC GitHub, so no source secret is needed. The PR is opened
+# with a GitHub App token (vars.SKILL_SYNC_APP_ID + secrets.SKILL_SYNC_APP_PRIVATE_KEY):
+# the NVIDIA-BioNeMo org blocks the default GITHUB_TOKEN from creating pull
+# requests, and a GitHub App identity is not subject to that restriction. The
+# sync also regenerates the plugin payload in-job (see "Rebuild plugin payload")
+# so the PR ships skills + payload together and stays plugin-sync green.
 
 name: Sync skills from source repos
 
@@ -32,7 +35,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Mint an app token (so the sync PR triggers CI checks)
+      - name: Mint a GitHub App token (org blocks GITHUB_TOKEN from opening PRs)
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
@@ -126,11 +129,15 @@ jobs:
             echo "- orphan pruning" >> /tmp/changed-components.txt
           fi
 
-      # TODO(fork): rebuild the plugin payload with the forked multi-root
-      # build-plugins.py once it lands, so the PR ships skills + plugins
-      # together. Placeholder for now.
-      # - name: Rebuild plugin catalog
-      #   run: python3 .github/scripts/build-plugins.py
+      - name: Rebuild plugin payload
+        # Regenerate plugins/bionemo-agent-toolkit/ so the sync PR ships skills +
+        # payload together and stays plugin-sync green. (build-plugins.py fork is
+        # a later enhancement for fuller marketplace/README regen.)
+        run: |
+          python3 scripts/plugin_sync.py --write
+          if [ -n "$(git status --porcelain plugins/)" ]; then
+            echo "- plugin payload" >> /tmp/changed-components.txt
+          fi
 
       - name: Build sync summary
         id: summary
