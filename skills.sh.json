@@ -31,6 +31,11 @@
     {
       "title": "Open Models",
       "skills": [
+        "complexa-design",
+        "complexa-evaluate-pdbs",
+        "complexa-setup",
+        "complexa-sweep",
+        "complexa-target",
         "kermt-add-cmim-pretrain",
         "kermt-continue-pretrain",
         "kermt-embed",
