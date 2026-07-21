@@ -211,6 +211,10 @@ Notes:
 - Best of all: download the profile once, then **persist the cache volume** (or this
   `fast-db` directory) and mount it on future nodes for a ~20 s warm start with no re-download.
 
+> A self-contained end-to-end test of this fast-launch path (install → parallel
+> download → warm start → paired MSA search functional check) is provided in
+> `scripts/test_from_scratch.sh`.
+
 ## Standard MSA Request
 
 Use exact case-sensitive database names and response keys.
