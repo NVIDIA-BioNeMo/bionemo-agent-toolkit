@@ -41,8 +41,11 @@ for template search unless the hosted docs/service changes.
 
 ## Local Docker
 
-Local setup requires a GPU and about 1.4 TB / 1660 GB of NVMe storage for
-databases. For setup answers, include env preflight, `docker login`,
+Local setup requires a GPU. The full database set is about 1.4 TB / 1660 GB of
+NVMe storage, but you rarely need all of it — use a **task-specific profile**
+(see "Faster Startup" below) to download only the databases your task requires,
+which cuts both storage and startup time. Size the cache volume to the profile you
+pick. For setup answers, include env preflight, `docker login`,
 `docker run`, readiness, and then no-auth local inference. Do not invent a cache
 default or drop the `NVIDIA_API_KEY` fallback.
 
@@ -77,6 +80,74 @@ Readiness:
 ```bash
 until curl -sf http://localhost:8000/v1/health/ready; do sleep 10; done
 ```
+
+## Faster Startup: Task-Specific Database Profiles
+
+The full database download is ~1.4 TB and can take well over an hour on first launch. If you
+only need some databases, select a **task-specific profile** so the NIM downloads just those.
+This is the single biggest lever on local startup time.
+
+List the profiles your image actually ships (hashes change between releases — never hardcode
+them):
+
+```bash
+docker run --rm --entrypoint list-model-profiles nvcr.io/nim/colabfold/msa-search:2
+```
+
+Then pass the chosen hash with `NIM_MODEL_PROFILE`:
+
+```bash
+docker run --rm --name msa-search \
+  --runtime=nvidia --gpus all \
+  -e NGC_API_KEY \
+  -e NIM_MODEL_PROFILE=<hash-from-list-model-profiles> \
+  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
+  -p 8000:8000 \
+  nvcr.io/nim/colabfold/msa-search:2
+```
+
+Profiles available in this image (confirm hashes with `list-model-profiles`):
+
+| Profile tags | Databases | Best for | Storage |
+|---|---|---|---|
+| `databases:pdb70` | PDB70 | Quick testing / smoke check | ~100 MB |
+| `databases:uniref30` | UniRef30 | **Paired MSA search for complexes** — UniRef30 is the only DB used for species-based pairing | ~500 GB |
+| `databases:uniref30,pdb70,pdb` | UniRef30 + PDB70 + PDB structures | Structural template search | ~700 GB |
+| `databases:all` (default) | UniRef30 + ColabFold envdb + PDB70 + PDB100 + PDB structures | Full sensitivity, all databases | ~1.2 TB |
+
+Verify the loaded profile after readiness:
+
+```bash
+curl -s localhost:8000/v1/metadata | jq
+```
+
+Notes:
+
+- The request-level `databases` parameter only selects among databases **already
+  downloaded**; it does NOT change what is fetched at startup. Startup footprint is set by
+  `NIM_MODEL_PROFILE` alone.
+- **Paired search needs UniRef30 only.** `colabfold_envdb_202108` has no taxonomy and cannot
+  be used for pairing, so `databases:uniref30` is the correct, smallest profile for
+  complex/paired workflows — it skips the envdb, the largest part of the full set.
+- For maximum monomer sensitivity (UniRef30 + envdb merged) you still need `databases:all`;
+  there is no envdb-inclusive profile smaller than the full set.
+
+### Custom Or Individual Databases
+
+To use a single manually downloaded database (or your own MMSeqs2 DB), download it from NGC
+and point the NIM at the mount with `NIM_MODEL_NAME` instead of a profile:
+
+```bash
+ngc registry model download-version nim/colabfold/msa-search:uniref30_2302-m18v1
+# then mount the directory and set -e NIM_MODEL_NAME=/databases
+```
+
+`NIM_MODEL_NAME` **replaces** the profile databases entirely — the NIM uses only what is
+under that directory (discovered by scanning for `**/*.idx`). Mount multiple databases under
+one parent to combine them. NGC-downloaded databases are pre-indexed for GPU Server; custom
+databases must be indexed with `mmseqs createindex` first. Individually downloadable NGC model
+versions: `uniref30_2302-m18v1`, `colabfold_envdb_202108-m18v1`, `pdb70_220313-m18v1`,
+`pdb100_230517-m18v1`, `pdb_20251028_zip-m18v1`.
 
 ## Standard MSA Request
 
