@@ -3,7 +3,7 @@
 Shared hardware reference for every `complexa-*` skill. Tables only — see each
 skill's `SKILL.md` "Hardware" section for the user-facing prose. Numbers marked
 `(empirical)` are not pulled from any doc and represent conservative defaults
-based on the configs and SLURM scripts in this repo.
+based on the configs in this repo.
 
 ## Per-pipeline GPU requirements
 
@@ -17,9 +17,10 @@ Notes:
 - All three inference pipelines are single-GPU (the `complexa generate` stage
   is one process per `gen_njobs` slot; jobs do not shard a single design
   across GPUs).
-- AME requires `USE_V2_COMPLEXA_ARCH=True` (set via `env_vars:` in
-  `search_ame_local_pipeline.yaml`; no runtime VRAM impact).
-- Training is multi-GPU: see SLURM table below.
+- AME requires `USE_V2_COMPLEXA_ARCH=True`, set via `env_vars:` in
+  `configs/search_ame_local_pipeline.yaml` (no runtime VRAM impact).
+- Multi-GPU hosts run multiple pipelines / stages in parallel by bumping
+  `gen_njobs` / `eval_njobs` — each job takes one GPU.
 
 ## Per-evaluation-backend requirements
 
@@ -59,24 +60,6 @@ Defaults pulled from `configs/search_*_local_pipeline.yaml`:
 `keep_folding_outputs=true` (eval default) roughly doubles the output disk
 footprint — set to `false` if disk is tight.
 
-## SLURM / cluster
-
-Resource requests issued by `slurm_utils/launch_*.sh` (via
-`slurm_helper.sh:generate_array_slurm_header`).
-
-| Workload                          | Launch script                          | Nodes | GPUs/node | CPUs/task     | Time      |
-|-----------------------------------|----------------------------------------|------:|----------:|---------------|-----------|
-| binder_search (generate stage)    | `launch_protein_binder_search.sh`      |     1 |         1 | `ncpus_` (24) | 04:00:00  |
-| binder_search (filter stage)      | `launch_protein_binder_search.sh`      |     1 |         1 | `ncpus_` (24) | 04:00:00  |
-| binder_search (evaluate stage)    | `launch_protein_binder_search.sh`      |     1 |         1 | `ncpus_` (24) | 04:00:00  |
-| binder_search (analyze stage)     | `launch_protein_binder_search.sh`      |     1 |         1 | `ncpus_` (24) | 04:00:00  |
-| laproteina_design (per stage)     | `launch_laproteina_design_pipeline.sh` |     1 |         1 | `ncpus_` (24) | 04:00:00  |
-| training                          | `launch_laproteina_train.sh`           | `nnodes_` (YAML) | `ngpus_per_node_` (YAML) | `ncpus_per_task_train_` (YAML) | 04:00:00 (+requeue 600 s grace) |
-
-The canonical 96-GPU binder fine-tune is 12 nodes × 8 GPUs (`nnodes_=12`,
-`ngpus_per_node_=8` in the training YAML). Time is the per-job slice; the
-launcher's `--num-jobs N` flag chains N singleton-requeued jobs.
-
 ## When you hit OOM
 
 Try these in order — cheapest mitigations first:
@@ -91,9 +74,7 @@ Try these in order — cheapest mitigations first:
   pressure (helps when an OOM lands during evaluation).
 - Switch fold backend: `++metric.binder_folding_method=esmfold` is the
   cheapest; `rf3_latest` is the heaviest.
-- For AME: confirm `USE_V2_COMPLEXA_ARCH=True` matches the checkpoint —
+- For AME: confirm `USE_V2_COMPLEXA_ARCH=True` matches the AME checkpoint —
   loading the wrong arch wastes ~10–20% VRAM (empirical).
 - Multi-GPU host: set `CUDA_VISIBLE_DEVICES=<idx>` to pin the run to a single
   card and avoid PyTorch placing tensors on a busy peer GPU.
-- Last resort: move to a SLURM run via `complexa-slurm` — H100/A100-80 nodes
-  give you 80 GB, well above any single-pipeline ceiling above.

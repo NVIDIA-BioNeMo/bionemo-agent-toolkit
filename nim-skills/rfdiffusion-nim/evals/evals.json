@@ -3,10 +3,15 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to design a de novo protein backbone with RFDiffusion. Generate a protein of around 80-120 residues from scratch with the maximum quality settings. Use the hosted NVIDIA API.",
-      "expected_output": "A Python script that calls the hosted RFDiffusion endpoint with Bearer auth, contigs set to '80-120' (or similar length range), diffusion_steps=50, passes a non-empty minimal dummy PDB string as input_pdb because live hosted validation requires input_pdb or input_pdb_asset even for de novo generation, and saves the returned PDB file.",
+      "prompt": "I want to design a de novo protein backbone with RFDiffusion. Generate a protein of around 80-120 residues from scratch with the maximum quality settings using the hosted NVIDIA API. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted RFDiffusion request with Bearer auth, an 80-120 residue contig range, diffusion_steps=50, and the required non-empty dummy input_pdb, plus the actual returned backbone saved as a PDB artifact and summarized from the response.",
       "files": [],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived backbone information and the saved .pdb path"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted RFDiffusion endpoint URL",
@@ -38,7 +43,9 @@
           "check": "Script includes an 'input_pdb' field with a minimal non-empty PDB string such as CRYST1/ATOM/END; it must not omit both input_pdb and input_pdb_asset because live hosted validation requires one of them even for de novo generation"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "I have a protein structure (target.pdb) with a functional motif at residues 25-35 of chain A. I want to scaffold this motif — keep those residues and design a new protein structure of 50-80 residues around them. Use the hosted RFDiffusion API.",
@@ -116,6 +123,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "4",
       "prompt": "Help me set up RFDiffusion locally with Docker on my GPU machine. I have an A100 and NGC_API_KEY set. Once it's running, design a de novo protein backbone of 100 residues.",
       "expected_output": "Docker setup instructions using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, with the correct image (:2 tag), single GPU flag, cache mount, health check loop, then a local no-auth prediction script targeting localhost:8000 without /v1/ prefix and passing a non-empty dummy input_pdb for de novo generation.",

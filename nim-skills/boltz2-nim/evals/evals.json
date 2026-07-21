@@ -3,10 +3,15 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to predict the structure of insulin using Boltz2. The sequence is MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN. Use the hosted NVIDIA API.",
-      "expected_output": "A working Python script that calls the hosted Boltz2 endpoint with the NGC_API_KEY as a Bearer token, submits the insulin sequence as a protein polymer, saves the returned mmCIF structure to a .cif file, and prints the confidence score.",
+      "prompt": "I want to predict the structure of insulin using Boltz2. The sequence is MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN. Use the hosted NVIDIA API. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted Boltz2 request using NGC_API_KEY as a Bearer token, submitting the insulin sequence as a protein polymer, plus the actual confidence score and returned mmCIF structure artifact.",
       "files": [],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived confidence values and the saved .cif path"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted endpoint URL (health.api.nvidia.com)",
@@ -38,7 +43,9 @@
           "check": "Script uses os.environ or os.getenv to read NGC_API_KEY"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "I have a protein target (sequence: MTEYKLVVVGACGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVID) and I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to it and get a binding affinity score. Use the hosted API. My NGC_API_KEY is already set in my environment.",
@@ -78,6 +85,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me set up the Boltz2 NIM locally with Docker. I have an A100 GPU and my NGC_API_KEY is set. Once it's running, predict the structure of this short peptide: ACDEFGHIKLMNPQRSTVWY",
       "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run health checks, then send a no Authorization local request to localhost:8000 and save the output .cif file.",

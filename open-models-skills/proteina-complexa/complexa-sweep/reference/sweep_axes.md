@@ -2,11 +2,11 @@
 
 Catalogue of swept keys for Proteina-Complexa design pipelines, grouped by pipeline stage. Every key is a Hydra dot-path you can put in a `configs/sweeps/*.yaml` file as a sweep axis (list value) or as an `--override KEY=VAL` pin.
 
-Defaults are read from `configs/pipeline/binder/binder_generate_slurm.yaml`, `configs/pipeline/binder/binder_evaluate_slurm.yaml`, and `configs/pipeline/model_sampling.yaml`. Verify against your actual base pipeline config before launching — different pipelines (e.g. `search_binder_local_pipeline`) inherit different defaults.
+Defaults are read from `configs/pipeline/binder/binder_generate.yaml`, `configs/pipeline/binder/binder_evaluate.yaml`, and `configs/pipeline/model_sampling.yaml`. Verify against your actual base pipeline config before launching — different pipelines (e.g. `search_ligand_binder_local_pipeline`, `search_ame_local_pipeline`) inherit different defaults.
 
 ## Generation axes
 
-These live under `generation.*` in the pipeline config (because the base pipeline pulls `binder_generate_slurm@generation`).
+These live under `generation.*` in the pipeline config (because the base pipeline pulls `binder_generate@generation`).
 
 ### Search algorithm + width
 
@@ -50,7 +50,7 @@ Path prefix: `generation.reward_model.reward_models.af2folding.reward_weights.*`
 | `dgram_cce` | 0.0 | 0.0, 0.1, 1.0 | AF2 distogram cross-entropy. Rarely swept above 0. |
 | `min_ipae` | 0.0 | 0.0, -0.5, -1.0 | Min iPAE across chains; aggressive interface-quality push. |
 
-`generation.reward_model.reward_models.bioinformatics.reward_weights.{interface_sc, interface_hydrophobicity, surface_hydrophobicity, ...}` exist for the bioinformatics reward block (shape complementarity, SASA, hydrophobicity). Defaults live in the binder_generate_slurm config. Same pattern: list of floats per axis.
+`generation.reward_model.reward_models.bioinformatics.reward_weights.{interface_sc, interface_hydrophobicity, surface_hydrophobicity, ...}` exist for the bioinformatics reward block (shape complementarity, SASA, hydrophobicity). Defaults live in the `binder_generate.yaml` config. Same pattern: list of floats per axis.
 
 ### Refinement + filtering
 
@@ -68,7 +68,7 @@ These live at top level (the binder_evaluate config is loaded with `@_global_`),
 | Key | Default | Typical sweep | Cost multiplier | Effect |
 |---|---|---|---|---|
 | `metric.binder_folding_method` | `colabdesign` | `colabdesign`, `rf3_latest`, `boltz2_default`, `esmfold` | varies | Which refolder validates the binder. AF2 (`colabdesign`) is the standard; ESMFold ~5× faster, less accurate. |
-| `metric.num_redesign_seqs` | 8 (slurm) / 2 (local) | 1, 2, 4, 8, 16 | linear | Number of MPNN redesigns to refold per binder. Higher = more reliable designability signal. |
+| `metric.num_redesign_seqs` | 2 | 1, 2, 4, 8, 16 | linear | Number of MPNN redesigns to refold per binder. Higher = more reliable designability signal. |
 | `metric.sequence_types` | `[self]` | `[self]`, `[self, mpnn]`, `[self, mpnn_fixed]` | linear per type | Which sequences to evaluate: generated, MPNN-redesigned, or MPNN with fixed interface. |
 | `metric.interface_cutoff` | 8.0 | 6.0, 8.0, 10.0 | none | Angstrom cutoff defining interface residues for MPNN_fixed and interface metrics. |
 | `metric.inverse_folding_model` | `soluble_mpnn` | `protein_mpnn`, `ligand_mpnn`, `soluble_mpnn` | none | MPNN variant used for redesign. |
@@ -147,7 +147,7 @@ For an irregular set of `(key1, key2)` pairs (not a full cartesian product), the
 | `mean_i_plddt` | `i_plddt.mean()` | Higher = better. Interface pLDDT. |
 | `mean_sc_rmsd` | `sc_rmsd.mean()` | Self-consistency RMSD between generated and refolded structures. |
 | `diversity_score` | Unique sequences / `n_samples`, or 1 − mean pairwise TM-score if available | Higher = more diverse pool. |
-| `wall_clock_min` | Timestamp delta from the per-config log (`./logs/design_pipeline_*_<run>_<timestamp>.log`) | Approximate; SLURM job logs are more precise if available. |
+| `wall_clock_min` | Timestamp delta from the per-config log (`./logs/design_pipeline_*_<run>_<timestamp>.log`) | Approximate (process wall-clock, not GPU time). |
 
 Ranking:
 

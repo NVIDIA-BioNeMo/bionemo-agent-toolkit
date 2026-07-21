@@ -141,10 +141,17 @@ success thresholds apply*. They are paired:
 | Protein binder | `binder` | `protein_binder` |
 | Ligand binder | `binder` | `ligand_binder` |
 | AME | `motif_binder` | `motif_ligand_binder` |
+| Motif protein binder (standalone, not a `design` pipeline) | `motif_binder` | `motif_protein_binder` |
 
-## The four evaluation types (summary)
+The motif protein binder evaluation is not a top-level `design` pipeline; it
+runs via the standalone `evaluate_motif_binder.yaml` config on the outputs of a
+protein binder pipeline. Use the `complexa-evaluate-pdbs` skill for that
+workflow.
 
-From `docs/EVALUATION_METRICS.md`, scoped to the three supported pipelines:
+## Evaluation types (summary)
+
+From `docs/EVALUATION_METRICS.md`, the types reachable from the three design
+pipelines:
 
 1. **Protein binder** (`protein_type: binder`, `result_type: protein_binder`) —
    AF2 / RF3 / Boltz2 refold + SolubleMPNN redesign. Metrics: i_pAE, i_pTM,
@@ -154,9 +161,12 @@ From `docs/EVALUATION_METRICS.md`, scoped to the three supported pipelines:
    ligand_scRMSD_aligned_allatom.
 3. **Monomer** (`protein_type: monomer`) — ESMFold designability +
    codesignability + secondary structure. Used as a component of binder
-   evaluation (the `[binder, monomer]` analysis modes for protein and ligand
-   binders), never standalone.
-4. **AME / motif ligand binder** (`protein_type: motif_binder`, `result_type:
+   evaluation.
+4. **Motif protein binder** (`protein_type: motif_binder`, `result_type:
+   motif_protein_binder`) — Standalone variant of #1 + motif RMSD / sequence
+   recovery on the refolded structure. Run via `evaluate_motif_binder.yaml` on
+   protein-binder outputs, not a top-level design pipeline.
+5. **Motif ligand binder / AME** (`protein_type: motif_binder`, `result_type:
    motif_ligand_binder`) — #2 + motif overlay + ligand clash detection on the
    refolded structure. This is what `search_ame_local_pipeline.yaml` runs.
 

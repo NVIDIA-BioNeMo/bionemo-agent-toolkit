@@ -11,7 +11,7 @@ description: >
   evaluate_*.yaml config, wires ++dataset.pdb_dir and the folding backend, runs the
   evaluate → analyze chain, parses the result CSV, and reports pass-rates against
   the right result_type thresholds.
-compatibility: "complexa CLI installed (pip install -e .); CUDA GPU; AF2_DIR (colabdesign) or RF3_CKPT_PATH+RF3_EXEC_PATH (rf3_latest)"
+compatibility: "complexa CLI installed (pip install -e .); CUDA GPU; AF2_DIR (colabdesign) or RF3_CKPT_PATH+RF3_EXEC_PATH (rf3_latest); ESMFold weights for monomer paths"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
 
@@ -23,8 +23,8 @@ Score a directory of pre-existing PDB files against the same metrics Proteina-Co
 
 - Re-fold a directory of designed PDBs with AF2 (`colabdesign`), RF3 (`rf3_latest`), ESMFold (`esmfold`), or Boltz2 (`boltz2_default`).
 - Compute binder interface metrics: `i_pAE`, `min_ipAE`, `i_pTM`, `pLDDT`, binder/complex scRMSD.
-- Compute monomer **designability** (ProteinMPNN-redesigned scRMSD) and **codesignability** (original sequence refold scRMSD) as part of binder analysis.
-- For AME inputs: joint binder + motif RMSD scoring (motif overlay on refolded structure).
+- Compute monomer **designability** (ProteinMPNN-redesigned scRMSD) and **codesignability** (original sequence refold scRMSD).
+- For motif inputs: motif RMSD (CA + all-atom), motif-region designability/codesignability, sequence recovery.
 - Aggregate into per-PDB CSVs plus pass-rate summaries using the default thresholds for the `result_type`.
 
 ## Step 1: Pre-flight
@@ -71,6 +71,7 @@ Use this when the user's PDBs are protein-binder designs (multi-chain, binder is
 | Protein binder | **Yes (default)** | `configs/evaluate_from_pdb_dir.yaml` | `configs/analyze.yaml` | `protein_binder` | `colabdesign` (AF2) |
 | Ligand binder (binder + small-molecule) | Same evaluate config, swap 3 overrides | `configs/evaluate_from_pdb_dir.yaml` | `configs/analyze.yaml` | `ligand_binder` | `rf3_latest` |
 | AME / motif + ligand (enzyme outputs) | No — needs motif-aware config | `configs/evaluate_ame_from_pdb_dir.yaml` | `configs/analyze_motif_binder.yaml` | `motif_ligand_binder` | `rf3_latest` |
+| Motif protein binder (standalone) | No — no `_from_pdb_dir` variant | `configs/evaluate_motif_binder.yaml` + `++input_mode=pdb_dir` | `configs/analyze_motif_binder.yaml` | `motif_protein_binder` | `colabdesign` / `rf3_latest` |
 
 **Extending to ligand binder** (same evaluate config as default, three override swaps):
 
@@ -93,7 +94,7 @@ complexa analysis configs/evaluate_ame_from_pdb_dir.yaml \
     ++run_name=eval_ame_chm
 ```
 
-See `reference/eval_configs.md` for the full matrix (every `result_type`, every threshold default, every supported folding backend).
+See `reference/eval_configs.md` for the full matrix (every `result_type`, every threshold default, every supported folding backend, motif-protein-binder variant).
 
 ## Step 3: Gather inputs (AskUserQuestion)
 
@@ -101,8 +102,8 @@ Ask in one batched `AskUserQuestion`:
 
 1. **`pdb_dir`** — absolute path to the directory of PDBs to evaluate.
 2. **Design type** — protein binder / ligand binder / AME (motif + ligand).
-3. **Folding backend** — `colabdesign` (AF2, protein binders), `rf3_latest` (ligand / AME), `esmfold` (fast iteration), `boltz2_default` (alternative).
-4. **Target / AME task name** — must match a key in `configs/targets/targets_dict.yaml`, `configs/targets/ligand_targets_dict.yaml`, or `configs/design_tasks/ame_dict_v2.yaml`. Required to identify the target reference (and, for AME, the motif contigs).
+3. **Folding backend** — `colabdesign` (AF2, protein binders), `rf3_latest` (ligand / AME), `boltz2_default` (alternative).
+4. **Target / task name** — must match a key in `configs/targets/targets_dict.yaml`, `configs/targets/ligand_targets_dict.yaml`, or `configs/design_tasks/ame_dict_v2.yaml`. Required for binder + AME evaluation (needed to identify the target reference and, for AME, the motif contigs).
 5. **AME-only**: confirm ligand residue name is already renamed to `L:0` in every PDB (see Troubleshooting). If not, do that rename first.
 
 ## Step 4: Run evaluate → analyze
@@ -161,13 +162,13 @@ Output lands under `./evaluation_results/${run_name}/`:
 
 - Per-PDB metrics CSV — `*_results_*.csv` (one row per input PDB × `sequence_types`).
 - Pass-rate summaries — written by the `analyze` step (e.g. `res_designability.csv`, `res_filter_ligand_pass_*.csv`, `success_criteria_*.json`).
-- Diversity output — FoldSeek/MMseqs2 cluster files when `aggregation.compute_diversity=true` (default). **Empty diversity values ≠ low diversity:** if `foldseek`/`mmseqs` are not installed, the analyze step emits the diversity column with empty values rather than erroring. Before reporting diversity, confirm `tools.foldseek.exists: true` (and `tools.mmseqs.exists`) in `./complexa_setup/preflight.json`; if false, tell the user diversity was not computed (install the tool and re-run) instead of reporting a number.
+- Diversity output — FoldSeek/MMseqs2 cluster files when `aggregation.compute_diversity=true` (default).
 
 Summarize to the user:
 
 - Per-PDB row count and number of successful designs vs total.
 - Default-threshold pass rate by `result_type` (e.g. for `protein_binder`: `i_pAE*31 <= 7.0 AND pLDDT >= 0.9 AND scRMSD_ca < 1.5`).
-- Top 5 designs by primary metric (`i_pAE` for protein, `min_ipAE` for ligand, `motif_rmsd_pred_all` for AME).
+- Top 5 designs by primary metric (`i_pAE` for protein, `min_ipAE` for ligand, `motif_rmsd_pred_all` for motif binders).
 
 ## Step 6: Emit manifest
 
@@ -188,14 +189,14 @@ The manifest pins: resolved config, git SHA, ckpt SHA-256s, the result CSV paths
 | Override                                       | Effect                                                                |
 |------------------------------------------------|-----------------------------------------------------------------------|
 | `++sample_storage_path=<dir>`                  | The directory of PDBs to evaluate (required).                         |
-| `++dataset.task_name=<name>`                   | Target / AME task name. Resolves target PDB + (for AME) motif contigs.|
-| `++metric.binder_folding_method=<backend>`     | `colabdesign` / `rf3_latest` / `esmfold` / `boltz2_default`.          |
+| `++dataset.task_name=<name>`                   | Target / AME task name (binders, AME). Resolves target PDB + contigs. |
+| `++metric.binder_folding_method=<backend>`     | `colabdesign` / `rf3_latest` / `boltz2_default`.                      |
 | `++metric.inverse_folding_model=<model>`       | `protein_mpnn` / `soluble_mpnn` / `ligand_mpnn`.                      |
 | `++metric.sequence_types=[self,mpnn,mpnn_fixed]` | Which sequence flavors to refold.                                   |
 | `++metric.num_redesign_seqs=N`                 | ProteinMPNN/LigandMPNN redesign count.                                |
 | `++metric.compute_pre_refolding_metrics=true`  | Add bioinformatics/TMOL/HBPLUS metrics on the input structures.       |
 | `++metric.keep_folding_outputs=true`           | Save the refolded PDBs (large, but useful for inspection).            |
-| `++result_type=<type>`                         | Override default thresholds: `protein_binder` / `ligand_binder` / `motif_ligand_binder`. |
+| `++result_type=<type>`                         | Override default thresholds: `protein_binder` / `ligand_binder` / `motif_protein_binder` / `motif_ligand_binder`. |
 | `++aggregation.success_thresholds.<…>`         | Tighten or loosen specific thresholds (see `reference/eval_configs.md`). |
 | `++eval_njobs=N`                               | Parallel GPUs for the evaluate step.                                  |
 | `++dryrun=true`                                | Plan without running any folding.                                     |
@@ -210,11 +211,11 @@ The manifest pins: resolved config, git SHA, ckpt SHA-256s, the result CSV paths
 ## Troubleshooting
 
 - **`Error: Config file not found`** — paths are relative to the repo root; `cd` to the repo before invoking `complexa analysis`.
-- **`compute_motif_binder_metrics=True` but `result_type=protein_binder`** — `result_type` and the underlying `compute_*_metrics` must agree. Use `evaluate_ame_from_pdb_dir.yaml` for AME inputs rather than mutating `evaluate_from_pdb_dir.yaml`.
+- **`compute_motif_binder_metrics=True` but `result_type=protein_binder`** — `result_type` and the underlying `compute_*_metrics` must agree. Use `configs/evaluate_ame_from_pdb_dir.yaml` for AME inputs rather than mutating `evaluate_from_pdb_dir.yaml`.
 - **RF3 shape errors on AME PDBs** — RF3 tries to auto-complete the ligand atoms from CCD. Rename the ligand residue to `L:0` in every input PDB before evaluation; see the snippet in `README.md` (`atom_array.res_name[ligand_mask] = "L:0"`).
-- **Diversity column is present but empty (silent foldseek miss)** — `FOLDSEEK_EXEC`/`MMSEQS_EXEC` not installed or not on `PATH`. The analyze step does not hard-fail; it just leaves the diversity values blank, which reads like a result. Confirm with `preflight.sh` (`tools.foldseek.exists`), then either fix `.env` (preferred) or explicitly disable so the absence is intentional: `++aggregation.compute_diversity=false ++aggregation.compute_mmseqs_diversity=false`.
+- **Diversity step fails (`foldseek not found`)** — `FOLDSEEK_EXEC` not on `PATH`. Either fix `.env` (preferred) or disable: `++aggregation.compute_diversity=false ++aggregation.compute_mmseqs_diversity=false`.
 - **All pass-rates are 0%** — check the `binder_folding_method` matches the target type (RF3 for ligand, AF2 for protein) and that `++dataset.task_name` resolves to the correct reference PDB (`complexa target show <name>` to verify).
 
 ## Reference
 
-Full evaluate/analyze config matrix, every supported `result_type`, per-threshold defaults, and worked examples (protein binder / ligand binder / AME): see `reference/eval_configs.md`.
+Full evaluate/analyze config matrix, every supported `result_type`, per-threshold defaults, and three worked examples (protein binder / ligand binder / AME): see `reference/eval_configs.md`.

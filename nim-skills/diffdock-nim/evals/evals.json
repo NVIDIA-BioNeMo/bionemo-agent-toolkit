@@ -3,10 +3,17 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to a protein target. I have the protein structure in protein.pdb. Generate 10 docking poses and show me the confidence scores. Use the hosted NVIDIA DiffDock API.",
-      "expected_output": "A Python script that reads protein.pdb and filters to a non-empty ATOM-only receptor, calls the hosted DiffDock endpoint with Bearer auth, ligand_file_type='txt' for SMILES input, num_poses=10, and prints ranked poses with their confidence scores.",
-      "files": [],
+      "prompt": "I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to a protein target using the staged receptor at /workspace/input/protein.pdb. Generate 10 docking poses and show me the confidence scores using the hosted NVIDIA DiffDock API. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted DiffDock request that reads the staged protein.pdb, filters it to a non-empty ATOM-only receptor, uses Bearer auth, ligand_file_type='txt', and num_poses=10, then saves returned poses and reports actual ranked confidence scores.",
+      "files": [
+        "evals/files/protein.pdb"
+      ],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived pose scores and saved artifact paths"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted DiffDock endpoint URL",
@@ -38,7 +45,9 @@
           "check": "Script accesses 'position_confidence' from response and prints or reports scores"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "I have an SDF file of a drug candidate (ligand.sdf) and want to dock it to my protein (receptor.pdb). Use the DiffDock hosted API to generate 20 poses and save each pose as a separate SDF file named by its rank and confidence score.",
@@ -78,6 +87,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me set up DiffDock locally with Docker on my GPU. I have an A100 and NGC_API_KEY is set. After setup, dock a small molecule (SMILES: c1ccccc1) to my protein (protein.pdb).",
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, with the exact pinned image tag :2.2.0, NVIDIA_VISIBLE_DEVICES=0 env var, --shm-size=2G and --ulimit flags, health check, then a local no-auth docking script using localhost:8000 without /v1/ prefix.",
