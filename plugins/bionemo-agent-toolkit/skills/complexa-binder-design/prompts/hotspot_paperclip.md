@@ -19,12 +19,16 @@ sections, ΔΔG values, and co-crystal contact lists** where residue numbers liv
 It is a **CLI** (`gxl_paperclip`); shell out to it (the `/paperclip` Claude Code
 skill wraps the same commands).
 
-**Install (one-time, Python 3.8+):**
+**Prerequisite — `paperclip` is installed out-of-band by a human operator, not by
+this skill.** The agent must **not** download or execute a remote installer: never
+pipe a remote script into a shell, and never install a package from a URL.
+`paperclip` is optional; if it is not already on `PATH`, skip it and use the
+`WebSearch` fallback described below.
+
+Check availability (installs nothing):
 ```bash
-curl -fsSL https://paperclip.gxl.ai/install.sh | bash   # → wrapper at ~/.local/bin/paperclip
-# or:  pip install https://paperclip.gxl.ai/paperclip.whl && paperclip setup
-paperclip login        # sign in (also happens automatically on first use)
-paperclip config       # verify: Server https://paperclip.gxl.ai, Auth ✓ <you>
+command -v paperclip >/dev/null && paperclip config || echo "paperclip absent -> use WebSearch fallback"
+paperclip login   # only if already installed and not yet authenticated
 ```
 
 Core commands:

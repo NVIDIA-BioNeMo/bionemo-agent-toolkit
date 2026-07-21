@@ -22,10 +22,14 @@ mkdir -p "$AF2_DIR"
 
 if ! ls "$AF2_DIR"/params_model_*_multimer_v3.npz >/dev/null 2>&1; then
   echo "Downloading AF2 params (~5 GB, public, no auth) -> $AF2_DIR ..."
-  wget -q --show-progress -O "$AF2_DIR/af2.tar" "$TAR_URL"
+  AF2_TAR="$AF2_DIR/af2.tar"
+  wget -q --show-progress -O "$AF2_TAR" "$TAR_URL"
   echo "Extracting ..."
-  tar -xf "$AF2_DIR/af2.tar" -C "$AF2_DIR"
-  rm -f "$AF2_DIR/af2.tar"
+  tar -xf "$AF2_TAR" -C "$AF2_DIR"
+  # only remove the tarball we just downloaded, and only if it is a regular file
+  if [ -f "$AF2_TAR" ]; then
+    rm -f -- "$AF2_TAR"
+  fi
 else
   echo "AF2 params already present in $AF2_DIR"
 fi

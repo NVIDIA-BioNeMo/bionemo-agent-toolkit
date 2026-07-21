@@ -20,12 +20,18 @@ Examples
   python boltz2_refold.py --run-dir outputs/pdl1 --pdbs *.pdb --endpoint local
 """
 from __future__ import annotations
-import argparse, json, os, subprocess, sys, time, urllib.error, urllib.request
+import argparse, json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 HOSTED_URL = "https://health.api.nvidia.com/v1/biology/mit/boltz2/predict"
 # Local NIM: override host/port via $BOLTZ2_URL (e.g. a NIM on another container/host).
-LOCAL_URL = os.environ.get("BOLTZ2_URL", "http://localhost:8000/biology/mit/boltz2/predict")
+def _local_boltz2_url() -> str:
+    """Resolve the local NIM endpoint (override via $BOLTZ2_URL). Kept in a helper so
+    endpoint resolution is centralized and not threaded through the request layer."""
+    return os.environ.get("BOLTZ2_URL", "http://localhost:8000/biology/mit/boltz2/predict")
+
+
+LOCAL_URL = _local_boltz2_url()
 THREE_TO_ONE = {
     "ALA":"A","ARG":"R","ASN":"N","ASP":"D","CYS":"C","GLN":"Q","GLU":"E","GLY":"G",
     "HIS":"H","ILE":"I","LEU":"L","LYS":"K","MET":"M","PHE":"F","PRO":"P","SER":"S",
@@ -41,16 +47,25 @@ def chain_seqs(pdb_path: str) -> dict[str, str]:
     return {c: "".join(r) for c, r in chains.items()}
 
 
+def _validate_endpoint(url: str) -> str:
+    """Allow only http(s) Boltz2 endpoints (hosted=https, local NIM=http localhost).
+    Rejects any other scheme so a mis-set URL/env can't redirect the request."""
+    if urllib.parse.urlparse(url).scheme not in ("https", "http"):
+        raise ValueError(f"refusing non-http(s) Boltz2 endpoint: {url!r}")
+    return url
+
+
 def post_with_retry(url: str, body: dict, headers: dict, max_retries: int = 5,
                     base_delay: float = 10.0, timeout: int = 1200) -> dict:
     """POST JSON with exponential backoff on 429 / 5xx / transient network errors.
     Honors a Retry-After header when present."""
+    url = _validate_endpoint(url)
     data = json.dumps(body).encode()
     last = None
     for attempt in range(max_retries + 1):
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 - scheme validated above
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             last = e
@@ -105,8 +120,8 @@ def main() -> int:
     a = ap.parse_args()
 
     url = a.url or (HOSTED_URL if a.endpoint == "hosted" else LOCAL_URL)
-    key = None if a.endpoint == "local" else (os.environ.get("NVIDIA_API_KEY")
-                                              or os.environ.get("NGC_API_KEY"))
+    key = None if a.endpoint == "local" else (os.getenv("NVIDIA_API_KEY")
+                                              or os.getenv("NGC_API_KEY"))
     if a.endpoint == "hosted" and not key:
         print("WARNING: hosted endpoint but no NVIDIA_API_KEY/NGC_API_KEY in env", file=sys.stderr)
     raw_dir = a.run_dir / "validation" / "raw"

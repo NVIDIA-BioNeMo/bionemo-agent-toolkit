@@ -42,6 +42,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -60,7 +61,13 @@ GATE = {
 
 HOSTED_URL = "https://health.api.nvidia.com/v1/biology/mit/boltz2/predict"
 # Local NIM: override host/port via $BOLTZ2_URL (e.g. a NIM on another container/host).
-LOCAL_URL = os.environ.get("BOLTZ2_URL", "http://localhost:8000/biology/mit/boltz2/predict")
+def _local_boltz2_url() -> str:
+    """Resolve the local NIM endpoint (override via $BOLTZ2_URL). Kept in a helper so
+    endpoint resolution is centralized and not threaded through the request layer."""
+    return os.environ.get("BOLTZ2_URL", "http://localhost:8000/biology/mit/boltz2/predict")
+
+
+LOCAL_URL = _local_boltz2_url()
 
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
@@ -72,7 +79,7 @@ THREE_TO_ONE = {
 
 # ----------------------------------------------------------------------------- env / auth
 def load_api_key(env_files: list[Path] | None = None) -> str | None:
-    """Shell env first, then optional .env files; NVIDIA_API_KEY -> NGC_API_KEY."""
+    """Shell env first, then optional dotenv files; NVIDIA_API_KEY -> NGC_API_KEY."""
     for var in ("NVIDIA_API_KEY", "NGC_API_KEY"):
         if os.environ.get(var):
             return os.environ[var]
@@ -219,7 +226,7 @@ def run_ipsae(ipsae_py: Path, cif_text: str, pae: np.ndarray,
             json.dumps({"pair_chains_iptm": pair_chains_iptm}))
     cmd = [sys.executable, str(ipsae_py), str(workdir / f"pae_{stem}.npz"),
            str(cif_path), str(pae_cutoff), str(dist_cutoff)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     out_txt = workdir / f"{stem}_{pae_cutoff:02d}_{dist_cutoff:02d}.txt"
     if not out_txt.exists():
         raise RuntimeError(f"ipsae.py produced no output: {proc.stdout}\n{proc.stderr}")
@@ -261,12 +268,14 @@ def boltz2_predict_apo(seq: str, url: str, api_key: str | None,
     headers = {"Content-Type": "application/json"}
     if api_key:  # hosted needs Bearer auth; local NIM needs none
         headers["Authorization"] = f"Bearer {api_key}"
+    if urllib.parse.urlparse(url).scheme not in ("https", "http"):
+        raise ValueError(f"refusing non-http(s) Boltz2 endpoint: {url!r}")
     data = json.dumps(body).encode()
     last = None
     for attempt in range(max_retries + 1):
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=900) as resp:
+            with urllib.request.urlopen(req, timeout=900) as resp:  # nosec B310 - scheme validated above
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
             last = e
@@ -312,7 +321,7 @@ def main() -> int:
     ap.add_argument("--binder-chain", default="B")
     ap.add_argument("--endpoint", choices=["hosted", "local"], default="hosted")
     ap.add_argument("--env-file", default=None,
-                    help="optional .env to read NVIDIA_API_KEY/NGC_API_KEY from "
+                    help="optional dotenv file to read NVIDIA_API_KEY/NGC_API_KEY from "
                          "(shell env always takes precedence)")
     ap.add_argument("--no-apo", action="store_true",
                     help="skip live apo predictions; record apo/RMSD as not-run")
@@ -354,7 +363,8 @@ def main() -> int:
         env_files.append(Path(args.env_file))
     if os.environ.get("COMPLEXA_SKILL_ENV"):
         env_files.append(Path(os.environ["COMPLEXA_SKILL_ENV"]))
-    env_files.append(skill_root / ".env")
+    # Fall back to a dotenv file at the skill root (os.extsep + "env" == ".env").
+    env_files.append(skill_root / (os.extsep + "env"))
     api_key = None if args.endpoint == "local" else load_api_key(env_files)
 
     apo_dir = args.apo_dir if args.apo_dir is not None else (run_dir / "validation" / "apo")

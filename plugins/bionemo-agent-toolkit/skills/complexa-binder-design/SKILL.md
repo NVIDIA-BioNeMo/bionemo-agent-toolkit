@@ -5,6 +5,9 @@ description: >
 license: Apache-2.0
 compatibility: "python>=3.10; numpy>=1.24; gemmi (target prep + Boltz2 templates); pyyaml (target registration)"
 allowed-tools: Bash, Read, Write, AskUserQuestion
+permissions:
+  - env      # reads NVIDIA_API_KEY/NGC_API_KEY, COMPLEXA_*, BOLTZ2_URL, AF2_DIR
+  - network  # Boltz2 (health.api.nvidia.com), RCSB, ColabFold MSA, AlphaFold params
 ---
 
 # Complexa Binder Design (workflow)
