@@ -149,6 +149,68 @@ databases must be indexed with `mmseqs createindex` first. Individually download
 versions: `uniref30_2302-m18v1`, `colabfold_envdb_202108-m18v1`, `pdb70_220313-m18v1`,
 `pdb100_230517-m18v1`, `pdb_20251028_zip-m18v1`.
 
+## Even Faster: Parallel Download Of A Large Single-DB Profile
+
+Task-specific profiles cut *what* you download; a parallel downloader cuts *how long* that
+download takes. This matters most for the `databases:uniref30` profile, which is ~490 GB
+dominated by two very large files (a ~241 GB GPU index and a ~134 GB sequence DB).
+
+The NIM's built-in downloader parallelizes **across files** (`max_parallel_files=10`) but pulls
+each file over roughly one connection. The NGC CDN throttles a single connection to ~20–25
+MB/s, so while the downloader is fetching one of the two giant files, most of its parallel
+slots sit idle and throughput collapses to that single-flow rate. Measured on an H100 node,
+the built-in path did not reach `/health/ready` in over 80 minutes.
+
+A range-parallel downloader splits **each file** into many byte-range segments (the NGC CDN
+advertises `accept-ranges: bytes`), so a single 241 GB file is pulled over 16 connections at
+once — ~15× the single-flow rate. Same node, `aria2c` fetched the full ~490 GB in **~13.5
+minutes**.
+
+Workflow (download once with aria2, then start the NIM against the files via `NIM_MODEL_NAME`):
+
+```bash
+# 1) Get presigned file URLs for the individual database model version from NGC.
+#    (Requires NGC_API_KEY. The response arrays `urls` and `filepath` are positionally paired.)
+curl -s -H "Authorization: Bearer $NGC_API_KEY" \
+  'https://api.ngc.nvidia.com/v2/org/nim/team/colabfold/models/msa-search/uniref30_2302-m18v1/files' \
+  -o files.json
+
+# 2) Build an aria2 input file (URL + target filename per entry) and download in parallel.
+python3 - <<'PY'
+import json
+d = json.load(open("files.json"))
+lines = []
+for url, path in zip(d["urls"], d["filepath"]):
+    lines += [url.strip(), "  dir=/data/fast-db", f"  out={path}"]
+open("aria.in", "w").write("\n".join(lines) + "\n")
+PY
+aria2c -i aria.in \
+  --max-concurrent-downloads=4 --max-connection-per-server=16 --split=16 \
+  --min-split-size=1M --continue=true --file-allocation=none
+
+# 3) Start the NIM against the downloaded directory. NIM_MODEL_NAME makes the NIM discover
+#    databases by scanning for **/*.idx, bypassing the profile/blob cache entirely.
+docker run -d --name msa-search --runtime=nvidia --gpus all \
+  -e NGC_API_KEY \
+  -e NIM_MODEL_NAME=/databases \
+  -v /data/fast-db:/databases \
+  -p 8000:8000 \
+  nvcr.io/nim/colabfold/msa-search:2
+```
+
+Notes:
+
+- The presigned URLs expire (typically within a day) — build the aria2 input and start the
+  download promptly after fetching `files.json`.
+- Keep the downloaded directory's internal layout intact (e.g. `uniref30_2302/…`); the
+  `filepath` values already encode it. The NIM needs the `.idx` file plus its companion files
+  and the small `.UNIREF30_READY` / `*.tar.gz.unpacked` markers.
+- The bottleneck is the CDN's per-connection cap, not local disk or CPU — a fast NVMe volume
+  writes far faster than the network delivers. Raising `--split` / `--max-connection-per-server`
+  helps only up to the node's aggregate egress ceiling.
+- Best of all: download the profile once, then **persist the cache volume** (or this
+  `fast-db` directory) and mount it on future nodes for a ~20 s warm start with no re-download.
+
 ## Standard MSA Request
 
 Use exact case-sensitive database names and response keys.
