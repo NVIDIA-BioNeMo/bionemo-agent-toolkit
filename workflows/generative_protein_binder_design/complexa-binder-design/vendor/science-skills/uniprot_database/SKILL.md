@@ -70,7 +70,7 @@ Choose the right tool based on the task type and data volume:
     -   *Warning*: For paginated search, TXT and other formats are not reliable
         with `--limit` as it applies to lines, not entries.
     -   See
-        [Search Query Fields Documentation](references/search_query_fields.md).
+        [Search Query Fields Documentation](https://www.uniprot.org/help/query-fields).
 -   **`stream`**: Streams all matching entries. Best for **bulk retrieval** of
     large datasets (up to 10,000,000 entries).
     -   Does NOT support `--limit`; always returns the full result set.
@@ -80,10 +80,10 @@ Choose the right tool based on the task type and data volume:
     or `stream`.
 -   **`sparql`**: Executes graph queries for complex discovery. Best for
     counting, exact sequence matches, and multi-database queries.
-    -   See [SPARQL Examples](references/sparql_examples.md).
+    -   See [SPARQL Examples](https://sparql.uniprot.org/.well-known/sparql-examples/).
 -   **`map`**: Converts IDs between UniProt and 100+ databases. Best for ID
     mapping tasks.
-    -   See [ID Mapping Documentation](references/id_mapping_documentation.md).
+    -   See [ID Mapping Documentation](https://www.uniprot.org/help/id_mapping).
     -   **`search` vs. `map`**: Try `search` first before resorting to `map` if
         not explicitly requested by the user. E.g., an external ID might be
         searchable in UniParc but fail to map to UniProtKB.
@@ -281,9 +281,9 @@ uv run scripts/uniprot_tools.py sparql 'PREFIX up: <http://purl.uniprot.org/core
 
 ## Reference Materials
 
--   [SPARQL Examples](references/sparql_examples.md)
--   [Search Query Fields Documentation](references/search_query_fields.md)
--   [ID Mapping Documentation](references/id_mapping_documentation.md)
+-   [SPARQL Examples](https://sparql.uniprot.org/.well-known/sparql-examples/)
+-   [Search Query Fields Documentation](https://www.uniprot.org/help/query-fields)
+-   [ID Mapping Documentation](https://www.uniprot.org/help/id_mapping)
 -   [UniProt Evidence Docs](https://www.uniprot.org/help/evidences)
 -   **Underlying API Endpoints** (Used by `scripts/uniprot_tools.py`):
     -   `get`, `search`, `stream`, `count` -> `rest.uniprot.org/{dataset}/`

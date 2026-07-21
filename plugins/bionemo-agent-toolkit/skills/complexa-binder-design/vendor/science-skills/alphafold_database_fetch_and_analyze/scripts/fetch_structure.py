@@ -48,7 +48,7 @@ class _HttpClient:
   def fetch_bytes(self, url):
     try:
       req = urllib.request.Request(url, headers=self._headers)
-      with urllib.request.urlopen(req, timeout=120) as r:
+      with urllib.request.urlopen(req, timeout=120) as r:  # nosec B310 - AFDB https API, scheme fixed by caller
         return r.read()
     except urllib.error.HTTPError as e:
       raise HttpError(str(e), status_code=e.code) from e

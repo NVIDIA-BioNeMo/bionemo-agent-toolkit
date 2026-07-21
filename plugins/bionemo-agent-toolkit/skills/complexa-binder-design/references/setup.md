@@ -102,7 +102,7 @@ model family than Complexa's reward/evaluate:
 
   ```bash
   docker login nvcr.io -u '$oauthtoken' -p "$NGC_API_KEY"      # once
-  mkdir -p ~/nimcache_boltz2 && chmod 777 ~/nimcache_boltz2
+  mkdir -p ~/nimcache_boltz2 && chmod 700 ~/nimcache_boltz2
   docker run -d --name boltz2 --gpus device=0 --shm-size=8g \
       -e NGC_API_KEY -v ~/nimcache_boltz2:/opt/nim/.cache -p 8000:8000 \
       nvcr.io/nim/mit/boltz2:latest                            # OpenFold3 NIM analogously

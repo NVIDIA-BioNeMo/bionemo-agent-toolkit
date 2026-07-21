@@ -75,20 +75,20 @@ def _post(path: str, data: dict) -> dict:
     req = urllib.request.Request(f"{HOST}/{path}",
                                  data=urllib.parse.urlencode(data).encode(),
                                  headers={"User-Agent": UA}, method="POST")
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=120) as r:  # nosec B310 - HOST is a fixed https literal
         return json.loads(r.read().decode())
 
 
 def _get_json(path: str) -> dict:
     req = urllib.request.Request(f"{HOST}/{path}", headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=120) as r:  # nosec B310 - HOST is a fixed https literal
         return json.loads(r.read().decode())
 
 
 def _download(ticket: str) -> bytes:
     req = urllib.request.Request(f"{HOST}/result/download/{ticket}",
                                  headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=300) as r:
+    with urllib.request.urlopen(req, timeout=300) as r:  # nosec B310 - HOST is a fixed https literal
         return r.read()
 
 

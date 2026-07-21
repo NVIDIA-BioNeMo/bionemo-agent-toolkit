@@ -68,7 +68,7 @@ class _HttpClient:
 
   def fetch(self, url, headers=None, method="GET", data=None):
     try:
-      with urllib.request.urlopen(self._request(url, headers, method, data), timeout=120) as r:
+      with urllib.request.urlopen(self._request(url, headers, method, data), timeout=120) as r:  # nosec B310 - UniProt https API, scheme fixed by caller
         charset = r.headers.get_content_charset() or "utf-8"
         return _HttpResponse(r.headers, r.read(), charset)
     except urllib.error.HTTPError as e:

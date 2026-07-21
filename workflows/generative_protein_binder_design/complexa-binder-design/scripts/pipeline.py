@@ -247,7 +247,7 @@ def resolve_target(spec: dict, run_dir: Path) -> Iterator[Event]:
             if "--pdb" in FETCH_STRUCTURE.read_text() else None
         # fetch_structure.py (vendored) is AFDB-only; RCSB is a plain download
         import urllib.request
-        data = urllib.request.urlopen(f"https://files.rcsb.org/download/{pid.lower()}.pdb", timeout=120).read()
+        data = urllib.request.urlopen(f"https://files.rcsb.org/download/{pid.lower()}.pdb", timeout=120).read()  # nosec B310 - fixed https RCSB literal
         (run_dir / "target.pdb").write_bytes(data)
         yield Event("stage1", "ok", f"RCSB {pid} saved ({len(data)} bytes); "
                                     "verify hotspot numbering against this file (auth numbering may be offset)")

@@ -27,7 +27,7 @@ Give each NIM its own persistent cache (so weights download once), a name, and a
 Mount the cache at `/opt/nim/.cache` and make it writable:
 
 ```bash
-mkdir -p ~/nimcache_rfd ~/nimcache_pmpnn ~/nimcache_boltz2 && chmod 777 ~/nimcache_*
+mkdir -p ~/nimcache_rfd ~/nimcache_pmpnn ~/nimcache_boltz2 && chmod 700 ~/nimcache_*
 docker run -d --name rfdiffusion --gpus device=0 --shm-size=4g \
   -e NGC_API_KEY -v ~/nimcache_rfd:/opt/nim/.cache -p 8081:8000 \
   nvcr.io/nim/ipd/rfdiffusion:latest

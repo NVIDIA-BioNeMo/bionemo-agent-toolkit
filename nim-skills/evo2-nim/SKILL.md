@@ -67,7 +67,7 @@ echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-s
 # 40B default: 0,1 for 2x H100; set 0 for a single H200.
 export NIM_TEST_GPUS="${NIM_TEST_GPUS:-0,1}"
 mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+chmod 700 "${LOCAL_NIM_CACHE}"   # owner-only; if the NIM runs as a different UID, add -u "$(id -u)" to docker run
 
 # For 7B: export NIM_VARIANT=7b; export NIM_TEST_GPUS="${NIM_TEST_GPUS:-0}"
 docker run --rm -it --name evo2-nim \

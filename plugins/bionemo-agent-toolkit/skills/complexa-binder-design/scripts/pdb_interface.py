@@ -51,7 +51,7 @@ def pdb_ids_from_uniprot_entry(entry: dict) -> list[str]:
 def _read_cif(pdb_id: str, timeout: int = 120):
     """Download an mmCIF and parse with gemmi (via temp file — version-robust)."""
     import gemmi
-    data = urllib.request.urlopen(
+    data = urllib.request.urlopen(  # nosec B310 - fixed https RCSB literal
         f"https://files.rcsb.org/download/{pdb_id.lower()}.cif", timeout=timeout
     ).read()
     with tempfile.NamedTemporaryFile("wb", suffix=".cif", delete=True) as fh:
