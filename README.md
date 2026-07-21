@@ -40,7 +40,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 
 | Product | Description | Skills |
 |---------|-------------|--------|
-| **Protein Binder Design** | End-to-end de novo binder design workflows — a NIM route and a Proteina-Complexa route. | [`protein-binder-design`](workflows/generative_protein_binder_design/protein-binder-design), [`complexa-binder-design`](workflows/generative_protein_binder_design/complexa-binder-design) |
+| **Protein Binder Design** | End-to-end de novo binder design workflows — a NIM route and a Proteina-Complexa route. | [`protein-binder-design`](workflows/generative-protein-binder-design/protein-binder-design), [`complexa-binder-design`](workflows/generative-protein-binder-design/complexa-binder-design) |
 | **Generative Virtual Screening workflow** | Generate candidate molecules, dock them to a target, and score binding affinity (GenMol → DiffDock → Boltz-2). | [`drug-discovery-pipeline`](nim-skills/meta-skills/drug-discovery-pipeline) |
 | **MSA-enabled protein structure prediction workflow** | Build a multiple sequence alignment, then predict structure (MSA-Search → OpenFold3). | [`msa-structure-prediction-pipeline`](nim-skills/meta-skills/msa-structure-prediction-pipeline) |
 | **Boltz-2** | Biomolecular structure prediction + binding affinity (NIM). | [`boltz2-nim`](nim-skills/boltz2-nim) |

@@ -14,7 +14,7 @@ exceptions:
     owner: trvachov
     component: BioNeMo NIMs
   - dir: workflows
-    reason: Native meta-skill workflows (generative_protein_binder_design, virtual_screening, ai_q) authored in-repo.
+    reason: Native meta-skill workflows (generative-protein-binder-design, virtual_screening, ai_q) authored in-repo.
     owner: trvachov
     component: Workflows
 

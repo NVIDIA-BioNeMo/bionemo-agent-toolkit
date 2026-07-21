@@ -5,7 +5,7 @@ description: >
   Side-by-side comparison of the two de novo binder-design routes
   (complexa-binder-design vs protein-binder-design) to help choose one for a given
   target and constraints.
-parent_workflow: generative_protein_binder_design
+parent_workflow: generative-protein-binder-design
 tags: [protein-design, binder-design, reference]
 ---
 
