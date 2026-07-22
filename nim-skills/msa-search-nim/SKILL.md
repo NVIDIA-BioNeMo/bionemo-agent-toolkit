@@ -41,9 +41,24 @@ for template search unless the hosted docs/service changes.
 
 ## Local Docker
 
+> **Recommended deployment path.** For any real workflow, do NOT start with the plain
+> full-database `docker run` below — it triggers the NIM's built-in downloader over the
+> full ~1.4 TB set, which is slow (well over an hour, and on large single-DB profiles it
+> can stall past 80 minutes; see the measurements under "Parallel Download"). Instead,
+> default to the two-step fast path:
+>
+> 1. **Pick the smallest task-specific profile** for your task ("Faster Startup" below) —
+>    e.g. `databases:uniref30` for paired/complex work.
+> 2. **Download it in parallel with aria2c and launch via `NIM_MODEL_NAME`**
+>    ("Recommended For Large Profiles: Parallel Download" below) — ~14 min instead of >80 min,
+>    measured on an H100 node.
+>
+> Use the plain `docker run` in this section only when you genuinely need the full
+> `databases:all` set and are not time-constrained, or for a quick `databases:pdb70` smoke test.
+
 Local setup requires a GPU. The full database set is about 1.4 TB / 1660 GB of
 NVMe storage, but you rarely need all of it — use a **task-specific profile**
-(see "Faster Startup" below) to download only the databases your task requires,
+(see "Faster Startup" below) downloaded in parallel to download only the databases your task requires,
 which cuts both storage and startup time. Size the cache volume to the profile you
 pick. For setup answers, include env preflight, `docker login`,
 `docker run`, readiness, and then no-auth local inference. Do not invent a cache
@@ -149,10 +164,11 @@ databases must be indexed with `mmseqs createindex` first. Individually download
 versions: `uniref30_2302-m18v1`, `colabfold_envdb_202108-m18v1`, `pdb70_220313-m18v1`,
 `pdb100_230517-m18v1`, `pdb_20251028_zip-m18v1`.
 
-## Even Faster: Parallel Download Of A Large Single-DB Profile
+## Recommended For Large Profiles: Parallel Download (Fast Deployment)
 
-Task-specific profiles cut *what* you download; a parallel downloader cuts *how long* that
-download takes. This matters most for the `databases:uniref30` profile, which is ~490 GB
+**This is the recommended default for any large single-DB profile** (e.g.
+`databases:uniref30`). Task-specific profiles cut *what* you download; this parallel
+downloader cuts *how long* that download takes. It matters most for the `databases:uniref30` profile, which is ~490 GB
 dominated by two very large files (a ~241 GB GPU index and a ~134 GB sequence DB).
 
 The NIM's built-in downloader parallelizes **across files** (`max_parallel_files=10`) but pulls
