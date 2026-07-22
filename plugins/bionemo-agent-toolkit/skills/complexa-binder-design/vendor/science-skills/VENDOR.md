@@ -37,8 +37,19 @@ package installed via `uv` inline-script metadata. To run standalone here with
   interface), aliased as `http_client` so the rest of each file is unchanged.
 
 All AFDB / UniProt query logic is otherwise upstream-verbatim. Each modified file
-carries a `# MODIFIED for bionemo-nim-skills` note. `analyze_*.py` and the
-`SKILL.md` files are verbatim. Re-vendor from upstream to update.
+carries a `# MODIFIED for bionemo-nim-skills` note. `analyze_*.py` are verbatim.
+
+## Structural changes
+
+Upstream ships each skill with a top-level `SKILL.md`. Here they are vendored as
+**libraries** (only their `scripts/*.py` are imported — nothing reads the manifest),
+so each `SKILL.md` was renamed to `README.md`. The skills catalog treats any
+directory with a `SKILL.md` as its own skill root, and a skill may not contain
+another skill; the rename keeps this directory a single atomic skill.
+
+**When re-vendoring:** after copying from upstream, rename each nested
+`SKILL.md` → `README.md` (or drop it) before committing, or the nested
+resource-root check will fail again.
 
 ## Verified (2026-06-11)
 
