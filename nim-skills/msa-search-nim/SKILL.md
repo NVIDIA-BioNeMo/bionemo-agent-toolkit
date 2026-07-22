@@ -1,7 +1,7 @@
 ---
 name: msa-search-nim
 description: >
-  Generate multiple sequence alignments (MSAs) for protein sequences using the ColabFold MSA-Search NIM. Use for homolog search, UniRef30/ColabFold env searches, A3M or FASTA alignments, paired MSA search for complexes, PDB70 structural templates, hosted NVIDIA API calls, or local Docker deployment.
+  Generate multiple sequence alignments (MSAs) for protein sequences using the ColabFold MSA-Search NIM. Use for homolog search, UniRef30/ColabFold env searches, A3M or FASTA alignments, paired MSA search for complexes, PDB70 structural templates, hosted NVIDIA API calls, or local Docker deployment. For local deployment, download the databases in parallel with aria2c and launch via NIM_MODEL_NAME (the recommended default fast path, ~14 min vs >80 min for the built-in downloader); a plain docker run uses the slow built-in downloader.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
@@ -41,53 +41,55 @@ for template search unless the hosted docs/service changes.
 
 ## Local Docker
 
-> **Recommended deployment path.** For any real workflow, do NOT start with the plain
-> full-database `docker run` below — it triggers the NIM's built-in downloader over the
-> full ~1.4 TB set, which is slow (well over an hour, and on large single-DB profiles it
-> can stall past 80 minutes; see the measurements under "Parallel Download"). Instead,
-> default to the two-step fast path:
->
-> 1. **Pick the smallest task-specific profile** for your task ("Faster Startup" below) —
->    e.g. `databases:uniref30` for paired/complex work.
-> 2. **Download the database(s) in parallel with aria2c and launch via `NIM_MODEL_NAME`**
->    ("Parallel Download For Any Database Set" below) — ~14 min for UniRef30 instead of
->    >80 min, measured on an H100 node. This applies whether you need one database or
->    the full `databases:all` set.
->
-> Use the plain `docker run` in this section only for a quick `databases:pdb70` smoke
-> test, or when you specifically want the NIM to manage its own blob cache. The parallel
-> path below covers every case, including the full `databases:all` set.
+**Default local deployment = parallel download + `NIM_MODEL_NAME`.** The first recipe below
+is the one to use for real workflows. It downloads the database(s) with a range-parallel
+downloader (aria2c) and starts the NIM against those files — ~14 min for UniRef30 vs >80 min
+for the NIM's built-in downloader (measured, H100). Do **not** reach for the plain `docker run`
+(the "Fallback" subsection) unless you only want a `databases:pdb70` smoke test or you
+deliberately want the NIM to manage its own blob cache.
 
-Local setup requires a GPU. The full database set is about 1.4 TB / 1660 GB of
-NVMe storage, but you rarely need all of it — use a **task-specific profile**
-(see "Faster Startup" below) downloaded in parallel to download only the databases your task requires,
-which cuts both storage and startup time. Size the cache volume to the profile you
-pick. For setup answers, include env preflight, `docker login`,
-`docker run`, readiness, and then no-auth local inference. Do not invent a cache
-default or drop the `NVIDIA_API_KEY` fallback.
+Local setup requires a GPU. Size the NVMe volume to the profile you pick (UniRef30 ~490 GB;
+full set ~1.4 TB). For setup answers, include env preflight, `docker login`, the parallel
+download, `NIM_MODEL_NAME` launch, readiness, and then no-auth local inference. Do not invent a
+cache default or drop the `NVIDIA_API_KEY` fallback.
 
 ```bash
+# --- env preflight (do not drop the NVIDIA_API_KEY fallback) ---
 set -a
 [ -f .env ] && . ./.env
 set +a
-
 if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
   export NGC_API_KEY="$NVIDIA_API_KEY"
 fi
 : "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
+: "${DB_DIR:=/data/fast-db}"          # where the parallel download lands
 
 echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 
-echo "MSA-Search local databases require about 1.4 TB (1660 GB) of NVMe storage."
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+# --- 1) pick the DB version(s) you need (paired/complex work = uniref30 only) ---
+DB_VERSION=uniref30_2302-m18v1
+command -v aria2c >/dev/null || sudo apt-get install -y aria2
+mkdir -p "$DB_DIR"
 
-docker run --rm --name msa-search \
-  --runtime=nvidia \
-  --gpus all \
+# --- 2) parallel download from NGC (see "Parallel Download" section for the all-DB loop) ---
+curl -fsS -H "Authorization: Bearer $NGC_API_KEY" \
+  "https://api.ngc.nvidia.com/v2/org/nim/team/colabfold/models/msa-search/${DB_VERSION}/files" \
+  -o /tmp/files.json
+DB_DIR="$DB_DIR" python3 - <<'PY'
+import json, os
+d = json.load(open("/tmp/files.json")); dbdir = os.environ["DB_DIR"]; lines = []
+for url, path in zip(d["urls"], d["filepath"]):
+    lines += [url.strip(), f"  dir={dbdir}", f"  out={path}"]
+open("/tmp/aria.in", "w").write("\n".join(lines) + "\n")
+PY
+aria2c -i /tmp/aria.in --max-concurrent-downloads=4 --max-connection-per-server=16 \
+  --split=16 --min-split-size=1M --continue=true --file-allocation=none
+
+# --- 3) launch the NIM against the downloaded files (skips the slow built-in download) ---
+docker run -d --name msa-search --runtime=nvidia --gpus all \
   -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
+  -e NIM_MODEL_NAME=/databases \
+  -v "${DB_DIR}:/databases" \
   -p 8000:8000 \
   nvcr.io/nim/colabfold/msa-search:2
 ```
@@ -95,8 +97,32 @@ docker run --rm --name msa-search \
 Readiness:
 
 ```bash
-until curl -sf http://localhost:8000/v1/health/ready; do sleep 10; done
+until curl -sf http://localhost:8000/v1/health/ready; do sleep 5; done
 ```
+
+If the DB is already present in `$DB_DIR`, skip steps 1-2 — the launch alone is a ~20 s warm
+start. See "Parallel Download For Any Database Set" for the multi-database (`databases:all`)
+loop and the full rationale.
+
+### Fallback: Let The NIM Download Its Own Databases (slower)
+
+Use this only for a quick `databases:pdb70` smoke test, or when you specifically want the NIM
+to manage its own blob cache. It uses the built-in downloader, which is slow on large profiles
+(UniRef30 stalled past 80 min in testing). Pin the smallest profile with `NIM_MODEL_PROFILE`
+(see "Faster Startup") so it does not fetch the full 1.4 TB.
+
+```bash
+: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
+mkdir -p "${LOCAL_NIM_CACHE}"; chmod 777 "${LOCAL_NIM_CACHE}"
+docker run --rm --name msa-search \
+  --runtime=nvidia --gpus all \
+  -e NGC_API_KEY \
+  -e NIM_MODEL_PROFILE=<hash-from-list-model-profiles> \
+  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
+  -p 8000:8000 \
+  nvcr.io/nim/colabfold/msa-search:2
+```
+
 
 ## Faster Startup: Task-Specific Database Profiles
 
