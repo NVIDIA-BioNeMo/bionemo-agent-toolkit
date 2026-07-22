@@ -49,12 +49,14 @@ for template search unless the hosted docs/service changes.
 >
 > 1. **Pick the smallest task-specific profile** for your task ("Faster Startup" below) —
 >    e.g. `databases:uniref30` for paired/complex work.
-> 2. **Download it in parallel with aria2c and launch via `NIM_MODEL_NAME`**
->    ("Recommended For Large Profiles: Parallel Download" below) — ~14 min instead of >80 min,
->    measured on an H100 node.
+> 2. **Download the database(s) in parallel with aria2c and launch via `NIM_MODEL_NAME`**
+>    ("Parallel Download For Any Database Set" below) — ~14 min for UniRef30 instead of
+>    >80 min, measured on an H100 node. This applies whether you need one database or
+>    the full `databases:all` set.
 >
-> Use the plain `docker run` in this section only when you genuinely need the full
-> `databases:all` set and are not time-constrained, or for a quick `databases:pdb70` smoke test.
+> Use the plain `docker run` in this section only for a quick `databases:pdb70` smoke
+> test, or when you specifically want the NIM to manage its own blob cache. The parallel
+> path below covers every case, including the full `databases:all` set.
 
 Local setup requires a GPU. The full database set is about 1.4 TB / 1660 GB of
 NVMe storage, but you rarely need all of it — use a **task-specific profile**
@@ -164,11 +166,12 @@ databases must be indexed with `mmseqs createindex` first. Individually download
 versions: `uniref30_2302-m18v1`, `colabfold_envdb_202108-m18v1`, `pdb70_220313-m18v1`,
 `pdb100_230517-m18v1`, `pdb_20251028_zip-m18v1`.
 
-## Recommended For Large Profiles: Parallel Download (Fast Deployment)
+## Recommended: Parallel Download For Any Database Set (Fast Deployment)
 
-**This is the recommended default for any large single-DB profile** (e.g.
-`databases:uniref30`). Task-specific profiles cut *what* you download; this parallel
-downloader cuts *how long* that download takes. It matters most for the `databases:uniref30` profile, which is ~490 GB
+**This is the recommended way to download the databases at all — for any profile,
+including the full `databases:all` set.** Task-specific profiles cut *what* you
+download; this parallel downloader cuts *how long* that download takes. Use it whether
+you need one database or all of them. The gain is largest for the `databases:uniref30` profile, which is ~490 GB
 dominated by two very large files (a ~241 GB GPU index and a ~134 GB sequence DB).
 
 The NIM's built-in downloader parallelizes **across files** (`max_parallel_files=10`) but pulls
@@ -213,6 +216,26 @@ docker run -d --name msa-search --runtime=nvidia --gpus all \
   -p 8000:8000 \
   nvcr.io/nim/colabfold/msa-search:2
 ```
+
+For **all databases** (equivalent to `databases:all`), repeat step 1 for each individual DB
+version and download them into sibling directories under one parent, then point
+`NIM_MODEL_NAME` at that parent — the NIM discovers every DB by scanning `**/*.idx`:
+
+```bash
+# fetch each DB's file list into /data/all-db/<db>/ ... then one aria2c per list, e.g.:
+for V in uniref30_2302-m18v1 colabfold_envdb_202108-m18v1 pdb70_220313-m18v1 \
+         pdb100_230517-m18v1 pdb_20251028_zip-m18v1; do
+  curl -s -H "Authorization: Bearer $NGC_API_KEY" \
+    "https://api.ngc.nvidia.com/v2/org/nim/team/colabfold/models/msa-search/$V/files" \
+    -o "files_$V.json"
+  # build an aria2 input from files_$V.json (dir=/data/all-db) and run aria2c on it
+done
+# then launch once against the parent:
+#   docker run -d ... -e NIM_MODEL_NAME=/databases -v /data/all-db:/databases ...
+```
+
+The per-connection CDN throttle is the same for every database, so parallel download helps
+the full set proportionally — the more you download, the more absolute time it saves.
 
 Notes:
 
