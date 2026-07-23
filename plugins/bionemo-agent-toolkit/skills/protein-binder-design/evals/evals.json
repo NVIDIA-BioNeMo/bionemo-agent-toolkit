@@ -1,0 +1,42 @@
+{
+  "skill_name": "protein-binder-design",
+  "evals": [
+    {
+      "id": "1",
+      "prompt": "Design 50 de novo mini-binders against the SARS-CoV-2 RBD (use the target registry entry) at the ACE2-contact epitope. Generate backbones, design 8 sequences each, co-fold the shortlist against the target, and rank by interface confidence. Save a run manifest and a ranked CSV.",
+      "expected_output": "An orchestration that composes the rfdiffusion-nim, proteinmpnn-nim, and boltz2-nim/openfold3-nim skills in order, remaps epitope residues, writes a run manifest via scripts/manifest.py, applies the ipTM/pLDDT/RMSD filter, and exports a ranked candidates.csv.",
+      "files": [],
+      "assertions": [
+        {"id": "composes-rfdiffusion", "description": "Uses RFdiffusion for binder backbones", "check": "Plan invokes the rfdiffusion-nim skill with a binder contig and hotspot_res"},
+        {"id": "composes-proteinmpnn", "description": "Uses ProteinMPNN for sequence design", "check": "Plan invokes the proteinmpnn-nim skill and drops the native/WT row from mfasta"},
+        {"id": "composes-cofold", "description": "Co-folds binder with target", "check": "Plan invokes boltz2-nim or openfold3-nim to co-fold the binder with the target and collects ipTM or confidence"},
+        {"id": "writes-manifest", "description": "Writes a run manifest", "check": "Plan uses scripts/manifest.py (Manifest.create, set_scores, apply_filters, to_csv)"},
+        {"id": "applies-filter", "description": "Applies default filter thresholds", "check": "Plan filters on ipTM >= 0.8, binder pLDDT >= 80, self-consistency RMSD <= 2.0"},
+        {"id": "remaps-epitope", "description": "Remaps epitope residues", "check": "Plan remaps epitope author numbering using scripts/pdb_utils.py before use"}
+      ]
+    },
+    {
+      "id": "2",
+      "prompt": "For my binder campaign against PD-L1, include proper controls and tell me the success rate.",
+      "expected_output": "Adds scrambled-sequence negative controls and published-binder positive controls through the same co-folding pipeline, marks them is_control in the manifest, and reports success rate as n_passed / n_candidates.",
+      "files": [],
+      "assertions": [
+        {"id": "negative-controls", "description": "Generates scrambled negative controls", "check": "Plan uses scripts/controls.py to scramble binder sequences and marks them is_control with control_type scrambled"},
+        {"id": "positive-controls", "description": "Uses published binders as positive controls", "check": "Plan re-scores published binders from the registry through the same pipeline as positive controls"},
+        {"id": "success-rate", "description": "Reports a success rate", "check": "Plan reports success rate as n_passed divided by n_candidates from manifest.summary()"},
+        {"id": "same-pipeline", "description": "Controls run through identical pipeline", "check": "Controls are co-folded and scored with the same settings as the designs"}
+      ]
+    },
+    {
+      "id": "3",
+      "prompt": "Continue my interrupted binder run in runs/rbd_binders and only process candidates that are missing scores.",
+      "expected_output": "Loads the existing manifest with Manifest.load, identifies candidates lacking the needed scores/artifacts, and resumes without re-running completed stages.",
+      "files": [],
+      "assertions": [
+        {"id": "loads-manifest", "description": "Loads the existing manifest", "check": "Plan calls Manifest.load on the run directory"},
+        {"id": "resumes-incomplete", "description": "Skips completed candidates", "check": "Plan only processes candidates missing required scores or artifacts"},
+        {"id": "no-recompute", "description": "Does not recompute finished stages", "check": "Plan avoids re-running stages already recorded in the manifest"}
+      ]
+    }
+  ]
+}
