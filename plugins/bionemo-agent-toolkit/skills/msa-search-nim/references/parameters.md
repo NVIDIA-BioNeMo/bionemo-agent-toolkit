@@ -29,3 +29,17 @@ container configuration.
 - Set `max_structures` to the requested count.
 - Include `max_msa_sequences=500` unless the local `NIM_GLOBAL_MAX_MSA_DEPTH`
   was changed.
+
+## Startup Database Selection (local Docker)
+
+`databases` in the request body selects among **already-downloaded** databases only. To
+control what is downloaded at container startup (and thus storage and launch time), set the
+`NIM_MODEL_PROFILE` environment variable to a profile hash from `list-model-profiles`:
+
+- `databases:pdb70` — ~100 MB, quick test.
+- `databases:uniref30` — ~500 GB, paired/complex MSA search (UniRef30 is the only taxonomy
+  DB used for pairing).
+- `databases:uniref30,pdb70,pdb` — ~700 GB, template search.
+- `databases:all` — ~1.2 TB, full sensitivity (adds ColabFold envdb, PDB100).
+
+Hashes change between NIM releases — always read them from `list-model-profiles`.
