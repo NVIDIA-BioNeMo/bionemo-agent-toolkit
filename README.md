@@ -57,7 +57,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **KERMT** | Pretrained graph neural network for molecular property prediction (ADMET). Multi-task extension of GROVER with accelerated data loading via cuik-molmaker. SOTA on real-world ADMET data. | [`kermt-setup`](open-models-skills/kermt/skills/kermt-setup), [`kermt-infer`](open-models-skills/kermt/skills/kermt-infer), [`kermt-embed`](open-models-skills/kermt/skills/kermt-embed), [`kermt-finetune`](open-models-skills/kermt/skills/kermt-finetune), [`kermt-continue-pretrain`](open-models-skills/kermt/skills/kermt-continue-pretrain), [`kermt-pretrain-scratch`](open-models-skills/kermt/skills/kermt-pretrain-scratch), [`kermt-add-cmim-pretrain`](open-models-skills/kermt/skills/kermt-add-cmim-pretrain), [`kermt-monitor`](open-models-skills/kermt/skills/kermt-monitor) |
 | **Parabricks** | Agent-ready skills built on Parabricks for accelerated genomic analysis and workflows. | [`parabricks`](library-skills/parabricks), [`genomics-workflow-acceleration`](library-skills/genomics-workflow-acceleration) |
 | **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvMolKit) |
-| **cuEquivariance** | Build equivariant neural-network primitives (segmented tensor products, CG coefficients). | [`cuequivariance`](library-skills/cuEquivariance) |
+| **cuEquivariance** | Build equivariant neural-network primitives (segmented tensor products, CG coefficients). | [`cuequivariance`](library-skills/cuequivariance) |
 
 ## Evaluating NIM Skill Lift
 

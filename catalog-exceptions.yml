@@ -27,7 +27,7 @@ exceptions:
     reason: No public GitHub source yet (was gitlab apizarro); native until a public repo exists.
     owner: trvachov
     component: Genomics
-  - dir: library-skills/cuEquivariance
+  - dir: library-skills/cuequivariance
     reason: Upstream (NVIDIA/cuEquivariance) exposes only an embedded SKILL.md inside a package dir, no clean skill folder to rsync; native until upstream ships a skill dir.
     owner: trvachov
     component: cuEquivariance
