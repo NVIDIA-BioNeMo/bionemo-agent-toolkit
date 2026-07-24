@@ -4,3 +4,7 @@
 # nv-aces generated eval results (regenerate locally / via CI; never committed)
 **/evals/results/
 .nv-aces-verify/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]

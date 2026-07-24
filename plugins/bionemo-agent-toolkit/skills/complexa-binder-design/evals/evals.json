@@ -1,0 +1,60 @@
+{
+  "skill_name": "complexa-binder-design",
+  "evals": [
+    {
+      "id": "complexa-binder-design-001",
+      "prompt": "I want to use the complexa-binder-design skill to design binders against human PD-L1. Please use beam search with 8 candidates and validate with Boltz2. My target PDB is 5JDR chain A.",
+      "expected_output": "The agent executed the complexa-binder-design pipeline against PD-L1 (PDB 5JDR chain A), resolved the target structure and hotspots, ran Proteina-Complexa generation with beam search (n=8), validated binders independently with Boltz2, and produced a ranked report with GO/NO-GO assessment based on ipTM, pLDDT, ipSAE, and hotspot contact metrics.",
+      "assertions": [
+        "The agent read the complexa-binder-design SKILL.md to understand the pipeline stages",
+        "The agent executed preflight_design.py to resolve the target structure from PDB 5JDR chain A and identify hotspots",
+        "The agent ran complexa_design.py with beam search configuration for 8 candidates",
+        "The agent executed validate_binders.py or boltz2_refold.py to independently validate generated binders and produce a ranked report",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "preflight_design.py"
+    },
+    {
+      "id": "complexa-binder-design-002",
+      "prompt": "I need to create de novo protein binders targeting the RBD of SARS-CoV-2 spike protein. I want them co-designed (sequence and structure together) and then independently validated with a different fold predictor. Can you focus on the ACE2-binding hotspot residues?",
+      "expected_output": "The agent recognized this as a Proteina-Complexa binder design task, resolved the SARS-CoV-2 RBD target structure, identified ACE2-binding interface hotspot residues using hotspot_strategy.py, co-designed binders with Complexa, and validated them independently with Boltz2, ranking on interface confidence and hotspot contact.",
+      "assertions": [
+        "The agent executed preflight_design.py to resolve the SARS-CoV-2 spike RBD structure and prepare the target",
+        "The agent ran hotspot_strategy.py to identify ACE2-binding interface residues as design hotspots",
+        "The agent executed complexa_design.py to co-design binder sequence and structure against the identified hotspots",
+        "The agent ran boltz2_refold.py to independently validate binders and reported rankings based on ipTM, pLDDT, and hotspot contact",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "preflight_design.py"
+    },
+    {
+      "id": "complexa-binder-design-003",
+      "prompt": "Our lab is working on a therapeutic antibody alternative program. We have a tumor antigen (HER2 extracellular domain) and want to generate small protein binders that hit the trastuzumab epitope. We need at least 5 validated candidates ranked by binding confidence, and we want independent structural validation so we're not just trusting the generator's own scores. Can you run the full pipeline?",
+      "expected_output": "The agent ran the full complexa-binder-design pipeline for HER2 ECD targeting the trastuzumab epitope, generating binders with Proteina-Complexa's reward-guided search, iterating until at least 5 candidates passed independent Boltz2 validation, and delivered a final ranked report with GO/NO-GO decisions including apo/holo stability and hotspot contact analysis.",
+      "assertions": [
+        "The agent executed preflight_design.py to resolve HER2 extracellular domain structure and define the trastuzumab epitope as hotspot residues",
+        "The agent ran complexa_design.py with iterative generation to produce candidates until at least 5 passed validation",
+        "The agent executed validate_binders.py with Boltz2 to independently refold and score each binder complex on ipTM, pLDDT, ipSAE, and hotspot contact",
+        "The agent produced a REPORT markdown file with ranked validated binders and GO/NO-GO assessment",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "preflight_design.py"
+    },
+    {
+      "id": "complexa-binder-design-004",
+      "prompt": "Can you help me set up a GROMACS molecular dynamics simulation of a protein-ligand complex? I have a PDB file and want to run a 100ns production simulation with CHARMM36 force field.",
+      "expected_output": "The agent recognized this as a molecular dynamics simulation setup request using GROMACS, which is unrelated to de novo protein binder design with Proteina-Complexa, and provided guidance on GROMACS MD simulation setup without invoking the complexa-binder-design skill.",
+      "assertions": [
+        "The agent did not execute any complexa-binder-design scripts such as preflight_design.py or complexa_design.py",
+        "The agent provided guidance relevant to GROMACS molecular dynamics simulation setup with CHARMM36 force field",
+        "The agent did not reference Proteina-Complexa, Boltz2 validation, or binder co-design workflows",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": null,
+      "expected_script": null
+    }
+  ]
+}

@@ -1,19 +1,17 @@
 ---
 name: complexa-design
 description: >
-  End-to-end Proteina-Complexa design pipeline driver. Reach for this skill whenever
-  the user wants to "design a binder", "design binders for X", "run complexa
-  design", "de novo binder", "PDL1 binder", "TrkA binder", "design proteins for
-  target", "protein binder design", "ligand binder", "design a small-molecule
-  binder", "ATP-binding protein", "AME motif scaffolding", "scaffold a motif
-  near a ligand", "motif + ligand design", "enzyme scaffolding", "flow matching
-  protein design", "beam-search binder", "FK steering", "MCTS protein design",
-  "refold with AF2", "refold with RF3", or wants success rates, interface pAE,
-  scRMSD, or
-  FoldSeek diversity from a single command. This is the scientific anchor of
-  the skill set: it drives `complexa design <pipeline>` from target picking to
-  manifest emission and tells the user how many designs passed.
-compatibility: "complexa CLI installed (pip install -e .); .env populated; 1x CUDA GPU >=40GB VRAM (A100/H100/L40S); 24 CPUs; ~50GB disk"
+  End-to-end Proteina-Complexa design pipeline driver. Use when the user wants to
+  "design a binder", "design binders for X", "run complexa design", "de novo
+  binder", "PDL1 binder", "TrkA binder", "design proteins for target", "protein
+  binder design", "ligand binder", "design a small-molecule binder", "ATP-binding
+  protein", "AME motif scaffolding", "scaffold a motif near a ligand", "motif +
+  ligand design", "enzyme scaffolding", "flow matching protein design",
+  "beam-search binder", "FK steering", "MCTS protein design", or "refold with AF2
+  / RF3 / ESMFold", or wants success rates, interface pAE, scRMSD, or FoldSeek
+  diversity from one command. Drives the complexa design pipeline from target
+  picking to manifest emission and reports how many designs passed.
+compatibility: "complexa CLI installed (pip install -e .); environment file populated; 1x CUDA GPU >=40GB VRAM (A100/H100/L40S); 24 CPUs; ~50GB disk"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
 

@@ -1,0 +1,35 @@
+---
+alwaysApply: false
+title: Generative Protein Binder Design
+description: >
+  Route selection and orchestration for de novo protein binder design. Composes two
+  independent binder-design skills — complexa-binder-design (Proteina-Complexa
+  reward-guided co-design) and protein-binder-design (RFdiffusion + ProteinMPNN +
+  Boltz2/OpenFold3 NIM orchestration). Each resolves a target and hotspots, generates
+  binders, co-folds the complex with an independent structure predictor, and ranks by
+  interface metrics (ipTM / ipSAE / pLDDT / apo-holo RMSD). Use to pick the route for a
+  binder-design request.
+metadata:
+  author: "NVIDIA BioNeMo <bionemofeedback@nvidia.com>"
+  tags: [protein-design, binder-design, workflow]
+---
+
+# Generative Protein Binder Design
+
+Two composable skills for de novo protein binder design. Each resolves a target +
+hotspots, generates binders, then runs an **independent** structure-prediction co-fold
+and ranks by interface metrics (ipTM / ipSAE / pLDDT / apo↔holo RMSD).
+
+## Choose a route
+
+- **`complexa-binder-design/`** — NVIDIA **Proteina-Complexa** reward-guided co-design
+  (binder sequence + structure together) with an AF2-reward gate, validated independently
+  with Boltz2 / OpenFold3. Prefer when the user wants Proteina-Complexa specifically, or
+  reward-guided test-time search (best-of-n / beam / FK-steering / MCTS).
+- **`protein-binder-design/`** — **RFdiffusion + ProteinMPNN + Boltz2 / OpenFold3** BioNeMo
+  NIM orchestration (backbones → sequences → co-fold → filter). Prefer the classic
+  diffusion + inverse-folding NIM pipeline.
+
+Both routes are independent skills with their own `SKILL.md`, `README.md`, and
+`references/` (including local-NIM launch). See `references/route-selection.mdc` for a
+side-by-side comparison.

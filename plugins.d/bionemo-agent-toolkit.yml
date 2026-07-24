@@ -38,7 +38,7 @@ include_skills:
   - open-models-skills/kermt/
   - open-models-skills/proteina-complexa/
   # Workflows
-  - workflows/generative_protein_binder_design/
+  - workflows/generative-protein-binder-design/
 
 # Inherits version/author/homepage/repository/license/brand_color/capabilities
 # from plugins.d/_defaults.yml.

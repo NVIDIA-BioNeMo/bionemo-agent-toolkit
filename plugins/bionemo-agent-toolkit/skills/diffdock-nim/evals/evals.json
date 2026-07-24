@@ -1,0 +1,167 @@
+{
+  "skill_name": "diffdock-nim",
+  "evals": [
+    {
+      "id": "1",
+      "prompt": "I want to dock aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) to a protein target using the staged receptor at /workspace/input/protein.pdb. Generate 10 docking poses and show me the confidence scores using the hosted NVIDIA DiffDock API. Create and execute the request now using NGC_API_KEY from the environment, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted DiffDock request that reads the staged protein.pdb, filters it to a non-empty ATOM-only receptor, uses Bearer auth, ligand_file_type='txt', and num_poses=10, then saves returned poses and reports actual ranked confidence scores.",
+      "files": [
+        "evals/files/protein.pdb"
+      ],
+      "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived pose scores and saved artifact paths"
+        },
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted DiffDock endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/diffdock'"
+        },
+        {
+          "id": "bearer-auth-header",
+          "description": "Sets Authorization header with Bearer token from NGC_API_KEY",
+          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
+        },
+        {
+          "id": "atom-records-only",
+          "description": "Protein input contains only ATOM records (strips non-ATOM lines)",
+          "check": "Script filters protein.pdb to ATOM lines only before sending (e.g., using grep, startswith('ATOM'), or similar)"
+        },
+        {
+          "id": "smiles-file-type",
+          "description": "ligand_file_type is set to 'txt' for SMILES input (not 'smiles')",
+          "check": "Script contains 'ligand_file_type' set to 'txt'"
+        },
+        {
+          "id": "num-poses-10",
+          "description": "num_poses is set to 10",
+          "check": "Script contains 'num_poses' and '10'"
+        },
+        {
+          "id": "confidence-scores-printed",
+          "description": "Prints position_confidence scores for each pose",
+          "check": "Script accesses 'position_confidence' from response and prints or reports scores"
+        }
+      ]
+    }
+  ],
+  "deferred_evals": [
+    {
+      "id": "2",
+      "prompt": "I have an SDF file of a drug candidate (ligand.sdf) and want to dock it to my protein (receptor.pdb). Use the DiffDock hosted API to generate 20 poses and save each pose as a separate SDF file named by its rank and confidence score.",
+      "expected_output": "A Python script that reads receptor.pdb (ATOM records only) and ligand.sdf, calls the hosted endpoint with ligand_file_type='sdf' and num_poses=20, then saves each SDF pose to a file named with rank and confidence.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/diffdock'"
+        },
+        {
+          "id": "sdf-file-type",
+          "description": "ligand_file_type is set to 'sdf'",
+          "check": "Script contains 'ligand_file_type' and 'sdf'"
+        },
+        {
+          "id": "num-poses-20",
+          "description": "num_poses is set to 20",
+          "check": "Script contains 'num_poses' and '20'"
+        },
+        {
+          "id": "atom-records-protein",
+          "description": "Protein input is filtered to ATOM records",
+          "check": "Script filters receptor.pdb to ATOM lines before sending"
+        },
+        {
+          "id": "saves-ranked-pose-files",
+          "description": "Saves each pose to a separate SDF file with rank and confidence in name",
+          "check": "Script iterates over ligand_positions and saves each pose to a .sdf file with rank or confidence in the filename"
+        },
+        {
+          "id": "parallel-confidence-scores",
+          "description": "position_confidence list is used parallel to ligand_positions",
+          "check": "Script accesses 'position_confidence' and 'ligand_positions' together (e.g., zip or enumerate)"
+        }
+      ]
+    },
+    {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
+      "id": "3",
+      "prompt": "Help me set up DiffDock locally with Docker on my GPU. I have an A100 and NGC_API_KEY is set. After setup, dock a small molecule (SMILES: c1ccccc1) to my protein (protein.pdb).",
+      "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, with the exact pinned image tag :2.2.0, NVIDIA_VISIBLE_DEVICES=0 env var, --shm-size=2G and --ulimit flags, health check, then a local no-auth docking script using localhost:8000 without /v1/ prefix.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docker-image-tag",
+          "description": "References the correct DiffDock image with pinned :2.2.0 tag",
+          "check": "Output contains 'nvcr.io/nim/mit/diffdock:2.2.0'"
+        },
+        {
+          "id": "nvidia-visible-devices",
+          "description": "Uses NVIDIA_VISIBLE_DEVICES=0 for single GPU (not --gpus all)",
+          "check": "Output contains 'NVIDIA_VISIBLE_DEVICES' and '0'"
+        },
+        {
+          "id": "env-contract-and-cache",
+          "description": "Local setup uses the repo env contract and LOCAL_NIM_CACHE",
+          "check": "Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /opt/nim/.cache"
+        },
+        {
+          "id": "ulimit-flags",
+          "description": "Includes --ulimit memlock and --ulimit stack flags",
+          "check": "Output contains '--ulimit memlock' and '--ulimit stack'"
+        },
+        {
+          "id": "health-check",
+          "description": "Includes health check before docking request",
+          "check": "Output contains health check against localhost:8000/v1/health/ready"
+        },
+        {
+          "id": "local-endpoint-no-v1",
+          "description": "Local inference URL has no /v1/ prefix and uses /molecular-docking/ route",
+          "check": "Script contains 'localhost:8000/molecular-docking/diffdock/generate'"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "prompt": "I want to do a quick docking study with DiffDock using the hosted API. Use these parameters: protein structure in target.pdb, ligand SMILES: CC1=CC=C(C=C1)NC(=O)C, generate 5 poses with save_trajectory set to false. Show me which pose has the highest confidence.",
+      "expected_output": "A Python script with ATOM-filtered protein, the provided SMILES as txt ligand, num_poses=5, save_trajectory=False, calling the hosted endpoint and identifying/reporting the highest confidence pose.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "hosted-endpoint-url",
+          "description": "Uses the correct hosted endpoint URL",
+          "check": "Script contains 'health.api.nvidia.com/v1/biology/mit/diffdock'"
+        },
+        {
+          "id": "correct-smiles",
+          "description": "The specified ligand SMILES is included in the payload",
+          "check": "Script contains 'CC1=CC=C(C=C1)NC(=O)C'"
+        },
+        {
+          "id": "txt-file-type-for-smiles",
+          "description": "Uses ligand_file_type='txt' for SMILES input",
+          "check": "Script contains 'ligand_file_type' set to 'txt'"
+        },
+        {
+          "id": "num-poses-5",
+          "description": "num_poses is set to 5",
+          "check": "Script contains 'num_poses' and '5'"
+        },
+        {
+          "id": "save-trajectory-false",
+          "description": "save_trajectory is set to False",
+          "check": "Script contains 'save_trajectory' and 'False' or 'false'"
+        },
+        {
+          "id": "best-pose-identified",
+          "description": "Reports the highest confidence pose (position_confidence[0] is rank 1)",
+          "check": "Script identifies and reports the best pose using position_confidence scores"
+        }
+      ]
+    }
+  ]
+}

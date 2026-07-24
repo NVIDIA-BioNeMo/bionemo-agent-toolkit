@@ -10,7 +10,8 @@ This script enforces two invariants:
 
   1. COVERAGE  — every distributable source skill is listed in ``skills.sh.json``.
   2. FRESHNESS — for every listed skill, the plugin payload folder is an exact
-                 copy of the source skill folder minus ``evals/``.
+                 copy of the source skill folder (including ``evals/`` — NVCARPS
+                 Tier 3 requires the eval dataset in the validated payload).
 
 Modes:
   --check  (CI + local)  exit non-zero and report if anything is out of sync.
@@ -43,7 +44,10 @@ EXCLUDE_SEGMENTS = {"plugins", "vendor", "evals", "node_modules", ".git"}
 # `.skillsource.json` is skills.sh metadata that the generator strips from the payload.
 JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
 # Subdirectories of a skill that are stripped from the plugin payload.
-STRIP_FROM_PAYLOAD = {"evals"}
+# Empty: the payload is a full copy. ``evals/`` is intentionally kept because
+# NVCARPS Tier 3 (live agent eval) validates the plugin payload and requires the
+# eval dataset there — stripping it makes Tier 3 skip → coverage invalid → gate block.
+STRIP_FROM_PAYLOAD: set[str] = set()
 
 
 def _excluded(path: Path) -> bool:
@@ -139,7 +143,7 @@ def check() -> int:
     for name in sorted(payload_dirs - listed_set):
         problems.append(f"[orphan] plugin payload has '{name}' but it is not in skills.sh.json")
 
-    # 4. Freshness: each listed+existing skill must match source minus evals
+    # 4. Freshness: each listed+existing skill must match source exactly
     for name in listed:
         if name not in source:
             continue  # already reported as stale-config
@@ -157,7 +161,7 @@ def check() -> int:
         print("  * Then run:  python scripts/plugin_sync.py --write   (and commit the result)")
         return 1
 
-    print(f"Plugin sync OK — {len(listed)} skills, payload matches source (minus evals/).")
+    print(f"Plugin sync OK — {len(listed)} skills, payload matches source.")
     return 0
 
 
