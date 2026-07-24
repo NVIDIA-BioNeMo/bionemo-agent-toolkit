@@ -1,9 +1,19 @@
 schema_version: 1
 
+# ProteinMPNN is the repository's local-GPU BYOT example. ACES supports one
+# task source per skill, so this selects the native task below. The hosted
+# evals.json dataset remains available if this is switched back to evals_json
+# with aces_default grading.
 harbor:
-  task_source: evals_json
+  task_source: native_harbor
+  custom_dockerfile_mode: preserve
+  base_image_mode: disabled
+  n_attempts: 1
+  pass_threshold: 0.8
+  stop_on_pass: false
+  n_concurrent: 1
   runtime_env:
     - NGC_API_KEY
 
 grading:
-  mode: aces_default
+  mode: custom_only
