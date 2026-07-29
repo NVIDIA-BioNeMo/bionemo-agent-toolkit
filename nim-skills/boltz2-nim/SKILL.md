@@ -131,18 +131,9 @@ protein_with_msa = {
 
 ## Save And Report Output
 
-```python
-for i, structure in enumerate(result["structures"], start=1):
-    with open(f"structure_{i}.cif", "w", encoding="utf-8") as handle:
-        handle.write(structure["structure"])
-for i, score in enumerate(result.get("confidence_scores", []), start=1):
-    print(f"structure {i} confidence {score:.4f}")
-if "affinities" in result:
-    for ligand_id, aff in result["affinities"].items():
-        print(ligand_id, aff["affinity_pic50"][0], aff["affinity_pred_value"][0], aff["affinity_probability_binary"][0])
-```
-
-Save every `.cif` artifact. Visualize in PyMOL, ChimeraX, or UCSF Chimera. For
+Save every `.cif` artifact and read the confidence/affinity fields using the
+snippet in [`references/examples.md`](references/examples.md) under **Save
+Structures And Affinity**. Visualize in PyMOL, ChimeraX, or UCSF Chimera. For
 confidence/affinity sanity checks, read `references/validation.md`.
 
 ## Limits And Troubleshooting

@@ -76,12 +76,9 @@ until curl -sf http://localhost:8000/v1/health/ready; do sleep 5; done
 
 ## Contigs DSL
 
-`contigs` defines what to keep and what to generate.
-
-- `"100"`: generate exactly 100 residues.
-- `"80-120"`: generate 80-120 residues.
-- `"A25-35"`: keep chain A residues 25-35 from `input_pdb`.
-- `"A25-35/0 50-80"`: keep A25-35, insert chain break `/0`, generate 50-80.
+`contigs` defines what to keep and what to generate. For the full pattern
+syntax (fixed length, ranges, kept chain segments, chain breaks), see
+[`references/api.md`](references/api.md) under **Contigs Language Reference**.
 
 Design modes:
 

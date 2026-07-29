@@ -37,38 +37,11 @@ image/version and should not be assumed.
 
 ## Local Docker
 
-For local setup answers, copy the preflight below exactly. Keep the optional
-`.env` load, `NVIDIA_API_KEY` fallback, `LOCAL_NIM_CACHE`,
-`NVIDIA_VISIBLE_DEVICES=0` default, `--shm-size=2G`, and both `--ulimit` flags.
-
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run --rm -it --name diffdock-nim \
-  --runtime=nvidia \
-  -e NVIDIA_VISIBLE_DEVICES="${NIM_TEST_GPU}" \
-  --shm-size=2G \
-  --ulimit memlock=-1 \
-  --ulimit stack=67108864 \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
-  nvcr.io/nim/mit/diffdock:2.2.0
-```
+For the exact local preflight (`.env` load, `NVIDIA_API_KEY` fallback,
+`LOCAL_NIM_CACHE`, `NVIDIA_VISIBLE_DEVICES=0`, `--shm-size=2G`, both `--ulimit`
+flags, `docker login`, and the `docker run` for `nvcr.io/nim/mit/diffdock:2.2.0`),
+copy the command block in [`references/api.md`](references/api.md) under
+**Docker Reference** verbatim.
 
 Readiness:
 

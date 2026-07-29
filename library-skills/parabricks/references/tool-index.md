@@ -4,55 +4,11 @@ Use this reference for tool discovery, category comparison, and routing heuristi
 when the user's data type or analysis goal is not yet mapped to a specific
 `pbrun` command.
 
-## Current Tool Categories
+## Tool Categories
 
-For NVIDIA Parabricks v4.7.0, the official Tool Reference lists these command
-categories.
-
-### FASTQ/BAM Processing
-
-- `applybqsr`: apply base quality score recalibration to aligned reads.
-- `bam2fq`: convert BAM input to FASTQ output.
-- `bamsort`: sort BAM input.
-- `bqsr`: generate base quality score recalibration data.
-- `fq2bam`: align FASTQ reads and produce BAM/CRAM with common preprocessing.
-- `fq2bam_meth`: methylation-oriented FASTQ-to-BAM workflow.
-- `giraffe`: pangenome graph alignment using vg giraffe with GATK-style steps.
-- `markdup`: mark duplicate reads in aligned data.
-- `minimap2`: long-read alignment.
-
-### Variant Calling
-
-- `deepsomatic`: DeepSomatic-based somatic variant calling.
-- `deepvariant`: DeepVariant variant calling.
-- `deepvariant_germline`: germline pipeline using DeepVariant.
-- `germline`: GATK-style germline short variant pipeline.
-- `haplotypecaller`: GATK HaplotypeCaller-compatible calling.
-- `mutectcaller`: Mutect2-compatible somatic calling.
-- `ont_germline`: Oxford Nanopore germline workflow.
-- `pacbio_germline`: PacBio germline workflow.
-- `pangenome_aware_deepvariant`: pangenome-aware DeepVariant workflow listed
-  in the alphabetical tool index.
-- `pangenome_germline`: pangenome-aware germline workflow.
-- `postpon`: post-processing for pangenome-aware workflows.
-- `prepon`: pre-processing for pangenome-aware workflows.
-- `somatic`: somatic variant calling pipeline.
-
-### RNA
-
-- `rna_fq2bam`: RNA-seq FASTQ-to-BAM workflow.
-- `starfusion`: fusion detection with STAR-Fusion.
-
-### Quality Control
-
-- `bammetrics`: BAM metrics and QC.
-- `collectmultiplemetrics`: collect multiple alignment metrics.
-
-### Variant and GVCF Processing
-
-- `dbsnp`: dbSNP annotation or processing support.
-- `genotypegvcf`: genotype GVCF input.
-- `indexgvcf`: index GVCF input.
+The per-tool descriptions and their reference links live in the
+**Tool Reference Index** table in the skill's `SKILL.md`. This file focuses on
+routing rather than restating that table.
 
 ## Routing Heuristics
 

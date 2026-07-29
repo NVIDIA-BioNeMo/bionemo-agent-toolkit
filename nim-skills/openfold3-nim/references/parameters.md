@@ -31,23 +31,9 @@
 
 ## MSA Shape
 
-MSA data is nested by database and format name:
-
-```json
-{
-  "msa": {
-    "main": {
-      "a3m": {
-        "alignment": ">query\nSEQUENCE",
-        "format": "a3m",
-        "rank": -1
-      }
-    }
-  }
-}
-```
-
-The `alignment` string must start with a FASTA-style header. For a generated
+The nested `msa` object shape (by database and format name) is documented in
+[`api.md`](api.md) under **MSA Object**. The `alignment` string must start with
+a FASTA-style header. For a generated
 MSA from another tool, preserve the format and only normalize it if the API
 requires that shape.
 
