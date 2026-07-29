@@ -23,15 +23,7 @@ from __future__ import annotations
 import argparse, json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
-HOSTED_URL = "https://health.api.nvidia.com/v1/biology/mit/boltz2/predict"
-# Local NIM: override host/port via $BOLTZ2_URL (e.g. a NIM on another container/host).
-def _local_boltz2_url() -> str:
-    """Resolve the local NIM endpoint (override via $BOLTZ2_URL). Kept in a helper so
-    endpoint resolution is centralized and not threaded through the request layer."""
-    return os.environ.get("BOLTZ2_URL", "http://localhost:8000/biology/mit/boltz2/predict")
-
-
-LOCAL_URL = _local_boltz2_url()
+from boltz2_endpoint import HOSTED_URL, LOCAL_URL
 THREE_TO_ONE = {
     "ALA":"A","ARG":"R","ASN":"N","ASP":"D","CYS":"C","GLN":"Q","GLU":"E","GLY":"G",
     "HIS":"H","ILE":"I","LEU":"L","LYS":"K","MET":"M","PHE":"F","PRO":"P","SER":"S",
