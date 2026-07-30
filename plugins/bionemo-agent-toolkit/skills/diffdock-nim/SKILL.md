@@ -103,16 +103,8 @@ result = response.json()
 `ligand_positions` and `position_confidence` are parallel ranked lists.
 `position_confidence[0]` is the rank-1 pose confidence.
 
-```python
-poses = result["ligand_positions"]
-scores = result["position_confidence"]
-for rank, (pose_sdf, score) in enumerate(zip(poses, scores), start=1):
-    filename = f"pose_{rank}_conf{score:.3f}.sdf"
-    with open(filename, "w", encoding="utf-8") as handle:
-        handle.write(pose_sdf)
-    print(f"pose {rank}: confidence={score:.4f} saved={filename}")
-print(f"best pose confidence: {scores[0]:.4f}")
-```
+Save the ranked pose SDFs using the snippet in
+[`references/examples.md`](references/examples.md) under **Save Ranked Poses**.
 
 View pose SDF files with the receptor in PyMOL, ChimeraX, or UCSF Chimera. For
 pose sanity checks and confidence caveats, read `references/validation.md`.
