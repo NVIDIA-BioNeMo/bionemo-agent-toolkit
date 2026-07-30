@@ -5,5 +5,5 @@ repo: NVIDIA-BioNeMo/nvMolKit
 description: GPU-accelerated RDKit-compatible cheminformatics — conformer generation, similarity, and molecular ops on the GPU.
 ref: main
 skills:
-  - path: agent-skills/nvmolkit-usage
+  - path: skills/nvmolkit-usage
     catalog_dir: library-skills/nvMolKit
