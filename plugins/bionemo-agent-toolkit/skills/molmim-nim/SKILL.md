@@ -89,7 +89,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if hosted:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "smi": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",

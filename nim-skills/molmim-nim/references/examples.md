@@ -9,7 +9,7 @@ import requests
 
 url = "https://health.api.nvidia.com/v1/biology/nvidia/molmim/generate"
 headers = {
-    "Authorization": f"Bearer {os.environ['NGC_API_KEY']}",
+    "Authorization": f"Bearer {os.getenv('NGC_API_KEY')}",
     "Content-Type": "application/json",
 }
 payload = {

@@ -55,7 +55,7 @@ file, or start each NIM on a distinct host port and set the URLs explicitly.
 import requests, json, os
 from pathlib import Path
 
-NGC_API_KEY = os.environ["NGC_API_KEY"]
+NGC_API_KEY = os.getenv("NGC_API_KEY")
 HOSTED = True
 
 query_sequence = "<YOUR_PROTEIN_SEQUENCE>"

@@ -9,7 +9,7 @@ description: >
   docking, and affinity prediction. Triggers on: drug discovery pipeline, hit discovery,
   lead optimization, virtual screening, molecule generation, molecular docking, binding
   affinity, GenMol, DiffDock, Boltz2, SMILES, SAFE notation, NIM microservice. This is
-  a multi-step pipeline composing three BioNeMo NIMs.
+  a multi-step pipeline composing three BioNeMo NIMs. Molecule and target inputs and your NGC_API_KEY are transmitted to external NVIDIA-hosted API endpoints; use local NIMs for confidential data.
 license: Apache-2.0 AND CC-BY-4.0
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
@@ -57,7 +57,7 @@ import requests, json, os
 import safe as sf                          # pip install safe-mol
 from pathlib import Path
 
-NGC_API_KEY = os.environ["NGC_API_KEY"]
+NGC_API_KEY = os.getenv("NGC_API_KEY")
 HOSTED = True
 
 if HOSTED:
