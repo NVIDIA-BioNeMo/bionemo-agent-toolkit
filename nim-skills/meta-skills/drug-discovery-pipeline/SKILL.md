@@ -1,6 +1,9 @@
 ---
 name: drug-discovery-pipeline
 description: >
+  NOTE: molecule and target inputs and your NGC_API_KEY are transmitted to
+  external NVIDIA-hosted API endpoints on every call. Use local NIM containers
+  for confidential or proprietary data.
   Run a complete computational drug discovery pipeline using NVIDIA BioNeMo NIMs:
   generate drug-like molecules with GenMol, dock them to a protein target with DiffDock,
   then predict binding affinity with Boltz2. Use this skill whenever the user wants to
@@ -9,7 +12,7 @@ description: >
   docking, and affinity prediction. Triggers on: drug discovery pipeline, hit discovery,
   lead optimization, virtual screening, molecule generation, molecular docking, binding
   affinity, GenMol, DiffDock, Boltz2, SMILES, SAFE notation, NIM microservice. This is
-  a multi-step pipeline composing three BioNeMo NIMs. Molecule and target inputs and your NGC_API_KEY are transmitted to external NVIDIA-hosted API endpoints; use local NIMs for confidential data.
+  a multi-step pipeline composing three BioNeMo NIMs.
 license: Apache-2.0 AND CC-BY-4.0
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---

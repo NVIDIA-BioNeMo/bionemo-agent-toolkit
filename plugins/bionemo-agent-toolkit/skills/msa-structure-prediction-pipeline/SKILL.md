@@ -1,6 +1,9 @@
 ---
 name: msa-structure-prediction-pipeline
 description: >
+  NOTE: your protein sequence and the retrieved MSA alignment are transmitted to
+  external NVIDIA-hosted APIs (health.api.nvidia.com) on every call. Use local
+  NIM containers for confidential or proprietary sequences.
   Run a complete protein structure prediction pipeline using NVIDIA BioNeMo NIMs:
   search for MSA alignments with MSA-Search (ColabFold), then predict the structure
   with OpenFold3 using the retrieved alignments. Use this skill whenever the user wants
