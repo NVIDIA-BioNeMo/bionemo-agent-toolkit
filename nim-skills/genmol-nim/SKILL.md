@@ -65,16 +65,8 @@ positions use `[*{min-max}]`.
 Use `safe-mol` for conditioned generation. Simple ring scaffolds may raise
 `SAFEFragmentationError`; fall back to the original SMILES plus a SAFE mask.
 
-```python
-import safe as sf
-
-def scaffold_to_safe(smiles: str, frag_min: int, frag_max: int) -> str:
-    try:
-        safe_str = sf.encode(smiles)
-    except sf.SAFEFragmentationError:
-        safe_str = smiles
-    return f"{safe_str}.[*{{{frag_min}-{frag_max}}}]"
-```
+See the `scaffold_to_safe` helper in
+[`references/examples.md`](references/examples.md) under **Scaffold Decoration**.
 
 Wider masks increase diversity; tight masks keep analog size more predictable.
 

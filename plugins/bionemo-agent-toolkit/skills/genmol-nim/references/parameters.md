@@ -24,15 +24,7 @@ for non-duplicate analogs.
 
 ## SAFE Conversion
 
-Use `safe-mol` for SMILES-to-SAFE conversion:
-
-```python
-import safe as sf
-
-try:
-    safe_str = sf.encode(scaffold_smiles)
-except sf.SAFEFragmentationError:
-    safe_str = scaffold_smiles
-```
-
-Mention that `safe-mol` is not needed for pure de novo generation.
+Convert SMILES to SAFE with the `safe-mol` package. The reusable
+`scaffold_to_safe` helper (encode with a fragmentation-error fallback) lives in
+[`examples.md`](examples.md) under **Scaffold Decoration**; `safe-mol` is not
+needed for pure de novo generation.
