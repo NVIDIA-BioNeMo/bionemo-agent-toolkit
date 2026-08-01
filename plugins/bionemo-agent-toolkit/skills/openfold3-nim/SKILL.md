@@ -72,7 +72,7 @@ fi
 echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 
 mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+chmod 755 "${LOCAL_NIM_CACHE}"
 
 docker run --rm --name openfold3 \
   --runtime=nvidia \

@@ -141,7 +141,7 @@ fi
 
 : "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment or repo-root .env}"
 mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+chmod 755 "${LOCAL_NIM_CACHE}"
 
 docker run --rm --name msa-search \
   --runtime=nvidia \

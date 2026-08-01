@@ -100,7 +100,7 @@ echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-s
 : "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment or repo-root .env}"
 export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
 mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+chmod 755 "${LOCAL_NIM_CACHE}"
 
 docker run --rm -it --name diffdock-nim \
   --runtime=nvidia \
