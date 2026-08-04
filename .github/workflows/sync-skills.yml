@@ -120,6 +120,49 @@ jobs:
             echo "- orphan pruning" >> /tmp/changed-components.txt
           fi
 
+      - name: Backfill compliance artifacts from compliance.d
+        # Sourced skills are rsynced with --delete, so a skill-card.md committed
+        # into a catalog dir is deleted on the next run. Cards for sourced skills
+        # therefore live in compliance.d/<catalog_path>/ — outside every rsync
+        # target and every prune root — and are copied in AFTER the rsync.
+        #
+        # Upstream ALWAYS wins: we only copy where the file is absent once the
+        # rsync has finished. The moment a source repo ships its own card, that
+        # card lands via rsync and this step becomes a no-op for it — at which
+        # point the compliance.d entry is dead weight and should be deleted.
+        # Both states are reported in the PR body so the debt stays visible.
+        #
+        # NOTE: skill-card.md only. skill.oms.sig is deliberately NOT backfilled
+        # — a signature is an attestation over specific bytes, and copying one
+        # over content it was not generated from would publish an artifact that
+        # fails verification. Signing stays a per-source-repo nvskills-ci task.
+        run: |
+          set -euo pipefail
+          : > /tmp/overlay-backfilled.txt
+          : > /tmp/overlay-retirable.txt
+          [ -d compliance.d ] || exit 0
+
+          while IFS= read -r card; do
+            dest="${card#compliance.d/}"
+            skill_dir=$(dirname "$dest")
+            if [ ! -d "$skill_dir" ]; then
+              echo "  ⚠ $skill_dir absent from catalog — overlay entry has no target"
+              continue
+            fi
+            if [ -f "$dest" ]; then
+              echo "  ✓ $skill_dir — upstream now ships a card; retire compliance.d entry"
+              echo "$skill_dir" >> /tmp/overlay-retirable.txt
+            else
+              cp "$card" "$dest"
+              echo "  ↪ $skill_dir — backfilled card from compliance.d"
+              echo "$skill_dir" >> /tmp/overlay-backfilled.txt
+            fi
+          done < <(find compliance.d -type f -name skill-card.md)
+
+          if [ -s /tmp/overlay-backfilled.txt ]; then
+            echo "- compliance backfill" >> /tmp/changed-components.txt
+          fi
+
       - name: Rebuild plugin payload
         # Regenerate plugins/bionemo-agent-toolkit/ so the sync PR ships skills +
         # payload together and stays plugin-sync green. (build-plugins.py fork is
@@ -155,6 +198,16 @@ jobs:
               echo ""
               echo "**Failed to sync:**"
               cat /tmp/failed-components.txt
+            fi
+            if [ -s /tmp/overlay-backfilled.txt ]; then
+              echo ""
+              echo "**Cards backfilled from \`compliance.d\` (upstream still owes a \`skill-card.md\`):**"
+              while read -r d; do echo "- \`$d\`"; done < /tmp/overlay-backfilled.txt
+            fi
+            if [ -s /tmp/overlay-retirable.txt ]; then
+              echo ""
+              echo "**Upstream now ships its own card — delete these \`compliance.d\` entries:**"
+              while read -r d; do echo "- \`compliance.d/$d/skill-card.md\`"; done < /tmp/overlay-retirable.txt
             fi
             echo ""
             echo "Sourced content changes + any pruning are shown in the diff. Native"
