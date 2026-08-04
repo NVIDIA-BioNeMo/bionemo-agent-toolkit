@@ -1,0 +1,29 @@
+[project]
+name = "bionemo-agent-toolkit"
+version = "0.1.0"
+description = "Python environment for BioNeMo Agent Toolkit skills and scripts"
+requires-python = ">=3.10"
+dependencies = [
+    "gemmi",
+    "numpy>=1.24",
+    "pyyaml",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+cuequivariance = [
+    "cuequivariance",
+]
+genmol = [
+    "safe-mol>=0.1.14",
+]
+molmim = [
+    "rdkit",
+]
+nvmolkit = [
+    "nvmolkit[autotune]; sys_platform == 'linux'",
+]
+
+[tool.uv]
+managed = true
+package = false
