@@ -4,3 +4,7 @@
 # nv-aces generated eval results (regenerate locally / via CI; never committed)
 **/evals/results/
 .nv-aces-verify/
+
+# uv virtualenv — uv.lock IS committed (nSpect/Black Duck scans it), .venv is not
+.venv/
+__pycache__/
