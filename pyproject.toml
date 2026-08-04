@@ -1,29 +1,51 @@
+##
+## Dependency manifest for the BioNeMo Agent Toolkit.
+##
+## This repository is a catalog of agent skills, not an installable Python
+## package. The manifest exists so that the open-source dependency tree of the
+## helper scripts shipped inside the skills is declared in a machine-readable
+## form, which is what NVIDIA nSpect / Black Duck scans. `uv.lock` is committed
+## alongside it and is the file the scanner actually resolves versions from.
+##
+## Keep `dependencies` in sync with the third-party imports under */scripts/.
+## After any change, regenerate the lock and confirm the scanner's command
+## still succeeds:
+##
+##     uv lock
+##     uv tree --no-dedupe --frozen
+##
+
 [project]
 name = "bionemo-agent-toolkit"
 version = "0.1.0"
-description = "Python environment for BioNeMo Agent Toolkit skills and scripts"
+description = "Turn any agent into a life science expert with NVIDIA BioNeMo skills."
+readme = "README.md"
 requires-python = ">=3.10"
+
+# Third-party packages imported by the Python helper scripts in this repo:
+#   gemmi  -> */complexa-binder-design/scripts/{pdb_interface,pipeline,preflight_design,pdb_to_boltz_template_cif}.py
+#   numpy  -> */complexa-binder-design/scripts/validate_binders.py, */protein-binder-design/scripts/metrics.py
+#   pyyaml -> */complexa-binder-design/scripts/pipeline.py
+# Everything else the scripts import is Python standard library.
 dependencies = [
-    "gemmi",
-    "numpy>=1.24",
-    "pyyaml",
-    "requests>=2.28",
+    "gemmi>=0.6.5",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
 ]
 
-[project.optional-dependencies]
-cuequivariance = [
-    "cuequivariance",
-]
-genmol = [
-    "safe-mol>=0.1.14",
-]
-molmim = [
-    "rdkit",
-]
-nvmolkit = [
-    "nvmolkit[autotune]; sys_platform == 'linux'",
-]
+[project.license]
+text = "Apache-2.0 OR CC-BY-4.0"
+
+[[project.authors]]
+name = "NVIDIA Corporation"
+
+[project.urls]
+Homepage = "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit"
 
 [tool.uv]
+# Required by Black Duck's UV detector: the dependency scan is skipped entirely
+# when this is false or absent.
 managed = true
+# The repo root is a dependency container only — there is nothing to build or
+# install from it, so uv treats it as a virtual project.
 package = false
