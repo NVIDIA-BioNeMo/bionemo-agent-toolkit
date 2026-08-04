@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-This repository contains multiple components under different licenses; see [`LICENSE`](../../../LICENSE) and the `licenses/` directory. <br>
+This repository contains multiple components under different licenses; see the [`LICENSE`](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/blob/HEAD/LICENSE) in the source repository. <br>
 
 ## Use Case: <br>
 Protein designers and computational biologists making a fresh Proteina-Complexa checkout runnable — verifying GPU preflight, configuring `.env`, and installing model weights (Complexa, AF2, RF3, ProteinMPNN, LigandMPNN, ESM2, ESMFold). This is the first skill to run on a new clone; every other `complexa-*` skill depends on it. <br>

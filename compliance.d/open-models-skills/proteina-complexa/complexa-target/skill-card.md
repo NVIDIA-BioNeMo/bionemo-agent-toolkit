@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-This repository contains multiple components under different licenses; see [`LICENSE`](../../../LICENSE) and the `licenses/` directory. <br>
+This repository contains multiple components under different licenses; see the [`LICENSE`](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/blob/HEAD/LICENSE) in the source repository. <br>
 
 ## Use Case: <br>
 Protein designers defining what to design against — registering a target structure, chain specification, hotspot residues, and binder length range before running `complexa-design`. Also covers `complexa validate target` and questions about chain-spec syntax and where hotspots live. <br>

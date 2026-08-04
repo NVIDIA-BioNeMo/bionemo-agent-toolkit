@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-This repository contains multiple components under different licenses; see [`LICENSE`](../../../LICENSE) and the `licenses/` directory. <br>
+This repository contains multiple components under different licenses; see the [`LICENSE`](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/blob/HEAD/LICENSE) in the source repository. <br>
 
 ## Use Case: <br>
 Protein designers scoring binder candidates that already exist as structures — refolding designs, computing interface pAE, i_pLDDT, scRMSD, and motif RMSD, and assessing designability. Works on Proteina-Complexa output and equally on third-party outputs (BindCraft, AlphaProteo, RFdiffusion, hand-curated decoys), so it serves as a common yardstick across design methods. <br>

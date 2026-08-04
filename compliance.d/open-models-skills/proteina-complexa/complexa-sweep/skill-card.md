@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-This repository contains multiple components under different licenses; see [`LICENSE`](../../../LICENSE) and the `licenses/` directory. <br>
+This repository contains multiple components under different licenses; see the [`LICENSE`](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/blob/HEAD/LICENSE) in the source repository. <br>
 
 ## Use Case: <br>
 Protein designers and method developers tuning a design pipeline — scanning beam width, step count, temperature, or reward weights; ablating reward components; or trading binder quality against wall-clock. This is the only skill that owns sweeper YAML authoring and per-configuration result ranking. <br>

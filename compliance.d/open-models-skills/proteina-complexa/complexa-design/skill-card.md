@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-This repository contains multiple components under different licenses; see [`LICENSE`](../../../LICENSE) and the `licenses/` directory. <br>
+This repository contains multiple components under different licenses; see the [`LICENSE`](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/blob/HEAD/LICENSE) in the source repository. <br>
 
 ## Use Case: <br>
 Protein designers and computational biologists running de novo binder design against a registered target — generating candidate binders with reward-guided flow matching, refolding them with an independent structure predictor (AF2 or RF3), and ranking by interface metrics (success rate, interface pAE, scRMSD, FoldSeek diversity). This is the scientific anchor of the `complexa-*` skill set. <br>
