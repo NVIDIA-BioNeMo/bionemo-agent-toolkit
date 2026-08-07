@@ -41,34 +41,10 @@ For local setup answers, include this sequence: env preflight, `docker login`,
 `docker run`, readiness loop, then a no-auth localhost request. Do not invent a
 cache default or drop the `NVIDIA_API_KEY` fallback.
 
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run --rm -it --name genmol-nim \
-  --runtime=nvidia --gpus=all \
-  -e NVIDIA_VISIBLE_DEVICES="${NIM_TEST_GPU}" \
-  --shm-size=2G \
-  --ulimit memlock=-1 \
-  --ulimit stack=67108864 \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
-  nvcr.io/nim/nvidia/genmol:1.0.1
-```
+For the exact startup preflight (`.env` sourcing, `NVIDIA_API_KEY` fallback,
+`--shm-size=2G`, both `--ulimit` flags, `docker login`, and the `docker run`
+for `nvcr.io/nim/nvidia/genmol:1.0.1`), copy the command block in
+[`references/api.md`](references/api.md) under **Docker run reference** verbatim.
 
 GenMol is single-GPU; `NIM_TEST_GPU` defaults to `0`. Wait for readiness:
 
@@ -89,16 +65,8 @@ positions use `[*{min-max}]`.
 Use `safe-mol` for conditioned generation. Simple ring scaffolds may raise
 `SAFEFragmentationError`; fall back to the original SMILES plus a SAFE mask.
 
-```python
-import safe as sf
-
-def scaffold_to_safe(smiles: str, frag_min: int, frag_max: int) -> str:
-    try:
-        safe_str = sf.encode(smiles)
-    except sf.SAFEFragmentationError:
-        safe_str = smiles
-    return f"{safe_str}.[*{{{frag_min}-{frag_max}}}]"
-```
+See the `scaffold_to_safe` helper in
+[`references/examples.md`](references/examples.md) under **Scaffold Decoration**.
 
 Wider masks increase diversity; tight masks keep analog size more predictable.
 
@@ -115,7 +83,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "smiles": "[*{20-30}]",  # SAFE notation
@@ -142,22 +110,10 @@ Gotchas:
 
 ## Save And Report Output
 
-```python
-if result.get("status") != "success":
-    raise RuntimeError(result.get("error", "GenMol failed"))
-
-molecules = sorted(result["molecules"], key=lambda m: m["score"], reverse=True)
-for rank, mol in enumerate(molecules[:30], start=1):
-    print(f"{rank:3d} {mol['score']:8.4f} {mol['smiles']}")
-
-with open("generated_molecules.smi", "w", encoding="utf-8") as handle:
-    handle.write("smiles\tscore\n")
-    for mol in molecules:
-        handle.write(f"{mol['smiles']}\t{mol['score']:.4f}\n")
-```
-
-For chemical validity, uniqueness, PAINS/alerts, and visualization with RDKit,
-read `references/validation.md`.
+Sort molecules by score, print the top ranks, and write a `.smi` file as shown
+in [`references/examples.md`](references/examples.md) under **Save Ranked
+Results**. For chemical validity, uniqueness, PAINS/alerts, and visualization
+with RDKit, read `references/validation.md`.
 
 ## Limits And Troubleshooting
 

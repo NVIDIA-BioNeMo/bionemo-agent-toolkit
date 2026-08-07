@@ -1,7 +1,7 @@
 ---
 name: msa-search-nim
 description: >
-  Generate multiple sequence alignments (MSAs) for protein sequences using the ColabFold MSA-Search NIM. Use for homolog search, UniRef30/ColabFold env searches, A3M or FASTA alignments, paired MSA search for complexes, PDB70 structural templates, hosted NVIDIA API calls, or local Docker deployment. For local deployment, download the databases in parallel with aria2c and launch via NIM_MODEL_NAME (the recommended default fast path, ~14 min vs >80 min for the built-in downloader); a plain docker run uses the slow built-in downloader.
+  Generate multiple sequence alignments (MSAs) for protein sequences using the ColabFold MSA-Search NIM. Use for homolog search, UniRef30/ColabFold env searches, A3M or FASTA alignments, paired MSA search for complexes, PDB70 structural templates, hosted NVIDIA API calls, or local Docker deployment. For local deployment, download the databases in parallel with aria2c and launch via NIM_MODEL_NAME (the recommended default fast path, ~14 min vs over 80 min for the built-in downloader); a plain docker run uses the slow built-in downloader.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
@@ -68,7 +68,7 @@ echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-s
 
 # --- 1) pick the DB version(s) you need (paired/complex work = uniref30 only) ---
 DB_VERSION=uniref30_2302-m18v1
-command -v aria2c >/dev/null || sudo apt-get install -y aria2
+command -v aria2c >/dev/null || { echo "aria2c required; install it (e.g. apt-get install -y aria2) and re-run"; exit 1; }
 mkdir -p "$DB_DIR"
 
 # --- 2) parallel download from NGC (see "Parallel Download" section for the all-DB loop) ---
@@ -113,7 +113,7 @@ to manage its own blob cache. It uses the built-in downloader, which is slow on 
 
 ```bash
 : "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-mkdir -p "${LOCAL_NIM_CACHE}"; chmod 777 "${LOCAL_NIM_CACHE}"
+mkdir -p "${LOCAL_NIM_CACHE}"; chmod 755 "${LOCAL_NIM_CACHE}"
 docker run --rm --name msa-search \
   --runtime=nvidia --gpus all \
   -e NGC_API_KEY \
@@ -291,7 +291,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "sequence": "SGSMKTAISLPDETFDRVSRRASELGMSRSEFFTKAAQR",

@@ -49,34 +49,11 @@ Use the official OpenFold2 NIM image and mount `LOCAL_NIM_CACHE` at
 RAM, 8 CPU cores, and one supported GPU; the container is roughly 55 GB and
 first startup downloads about 10 GB of model parameters.
 
-When writing local setup commands, copy the preflight below exactly. Do not
-drop `.env`, `NVIDIA_API_KEY`, `LOCAL_NIM_CACHE`, or the no-auth local request.
-
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run --rm --name openfold2 \
-  --runtime=nvidia \
-  --gpus "device=${NIM_TEST_GPU}" \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
-  nvcr.io/nim/openfold/openfold2:latest
-```
+For the exact startup preflight (`.env` sourcing, `NGC_API_KEY`/`NVIDIA_API_KEY`
+handling, `docker login`, and the `docker run` for
+`nvcr.io/nim/openfold/openfold2:latest`), copy the command block in
+[`references/api.md`](references/api.md) under **Local Docker** verbatim — do
+not drop `.env`, `NGC_API_KEY`, `LOCAL_NIM_CACHE`, or the no-auth local request.
 
 Readiness check:
 
@@ -102,7 +79,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if hosted:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 seq = "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT"
 payload = {

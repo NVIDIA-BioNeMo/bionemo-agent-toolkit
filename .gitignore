@@ -8,3 +8,4 @@
 # uv virtualenv — uv.lock IS committed (nSpect/Black Duck scans it), .venv is not
 .venv/
 __pycache__/
+*.py[cod]

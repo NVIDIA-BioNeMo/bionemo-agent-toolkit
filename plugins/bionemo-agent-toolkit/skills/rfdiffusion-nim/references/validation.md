@@ -15,7 +15,7 @@
 
 ## Scientific Checks
 
-- Do not treat a generated backbone as a complete protein design.
-- Run ProteinMPNN for sequence design.
-- Validate fold-back and interfaces with OpenFold3 or Boltz2 where relevant.
+- Do not treat a generated backbone as a complete protein design; it still
+  needs downstream sequence design and fold validation (see the handoff
+  pipeline in `science.md`).
 - Generate multiple candidates for serious design work.

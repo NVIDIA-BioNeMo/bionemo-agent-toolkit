@@ -1,0 +1,58 @@
+{
+  "skill_name": "cuequivariance",
+  "evals": [
+    {
+      "id": "cuequivariance-001",
+      "prompt": "I want to use cuequivariance to define a custom Z3 cyclic group as an Irrep subclass, with proper Clebsch-Gordan coefficients and selection rules. Can you show me how to implement this?",
+      "expected_output": "The agent provided a complete implementation of a Z3 cyclic group as a cuequivariance Irrep subclass, including all required methods (regexp_pattern, from_string, __repr__, __mul__, clebsch_gordan, dim, __lt__, iterator, discrete_generators, continuous_generators, algebra) with correct selection rules for the cyclic group of order 3.",
+      "assertions": [
+        "The agent read the cuequivariance SKILL.md to understand the Irrep subclass interface requirements",
+        "The agent provided a frozen dataclass implementation subclassing cue.Irrep with appropriate fields for Z3 representations",
+        "The agent implemented the clebsch_gordan class method returning arrays of shape (num_paths, d1, d2, d3) with correct selection rules for Z3",
+        "The agent included discrete_generators returning the appropriate 3rd roots of unity rotation matrices",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "cuequivariance",
+      "expected_script": null
+    },
+    {
+      "id": "cuequivariance-002",
+      "prompt": "I'm working with SO3 irreducible representations and need to build a segmented tensor product that contracts two sets of spherical harmonic coefficients using Clebsch-Gordan coefficients. The inputs have irreps '2x0 + 1x1 + 1x2' and '1x0 + 1x1', and I need the output irreps. How do I set this up?",
+      "expected_output": "The agent explained how to use cuequivariance's SegmentedTensorProduct and built-in SO3 irreps to construct a tensor product descriptor between the two input irrep collections, computing the output irreps from the selection rules and attaching CG coefficients via Path objects.",
+      "assertions": [
+        "The agent referenced cuequivariance's SO3 or O3 built-in irreps and the Irreps class for parsing '2x0 + 1x1 + 1x2' style strings",
+        "The agent explained how SegmentedTensorProduct and Path objects carry Clebsch-Gordan coefficients for the contraction",
+        "The agent described or computed the resulting output irreps based on SO3 selection rules for the given inputs",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "cuequivariance",
+      "expected_script": null
+    },
+    {
+      "id": "cuequivariance-003",
+      "prompt": "I'm building an equivariant neural network for molecular property prediction. My model needs a layer that takes atom features decomposed by angular momentum (l=0,1,2) and edge spherical harmonics (l=0,1,2,3), performs a tensor product interaction, and outputs features up to l=3. I want to use the segmented polynomial approach where inputs are dictionaries keyed by irrep. How should I structure this?",
+      "expected_output": "The agent described how to use cuequivariance's IrDictPolynomial to build an equivariant tensor product layer where operands are dict[Irrep, Array] structures, using SO3 irreps for the atom features and spherical harmonics, with proper CG coefficients linking input and output segments.",
+      "assertions": [
+        "The agent read the cuequivariance SKILL.md and identified IrDictPolynomial as the appropriate abstraction for the dict[Irrep, Array] workflow",
+        "The agent explained how to define input Irreps for atom features ('Nx0 + Nx1 + Nx2') and edge spherical harmonics up to l=3",
+        "The agent described how the SegmentedTensorProduct paths with CG coefficients enforce SO3 equivariance in the tensor product interaction",
+        "The agent mentioned or demonstrated how to use built-in descriptors (tensor products, spherical harmonics) for this molecular modeling use case",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "cuequivariance",
+      "expected_script": null
+    },
+    {
+      "id": "cuequivariance-004",
+      "prompt": "How do I set up a PostgreSQL database with proper indexing for a time-series application that needs to handle millions of sensor readings per day?",
+      "expected_output": "The agent provided guidance on PostgreSQL database setup, time-series indexing strategies (such as BRIN indexes, partitioning, or TimescaleDB), without invoking cuequivariance or group theory concepts.",
+      "assertions": [
+        "The agent discussed PostgreSQL configuration, table design, or indexing strategies relevant to time-series data",
+        "The agent did not reference cuequivariance, irreducible representations, or segmented tensor products",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": null,
+      "expected_script": null
+    }
+  ]
+}

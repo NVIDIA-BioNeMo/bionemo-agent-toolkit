@@ -1,0 +1,25 @@
+---
+alwaysApply: false
+title: Binder Design Route Selection
+description: >
+  Side-by-side comparison of the two de novo binder-design routes
+  (complexa-binder-design vs protein-binder-design) to help choose one for a given
+  target and constraints.
+parent_workflow: generative-protein-binder-design
+tags: [protein-design, binder-design, reference]
+---
+
+# Route Selection: complexa-binder-design vs protein-binder-design
+
+| Dimension | complexa-binder-design | protein-binder-design |
+|---|---|---|
+| Generator | Proteina-Complexa (reward-guided co-design of sequence+structure) | RFdiffusion backbones → ProteinMPNN sequences |
+| Selection | Internal AF2-reward gate + test-time search (best-of-n / beam / FK / MCTS) | Filter by co-fold interface metrics |
+| Independent validation | Boltz2 (default) or OpenFold3 co-fold | Boltz2 / OpenFold3 co-fold |
+| Ranking metrics | interface confidence, pLDDT, ipSAE, apo/holo stability, hotspot contact | ipTM / ipSAE / pLDDT / apo↔holo RMSD |
+| Backend | Proteina-Complexa (local) + Boltz2 NIM | BioNeMo NIMs (RFdiffusion, ProteinMPNN, Boltz2/OpenFold3) |
+| Prefer when | user asks for Proteina-Complexa / reward-guided search | user wants the RFdiffusion + ProteinMPNN NIM pipeline |
+
+Both resolve target + hotspots first, generate binders, co-fold the complex with an
+independent predictor, and rank by interface metrics. Pick based on the generator the
+user wants (Proteina-Complexa vs RFdiffusion/ProteinMPNN) or which backend is available.

@@ -25,13 +25,8 @@ Ask only when context is unclear:
 
 > Hosted NVIDIA API or local Docker NIM?
 
-- Hosted generation: `https://health.api.nvidia.com/v1/biology/nvidia/molmim/generate`
-- Local generation: `http://localhost:8000/generate`
-- Local embedding: `http://localhost:8000/embedding`
-- Local hidden state: `http://localhost:8000/hidden`
-- Local decode: `http://localhost:8000/decode`
-- Local sampling: `http://localhost:8000/sampling`
-- Local readiness: `http://localhost:8000/v1/health/ready`
+See [`references/api.md`](references/api.md) under **Endpoints** for the full
+hosted/local endpoint list.
 
 Mode difference: the hosted API reference exposes `/generate`; the local
 container exposes the broader latent-space workflow (`/embedding`, `/hidden`,
@@ -47,34 +42,10 @@ MolMIM docs use `NGC_CLI_API_KEY` for the local container; this repo accepts
 `NGC_API_KEY` or `NVIDIA_API_KEY` and maps to `NGC_CLI_API_KEY` for startup.
 Mount `LOCAL_NIM_CACHE` at `/home/nvs/.cache/nim`.
 
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-if [ -z "${NGC_CLI_API_KEY:-}" ] && [ -n "${NGC_API_KEY:-}" ]; then
-  export NGC_CLI_API_KEY="$NGC_API_KEY"
-fi
-: "${NGC_CLI_API_KEY:?Set NGC_API_KEY, NVIDIA_API_KEY, or NGC_CLI_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_CLI_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run --rm -it --name molmim \
-  --runtime=nvidia \
-  -e CUDA_VISIBLE_DEVICES="${NIM_TEST_GPU}" \
-  -e NGC_CLI_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/home/nvs/.cache/nim" \
-  -p 8000:8000 \
-  nvcr.io/nim/nvidia/molmim:1.0.0
-```
+For the exact startup preflight (the `NGC_API_KEY`/`NVIDIA_API_KEY` →
+`NGC_CLI_API_KEY` mapping, `docker login`, and the `docker run` for
+`nvcr.io/nim/nvidia/molmim:1.0.0`), copy the command block in
+[`references/api.md`](references/api.md) under **Local Docker** verbatim.
 
 Readiness check:
 
@@ -118,7 +89,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if hosted:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "smi": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",

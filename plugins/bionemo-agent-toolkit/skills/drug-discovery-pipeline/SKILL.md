@@ -1,6 +1,9 @@
 ---
 name: drug-discovery-pipeline
 description: >
+  NOTE: molecule and target inputs and your NGC_API_KEY are transmitted to
+  external NVIDIA-hosted API endpoints on every call. Use local NIM containers
+  for confidential or proprietary data.
   Run a complete computational drug discovery pipeline using NVIDIA BioNeMo NIMs:
   generate drug-like molecules with GenMol, dock them to a protein target with DiffDock,
   then predict binding affinity with Boltz2. Use this skill whenever the user wants to
@@ -57,7 +60,7 @@ import requests, json, os
 import safe as sf                          # pip install safe-mol
 from pathlib import Path
 
-NGC_API_KEY = os.environ["NGC_API_KEY"]
+NGC_API_KEY = os.getenv("NGC_API_KEY")
 HOSTED = True
 
 if HOSTED:
