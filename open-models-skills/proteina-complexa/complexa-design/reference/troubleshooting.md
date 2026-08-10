@@ -170,19 +170,13 @@ looks like a missing value.
 
 **Fix:** Always use `++` for design pipeline overrides (the pipeline composes
 multiple configs and key existence varies by stage). Re-check the key against
-`reference/overrides.md`.
-
-Note: `complexa validate design` will **not** catch a bad override key. The
-`validate` subcommand rejects `++` arguments outright ("unrecognized
-arguments") and, even given a bare config, reads the YAML as written without
-applying overrides — so it cannot surface unknown override keys. Validate the
-bare config for ckpt/weight/target problems, but to catch a typo'd override key
-you must launch and read Hydra's error (or dry-check the key against
-`reference/overrides.md` first):
+`reference/overrides.md`. Validate the run before launching:
 
 ```bash
-complexa validate design <pipeline_config>     # ckpts + weights + config-default target; NO ++overrides
+complexa validate design <pipeline_config> ++<overrides>
 ```
+
+The validator surfaces every unknown key before the pipeline starts.
 
 ## Missing checkpoint reported by `complexa download --status`
 
@@ -241,7 +235,7 @@ complexa download --all
 ```
 
 Or fetch the specific MPNN you need (LigandMPNN for ligand / AME pipelines,
-SolubleMPNN for protein binder, ProteinMPNN for the motif designability
+SolubleMPNN for protein binder, ProteinMPNN for the monomer designability
 calculation). All three live under the community-model directory.
 
 ## Inverse folder returns 0 sequences
@@ -288,4 +282,3 @@ complexa analyze configs/search_binder_local_pipeline.yaml ++run_name=<same> ++a
 ```
 
 Reference: `docs/EVALUATION_METRICS.md` "Customizing Binder Thresholds".
-

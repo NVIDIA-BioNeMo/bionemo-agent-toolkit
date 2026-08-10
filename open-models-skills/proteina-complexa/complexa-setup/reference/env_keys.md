@@ -27,11 +27,11 @@ lines.
 
 ### `LOCAL_DATA_PATH`
 
-- **Required.** Default placeholder `/nvda/data/PFM_data`.
+- **Required.** Default placeholder `/path/to/PFM_data`.
 - Absolute path to the PFM data directory (target PDBs under `target_data/`, datasets, etc.).
 - Read by: `DATA_PATH` (active alias rewritten by `complexa init`); `complexa validate env` requires this to point at an existing directory.
 - **Failure mode**: `complexa validate env` reports `DATA_PATH: Directory not found`; `complexa validate target` fails to locate `target_data/`.
-- Fix: edit, then `mkdir -p $LOCAL_DATA_PATH` and copy `target_data/` from ORD (see `reference/downloads.md`).
+- Fix: edit, then `mkdir -p $LOCAL_DATA_PATH` and populate it with the target PDBs you plan to design against (the bundled examples ship under `assets/target_data/`, or build your own with the `complexa-target` skill).
 
 ---
 
@@ -40,9 +40,9 @@ lines.
 ### `GITLAB_TOKEN`
 
 - **Optional.** Default placeholder `TOKEN_HERE`.
-- Used by `env/docker-ops.sh` to log into your Docker registry.
-- **Failure mode if missing**: `docker login` is skipped → cannot pull private images. Public NGC downloads still work.
-- Fix: set if pulling from a private Docker registry.
+- Used by `env/docker-ops.sh` to authenticate against a private Docker registry (only relevant if you build the image yourself and push it somewhere that needs a token).
+- **Failure mode if missing**: `docker login` is skipped → cannot pull private images. The default Dockerfile build (`docker build -f env/docker/Dockerfile .`) and all NGC downloads still work without it.
+- Fix: set if you have your own private registry configured via `REGISTRY` / `DOCKER_IMAGE`.
 
 ### `WANDB_API_KEY` / `WANDB_ENTITY`
 
@@ -72,11 +72,11 @@ lines.
 
 ### `LOCAL_CHECKPOINT_PATH`
 
-- **Optional.** Default `${LOCAL_CODE_PATH}/ckpts`.
+- **Optional.** Default in `.env_example`: `${LOCAL_CODE_PATH}/checkpoints`.
 - Active alias `CKPT_PATH` resolves to this for UV runtime.
-- This is where `complexa download` writes Complexa model + AE checkpoints.
-- **Failure mode if missing**: ckpts download into `./ckpts/` inside the repo; works fine unless you want them on a separate drive.
-- Fix: point at a dedicated SSD if `LOCAL_CODE_PATH` lives on a slow disk.
+- Note: `complexa download` always writes Complexa model + AE checkpoints to `$PROJECT_ROOT/ckpts/` (a sibling of `checkpoints/`) regardless of this setting. If you want `CKPT_PATH` to point at the download location, set `LOCAL_CHECKPOINT_PATH=${LOCAL_CODE_PATH}/ckpts` after running `complexa download`.
+- **Failure mode if missing**: pipeline configs resolve `${oc.env:CKPT_PATH}` to the default — if the directory doesn't exist or is empty, loading the model fails.
+- Fix: either run `complexa download --complexa-all` and set `LOCAL_CHECKPOINT_PATH=${LOCAL_CODE_PATH}/ckpts`, or move/symlink the downloaded ckpts into the `checkpoints/` default.
 
 ### `DOCKER_MOUNTS`
 
@@ -101,17 +101,17 @@ lines.
 
 ## Section 4 — Docker image (rarely edited)
 
-These are read by `env/docker-ops.sh build/pull/run` and the SLURM launch scripts.
+These are read by `env/docker-ops.sh build/pull/run`.
 
 ### `REGISTRY` / `REGISTRY_USER`
 
-- **Required for Docker push/pull.** Defaults: `<your-registry>` / `<your-username>`.
-- Used in `docker login` and tagging.
+- **Required only for `docker-ops.sh push/pull` against a private registry.** Defaults in `.env_example`: `registry.example.com` / `'$oauthuser'` (placeholders — you must edit if pushing/pulling).
+- Used in `docker login` and tagging. Local `docker build` does not need these.
 
 ### `DOCKER_IMAGE`
 
-- **Required for Docker runtime.** Default: set this to your Docker image URL, e.g. `<registry>/<image>:complexa-uv`.
-- Tag of the image `docker-ops.sh run` will start.
+- **Required for `docker-ops.sh run` (Docker runtime).** Default placeholder `registry.example.com/org/repo:tag`.
+- Tag of the image `docker-ops.sh run` will start. If you built the image yourself with `docker build -t proteina-complexa -f env/docker/Dockerfile .`, set this to `proteina-complexa:latest`.
 
 ### `CONTAINER_NAME`
 
@@ -122,35 +122,6 @@ These are read by `env/docker-ops.sh build/pull/run` and the SLURM launch script
 
 - **Required for `docker-ops.sh build`.** Default `env/docker/Dockerfile`.
 - Path (relative to `LOCAL_CODE_PATH`) of the Dockerfile used by `docker-ops.sh build`.
-
----
-
-## Section 5 — SLURM cluster (all optional for local-only users)
-
-Only used by `slurm_utils/` launch scripts. Set if you intend to use the
-`complexa-slurm` skill or call `launch_*.sh` directly. See the `complexa-slurm`
-skill's `reference/cluster_env.md` for the deeper reference.
-
-| Key | Required for cluster? | Default | Notes |
-|-----|----------------------|---------|-------|
-| `CLUSTER_USER` | yes | `USER_NAME_HERE` | SSH login user |
-| `CLUSTER_HOST` | yes | `login.mycluster.example.com` | Login node |
-| `CLUSTER_HOST_DC` | no | `dc.mycluster.example.com` | Faster rsync data-copier node |
-| `CLUSTER_SSH_KEY` | no | (ssh-agent) | Path to private key |
-| `CLUSTER_ACCOUNT` | yes | `my_slurm_account` | SLURM account |
-| `CLUSTER_PARTITION` | yes | `gpu,compute` | Comma-separated partitions |
-| `CLUSTER_RUNTIME` | yes | `docker` | `docker` or `uv` on the cluster |
-| `CLUSTER_ROOT_REMOTE` | yes | empty | Cluster-side root for run dirs |
-| `CLUSTER_DATA_PATH` | yes | `/lustre/.../PFM_data` | Cluster-side PFM data |
-| `CLUSTER_CACHE_DIR` | required for UV | empty | Shared cache on cluster |
-| `CLUSTER_SHARED_MODELS_PATH` | no | empty | Skip rsync of `community_models/` if set |
-| `CLUSTER_CKPT_PATH` | no | empty | Skip rsync of `ckpts/` if set |
-| `CLUSTER_CONTAINER_IMAGE` | required for Docker | `${DOCKER_IMAGE}` | Registry URL or `.sqsh` |
-| `CLUSTER_DOCKER_MOUNTS` | no | empty | Extra mounts on cluster |
-| `CLUSTER_UV_VENV` | required for UV | empty | Path to UV venv on cluster |
-
-For local-only workflows, leave Section 5 alone — `complexa init` does not
-overwrite it.
 
 ---
 
@@ -197,10 +168,6 @@ them manually will be overwritten the next time `complexa init` runs (without
 
 - Container-internal paths inside the Complexa Docker image. Hard-coded to `/workspace/...`; only edit if you ship a custom image with different layout.
 
-### `CLUSTER_CONTAINER_WORKSPACE` / `CLUSTER_UV_*_EXEC`
-
-- Cluster-internal derivations. Auto-managed.
-
 ---
 
 ## What `complexa validate env` actually checks
@@ -208,16 +175,11 @@ them manually will be overwritten the next time `complexa init` runs (without
 From `src/proteinfoundation/cli/validate.py:validate_env`:
 
 1. `.env` file exists in CWD (or any parent up to the repo root).
-2. `DATA_PATH` env var is set and resolves to an existing directory — *any*
-   directory. `DATA_PATH=/tmp` passes; it does not check the directory is the
-   correct `PFM_data`.
+2. `DATA_PATH` env var is set and resolves to an existing directory.
 
-That is the full check. It is a shallow smoke test, not a readiness guarantee:
-it does not validate ckpts, tool binaries, or HF tokens. Those are checked by
-`complexa validate {generate,evaluate,design} <config>`, which loads the
-pipeline YAML **as written** (it does not apply `++` overrides) and verifies the
-paths each stage will read. Run `complexa validate design
-configs/search_binder_local_pipeline.yaml` once after editing `.env` to catch
-missing AF2/RF3 weights before the first real pipeline run, and use
-`.claude/skills/_shared/scripts/preflight.sh` for the GPU/disk/ckpt/tool
-snapshot.
+That is the full check. It does not validate ckpts, tool binaries, or HF
+tokens. Those are checked by `complexa validate {generate,evaluate,design}
+<config>` which loads a pipeline YAML and verifies the paths each stage will
+actually read. Run `complexa validate design configs/search_binder_local_pipeline.yaml`
+once after editing `.env` to catch missing AF2/RF3/foldseek before the first
+real pipeline run.

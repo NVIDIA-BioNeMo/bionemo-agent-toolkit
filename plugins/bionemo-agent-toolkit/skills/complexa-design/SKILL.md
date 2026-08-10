@@ -8,11 +8,11 @@ description: >
   binder", "ATP-binding protein", "AME motif scaffolding", "scaffold a motif
   near a ligand", "motif + ligand design", "enzyme scaffolding", "flow matching
   protein design", "beam-search binder", "FK steering", "MCTS protein design",
-  "refold with AF2", "refold with RF3", "refold with ESMFold", or wants success
-  rates, interface pAE, scRMSD, or FoldSeek diversity from a single command.
-  This is the scientific anchor of the skill set: it drives `complexa design
-  <pipeline>` from target picking to manifest emission and tells the user how
-  many designs passed.
+  "refold with AF2", "refold with RF3", or wants success rates, interface pAE,
+  scRMSD, or
+  FoldSeek diversity from a single command. This is the scientific anchor of
+  the skill set: it drives `complexa design <pipeline>` from target picking to
+  manifest emission and tells the user how many designs passed.
 compatibility: "complexa CLI installed (pip install -e .); .env populated; 1x CUDA GPU >=40GB VRAM (A100/H100/L40S); 24 CPUs; ~50GB disk"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
@@ -20,7 +20,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 # Complexa Design Skill
 
 Drive the full four-stage `complexa design` pipeline: generate (flow matching +
-search) -> filter (top-N by reward) -> evaluate (refold with AF2/RF3/ESMFold) ->
+search) -> filter (top-N by reward) -> evaluate (refold with AF2/RF3) ->
 analyze (success rate, FoldSeek/MMseqs diversity). Pick the right pipeline
 config for the design intent, validate the run upfront so the user does not
 discover a missing ckpt mid-folding, run it, and emit a replayable manifest +
@@ -53,13 +53,8 @@ the chosen pipeline:
 - `ckpts.complexa[.ckpt]` -> required for protein binder.
 - `ckpts.complexa_ligand[.ckpt]` -> required for ligand binder.
 - `ckpts.complexa_ame[.ckpt]` -> required for AME.
-- `env.AF2_DIR` missing -> protein binder **generation AND eval both fail**. AF2
-  is the `af2folding` search reward (loaded at generation time), not just the
-  `colabdesign` refold backend — so a missing `AF2_DIR` crashes at sample 0,
-  before any structure is produced. This is why `complexa download --complexa`
-  alone is insufficient; you also need `--all` (which brings AF2).
-- `env.RF3_CKPT_PATH` or `env.RF3_EXEC_PATH` missing -> ligand binder / AME
-  generation reward and default eval (`rf3_latest`) fail.
+- `env.AF2_DIR` missing -> protein binder default eval (`colabdesign`) fails.
+- `env.RF3_CKPT_PATH` or `env.RF3_EXEC_PATH` missing -> ligand binder / AME default eval (`rf3_latest`) fails.
 
 If a ckpt is missing, point at `complexa-setup` and have the user run
 `complexa download --complexa-<variant>` first.
@@ -67,11 +62,11 @@ If a ckpt is missing, point at `complexa-setup` and have the user run
 ## Step 2: Pick the pipeline
 
 Complexa has **one default pipeline (protein binder) and two extensions**
-(ligand binder, AME / enzyme). The pipeline is selected entirely by the
-`configs/search_*_pipeline.yaml` you pass to `complexa design` — each YAML
-pins its own model checkpoint, autoencoder, targets dict, default reward, and
-default refold backend. Switching pipelines is just "swap the config path and
-the target name comes from a different dict".
+(ligand binder, AME / enzyme). The pipeline is selected entirely
+by the `configs/search_*_pipeline.yaml` you pass to `complexa design` — each
+YAML pins its own model checkpoint, autoencoder, targets dict, default reward,
+and default refold backend. Switching pipelines is just "swap the config path
+and the target name comes from a different dict".
 
 ### Default — protein binder
 
@@ -144,67 +139,30 @@ to sensible production settings if the user has no preference.
 
 - **Target name** — must be a key in the relevant dict (`targets_dict.yaml` for
   protein binder, `ligand_targets_dict.yaml` for ligand, `ame_dict_v2.yaml` for
-  AME). Confirm it exists *before* running — do not let the pipeline fail with
-  "Unknown target" after generation starts. Check membership directly:
-
-  ```bash
-  complexa target show <name>                       # prints the entry, or errors if absent
-  # or grep the dict:  rg '^\s*<name>:' configs/targets/targets_dict.yaml
-  ```
-
-  **If the target is not in the dict, hand off to `complexa-target` first, then
-  come back here** — do not stall on "Unknown target". The clean chain is:
-
-  1. Detect the miss (e.g. user asks for "EGFR" but `complexa target show EGFR` errors).
-  2. Switch to the `complexa-target` skill: gather the PDB source, chain/residue
-     spec (or ligand SMILES), hotspots, and binder length, then register the entry.
-  3. Verify with `complexa target show <name>` and `complexa validate target <config> --target <name>`.
-  4. Return to this skill at Step 4 with the now-valid target name.
+  AME). If the user names a target that is not in the dict, hand off to
+  `complexa-target` to add it first.
 - **Run name** — a short identifier appended to the output dir (e.g. `pdl1_v1`).
 - **Search algorithm** — default to `beam-search` with `beam_width=8` and
   `n_branch=4` for production. Use `single-pass` for a quick smoke test.
 - **Evaluation refold backend** — protein binder defaults to `colabdesign`
   (AF2); ligand/AME default to `rf3_latest`. Use `esmfold` for fast iteration
-  (worse but seconds per sample). ESMFold weights ship inside `complexa download
-  --all`, but that sub-download needs `HF_TOKEN` set in `.env` or it silently
-  rate-limits and leaves no ESMFold dir — confirm `community_models/ckpts/ESMFold`
-  exists (`complexa download --status`) before relying on the `esmfold` backend.
+  (worse but seconds per sample).
 
 ## Step 4: Validate
 
 Validate before running. This is cheap (seconds) and catches missing ckpts,
-missing reward/eval weights, and a missing target entry — any of which would
-otherwise abort the pipeline mid-evaluation after hours of generation.
-
-**`complexa validate design` does NOT accept `++` Hydra overrides.** The
-`validate` subcommand only takes `<type> <config> [--target NAME]`; passing
-`++generation.task_name=…` makes it exit with "unrecognized arguments". It also
-reads the config YAML *as written* — overrides you plan to pass to `complexa
-design` are not applied during validation. So validate the bare config, and use
-`--target` (only available on `validate target`) to check a target other than
-the config's own `generation.task_name`:
+missing env vars, unknown override keys, and missing target entries — all of
+which would otherwise abort the pipeline mid-evaluation after hours of
+generation.
 
 ```bash
-# Validates ckpts + reward/eval weights, and the target named *in the config*.
-complexa validate design configs/search_binder_local_pipeline.yaml
-
-# To check a specific target (e.g. one you will pass via ++generation.task_name),
-# validate it explicitly — this path DOES check dict membership:
-complexa validate target configs/search_binder_local_pipeline.yaml --target 02_PDL1
+complexa validate design configs/search_binder_local_pipeline.yaml \
+    ++generation.task_name=02_PDL1 \
+    ++metric.binder_folding_method=colabdesign
 ```
 
-The validator returns non-zero on errors and prints a pass/fail report. Re-run
-until it returns clean.
-
-What `validate design` does **not** cover (verify these yourself):
-
-- Override-dependent settings — e.g. if you will pass
-  `++metric.binder_folding_method=esmfold`, validation still checks whatever the
-  config's default backend is. Confirm your overrides match the weights you
-  downloaded.
-- The target you pass at run time via `++generation.task_name=` — validate it
-  separately with `validate target … --target <name>` (above), or confirm it is
-  in the dict directly (`complexa target show <name>`).
+The validator returns non-zero on failure and prints a pass/fail report.
+Re-run the command with the suggested overrides until it returns clean.
 
 ## Step 5: Run the pipeline
 
@@ -296,18 +254,7 @@ ls ./evaluation_results/*/res_div_foldseek_*.csv               # FoldSeek divers
 
 Pull the success rate from `res_filter_binder_pass_*.csv`, the per-design
 metrics (interface pAE, pLDDT, scRMSD) from the combined CSV, and FoldSeek
-TM-score diversity from `res_div_foldseek_*.csv`.
-
-> **Empty diversity ≠ zero diversity.** FoldSeek diversity is only computed when
-> the `foldseek` binary is installed (`FOLDSEEK_EXEC` in `.env`). If it is
-> missing, the analysis step **silently** emits the diversity column with empty
-> values — it looks like a computed result but is a tool-missing failure. Before
-> reporting diversity, confirm `tools.foldseek.exists: true` in
-> `./complexa_setup/preflight.json`. If it is false, tell the user diversity was
-> not computed (install foldseek and re-run `complexa analyze`), rather than
-> reporting "0 diversity".
-
-Report top-N designs by
+TM-score diversity from `res_div_foldseek_*.csv`. Report top-N designs by
 i_pAE (protein binder) or min_ipAE (ligand binder).
 
 ## Step 7: Emit manifest
@@ -332,12 +279,12 @@ default) is in [reference/overrides.md](reference/overrides.md).
 
 | Override | Default | What it controls |
 |----------|---------|------------------|
-| `++generation.task_name=<name>` | (per config) | Which target / motif task to design for |
+| `++generation.task_name=<name>` | (per config) | Which target / AME task to design for |
 | `++run_name=<str>` | (config stem) | Output dir suffix and CSV tag |
 | `++generation.search.algorithm=beam-search` | `best-of-n` (binder/ligand), `single-pass` (AME) | Search strategy |
 | `++generation.search.beam_search.beam_width=8` | `4` | Beam-search width (more = better designs, slower) |
 | `++generation.args.nsteps=200` | `400` | Diffusion steps (fewer = faster, lower quality) |
-| `++generation.dataloader.batch_size=8` | `16` | Drop to 8 on a 40GB GPU |
+| `++generation.dataloader.batch_size=8` | `16` (binder/ligand/AME) | Drop to 8 on a 40GB GPU |
 | `++generation.filter.filter_samples_limit=500` | `1000` | Top-N samples to keep after filtering |
 | `++metric.binder_folding_method=esmfold` | `colabdesign` (binder), `rf3_latest` (ligand/AME) | Evaluation refold backend |
 | `++metric.num_redesign_seqs=8` | `2` | ProteinMPNN/LigandMPNN/SolubleMPNN sequences per design |

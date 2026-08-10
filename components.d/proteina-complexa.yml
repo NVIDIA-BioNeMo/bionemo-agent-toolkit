@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
+# Copyright (c) 2026 NVIDIA Corporation. All rights reserved.
+name: Proteina-Complexa
+repo: NVIDIA-BioNeMo/Proteina-Complexa
+# INTERIM: sourced from the `aggregator-compat` fix branch (PR #57), which carries
+# the co-located evals/ + the self-contained complexa-sweep (reference/SWEEP.md)
+# that `dev` does not have yet. Switch ref to `dev` once #57 merges — the branch
+# is deleted on merge, which would otherwise break the sync.
+ref: aggregator-compat
+skills:
+  - path: .claude/skills
+    catalog_dir: open-models-skills/proteina-complexa

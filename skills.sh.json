@@ -1,58 +1,57 @@
 {
-    "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
-    "notGrouped": "bottom",
-    "groupings": [
-        {
-            "title": "BioNeMo NIMs",
-            "skills": [
-                "boltz2-nim",
-                "diffdock-nim",
-                "drug-discovery-pipeline",
-                "evo2-nim",
-                "genmol-nim",
-                "molmim-nim",
-                "msa-search-nim",
-                "msa-structure-prediction-pipeline",
-                "openfold2-nim",
-                "openfold3-nim",
-                "proteinmpnn-nim",
-                "rfdiffusion-nim"
-            ]
-        },
-        {
-            "title": "CUDA-X Libraries",
-            "skills": [
-                "cuEquivariance",
-                "genomics-workflow-acceleration",
-                "nvMolKit",
-                "parabricks"
-            ]
-        },
-        {
-            "title": "Open Models",
-            "skills": [
-                "complexa-design",
-                "complexa-evaluate-pdbs",
-                "complexa-setup",
-                "complexa-slurm",
-                "complexa-sweep",
-                "complexa-target",
-                "kermt-add-cmim-pretrain",
-                "kermt-continue-pretrain",
-                "kermt-embed",
-                "kermt-finetune",
-                "kermt-infer",
-                "kermt-monitor",
-                "kermt-pretrain-scratch",
-                "kermt-setup"
-            ]
-        },
-        {
-            "title": "Workflows",
-            "skills": [
-                "complexa-binder-design",
-                "protein-binder-design"
-            ]
-        }
-    ]
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "BioNeMo NIMs",
+      "skills": [
+        "boltz2-nim",
+        "diffdock-nim",
+        "drug-discovery-pipeline",
+        "evo2-nim",
+        "genmol-nim",
+        "molmim-nim",
+        "msa-search-nim",
+        "msa-structure-prediction-pipeline",
+        "openfold2-nim",
+        "openfold3-nim",
+        "proteinmpnn-nim",
+        "rfdiffusion-nim"
+      ]
+    },
+    {
+      "title": "CUDA-X Libraries",
+      "skills": [
+        "cuEquivariance",
+        "genomics-workflow-acceleration",
+        "nvMolKit",
+        "parabricks"
+      ]
+    },
+    {
+      "title": "Open Models",
+      "skills": [
+        "complexa-design",
+        "complexa-evaluate-pdbs",
+        "complexa-setup",
+        "complexa-sweep",
+        "complexa-target",
+        "kermt-add-cmim-pretrain",
+        "kermt-continue-pretrain",
+        "kermt-embed",
+        "kermt-finetune",
+        "kermt-infer",
+        "kermt-monitor",
+        "kermt-pretrain-scratch",
+        "kermt-setup"
+      ]
+    },
+    {
+      "title": "Workflows",
+      "skills": [
+        "complexa-binder-design",
+        "protein-binder-design"
+      ]
+    }
+  ]
 }
