@@ -19,13 +19,11 @@ Use this reference for NVIDIA Parabricks `pbrun pacbio_germline` — PacBio germ
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun pacbio_germline \
+pbrun pacbio_germline \
   --ref /workdir/<reference.fa> \
   <version-specific-input-options> \
   <version-specific-output-options>

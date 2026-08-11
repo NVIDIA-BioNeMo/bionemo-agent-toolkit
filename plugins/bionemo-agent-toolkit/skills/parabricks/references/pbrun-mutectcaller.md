@@ -18,13 +18,11 @@ Use this reference for NVIDIA Parabricks `pbrun mutectcaller` — GATK Mutect2-s
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun mutectcaller \
+pbrun mutectcaller \
   --ref /workdir/<reference.fa> \
   <version-specific-tumor-normal-inputs> \
   --out-vcf /outputdir/<somatic.vcf.gz>

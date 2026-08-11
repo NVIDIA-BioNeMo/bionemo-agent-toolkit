@@ -15,13 +15,11 @@ Use this reference for NVIDIA Parabricks `pbrun bammetrics` — accelerated Coll
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun bammetrics \
+pbrun bammetrics \
   --ref /workdir/<reference.fa> \
   --bam /workdir/<input.bam> \
   --out-metrics-file /outputdir/<sample.bammetrics.txt>

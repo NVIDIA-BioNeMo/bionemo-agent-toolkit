@@ -20,13 +20,11 @@ Use this reference for NVIDIA Parabricks `pbrun starfusion` — RNA fusion detec
 
 Fusion detection from chimeric junction input:
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun starfusion \
+pbrun starfusion \
   --chimeric-junction /workdir/<chimeric_junction.out> \
   --genome-lib-dir /workdir/<genome_resource_library>/ \
   --output-dir /outputdir/<starfusion_output>/

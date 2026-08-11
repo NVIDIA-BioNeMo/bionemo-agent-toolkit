@@ -19,13 +19,11 @@ Use this reference for NVIDIA Parabricks `pbrun bam2fq` — converting aligned B
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun bam2fq \
+pbrun bam2fq \
   --ref /workdir/<reference.fa> \
   --in-bam /workdir/<input.bam> \
   --out-prefix /outputdir/<sample_prefix>

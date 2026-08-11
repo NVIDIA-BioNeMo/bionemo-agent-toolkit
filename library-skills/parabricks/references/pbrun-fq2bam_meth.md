@@ -20,13 +20,11 @@ Use this reference for NVIDIA Parabricks `pbrun fq2bam_meth` — methylation/bis
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun fq2bam_meth \
+pbrun fq2bam_meth \
   --ref /workdir/<reference.fa> \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --out-bam /outputdir/<sample.meth.bam>

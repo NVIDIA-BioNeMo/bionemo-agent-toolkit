@@ -16,13 +16,11 @@ Use this reference for NVIDIA Parabricks `pbrun postpon` — pangenome-aware pan
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun postpon \
+pbrun postpon \
   <version-specific-input-options> \
   <version-specific-output-options>
 ```

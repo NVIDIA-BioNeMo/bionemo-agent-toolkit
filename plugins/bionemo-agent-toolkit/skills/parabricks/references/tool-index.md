@@ -32,6 +32,21 @@ routing rather than restating that table.
 - GVCF consolidation or genotyping: consider `indexgvcf` and `genotypegvcf`.
 - dbSNP annotation or variant processing: consider `dbsnp`.
 
+## Container invocation
+
+Every `pbrun` command runs inside the Parabricks container. Each command
+reference's `## Command Shape` shows only the `pbrun …` line; wrap it with the
+standard invocation below (adjust volumes/workdir to your host layout):
+
+```bash
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  <pbrun command from the reference>
+```
+
 ## Key References
 
 - Tool index: <https://docs.nvidia.com/clara/parabricks/latest/toolreference.html>

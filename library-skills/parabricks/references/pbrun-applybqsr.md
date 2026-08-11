@@ -19,13 +19,11 @@ Use this reference for NVIDIA Parabricks `pbrun applybqsr` — applying a BQSR r
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun applybqsr \
+pbrun applybqsr \
   --ref /workdir/<reference.fa> \
   --in-bam /workdir/<input.bam> \
   --in-recal-file /workdir/<input.recal.txt> \

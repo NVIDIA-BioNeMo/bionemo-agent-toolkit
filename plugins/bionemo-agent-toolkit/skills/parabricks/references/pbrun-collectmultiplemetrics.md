@@ -16,13 +16,11 @@ Use this reference for NVIDIA Parabricks `pbrun collectmultiplemetrics` — acce
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun collectmultiplemetrics \
+pbrun collectmultiplemetrics \
   --ref /workdir/<reference.fa> \
   --bam /workdir/<input.bam> \
   --out-qc-metrics-dir /outputdir/<qc_metrics_dir> \

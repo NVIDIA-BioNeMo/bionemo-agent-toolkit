@@ -18,13 +18,11 @@ Use this reference for NVIDIA Parabricks `pbrun pangenome_aware_deepvariant` —
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun pangenome_aware_deepvariant \
+pbrun pangenome_aware_deepvariant \
   <version-specific-pangenome-resource-options> \
   <version-specific-input-options> \
   <version-specific-output-options>
