@@ -1,0 +1,44 @@
+# SkillSpector suppression baseline — complexa-binder-design (+ workflow)
+#
+# Audited false-positive suppression, auto-applied by the NVSkills Tier 1
+# runner via config/skillspector-baseline.yml. Suppressed findings remain in
+# the report JSON marked `suppressed: true` with the reason below.
+version: 1
+
+rules:
+  - id: "PE3"
+    path: "*references/complexa-cli.md"
+    reason: >-
+      Reviewed false positive (BioNeMo, omosafi@nvidia.com, 2026-08-12).
+      PE3 matches in complexa-binder-design are (a) `git clone` of the public
+      Proteina-Complexa repo, (b) `source .venv/bin/activate`, and (c) a CLI
+      `--env-file` argument path in validate_binders.py — user-facing setup and
+      configuration guidance, not credential theft. No SSH keys, cloud credential
+      stores, or secret token files are read. Applied repo-root so it also covers
+      the generative-protein-binder-design workflow target, which vendors this
+      skill (per-target config/ is not added to the workflow root to keep its
+      Workflows Schema & Structure check clean).
+  - id: "PE3"
+    path: "*references/setup.md"
+    reason: >-
+      Reviewed false positive (BioNeMo, omosafi@nvidia.com, 2026-08-12).
+      PE3 matches in complexa-binder-design are (a) `git clone` of the public
+      Proteina-Complexa repo, (b) `source .venv/bin/activate`, and (c) a CLI
+      `--env-file` argument path in validate_binders.py — user-facing setup and
+      configuration guidance, not credential theft. No SSH keys, cloud credential
+      stores, or secret token files are read. Applied repo-root so it also covers
+      the generative-protein-binder-design workflow target, which vendors this
+      skill (per-target config/ is not added to the workflow root to keep its
+      Workflows Schema & Structure check clean).
+  - id: "PE3"
+    path: "*scripts/validate_binders.py"
+    reason: >-
+      Reviewed false positive (BioNeMo, omosafi@nvidia.com, 2026-08-12).
+      PE3 matches in complexa-binder-design are (a) `git clone` of the public
+      Proteina-Complexa repo, (b) `source .venv/bin/activate`, and (c) a CLI
+      `--env-file` argument path in validate_binders.py — user-facing setup and
+      configuration guidance, not credential theft. No SSH keys, cloud credential
+      stores, or secret token files are read. Applied repo-root so it also covers
+      the generative-protein-binder-design workflow target, which vendors this
+      skill (per-target config/ is not added to the workflow root to keep its
+      Workflows Schema & Structure check clean).
