@@ -18,13 +18,11 @@ Use this reference for NVIDIA Parabricks `pbrun giraffe` — pangenome graph ali
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun giraffe \
+pbrun giraffe \
   <version-specific-graph-input-options> \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --out-bam /outputdir/<sample.giraffe.bam>

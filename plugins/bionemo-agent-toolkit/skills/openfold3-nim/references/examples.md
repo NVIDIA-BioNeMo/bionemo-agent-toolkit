@@ -25,7 +25,7 @@ response = requests.post(
     "https://health.api.nvidia.com/v1/biology/openfold/openfold3/predict",
     headers={
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.environ['NGC_API_KEY']}",
+        "Authorization": f"Bearer {os.getenv('NGC_API_KEY')}",
     },
     json=payload,
     timeout=300,

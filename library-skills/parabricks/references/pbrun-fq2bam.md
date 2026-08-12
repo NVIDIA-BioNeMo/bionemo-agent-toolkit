@@ -26,13 +26,11 @@ Use this reference for NVIDIA Parabricks `pbrun fq2bam` — paired short-read FA
 
 Prefer Docker commands shaped like:
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun fq2bam \
+pbrun fq2bam \
   --ref /workdir/<reference.fa> \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --out-bam /outputdir/<sample.bam>
@@ -49,16 +47,8 @@ For multiple FASTQ pairs from the same sample, repeat `--in-fq`. If read groups 
 
 ## Performance Guidance
 
-Prefer the documented automatic stream selection for general commands: leave
-`--bwa-nstreams` unset, or set `--bwa-nstreams auto` only when making the
-default explicit. Current NVIDIA Parabricks documentation says Parabricks
-automatically chooses an optimal number of BWA streams from the GPU device
-memory specification.
-
-Use integer `--bwa-nstreams` values only for benchmark-driven tuning or
-memory-pressure troubleshooting after confirming the selected Parabricks
-version's docs. More streams increase device memory use, so fixed stream counts
-should not be part of conservative default command templates.
+BWA-stream tuning (`--bwa-nstreams`) is shared with `fq2bam_meth`; see
+[performance.md](performance.md).
 
 ## BWA-MEM/GATK Option Mapping
 

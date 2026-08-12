@@ -1,22 +1,8 @@
 # DiffDock Parameter Guidance
 
-## Core Fields
-
-- `protein`: required receptor PDB content. Use non-empty ATOM records only.
-- `ligand`: required ligand content. For SMILES, pass one SMILES per line.
-- `ligand_file_type`: required. Use `"txt"` for SMILES, `"sdf"` for SDF, or
-  `"mol2"` for MOL2. Do not use `"smiles"`.
-- `num_poses`: optional integer, up to `100`. Use `5-20` for quick exploration
-  and more poses when screening a difficult target.
-- `time_divisions`: optional integer, maximum `20`. Higher values are slower
-  and more thorough.
-- `steps`: optional integer, maximum `18`. Higher values are slower and more
-  thorough.
-- `save_trajectory`: optional boolean. Keep `false` for normal pose generation;
-  use `true` only when trajectory frames are needed.
-- `skip_gen_conformer`: optional boolean. Use with care when ligand input already
-  encodes a suitable conformation.
-- `is_staged`: optional boolean staging flag.
+Field types, required flags, and limits live in the canonical schema table in
+[`api.md`](api.md) under **Request Body Schema**. This file is usage guidance
+only.
 
 ## Ligand Format Choices
 

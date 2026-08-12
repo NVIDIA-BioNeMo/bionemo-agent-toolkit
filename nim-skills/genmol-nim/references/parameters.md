@@ -16,27 +16,15 @@ controlled.
 
 ## Request Parameters
 
-- `num_molecules`: 1-1000. Request more than the desired display count when
-  filtering may reduce the output count.
-- `temperature`: string, not float. Use `"1.0"` for baseline; increase for more
-  diversity.
-- `noise`: string, not float. Use `"1.0"` for baseline; increase for more
-  stochastic output.
-- `step_size`: 1-10. Keep at `1` in examples unless the user asks to tune speed.
-- `scoring`: `"QED"` for drug-likeness or `"LogP"` for lipophilicity.
-- `unique`: set `True` when the user asks for non-duplicate analogs.
+Field types, defaults, and ranges live in the canonical schema table in
+[`api.md`](api.md) under **Request body schema**. Usage tips: request more than
+the desired display count since invalid molecules are filtered out after
+generation; keep `step_size` at `1` unless tuning speed; set `unique` to `true`
+for non-duplicate analogs.
 
 ## SAFE Conversion
 
-Use `safe-mol` for SMILES-to-SAFE conversion:
-
-```python
-import safe as sf
-
-try:
-    safe_str = sf.encode(scaffold_smiles)
-except sf.SAFEFragmentationError:
-    safe_str = scaffold_smiles
-```
-
-Mention that `safe-mol` is not needed for pure de novo generation.
+Convert SMILES to SAFE with the `safe-mol` package. The reusable
+`scaffold_to_safe` helper (encode with a fragmentation-error fallback) lives in
+[`examples.md`](examples.md) under **Scaffold Decoration**; `safe-mol` is not
+needed for pure de novo generation.

@@ -36,36 +36,13 @@ image/version and should not be assumed.
 
 ## Local Docker
 
-For local setup answers, copy the preflight below exactly before `docker login`,
-`docker run`, readiness, and the no-auth local request. Do not answer with only
-a localhost Python request. This NIM's cache mount is unique:
-`/home/nvs/.cache/nim`, not `/opt/nim/.cache`.
-
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run -it \
-  --runtime=nvidia \
-  --gpus "device=${NIM_TEST_GPU}" \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/home/nvs/.cache/nim" \
-  -p 8000:8000 \
-  nvcr.io/nim/ipd/proteinmpnn:latest
-```
+For local setup, run the full sequence — env preflight, `docker login`,
+`docker run`, readiness loop, then the no-auth localhost request; do not answer
+with only a localhost Python request. For the exact preflight (`.env` sourcing,
+`NGC_API_KEY`/`NVIDIA_API_KEY` handling, and the `docker run` for
+`nvcr.io/nim/ipd/proteinmpnn:latest`), copy the command block in
+[`references/api.md`](references/api.md) under **Docker Reference** verbatim.
+This NIM's cache mount is `/home/nvs/.cache/nim`, not `/opt/nim/.cache`.
 
 Readiness:
 
@@ -90,7 +67,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "input_pdb": pdb_content,
@@ -114,23 +91,11 @@ Common controls:
 
 ## Save And Report Output
 
-```python
-mfasta = result["mfasta"]
-Path("designed_sequences.fa").write_text(mfasta)
-
-# Scores correspond to designed sequences. The mfasta may include a native/WT
-# row; do not pair that row with generated-sequence scores.
-headers = [line for line in mfasta.splitlines() if line.startswith(">")]
-designed_headers = [
-    h for h in headers if "native" not in h.lower() and "wt" not in h.lower()
-]
-for header, score in zip(designed_headers, result.get("scores", [])):
-    print(f"{header} score: {score:.4f}")
-```
-
-Validate promising designs by predicting structures with Boltz2 or OpenFold3
-and comparing them to the target backbone. For FASTA/score sanity checks, read
-`references/validation.md`.
+Save the returned `mfasta` and pair scores only with designed (non-native/WT)
+rows, using the snippet in [`references/examples.md`](references/examples.md)
+under **Save Multi-FASTA**. Validate promising designs by predicting structures
+with Boltz2 or OpenFold3 and comparing them to the target backbone. For
+FASTA/score sanity checks, read `references/validation.md`.
 
 ## Limits And Troubleshooting
 

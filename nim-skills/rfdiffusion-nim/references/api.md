@@ -82,28 +82,8 @@ The `contigs` field is a DSL defining what to preserve and what to generate:
 
 ## Docker Reference
 
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY in the environment or repo-root .env}"
-
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment or repo-root .env}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run -it \
-  --runtime=nvidia \
-  --gpus "device=0" \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
-  nvcr.io/nim/ipd/rfdiffusion:2
-```
+The full preflight + `docker run` block lives in `SKILL.md` under **Local
+Docker**; the flags below annotate it.
 
 | Flag | Value | Notes |
 |---|---|---|

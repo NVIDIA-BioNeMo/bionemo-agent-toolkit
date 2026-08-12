@@ -26,7 +26,7 @@ payload = {
 }
 headers = {
     "Content-Type": "application/json",
-    "Authorization": f"Bearer {os.environ['NGC_API_KEY']}",
+    "Authorization": f"Bearer {os.getenv('NGC_API_KEY')}",
 }
 r = requests.post(
     "https://health.api.nvidia.com/v1/biology/mit/diffdock",

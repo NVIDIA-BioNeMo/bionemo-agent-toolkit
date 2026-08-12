@@ -1,21 +1,8 @@
 # RFDiffusion Parameter Guidance
 
-## Core Fields
-
-- `contigs`: required design DSL.
-- `input_pdb`: inline PDB content. Hosted validation requires non-empty
-  `input_pdb` or `input_pdb_asset`, even for de novo examples.
-- `hotspot_res`: list of chain-residue strings such as `["A50", "A51"]`.
-- `diffusion_steps`: 1-50. Use `50` for maximum quality.
-- `random_seed`: optional reproducibility for development comparisons.
-
-## Contig Patterns
-
-- `"100"`: generate exactly 100 residues.
-- `"80-120"`: generate a length sampled from the range.
-- `"A25-35/0 50-80"`: preserve chain A residues 25-35, then chain break, then
-  generate 50-80 residues.
-- `"A1-100/0 50-100"`: keep target chain A and generate a binder segment.
+Field types, required flags, and limits, plus the full `contigs` pattern
+syntax, live in the canonical schema in [`api.md`](api.md) under **Request Body
+Schema** and **Contigs Language Reference**. This file is usage guidance only.
 
 ## De Novo Hosted Quirk
 

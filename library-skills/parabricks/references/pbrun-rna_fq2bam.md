@@ -20,13 +20,11 @@ Use this reference for NVIDIA Parabricks `pbrun rna_fq2bam` — RNA-seq FASTQ al
 
 Paired-end RNA-seq FASTQs:
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun rna_fq2bam \
+pbrun rna_fq2bam \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --genome-lib-dir /workdir/<star_genome_library>/ \
   --output-dir /outputdir/<rna_output>/ \
@@ -36,13 +34,11 @@ docker run --rm --gpus all \
 
 Single-end RNA-seq FASTQ:
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun rna_fq2bam \
+pbrun rna_fq2bam \
   --in-se-fq /workdir/<sample.fastq.gz> \
   --genome-lib-dir /workdir/<star_genome_library>/ \
   --output-dir /outputdir/<rna_output>/ \

@@ -37,38 +37,11 @@ image/version and should not be assumed.
 
 ## Local Docker
 
-For local setup answers, copy the preflight below exactly. Keep the optional
-`.env` load, `NVIDIA_API_KEY` fallback, `LOCAL_NIM_CACHE`,
-`NVIDIA_VISIBLE_DEVICES=0` default, `--shm-size=2G`, and both `--ulimit` flags.
-
-```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
-
-if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
-fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
-mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
-
-docker run --rm -it --name diffdock-nim \
-  --runtime=nvidia \
-  -e NVIDIA_VISIBLE_DEVICES="${NIM_TEST_GPU}" \
-  --shm-size=2G \
-  --ulimit memlock=-1 \
-  --ulimit stack=67108864 \
-  -e NGC_API_KEY \
-  -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
-  nvcr.io/nim/mit/diffdock:2.2.0
-```
+For the exact local preflight (`.env` load, `NVIDIA_API_KEY` fallback,
+`LOCAL_NIM_CACHE`, `NVIDIA_VISIBLE_DEVICES=0`, `--shm-size=2G`, both `--ulimit`
+flags, `docker login`, and the `docker run` for `nvcr.io/nim/mit/diffdock:2.2.0`),
+copy the command block in [`references/api.md`](references/api.md) under
+**Docker Reference** verbatim.
 
 Readiness:
 
@@ -109,7 +82,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "protein": protein,
@@ -130,16 +103,8 @@ result = response.json()
 `ligand_positions` and `position_confidence` are parallel ranked lists.
 `position_confidence[0]` is the rank-1 pose confidence.
 
-```python
-poses = result["ligand_positions"]
-scores = result["position_confidence"]
-for rank, (pose_sdf, score) in enumerate(zip(poses, scores), start=1):
-    filename = f"pose_{rank}_conf{score:.3f}.sdf"
-    with open(filename, "w", encoding="utf-8") as handle:
-        handle.write(pose_sdf)
-    print(f"pose {rank}: confidence={score:.4f} saved={filename}")
-print(f"best pose confidence: {scores[0]:.4f}")
-```
+Save the ranked pose SDFs using the snippet in
+[`references/examples.md`](references/examples.md) under **Save Ranked Poses**.
 
 View pose SDF files with the receptor in PyMOL, ChimeraX, or UCSF Chimera. For
 pose sanity checks and confidence caveats, read `references/validation.md`.

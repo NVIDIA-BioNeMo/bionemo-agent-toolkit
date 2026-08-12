@@ -18,13 +18,11 @@ Use this reference for NVIDIA Parabricks `pbrun somatic` — end-to-end tumor-no
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun somatic \
+pbrun somatic \
   --ref /workdir/<reference.fa> \
   <version-specific-tumor-normal-inputs> \
   <version-specific-output-options>

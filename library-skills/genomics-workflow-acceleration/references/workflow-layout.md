@@ -12,12 +12,8 @@
 
 ## Toggle naming (prefer consistency)
 
-| Framework | Recommended | Default |
-|-----------|-------------|---------|
-| Nextflow | `params.use_parabricks` or `params.accelerated` | `false` |
-| Snakemake | `config["use_parabricks"]` | `false` |
-| WDL | input `Boolean use_parabricks` | `false` |
-| Python | `--use-parabricks` / `USE_PARABRICKS` | off |
+See the **Toggle contract** table in `SKILL.md` for the recommended toggle
+name and default per framework.
 
 Document example commands for toggle off (CPU) and toggle on (GPU) in
 `ACCELERATION.md`.

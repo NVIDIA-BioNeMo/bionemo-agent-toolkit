@@ -18,13 +18,11 @@ Use this reference for NVIDIA Parabricks `pbrun ont_germline` — Oxford Nanopor
 
 ## Command Shape
 
+Wrap this in the standard container invocation — see
+[`tool-index.md`](tool-index.md#container-invocation).
+
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun ont_germline \
+pbrun ont_germline \
   --ref /workdir/<reference.fa> \
   <version-specific-input-options> \
   <version-specific-output-options>

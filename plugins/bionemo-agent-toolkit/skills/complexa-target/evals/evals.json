@@ -1,0 +1,59 @@
+{
+  "skill_name": "complexa-target",
+  "evals": [
+    {
+      "id": "complexa-target-001",
+      "prompt": "complexa target add — I want to register a new protein binder target for PD-L1 with chain A, residues 18-134, and hotspots at Y56, E58, D61, N63, R113, A121, Y123.",
+      "expected_output": "The agent used complexa-target to add a new PD-L1 protein binder target entry to configs/targets/targets_dict.yaml with the specified chain, residue range, and hotspot residues.",
+      "assertions": [
+        "The agent read configs/targets/targets_dict.yaml to understand the existing entry format",
+        "The agent appended a new YAML block for the PD-L1 target with chain A, residues 18-134, and hotspots Y56/E58/D61/N63/R113/A121/Y123",
+        "The agent confirmed the new target was successfully written to the file",
+        "The agent provided the user with the target key name that can be referenced in downstream design runs",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-target",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-target-002",
+      "prompt": "I need to set up a small-molecule binding pocket target for FAD. The PDB is 1a8p, the ligand is in chain B with 3-letter code FAD, and the SMILES is CC1=CC2=C(C=C1C)N(C3=NC(=O)NC(=O)C3=N2)CC(O)C(O)C(O)COP(=O)(O)OP(=O)(O)OCC4OC(N5C=NC6=C5N=CN=C6N)C(O)C4O. How do I register this?",
+      "expected_output": "The agent used complexa-target to register a new ligand binder target in configs/targets/ligand_targets_dict.yaml with the PDB 1a8p, chain B, ligand code FAD, and the provided SMILES string.",
+      "assertions": [
+        "The agent read configs/targets/ligand_targets_dict.yaml to examine the existing ligand target schema",
+        "The agent wrote a new entry to ligand_targets_dict.yaml with the PDB, chain, 3-letter code, and SMILES fields properly formatted",
+        "The agent explained that this target will be consumed by the ligand binder pipeline (search_ligand_binder_local_pipeline.yaml)",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-target",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-target-003",
+      "prompt": "I'm working on an enzyme design project. We have a crystal structure 1nzy and need to create an AME scaffolding task M0024_1nzy with specific contig_atoms for the active site motif residues. Can you help me set this up?",
+      "expected_output": "The agent used complexa-target to guide the user through adding a new AME task entry (M0024_1nzy) to configs/design_tasks/ame_dict_v2.yaml, explaining the contig_atoms schema and that AME tasks require direct file editing rather than the CLI.",
+      "assertions": [
+        "The agent read configs/design_tasks/ame_dict_v2.yaml to understand the AME task schema including contig_atoms and per-residue motif atom selections",
+        "The agent explained that AME tasks cannot be added via complexa target add CLI and require direct file editing",
+        "The agent asked the user for the specific contig_atoms and motif residue details needed to complete the entry",
+        "The agent wrote or prepared the new M0024_1nzy block in ame_dict_v2.yaml with the appropriate schema",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": "complexa-target",
+      "expected_script": null
+    },
+    {
+      "id": "complexa-target-004",
+      "prompt": "How do I run a protein binder design campaign end-to-end using complexa design? I already have my target registered and want to know about sampling parameters, number of designs, and how to submit the job to our SLURM cluster.",
+      "expected_output": "The agent did not use complexa-target because the question is about running the design pipeline (sampling parameters, job submission, SLURM configuration) rather than adding, editing, listing, showing, or validating a target definition.",
+      "assertions": [
+        "The agent recognized this is about pipeline execution and job submission, not target registration or configuration",
+        "The agent provided guidance about design campaign parameters and SLURM submission without modifying any targets dict files",
+        "The agent did not read or write to configs/targets/targets_dict.yaml, ligand_targets_dict.yaml, or ame_dict_v2.yaml",
+        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+      ],
+      "expected_skill": null,
+      "expected_script": null
+    }
+  ]
+}

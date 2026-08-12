@@ -57,7 +57,7 @@ fi
 echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 
 mkdir -p "${LOCAL_NIM_CACHE}"
-chmod 777 "${LOCAL_NIM_CACHE}"
+chmod 755 "${LOCAL_NIM_CACHE}"
 
 docker run -it \
   --runtime=nvidia \
@@ -76,12 +76,9 @@ until curl -sf http://localhost:8000/v1/health/ready; do sleep 5; done
 
 ## Contigs DSL
 
-`contigs` defines what to keep and what to generate.
-
-- `"100"`: generate exactly 100 residues.
-- `"80-120"`: generate 80-120 residues.
-- `"A25-35"`: keep chain A residues 25-35 from `input_pdb`.
-- `"A25-35/0 50-80"`: keep A25-35, insert chain break `/0`, generate 50-80.
+`contigs` defines what to keep and what to generate. For the full pattern
+syntax (fixed length, ranges, kept chain segments, chain breaks), see
+[`references/api.md`](references/api.md) under **Contigs Language Reference**.
 
 Design modes:
 
@@ -115,7 +112,7 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
 
 payload = {
     "input_pdb": DUMMY_PDB,
