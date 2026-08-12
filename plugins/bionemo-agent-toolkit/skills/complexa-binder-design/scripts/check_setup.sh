@@ -31,8 +31,8 @@ if [ -n "$COMPLEXA_REPO" ] && [ -d "$COMPLEXA_REPO" ]; then
 else fail "COMPLEXA_REPO unset or not a directory (needed for generation)"; fi
 
 # 3. Python deps
-$PY - <<'PY' 2>/dev/null && pass "python deps: numpy + gemmi + pyyaml" || fail "missing python deps (pip/uv pip install numpy gemmi pyyaml)"
-import numpy, gemmi, yaml
+$PY - <<'PY' 2>/dev/null && pass "python deps: numpy + biotite + pyyaml" || fail "missing python deps (pip/uv pip install numpy biotite pyyaml)"
+import numpy, biotite, yaml
 PY
 
 # 4. ipSAE vendored

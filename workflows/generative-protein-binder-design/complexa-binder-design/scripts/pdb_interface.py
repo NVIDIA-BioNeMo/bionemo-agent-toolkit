@@ -15,11 +15,11 @@ crystal/cryo-EM structure shows. This module:
      chain sequence to the UniProt sequence (valid on the AFDB model, which uses
      UniProt numbering).
 
-Network + gemmi only; numbering solved by alignment (no SIFTS API needed).
+Network + biotite only; numbering solved by alignment (no SIFTS API needed).
 """
 from __future__ import annotations
 
-import tempfile
+import io
 import urllib.request
 from pathlib import Path
 
@@ -49,26 +49,28 @@ def pdb_ids_from_uniprot_entry(entry: dict) -> list[str]:
 
 
 def _read_cif(pdb_id: str, timeout: int = 120):
-    """Download an mmCIF and parse with gemmi (via temp file — version-robust)."""
-    import gemmi
+    """Download an mmCIF and parse the first model with biotite -> AtomArray.
+
+    Author fields (auth_asym_id / auth_seq_id) are used so chain names and residue
+    numbers match the PDB's published numbering."""
+    import biotite.structure.io.pdbx as pdbx
     data = urllib.request.urlopen(  # nosec B310 - fixed https RCSB literal
         f"https://files.rcsb.org/download/{pdb_id.lower()}.cif", timeout=timeout
     ).read()
-    with tempfile.NamedTemporaryFile("wb", suffix=".cif", delete=True) as fh:
-        fh.write(data)
-        fh.flush()
-        st = gemmi.read_structure(fh.name)
-    st.setup_entities()
-    return st
+    cif = pdbx.CIFFile.read(io.StringIO(data.decode("utf-8", "replace")))
+    return pdbx.get_structure(cif, model=1, use_author_fields=True)
 
 
-def _chain_seq(chain):
-    """Ordered (auth_seqid, one_letter, resname) for amino-acid residues."""
+def _chain_seq(arr, chain_id: str):
+    """Ordered (auth_seqid, one_letter, resname) for amino-acid residues of a chain."""
+    import biotite.structure as struc
+    sub = arr[arr.chain_id == chain_id]
     out = []
-    for res in chain:
-        aa = _AA3to1.get(res.name.upper())
+    for s in struc.get_residue_starts(sub):
+        name = str(sub.res_name[s]).upper()
+        aa = _AA3to1.get(name)
         if aa:
-            out.append((res.seqid.num, aa, res.name.upper()))
+            out.append((int(sub.res_id[s]), aa, name))
     return out
 
 
@@ -106,54 +108,53 @@ def interface_hotspots(entry: dict, contact_cutoff: float = 5.0,
     source:'pdb_interface'}. info records the chosen pdb/partner/identity. Empty list
     on no suitable complex or any failure (caller falls back to UniProt/Paperclip)."""
     try:
-        import gemmi
+        import numpy as np
+        import biotite.structure as struc
     except Exception:  # noqa: BLE001
-        return [], {"note": "gemmi unavailable"}
+        return [], {"note": "biotite unavailable"}
     uni_seq = (entry.get("sequence") or {}).get("value") or ""
     if not uni_seq:
         return [], {"note": "no UniProt sequence"}
     tried = []
     for pid in pdb_ids_from_uniprot_entry(entry)[:max_pdbs]:
         try:
-            st = _read_cif(pid)
-            if len(st) == 0:
+            arr = _read_cif(pid)
+            if arr.array_length() == 0:
                 continue
-            model = st[0]
-            chains = [ch for ch in model if len(_chain_seq(ch)) >= 20]
-            if len(chains) < 2:
+            chain_ids = [c for c in dict.fromkeys(struc.get_chains(arr))
+                         if len(_chain_seq(arr, c)) >= 20]
+            if len(chain_ids) < 2:
                 tried.append(f"{pid}:<2 chains")
                 continue
             # target chain = best sequence match to our UniProt
             scored = sorted(
-                ((_best_offset(_chain_seq(ch), uni_seq), ch) for ch in chains),
+                ((_best_offset(_chain_seq(arr, c), uni_seq), c) for c in chain_ids),
                 key=lambda x: x[0][1], reverse=True)
             (k, frac), tgt = scored[0]
             if frac < 0.80:
                 tried.append(f"{pid}:no-uniprot-chain({frac:.2f})")
                 continue
-            partner_names = {ch.name for ch in chains if ch.name != tgt.name}
+            partner_names = [c for c in chain_ids if c != tgt]
             if not partner_names:
                 tried.append(f"{pid}:no-partner")
                 continue
-            resname = {res.seqid.num: res.name.upper() for res in tgt
-                       if res.name.upper() in _AA3to1}
-            ns = gemmi.NeighborSearch(model, st.cell, contact_cutoff + 1.0).populate()
-            H = gemmi.Element("H")
-            iface = set()
-            for res in tgt:
-                if res.name.upper() not in _AA3to1:
-                    continue
-                for atom in res:
-                    if atom.element == H:
-                        continue
-                    for mark in ns.find_atoms(atom.pos, "\0", radius=contact_cutoff):
-                        cra = mark.to_cra(model)
-                        if cra.chain.name in partner_names and cra.atom.element != H:
-                            iface.add(res.seqid.num)
-                            break
-                    else:
-                        continue
-                    break
+
+            # heavy-atom contact search: build a spatial index over partner heavy
+            # atoms, query each target amino-acid heavy atom within the cutoff.
+            heavy = arr[arr.element != "H"]
+            tgt_aa = {int(n) for n, _, _ in _chain_seq(arr, tgt)}
+            tgt_mask = (heavy.chain_id == tgt) & np.isin(heavy.res_id, list(tgt_aa))
+            partner_mask = np.isin(heavy.chain_id, partner_names)
+            partner_atoms = heavy[partner_mask]
+            target_atoms = heavy[tgt_mask]
+            if partner_atoms.array_length() == 0 or target_atoms.array_length() == 0:
+                tried.append(f"{pid}:no-heavy-atoms")
+                continue
+            resname = {int(n): rn for n, _, rn in _chain_seq(arr, tgt)}
+            cell_list = struc.CellList(partner_atoms, cell_size=contact_cutoff)
+            hits = cell_list.get_atoms(target_atoms.coord, radius=contact_cutoff)
+            has_contact = (hits != -1).any(axis=1)
+            iface = {int(r) for r in target_atoms.res_id[has_contact]}
             if not iface:
                 tried.append(f"{pid}:no-contacts")
                 continue
@@ -163,7 +164,7 @@ def interface_hotspots(entry: dict, contact_cutoff: float = 5.0,
                 if 1 <= uni <= len(uni_seq):
                     hotspots.append({"chain": "A", "position": uni,
                                      "residue": resname.get(auth), "source": "pdb_interface"})
-            return hotspots, {"pdb": pid, "target_chain": tgt.name,
+            return hotspots, {"pdb": pid, "target_chain": tgt,
                               "partner_chains": sorted(partner_names), "identity": round(frac, 2),
                               "offset": k, "n_interface": len(hotspots), "cutoff": contact_cutoff}
         except Exception as e:  # noqa: BLE001

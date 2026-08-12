@@ -35,19 +35,19 @@ MAX_DIAMETER_A = 30.0           # hotspot epitope must fit within this pairwise 
 
 
 # ----------------------------------------------------------------- structure helpers
+# The model is a biotite AtomArray (first model, PDB author chain/residue numbering),
+# loaded via pipeline's shared reader so .pdb and .cif are both handled.
 def _model(structure_path: Path):
-    import gemmi
-    st = gemmi.read_structure(str(structure_path))
-    st.setup_entities()
-    return st[0] if len(st) else None
+    arr = P._read_first_model(structure_path)
+    return arr if arr.array_length() else None
 
 
 def _residue_index(model):
     """(chain, pos) -> 3-letter residue name, for alignment/identity checks."""
+    import biotite.structure as struc
     idx = {}
-    for ch in model:
-        for res in ch:
-            idx[(ch.name, res.seqid.num)] = res.name
+    for s in struc.get_residue_starts(model):
+        idx[(str(model.chain_id[s]), int(model.res_id[s]))] = str(model.res_name[s])
     return idx
 
 
@@ -55,13 +55,11 @@ def _cb_coords(model, hotspots):
     """{position: (x,y,z)} using Cβ (Cα fallback) for the hotspot chain."""
     want = {(str(h.get("chain", "A")), int(h["position"])) for h in hotspots}
     out = {}
-    for ch in model:
-        for res in ch:
-            key = (ch.name, res.seqid.num)
-            if key in want:
-                a = res.find_atom("CB", "*") or res.find_atom("CA", "*")
-                if a:
-                    out[res.seqid.num] = (a.pos.x, a.pos.y, a.pos.z)
+    for name in ("CA", "CB"):   # insert Cα first, let Cβ overwrite when present
+        m = model.atom_name == name
+        for c, r, xyz in zip(model.chain_id[m], model.res_id[m], model.coord[m]):
+            if (str(c), int(r)) in want:
+                out[int(r)] = (float(xyz[0]), float(xyz[1]), float(xyz[2]))
     return out
 
 
@@ -101,14 +99,12 @@ def _compact_subset(positions, coords, max_d=MAX_DIAMETER_A):
 
 def _accessible_residue_count(model, segs):
     """How many residues fall inside the accessible (extracellular) segments."""
+    import biotite.structure as struc
+    starts = struc.get_residue_starts(model)
     if not segs:
-        return sum(len(ch) for ch in model)
-    n = 0
-    for ch in model:
-        for res in ch:
-            if any(s <= res.seqid.num <= e for s, e in segs):
-                n += 1
-    return n
+        return len(starts)
+    return sum(1 for st in starts
+               if any(s <= int(model.res_id[st]) <= e for s, e in segs))
 
 
 # ----------------------------------------------------------------- per-target plan
@@ -132,8 +128,9 @@ def plan(target: str, binder_max: int = None) -> dict:
         if cif is None:
             rep["error"] = "no AFDB model"
             return rep
+        import biotite.structure as struc
         model = _model(cif)
-        full_len = sum(len(ch) for ch in model)
+        full_len = struc.get_residue_count(model)
         rep["full_length"] = full_len
 
         # UniProt entry -> accessibility + functional hotspots
@@ -190,8 +187,9 @@ def plan(target: str, binder_max: int = None) -> dict:
             pad = max(0, (cap_target - (hi - lo + 1)) // 2)
             w_lo, w_hi = lo - pad, hi + pad
             # count residues kept inside the window AND accessible segments
-            kept = [res.seqid.num for ch in model for res in ch
-                    if w_lo <= res.seqid.num <= w_hi and (not segs or any(s <= res.seqid.num <= e for s, e in segs))]
+            kept = [int(model.res_id[st]) for st in struc.get_residue_starts(model)
+                    if w_lo <= int(model.res_id[st]) <= w_hi
+                    and (not segs or any(s <= int(model.res_id[st]) <= e for s, e in segs))]
             cond_len = len(kept)
             crop_note = f"epitope crop A{min(kept)}-{max(kept)} within {('ECD ' if segs else '')}cap"
         rep["conditioned_length"] = cond_len
