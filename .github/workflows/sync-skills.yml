@@ -6,7 +6,7 @@
 # core (no signing / compliance / drift / contact-resolution / tracker steps —
 # NVCARPS is deferred; the review PR is the v1 gate). Adapted for GROUPED
 # catalog dirs: catalog_dir already includes its group prefix
-# (e.g. library-skills/nvMolKit), so the rsync target is $catalog_dir, not
+# (e.g. library-skills/nvmolkit-usage), so the rsync target is $catalog_dir, not
 # skills/$catalog_dir.
 #
 # All sources are PUBLIC GitHub, so no secret is needed. The PR is opened with

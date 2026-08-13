@@ -32,7 +32,7 @@ include_skills:
   - nim-skills/proteinmpnn-nim/
   - nim-skills/rfdiffusion-nim/
   # Library / CUDA-X
-  - library-skills/nvMolKit/
+  - library-skills/nvmolkit-usage/
   - library-skills/parabricks/
   # Open models
   - open-models-skills/kermt/
