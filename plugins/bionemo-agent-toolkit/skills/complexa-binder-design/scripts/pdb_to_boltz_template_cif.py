@@ -46,11 +46,14 @@ def pdb_to_template_cif(pdb_path: str, chain_id: str) -> tuple[str, int]:
 
     # Polymer (amino-acid) residues of the chain, in order → canonical sequence.
     names: list[str] = []
-    label_of: dict[int, int] = {}   # auth res_id -> contiguous label_seq 1..N
+    # PDB author numbering is the pair (res_id, insertion code): e.g. residues
+    # 10 and 10A are distinct even though both have the integer res_id 10.
+    label_of: dict[tuple[int, str], int] = {}
     for s in struc.get_residue_starts(chain):
         rn = str(chain.res_name[s]).upper()
         if rn in _AA3to1:
-            label_of[int(chain.res_id[s])] = len(names) + 1
+            key = (int(chain.res_id[s]), str(chain.ins_code[s]))
+            label_of[key] = len(names) + 1
             names.append(rn)
     if not names:
         raise SystemExit(f"chain {chain_id} has no polymer residues")
@@ -61,8 +64,8 @@ def pdb_to_template_cif(pdb_path: str, chain_id: str) -> tuple[str, int]:
     pdbx.set_structure(block, chain)
     atom_site = block["atom_site"]
     lseq, ent = [], []
-    for rid in chain.res_id:
-        i = label_of.get(int(rid))
+    for rid, ins_code in zip(chain.res_id, chain.ins_code):
+        i = label_of.get((int(rid), str(ins_code)))
         lseq.append(str(i) if i is not None else ".")
         ent.append("1" if i is not None else ".")
     atom_site["label_seq_id"] = np.array(lseq)
@@ -105,9 +108,13 @@ def verify(cif: str, expected_len: int) -> None:
 
     lsids = [x for x in block["atom_site"]["label_seq_id"].as_array(str) if x != "."]
     nums = sorted({int(x) for x in lsids})
-    if not nums or nums[0] != 1 or nums[-1] != expected_len:
+    expected = list(range(1, expected_len + 1))
+    if nums != expected:
+        missing = sorted(set(expected) - set(nums))
+        unexpected = sorted(set(nums) - set(expected))
         raise SystemExit("verification failed: label_seq not 1..N "
-                         f"(got {nums[:3]}..{nums[-1:]}, want 1..{expected_len})")
+                         f"(missing {missing[:10]}, unexpected {unexpected[:10]}, "
+                         f"want 1..{expected_len})")
 
 
 def main() -> int:
