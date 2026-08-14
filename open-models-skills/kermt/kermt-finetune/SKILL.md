@@ -302,3 +302,5 @@ If `ok_to_replay: false` in the manifest (because the kermt repo working
 tree was dirty at launch time), the replay may not be bit-exact — pin the
 exact commit via the `repo.commit` field and `git checkout` it
 first.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

@@ -371,3 +371,5 @@ template, and sequence sanity checks, read `references/validation.md`.
 - Paired MSA requires at least two sequences.
 - Local URL 404 usually means an accidental `/v1/` prefix.
 - First local run can take hours while databases populate `LOCAL_NIM_CACHE`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

@@ -334,3 +334,5 @@ For the full override reference (every `generation.*`, `metric.*`,
 
 For all troubleshooting cases (cause + fix + source), see
 [reference/troubleshooting.md](reference/troubleshooting.md).
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

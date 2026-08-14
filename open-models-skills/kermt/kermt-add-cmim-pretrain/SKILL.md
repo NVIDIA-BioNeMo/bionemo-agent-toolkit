@@ -179,3 +179,5 @@ Same as `kermt-continue-pretrain`: `cmd_replay` rebuilds the
 full add-cmim flow end-to-end, the user also needs the input grover_base
 ckpt and the corpus — both are captured in the prepare_data and upgrade
 manifests by absolute path.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

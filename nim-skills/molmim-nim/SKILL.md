@@ -224,3 +224,5 @@ affinity, toxicity, and synthetic-feasibility checks before prioritization.
   and map it as shown above.
 - Local startup cache misses: mount `LOCAL_NIM_CACHE` to `/home/nvs/.cache/nim`,
   not `/opt/nim/.cache`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

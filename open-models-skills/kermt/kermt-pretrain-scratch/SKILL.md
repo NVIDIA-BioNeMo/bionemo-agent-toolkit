@@ -196,3 +196,5 @@ Same reproducibility fields as continue-pretrain (`repo.commit`, `kermt_image`,
 Same as continue-pretrain: `cmd_replay` is a copy-pasteable command. If
 `ok_to_replay: false`, the kermt repo working tree was dirty at launch
 time — check `repo.commit` and `git checkout` it first.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

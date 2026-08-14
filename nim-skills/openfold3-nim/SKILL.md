@@ -193,3 +193,5 @@ For why and when OpenFold3 is scientifically appropriate, read
 - Local startup stalls: first run may be downloading 10-15 GB of model weights
   into `LOCAL_NIM_CACHE`.
 - Memory errors: shorten the sequence, reduce samples, or use a larger GPU.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

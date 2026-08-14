@@ -144,3 +144,5 @@ confidence/affinity sanity checks, read `references/validation.md`.
   affinity ligands.
 - Local URL/auth: local path has no hosted auth header; wait on `/v1/health/ready`.
 - Local startup: use `--gpus all`, `--shm-size=16G`, and the `/opt/nim/.cache` mount.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

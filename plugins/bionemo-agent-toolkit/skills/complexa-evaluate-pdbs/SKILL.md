@@ -219,3 +219,5 @@ The manifest pins: resolved config, git SHA, ckpt SHA-256s, the result CSV paths
 ## Reference
 
 Full evaluate/analyze config matrix, every supported `result_type`, per-threshold defaults, and three worked examples (protein binder / ligand binder / AME): see `reference/eval_configs.md`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

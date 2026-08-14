@@ -305,3 +305,5 @@ User: "Replace BWA with Parabricks in our only `main.nf` — edit in place."
 Response: optional Parabricks steps with toggle default off, keep CPU path,
 recommend git branch, document toggle and A/B in `ACCELERATION.md`, do not remove
 CPU steps without post-validation approval.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

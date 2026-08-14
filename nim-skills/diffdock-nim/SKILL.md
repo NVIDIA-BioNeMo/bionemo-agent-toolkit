@@ -116,3 +116,5 @@ pose sanity checks and confidence caveats, read `references/validation.md`.
 - `422`: invalid `ligand_file_type`, invalid SMILES/SDF, or no ATOM records.
 - Empty poses: validate receptor ATOM records and ligand parseability.
 - Local URL 404 usually means the wrong hosted path or an accidental `/v1/`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

@@ -415,3 +415,5 @@ y = np.random.randn(ep.inputs[2].dim)
 | Tensor product descriptors | `cuequivariance/group_theory/descriptors/irreps_tp.py` |
 | `spherical_harmonics` | `cuequivariance/group_theory/descriptors/spherical_harmonics_.py` |
 | `symmetric_contraction` | `cuequivariance/group_theory/descriptors/symmetric_contractions.py` |
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

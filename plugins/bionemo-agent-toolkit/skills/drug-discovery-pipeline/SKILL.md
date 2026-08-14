@@ -218,3 +218,5 @@ affinity_results.sort(key=lambda x: x["pic50"], reverse=True)
 | Molecule generation | `genmol-nim` | `/biology/nvidia/genmol/generate` |
 | Docking | `diffdock-nim` | `/molecular-docking/diffdock/generate` |
 | Affinity prediction | `boltz2-nim` | `/biology/mit/boltz2/predict` |
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

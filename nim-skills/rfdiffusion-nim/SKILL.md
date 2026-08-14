@@ -161,3 +161,5 @@ OpenFold3. For PDB and contig checks, read `references/validation.md`.
 - `422` usually means chain IDs in `contigs`/`hotspot_res` do not match
   `input_pdb`, a malformed contig, or omitted `input_pdb` for hosted de novo.
 - Local URL 404 usually means an accidental `/v1/` prefix.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

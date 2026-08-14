@@ -195,3 +195,5 @@ paired_payload = {
 |---|---|---|
 | MSA search | `msa-search-nim` | `/biology/colabfold/msa-search/predict` |
 | Structure prediction | `openfold3-nim` | `/biology/openfold/openfold3/predict` |
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

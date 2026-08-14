@@ -200,3 +200,5 @@ and therapeutic intent.
 - `protein-binder-design` — same goal via RFdiffusion + ProteinMPNN (BioNeMo NIMs).
 - Proteina-Complexa docs: `README.md`, `docs/INFERENCE.md`, `docs/CONFIGURATION_GUIDE.md`,
   `docs/EVALUATION_METRICS.md`, and its bundled `.claude/skills/` in the repo above.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

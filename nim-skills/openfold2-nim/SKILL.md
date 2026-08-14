@@ -175,3 +175,5 @@ quality evidence. For scientific interpretation and validation, read
 - Weak structures: use MSA Search to generate deeper A3M alignments and add
   biologically relevant mmCIF templates when appropriate.
 - Local startup stalls: first run downloads parameters into `LOCAL_NIM_CACHE`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

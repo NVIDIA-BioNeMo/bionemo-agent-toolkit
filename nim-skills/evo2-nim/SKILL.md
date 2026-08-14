@@ -197,3 +197,5 @@ and optional `enable_logits`.
 - Local auth confusion: do not send `Authorization` to localhost.
 - Local startup: first run downloads model assets; wait on `/v1/health/ready`.
 - FP8 failure: use hosted, 7B on a supported FP8 GPU, or documented 40B GPUs.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

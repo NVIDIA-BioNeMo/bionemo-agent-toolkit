@@ -114,3 +114,5 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
 - `scripts/registry.py` + `assets/targets.json` — **example** benchmark target
   registry (illustrative epitopes — verify against the cited structure before a
   real campaign). Replace with your own targets.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

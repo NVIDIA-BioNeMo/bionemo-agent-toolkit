@@ -136,3 +136,5 @@ $HELPER ensure_image
 ```
 
 Confirm with the user before running `docker image rm`.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

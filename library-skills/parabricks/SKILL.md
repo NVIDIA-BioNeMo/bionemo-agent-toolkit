@@ -159,3 +159,5 @@ Check the version-specific tool reference before finalizing flags.
   <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html>
 - Overview:
   <https://docs.nvidia.com/clara/parabricks/latest/overview.html>
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

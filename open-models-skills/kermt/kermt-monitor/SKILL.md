@@ -174,3 +174,5 @@ KERMT continue-pretrain · runs/continue-pretrain_2026-05-17T10-23Z
   TensorBoard: tensorboard --logdir $RUN_DIR/logs/tb
   Replay command: $(jq -r .cmd_replay $RUN_DIR/run.json)
 ```
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

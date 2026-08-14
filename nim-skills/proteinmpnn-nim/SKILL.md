@@ -105,3 +105,5 @@ FASTA/score sanity checks, read `references/validation.md`.
 - PDB parse errors: use valid PDB ATOM records.
 - Local URL 404 usually means an accidental `/v1/` prefix.
 - Cache mount error: use `/home/nvs/.cache/nim` inside the container.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

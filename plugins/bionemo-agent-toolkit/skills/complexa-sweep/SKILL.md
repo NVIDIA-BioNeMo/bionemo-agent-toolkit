@@ -216,3 +216,5 @@ Refer to the shared hardware reference for the per-run baseline + VRAM minima.
 For per-axis reference (typical ranges, cost, what gets better/worse), see [reference/sweep_axes.md](reference/sweep_axes.md).
 
 For the user-facing sweep system overview (config generation, output layout), see [`docs/SWEEP.md`](reference/SWEEP.md).
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

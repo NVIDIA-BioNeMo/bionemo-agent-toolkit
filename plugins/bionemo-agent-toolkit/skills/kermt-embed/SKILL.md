@@ -158,3 +158,5 @@ $(jq -r .cmd_replay $RUN_DIR/run.json)
 
 If `ok_to_replay: false` (dirty kermt repo worktree at launch time), pin
 the commit via `repo.commit` and `git checkout` it first.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

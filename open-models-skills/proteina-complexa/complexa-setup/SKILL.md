@@ -286,3 +286,5 @@ For the full `.env` reference (every key, defaults, failure modes), see
 
 For the full download flag matrix, NGC URLs, and destination layout, see
 [reference/downloads.md](reference/downloads.md).
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

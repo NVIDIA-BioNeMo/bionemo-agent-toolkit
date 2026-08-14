@@ -124,3 +124,5 @@ with RDKit, read `references/validation.md`.
 - Local startup downloads about 20 GB into `LOCAL_NIM_CACHE`.
 - Container issues: confirm `nvidia-smi`, NVIDIA Container Toolkit, and
   `--runtime=nvidia`; use `NIM_TEST_GPU` to choose the single visible GPU.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

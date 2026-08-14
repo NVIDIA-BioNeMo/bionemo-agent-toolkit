@@ -235,3 +235,5 @@ For the downstream design / evaluate runs that consume the target, defer to `com
 - `src/proteinfoundation/cli/target_cli.py` — argparse source of truth.
 - `src/proteinfoundation/cli/target_manager.py` — `add_target_cli`, `list_targets`, `show_target`, schema in `TARGET_FIELDS`.
 - `src/proteinfoundation/cli/validate.py` — `validate_target` implementation.
+
+<!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->
