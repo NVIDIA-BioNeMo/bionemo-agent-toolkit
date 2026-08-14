@@ -48,6 +48,13 @@ JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
 # NVCARPS Tier 3 (live agent eval) validates the plugin payload and requires the
 # eval dataset there — stripping it makes Tier 3 skip → coverage invalid → gate block.
 STRIP_FROM_PAYLOAD: set[str] = set()
+# Generated artifacts the NVSkills signing/eval pipeline writes into the PAYLOAD
+# only — never authored in source. The signing service commits skill.oms.sig
+# (plus its BENCHMARK.md / skill-card.md) straight into
+# plugins/.../<skill>/, so they are not part of the source→payload sync
+# contract: they must not count as drift in --check, and must survive a --write
+# rebuild rather than being wiped. Matched at the skill-root only.
+PAYLOAD_ONLY_ARTIFACTS = {"skill.oms.sig", "BENCHMARK.md", "skill-card.md"}
 
 
 def _excluded(path: Path) -> bool:
@@ -99,6 +106,10 @@ def _file_map(root: Path, strip_top: set[str]) -> dict[str, str]:
         if rel.parts and rel.parts[0] in strip_top:
             continue
         if any(part in JUNK for part in rel.parts):
+            continue
+        # Skill-root signing/eval artifacts live only in the payload; they are
+        # generated, not synced, so they take no part in the freshness compare.
+        if str(rel) in PAYLOAD_ONLY_ARTIFACTS:
             continue
         out[str(rel)] = hashlib.sha256(p.read_bytes()).hexdigest()
     return out
@@ -181,9 +192,19 @@ def write() -> int:
             print(f"  ! skip '{name}': listed in skills.sh.json but no source skill found")
             continue
         dst = PLUGIN_SKILLS / name
+        # Preserve payload-only signing artifacts across the rebuild — the
+        # signing service, not this script, owns them, and rmtree+copytree
+        # from source would otherwise delete a committed signature.
+        preserved: dict[str, bytes] = {}
         if dst.exists():
+            for art in PAYLOAD_ONLY_ARTIFACTS:
+                ap = dst / art
+                if ap.is_file():
+                    preserved[art] = ap.read_bytes()
             shutil.rmtree(dst)
         shutil.copytree(src, dst, ignore=_ignore)
+        for art, data in preserved.items():
+            (dst / art).write_bytes(data)
         rebuilt += 1
 
     # Remove payload folders no longer listed.
