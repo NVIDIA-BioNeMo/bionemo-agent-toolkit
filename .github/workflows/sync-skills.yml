@@ -12,8 +12,8 @@
 # All sources are PUBLIC GitHub, so no secret is needed. The PR is opened with
 # the built-in GITHUB_TOKEN — the NVIDIA-BioNeMo org allows GitHub Actions to
 # create pull requests (Org → Settings → Actions → General), same as NVIDIA/skills.
-# The sync also regenerates the plugin payload in-job (see "Rebuild plugin
-# payload") so the PR ships skills + payload together and stays plugin-sync green.
+# The sync also regenerates the aggregate payload in-job (see "Rebuild aggregate
+# payload") so the PR ships sources + aggregate together and stays plugin-sync green.
 
 name: Sync skills from source repos
 
@@ -163,14 +163,14 @@ jobs:
             echo "- compliance backfill" >> /tmp/changed-components.txt
           fi
 
-      - name: Rebuild plugin payload
-        # Regenerate plugins/bionemo-agent-toolkit/ so the sync PR ships skills +
-        # payload together and stays plugin-sync green. (build-plugins.py fork is
-        # a later enhancement for fuller marketplace/README regen.)
+      - name: Rebuild aggregate payload
+        # Regenerate skills/bionemo-agent-toolkit/ so the sync PR ships sources +
+        # aggregate together and stays plugin-sync green. The legacy plugins/
+        # path is a symlink and must not be used as the git-status pathspec.
         run: |
           python3 scripts/plugin_sync.py --write
-          if [ -n "$(git status --porcelain plugins/)" ]; then
-            echo "- plugin payload" >> /tmp/changed-components.txt
+          if [ -n "$(git status --porcelain -- skills/bionemo-agent-toolkit/)" ]; then
+            echo "- aggregate payload" >> /tmp/changed-components.txt
           fi
 
       - name: Build sync summary

@@ -160,8 +160,10 @@ comparison.
   ```
 
 Every skill is a directory with a `SKILL.md` (YAML frontmatter + instructions),
-optional `references/`, and optional `scripts/`. The generated, installable plugin
-lives in [`plugins/bionemo-agent-toolkit/`](plugins/bionemo-agent-toolkit).
+optional `references/`, and optional `scripts/`. The generated aggregate lives in
+[`skills/bionemo-agent-toolkit/`](skills/bionemo-agent-toolkit). For compatibility
+with the native plugin marketplaces, [`plugins`](plugins) temporarily remains a
+symlink to `skills`.
 
 ## License
 
