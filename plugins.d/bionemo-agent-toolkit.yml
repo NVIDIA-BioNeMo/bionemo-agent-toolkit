@@ -7,6 +7,12 @@ display_name: BioNeMo Agent Toolkit
 short_description: NVIDIA BioNeMo life-science skills — NIMs, CUDA-X libraries, and open models.
 
 category: Science
+logo: ./assets/nvidia.png
+composer_icon: ./assets/nvidia.png
+# screenshots: []   # optional; supply ./assets/*.png paths when we have any
+website_url: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit
+privacy_policy_url: https://www.nvidia.com/en-us/about-nvidia/privacy-center/
+terms_of_service_url: https://developer.nvidia.com/legal/terms
 
 keywords:
   - bionemo
