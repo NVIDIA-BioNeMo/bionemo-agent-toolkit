@@ -20,12 +20,15 @@ first-pass hosted/local usage; load supplemental files only when needed:
 
 ## Choose Mode
 
-Ask only when context is unclear:
+Honor an explicitly configured runtime before asking. `NIM_API_MODE=local` selects
+the local service at `PROTEINMPNN_NIM_URL`; the URL defaults to
+`http://localhost:8000` for a NIM running in the same host or container. Ask only
+when neither the environment nor the user's request makes the mode clear:
 
 > Hosted NVIDIA API or local Docker NIM?
 
 - Hosted: `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict`
-- Local: `http://localhost:8000/biology/ipd/proteinmpnn/predict`
+- Local: `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/biology/ipd/proteinmpnn/predict`
 
 Local inference paths do not include `/v1/`. Hosted requests use `Authorization: Bearer $NGC_API_KEY`. Supported local Docker
 startup uses `NGC_API_KEY` (or `NVIDIA_API_KEY` via the preflight) for
@@ -43,11 +46,14 @@ with only a localhost Python request. For the exact preflight (`.env` sourcing,
 `nvcr.io/nim/ipd/proteinmpnn:latest`), copy the command block in
 [`references/api.md`](references/api.md) under **Docker Reference** verbatim.
 This NIM's cache mount is `/home/nvs/.cache/nim`, not `/opt/nim/.cache`.
+When `PROTEINMPNN_NIM_URL` is supplied, the service is already managed elsewhere;
+use that URL and do not start another Docker container.
 
 Readiness:
 
 ```bash
-until curl -sf http://localhost:8000/v1/health/ready; do sleep 5; done
+proteinmpnn_nim_url="${PROTEINMPNN_NIM_URL:-http://localhost:8000}"
+until curl -sf "${proteinmpnn_nim_url%/}/v1/health/ready"; do sleep 5; done
 ```
 
 ## Request Pattern
@@ -59,15 +65,16 @@ import os
 from pathlib import Path
 import requests
 
-HOSTED = True
+HOSTED = os.getenv("NIM_API_MODE", "hosted").strip().lower() != "local"
 pdb_content = Path("1R42.pdb").read_text()
+nim_url = os.getenv("PROTEINMPNN_NIM_URL", "http://localhost:8000").rstrip("/")
 url = (
     "https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict"
-    if HOSTED else "http://localhost:8000/biology/ipd/proteinmpnn/predict"
+    if HOSTED else f"{nim_url}/biology/ipd/proteinmpnn/predict"
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
+    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
 
 payload = {
     "input_pdb": pdb_content,
