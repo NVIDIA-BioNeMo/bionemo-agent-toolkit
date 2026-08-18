@@ -112,12 +112,17 @@ class Client:
         sequence_name: str = "sequence",
         model: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        tss_index: Optional[int] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {"sequence": sequence, "sequence_name": sequence_name}
         if model is not None:
             body["model"] = model
         if options is not None:
             body["options"] = options
+        # expression only: 0-based TSS offset into the whitespace-stripped
+        # sequence. Required by the API unless the sequence is exactly 9,198 bp.
+        if tss_index is not None:
+            body["tss_index"] = tss_index
         r = self._session.post(
             f"{self.base_url}/v1/tasks/{task}/predict",
             json=body,

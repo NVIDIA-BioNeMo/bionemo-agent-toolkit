@@ -35,11 +35,15 @@ Load supplemental files only when needed:
 | `splice` | Splice donor/acceptor sites | sync | 1–500,000 bp |
 | `enhancer` | Developmental & housekeeping enhancer activity | sync | 1–500,000 bp |
 | `chromatin` | Chromatin state across hundreds of tracks | sync | 1–500,000 bp |
-| `expression` | Expression as log(TPM+1) | sync | **exactly 9,198 bp** |
+| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** |
 | `annotation` | De-novo gene/transcript structure | **async** | 1–500,000 bp |
 
 `expression` additionally needs a cell-type/assay context string
-(`--description`, e.g. `"K562 cells"`) and an exact 9,198 bp TSS-centred window.
+(`--description`, e.g. `"K562 cells"`). The model always scores exactly one
+9,198 bp TSS-centred window, so 9,198 bp is a hard floor — but the endpoint
+accepts up to 500,000 bp and will cut the window for you if you pass
+`--tss-index` (the 0-based TSS offset into the sequence). `--tss-index` is
+required for any expression sequence that is not exactly 9,198 bp.
 `annotation` submits with `Prefer: respond-async` and polls to completion.
 Details: `references/tasks.md`.
 
@@ -68,7 +72,7 @@ pip install requests
 
 Unlike the inline-only `nim-skills/`, this skill ships a small, self-contained
 (`requests`-only) runner, because the surface spans six tasks plus an async job
-(`annotation`) and an exact-window contract (`expression`) that do not inline
+(`annotation`) and a windowing contract (`expression`) that do not inline
 cleanly. Shipping `scripts/` is not prohibited by CONTRIBUTING and other skills
 do it; the runner is the same proven
 client used across Genomic Intelligence's other integrations.
@@ -112,6 +116,10 @@ python scripts/gi_predict.py --task promoter --input "$FASTA" --output out/promo
 # Expression of HBB in K562 — the exact 9,198 bp TSS window is built for you
 FASTA=$(python scripts/gi_fetch.py --gene HBB --for-expression --out out/hbb.fa)
 python scripts/gi_predict.py --task expression --input "$FASTA" --description "K562 cells" --output out/expr
+
+# Or hand over a whole locus and name the TSS; the server slices TSS ± 4,599 bp
+python scripts/gi_predict.py --task expression --input out/locus.fa --description "K562 cells" \
+  --tss-index 12345 --output out/expr
 ```
 
 `gi_predict.py` prints a compact JSON summary to **stdout** (headline scalars
@@ -143,7 +151,7 @@ body = resp.json()          # {"data": {...}, "meta": {...}}
 print(body["data"]["summary"])
 ```
 
-Prefer the runner for `expression` (exact-window + `description`) and
+Prefer the runner for `expression` (window/`tss_index` bounds + `description`) and
 `annotation` (async) — those are error-prone to inline.
 
 ## Standard workflow
@@ -157,7 +165,8 @@ Prefer the runner for `expression` (exact-window + `description`) and
 3. **Predict:**
    ```bash
    python scripts/gi_predict.py --task <task> --input <FASTA> --output <dir> \
-     [--model <id>] [--description "<cell type>"]   # description: expression only
+     [--model <id>] [--description "<cell type>"] [--tss-index <n>]
+     # --description and --tss-index: expression only
    ```
 4. **Read the result:** parse the stdout JSON for the headline; open
    `<dir>/report.md` or `<dir>/result.json` for detail.
@@ -165,17 +174,21 @@ Prefer the runner for `expression` (exact-window + `description`) and
 ## Validate and report
 
 Treat an invalid alphabet, an out-of-bounds length, a missing `expression`
-window/description, or a non-2xx response as **hard failures** (the runner exits
-non-zero and names the cause on stderr). Treat zero hits on a sequence you
-expected to be feature-bearing as a **warning**. Record `meta.model` and
-`meta.request_id` for audit.
+window/description/`--tss-index`, or a non-2xx response as **hard failures** (the
+runner exits non-zero and names the cause on stderr). Treat zero hits on a
+sequence you expected to be feature-bearing as a **warning**. Record
+`meta.model` and `meta.request_id` for audit. For `expression`, also check the
+`scored_window` / `tss_index` echoed in the stdout summary: a `--tss-index` that
+is in range but wrong is not an error, it just scores the wrong window.
 
 ## Troubleshooting
 
 | Symptom (stderr) | Cause | Fix |
 |---|---|---|
 | `GI_API_KEY is not set` | No key | `export GI_API_KEY=gi_…` |
-| `invalid input — expects exactly 9,198 bp` | Wrong expression window | Use `gi_fetch.py --gene X --for-expression` |
+| `sequence too short: … < 9,198 bp minimum` | Expression sequence below the window size | Use `gi_fetch.py --gene X --for-expression` |
+| `--tss-index is required unless the sequence is exactly 9,198 bp` | Longer locus, no TSS named | Add `--tss-index <0-based offset>` |
+| `--tss-index … outside the allowed range` | TSS too close to an edge | Submit more flanking sequence |
 | `--description is required` | expression w/o context | `--description "K562 cells"` |
 | `API error: [401 …]` | Bad/revoked key | Re-check `GI_API_KEY` |
 | `API error: [422 …]` | Body/model rejected | Check `--model` in `references/tasks.md` |

@@ -54,17 +54,17 @@ class TaskSpec:
         max_bp: int,
         async_mode: bool,
         demo: str,
-        exact_bp: Optional[int] = None,
+        window_bp: Optional[int] = None,
     ) -> None:
         self.min_bp = min_bp
         self.max_bp = max_bp
         self.async_mode = async_mode
         self.demo = demo
-        self.exact_bp = exact_bp
+        # Fixed scoring-window width, if the task has one (expression: 9,198 bp).
+        # Anything longer than the window needs an explicit --tss-index.
+        self.window_bp = window_bp
 
     def validate(self, length: int) -> Optional[str]:
-        if self.exact_bp is not None and length != self.exact_bp:
-            return f"expects exactly {self.exact_bp:,} bp, got {length:,} bp"
         if length < self.min_bp:
             return f"sequence too short: {length:,} bp < {self.min_bp:,} bp minimum"
         if length > self.max_bp:
@@ -72,14 +72,23 @@ class TaskSpec:
         return None
 
 
-# Bounds mirror gpu_service/config/models.yaml + core/limits.py. The expression
-# task requires an exact 9,198 bp TSS-centred window; all others accept 1..500kb.
+# Bounds mirror gpu_service/core/limits.py. Every task caps at 500 kb. The
+# expression task additionally has a 9,198 bp *floor*: the model always scores
+# exactly one 9,198 bp TSS-centred window, sequence[tss-4599 : tss+4599]. Send a
+# pre-cut 9,198 bp window, or send up to 500 kb plus --tss-index and let the
+# server slice. EXPRESSION_TSS_RADIUS = 9198 // 2.
+EXPRESSION_WINDOW_BP = 9_198
+EXPRESSION_TSS_RADIUS = EXPRESSION_WINDOW_BP // 2  # 4,599
+
 TASKS: Dict[str, TaskSpec] = {
     "promoter": TaskSpec(1, 500_000, False, "promoter_tp53.fa"),
     "splice": TaskSpec(1, 500_000, False, "splice_hbb.fa"),
     "enhancer": TaskSpec(1, 500_000, False, "enhancer_eve.fa"),
     "chromatin": TaskSpec(1, 500_000, False, "chromatin_active_promoter_chr19.fa"),
-    "expression": TaskSpec(9_198, 9_198, False, "expression_hbb_k562.fa", exact_bp=9_198),
+    "expression": TaskSpec(
+        EXPRESSION_WINDOW_BP, 500_000, False, "expression_hbb_k562.fa",
+        window_bp=EXPRESSION_WINDOW_BP,
+    ),
     "annotation": TaskSpec(1, 500_000, True, "annotation_tp53.fa"),
 }
 
@@ -103,6 +112,17 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Cell type / assay context. REQUIRED by expression; ignored by other tasks.",
+    )
+    p.add_argument(
+        "--tss-index",
+        type=int,
+        default=None,
+        dest="tss_index",
+        help=(
+            "expression only: 0-based TSS offset into the sequence (whitespace "
+            "stripped). REQUIRED unless the sequence is exactly 9,198 bp. The "
+            "server scores sequence[tss_index-4599 : tss_index+4599]."
+        ),
     )
     p.add_argument("--api-key", type=str, default=None, help="Override GI_API_KEY env.")
     p.add_argument("--base-url", type=str, default=None, help="Override GI_BASE_URL (default: https://api.genomicintelligence.ai).")
@@ -151,6 +171,12 @@ def _summarize(task: str, body: Dict[str, Any]) -> Dict[str, Any]:
         pred = data.get("prediction") or {}
         out["log_tpm"] = pred.get("expression_log_tpm")
         out["tpm"] = pred.get("expression_tpm")
+        # Windowing provenance: an in-range but *wrong* tss_index scores the
+        # wrong 9,198 bp window and still returns 200, so surface what was
+        # actually scored rather than trusting the request.
+        counts = (body.get("meta") or {}).get("task_specific_counts") or {}
+        out["tss_index"] = counts.get("tss_index")
+        out["scored_window"] = counts.get("scored_window")
     elif task == "annotation":
         out["transcripts_found"] = summary.get("total_transcripts", summary.get("transcripts_found"))
         out["transcripts"] = data.get("transcripts") or []
@@ -226,11 +252,13 @@ def _repro_command(
     output_dir: Path,
     model: Optional[str] = None,
     description: Optional[str] = None,
+    tss_index: Optional[int] = None,
 ) -> str:
     """Build the exact re-runnable invocation for reproducibility/command.sh.
 
-    Emits --model and --description only when they were supplied, so a replay
-    reproduces the original call: expression requires --description (no default),
+    Emits --model, --description and --tss-index only when they were supplied,
+    so a replay reproduces the original call: expression requires --description
+    (no default) and --tss-index whenever the sequence is not exactly 9,198 bp,
     and a non-default --model must survive. Uses python3 and shell-quotes every
     value so paths/descriptions with spaces round-trip.
     """
@@ -244,6 +272,8 @@ def _repro_command(
         parts.append(f"--model {shlex.quote(model)}")
     if description is not None:
         parts.append(f"--description {shlex.quote(description)}")
+    if tss_index is not None:
+        parts.append(f"--tss-index {tss_index}")
     return " ".join(parts)
 
 
@@ -258,6 +288,7 @@ def _write_report(
     elapsed_ms: float,
     model: Optional[str] = None,
     description: Optional[str] = None,
+    tss_index: Optional[int] = None,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "result.json").write_text(
@@ -299,7 +330,7 @@ def _write_report(
 
     repro = output_dir / "reproducibility"
     repro.mkdir(exist_ok=True)
-    cmd = _repro_command(task, input_path, output_dir, model, description) + "\n"
+    cmd = _repro_command(task, input_path, output_dir, model, description, tss_index) + "\n"
     (repro / "command.sh").write_text("#!/usr/bin/env bash\nset -euo pipefail\n" + cmd)
     (repro / "command.sh").chmod(0o755)
     (repro / "environment.json").write_text(
@@ -335,11 +366,39 @@ def main() -> int:
         print(f"[gi-{task}] invalid input — {length_err}", file=sys.stderr)
         if task == "expression":
             print(
-                "  The expression model takes an exact 9,198 bp window centred on a TSS. "
-                "See references/tasks.md#expression.",
+                "  The expression model scores exactly one 9,198 bp TSS-centred window "
+                "(TSS ± 4,599), so 9,198 bp is a hard floor. Send a pre-cut window, or a "
+                "longer locus plus --tss-index. See references/tasks.md#expression.",
                 file=sys.stderr,
             )
         return 1
+
+    tss_index = args.tss_index
+    if task == "expression":
+        if tss_index is None:
+            if len(sequence) != EXPRESSION_WINDOW_BP:
+                print(
+                    f"[gi-expression] --tss-index is required unless the sequence is "
+                    f"exactly {EXPRESSION_WINDOW_BP:,} bp (got {len(sequence):,} bp). "
+                    "It is the 0-based TSS offset into the sequence. "
+                    "See references/tasks.md#expression.",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            lo, hi = EXPRESSION_TSS_RADIUS, len(sequence) - EXPRESSION_TSS_RADIUS
+            if not (lo <= tss_index <= hi):
+                print(
+                    f"[gi-expression] --tss-index {tss_index:,} outside the allowed range "
+                    f"[{lo:,}, {hi:,}] for a {len(sequence):,} bp sequence — the model needs "
+                    f"a full ±{EXPRESSION_TSS_RADIUS:,} bp window around the TSS; submit more "
+                    "flanking sequence.",
+                    file=sys.stderr,
+                )
+                return 1
+    elif tss_index is not None:
+        print(f"[gi-{task}] --tss-index applies to expression only; ignoring it.", file=sys.stderr)
+        tss_index = None
 
     if task == "expression" and not args.description:
         print(
@@ -381,7 +440,7 @@ def main() -> int:
         else:
             body = client.predict(
                 task, sequence=sequence, sequence_name=sequence_name,
-                model=args.model, options=options or None,
+                model=args.model, options=options or None, tss_index=tss_index,
             )
     except GIError as e:
         print(f"[gi-{task}] API error: {e}", file=sys.stderr)
@@ -391,7 +450,7 @@ def main() -> int:
     summary = _summarize(task, body)
     _write_report(
         task, summary, body, output_dir, input_path, sequence_name, len(sequence),
-        elapsed_ms, model=args.model, description=args.description,
+        elapsed_ms, model=args.model, description=args.description, tss_index=tss_index,
     )
     print(f"[gi-{task}] OK — wrote {output_dir}/report.md ({elapsed_ms:.0f} ms wall)", file=sys.stderr)
 

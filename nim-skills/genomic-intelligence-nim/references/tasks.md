@@ -18,7 +18,7 @@ Source of truth for bounds and models: `gpu_service/config/models.yaml` and
 | splice | `g0-splice-bigbird` | sync | 1–500,000 bp | `splice_hbb.fa` |
 | enhancer | `g0-deepstarr` | sync | 1–500,000 bp | `enhancer_eve.fa` |
 | chromatin | `g0-deepsea` | sync | 1–500,000 bp | `chromatin_active_promoter_chr19.fa` |
-| expression | `g0-expression` | sync | **exactly 9,198 bp** | `expression_hbb_k562.fa` |
+| expression | `g0-expression` | sync | **9,198–500,000 bp** | `expression_hbb_k562.fa` |
 | annotation | `g0-annotation` | **async** | 1–500,000 bp | `annotation_tp53.fa` |
 
 To list the models available for a task and pass a non-default one, use
@@ -59,15 +59,32 @@ is in `data`. Output also available as BED via the API.
 
 ## expression
 
-Predicts gene expression as **log(TPM+1)** from a fixed window. Two
+Predicts gene expression as **log(TPM+1)** from a fixed window. Since
+2026-08-18 this task has its own published OpenAPI operation
+(`POST /v1/tasks/expression/predict`, schema `ExpressionPredictRequest`) rather
+than the generic templated one — regenerate any typed client. Three
 requirements the skill enforces locally:
 
-1. **Exactly 9,198 bp** — the model takes a 9,198 bp window **centred on the
-   TSS** (2 × 4,599). Other lengths are rejected before any API call.
-2. **`--description`** — a cell-type / assay context string (e.g. `"K562
-   cells"`), passed as `options.description`. Required.
+1. **9,198–500,000 bp.** The model always scores exactly one 9,198 bp window
+   **centred on the TSS** (2 × 4,599) — `sequence[tss_index-4599 :
+   tss_index+4599]` — but the endpoint accepts up to 500 kb and slices for you.
+   Below 9,198 bp is rejected; nothing is padded or truncated.
+2. **`tss_index`** (`--tss-index`) — the 0-based TSS offset into the
+   **whitespace-stripped** sequence. Required unless the sequence is exactly
+   9,198 bp, where it defaults to 4,599 (the only legal value there). Bounds:
+   `4599 ≤ tss_index ≤ len(sequence) − 4599`. The endpoint does not find the TSS
+   for you and does not reverse-complement — submit gene-sense sequence.
+3. **`--description`** — a cell-type / assay context string (e.g. `"K562
+   cells"`), passed as `options.description`. Required, and the only key
+   `options` accepts on this task.
 
 `data.prediction.expression_log_tpm` (and `expression_tpm`) hold the result.
+`meta.task_specific_counts` carries `tss_index` and `scored_window`
+(`[start, end]`, always 9,198 wide) — check it, because a `tss_index` that is in
+range but wrong (e.g. counted over raw FASTA characters including newlines)
+scores the wrong window and still returns `200`. `data.input.sequence_length` is
+the **scored** 9,198; the length you submitted is
+`data.input.submitted_sequence_length`.
 
 ## annotation
 

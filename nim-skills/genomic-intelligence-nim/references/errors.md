@@ -31,8 +31,12 @@ Always quote the `request_id` when reporting an issue to Genomic Intelligence.
 | 503 | `unavailable` | Backend transiently down | Retry with backoff |
 | 504 | `upstream_timeout` | Large sync request on a cold GPU | Retry, or use a smaller sequence |
 
-The skill validates length and the `expression` `--description` **before** any
-network call, so those failures (exit code 1) never reach the API.
+The skill validates length, the `expression` `--description`, and the
+`--tss-index` bounds **before** any network call, so those failures (exit
+code 1) never reach the API. Server-side, every expression contract violation
+(sequence below 9,198 bp, missing/out-of-range `tss_index`, missing
+`options.description`, unknown body field) is a `422 validation_failed`. There
+is no opt-out flag, header, or query parameter; nothing is padded or clamped.
 
 ## Async polling (`annotation`)
 
@@ -50,8 +54,9 @@ for a ~20 kb sequence (longer on a cold GPU).
 
 ## Limits
 
-- **Max sequence length:** 500,000 bp for all tasks except `expression`, which
-  requires an exact 9,198 bp window.
+- **Max sequence length:** 500,000 bp for every task.
+- **Expression minimum:** 9,198 bp — the width of the single TSS-centred window
+  the model scores. Above that width, `tss_index` is required.
 - **Single record per request:** split multi-record FASTA and run per record.
 - **Rate / concurrency:** per partner tier; `429` signals you have exceeded it.
 

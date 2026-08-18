@@ -10,7 +10,10 @@ snapshot — if it disagrees with the OpenAPI doc, the OpenAPI doc wins.
 
 ```
 POST https://api.genomicintelligence.ai/v1/tasks/{task}/predict
-     task ∈ { promoter, splice, enhancer, chromatin, expression, annotation }
+     task ∈ { promoter, splice, enhancer, chromatin, annotation }
+POST https://api.genomicintelligence.ai/v1/tasks/expression/predict
+     # same URL shape, but its own published operation and its own,
+     # stricter request schema (ExpressionPredictRequest)
 GET  https://api.genomicintelligence.ai/v1/tasks/jobs/{job_id}   # async (annotation)
 ```
 
@@ -29,9 +32,30 @@ GET  https://api.genomicintelligence.ai/v1/tasks/jobs/{job_id}   # async (annota
 }
 ```
 
-Length bounds are per-task (see `references/tasks.md`): 1–500,000 bp for all
-tasks except `expression`, which requires **exactly 9,198 bp** centred on a TSS.
-The runner validates length locally before any call.
+`expression` has a different body — it is closed to unknown fields, `options` is
+a closed object whose only (required) key is `description`, and it takes a fifth
+field:
+
+```json
+{
+  "sequence": "ACGT…",                        // required, 9,198–500,000 bp
+  "options": { "description": "K562 cells" }, // required
+  "tss_index": 12345,                         // required unless len == 9198
+  "sequence_name": "HBB",
+  "model": "…"
+}
+```
+
+Length bounds are per-task (see `references/tasks.md`): 1–500,000 bp for every
+task, plus a 9,198 bp **floor** for `expression`, which always scores exactly one
+9,198 bp window — `sequence[tss_index-4599 : tss_index+4599]`. Lengths and
+`tss_index` are measured on the **whitespace-stripped** sequence. The runner
+validates length and `tss_index` bounds locally before any call.
+
+Expression responses echo the windowing: `meta.task_specific_counts.tss_index` /
+`.scored_window`, and `data.input.tss_index` / `.scored_window` /
+`.submitted_sequence_length`. Note `data.input.sequence_length` is the **scored**
+length (always 9,198), not what you submitted.
 
 ## Response envelope
 
