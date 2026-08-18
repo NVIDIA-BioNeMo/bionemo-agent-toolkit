@@ -3,7 +3,7 @@ name: complexa-binder-design
 description: >
   Run a complete protein binder design campaign with NVIDIA Proteina-Complexa: resolve a target structure and hotspots from a name/sequence/PDB, co-design binder sequence+structure with reward-guided test-time search (best-of-n, beam search, FK steering, MCTS), select with the internal AF2 reward gate, then INDEPENDENTLY validate each binder by refolding the complex with Boltz2 (default) or OpenFold3 and rank on interface confidence, pLDDT, ipSAE, apo/holo stability, and hotspot contact. Use whenever the user wants de novo binders against a named target, sequence, or PDB, hotspot/epitope-targeted design, Proteina-Complexa / Complexa, or ranked validated binders from one request. Sibling of protein-binder-design (RFdiffusion + ProteinMPNN); this skill uses Proteina-Complexa.
 license: Apache-2.0
-compatibility: "python>=3.10; numpy>=1.24; gemmi (target prep + Boltz2 templates); pyyaml (target registration)"
+compatibility: "python>=3.10; numpy>=1.24; biotite (target prep + Boltz2 templates); pyyaml (target registration)"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 permissions:
   - env      # reads NVIDIA_API_KEY/NGC_API_KEY, COMPLEXA_*, BOLTZ2_URL, AF2_DIR
@@ -29,7 +29,7 @@ confidence is an independent check, not the generator grading its own homework.
 > - Paper: Didi et al., *Scaling Atomistic Protein Binder Design…*, ICLR 2026.
 
 > **First time on a host? → `references/setup.md`** — full standalone setup with **no
-> NIM**: install Proteina-Complexa + download weights, Python deps (`numpy gemmi
+> NIM**: install Proteina-Complexa + download weights, Python deps (`numpy biotite
 > pyyaml`), AF2 **configure-vs-bypass**, optional analyze tools (`foldseek`/`sc`/`dssp`),
 > the Boltz2/OF3 validation endpoint, and every env var. Then run
 > `bash scripts/check_setup.sh` for a one-shot readiness checklist.

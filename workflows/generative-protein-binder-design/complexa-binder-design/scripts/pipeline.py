@@ -325,16 +325,27 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
 
 
 # --------------------------------------------------------------------------- structure alignment
+def _read_first_model(structure_path: Path):
+    """Parse a .pdb/.cif into a biotite AtomArray (first model), using PDB author
+    chain names + residue numbers so hotspot positions match published numbering."""
+    import biotite.structure.io.pdb as pdb
+    import biotite.structure.io.pdbx as pdbx
+    p = Path(structure_path)
+    if p.suffix.lower() in (".cif", ".mmcif", ".bcif"):
+        cif = pdbx.CIFFile.read(str(p))
+        return pdbx.get_structure(cif, model=1, use_author_fields=True)
+    return pdb.PDBFile.read(str(p)).get_structure(model=1)
+
+
 def _structure_residue_index(structure_path: Path) -> dict[tuple[str, int], str]:
     """Map (chain_id, residue_number) -> 3-letter residue name from a pdb/cif."""
-    import gemmi
-    st = gemmi.read_structure(str(structure_path))
+    import biotite.structure as struc
+    arr = _read_first_model(structure_path)
     idx: dict[tuple[str, int], str] = {}
-    if len(st) == 0:
+    if arr.array_length() == 0:
         return idx
-    for chain in st[0]:
-        for res in chain:
-            idx[(chain.name, res.seqid.num)] = res.name
+    for s in struc.get_residue_starts(arr):
+        idx[(str(arr.chain_id[s]), int(arr.res_id[s]))] = str(arr.res_name[s])
     return idx
 
 
@@ -522,11 +533,12 @@ def _ensure_pdb(structure_path: Path, run_dir: Path) -> Path:
     structure_path = Path(structure_path)
     if structure_path.suffix.lower() == ".pdb":
         return structure_path
-    import gemmi
-    st = gemmi.read_structure(str(structure_path))
-    st.setup_entities()
+    import biotite.structure.io.pdb as pdb
+    arr = _read_first_model(structure_path)
     out = run_dir / "target.pdb"
-    out.write_text(st.make_pdb_string())
+    pf = pdb.PDBFile()
+    pf.set_structure(arr)
+    pf.write(str(out))
     return out
 
 
@@ -573,23 +585,20 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
     if len(hs) <= 1:
         return hs, [], []
     try:
-        import gemmi
-        st = gemmi.read_structure(str(structure_path))
-        st.setup_entities()
-        model = st[0]
+        arr = _read_first_model(structure_path)
     except Exception:  # noqa: BLE001 — never let a coord read break the run
         return hs, [], []
 
+    # Cβ (Cα fallback) coordinate per (chain, res_id): insert Cα first, then let Cβ
+    # overwrite so Cβ wins when both are present.
+    cbca: dict[tuple[str, int], tuple[float, float, float]] = {}
+    for atom_name in ("CA", "CB"):
+        m = arr.atom_name == atom_name
+        for c, r, xyz in zip(arr.chain_id[m], arr.res_id[m], arr.coord[m]):
+            cbca[(str(c), int(r))] = (float(xyz[0]), float(xyz[1]), float(xyz[2]))
+
     def _coord(h):
-        ch, pos = str(h.get("chain", "A")), int(h["position"])
-        for chain in model:
-            if chain.name != ch:
-                continue
-            for res in chain:
-                if res.seqid.num == pos:
-                    a = res.find_atom("CB", "*") or res.find_atom("CA", "*")
-                    return (a.pos.x, a.pos.y, a.pos.z) if a else None
-        return None
+        return cbca.get((str(h.get("chain", "A")), int(h["position"])))
 
     coords = []
     for h in hs:
@@ -638,16 +647,16 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
     is no epitope to center on, so the target is truncated to the first
     ``max_residues`` residues and a warning is emitted (an unconditioned design on a
     truncated target is rarely what you want — supply hotspots)."""
-    import gemmi
+    import numpy as np
+    import biotite.structure as struc
+    import biotite.structure.io.pdb as pdb
     from collections import defaultdict
     if max_residues is None:
         max_residues = _max_target_residues()
-    st = gemmi.read_structure(str(structure_path))
-    st.setup_entities()
-    if len(st) == 0:
+    arr = _read_first_model(structure_path)
+    if arr.array_length() == 0:
         return structure_path, []
-    model = st[0]
-    total = sum(len(ch) for ch in model)
+    total = struc.get_residue_count(arr)
     if total <= max_residues:
         return structure_path, []
 
@@ -658,40 +667,35 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
         except (KeyError, TypeError, ValueError):
             continue
 
-    new_st = gemmi.Structure()
-    new_st.cell = st.cell
-    new_st.spacegroup_hm = st.spacegroup_hm
-    new_model = gemmi.Model("1")
     half = max_residues // 2
     dropped_hot: list[int] = []
     kept_windows: list[str] = []
-    for chain in model:
-        new_chain = gemmi.Chain(chain.name)
+    keep_mask = np.zeros(arr.array_length(), dtype=bool)
+    for chain in dict.fromkeys(struc.get_chains(arr)):
+        cmask = arr.chain_id == chain
         if hot_by_chain:
-            if chain.name not in hot_by_chain:
+            if chain not in hot_by_chain:
                 continue  # no epitope on this chain — drop it
-            hs = sorted(hot_by_chain[chain.name])
+            hs = sorted(hot_by_chain[chain])
             center = (hs[0] + hs[-1]) // 2
             lo, hi = center - half, center + half
-            for res in chain:
-                if lo <= res.seqid.num <= hi:
-                    new_chain.add_residue(res)
+            sel = cmask & (arr.res_id >= lo) & (arr.res_id <= hi)
             dropped_hot += [p for p in hs if not (lo <= p <= hi)]
-        else:
-            for res in chain:  # no hotspots: keep the first max_residues, in order
-                if len(new_chain) >= max_residues:
-                    break
-                new_chain.add_residue(res)
-        if len(new_chain):
-            new_model.add_chain(new_chain)
-            nums = [r.seqid.num for r in new_chain]
-            kept_windows.append(f"{new_chain.name}{min(nums)}-{max(nums)}")
-    new_st.add_model(new_model)
-    new_st.setup_entities()
+        else:  # no hotspots: keep the first max_residues residues, in order
+            order = [int(arr.res_id[s]) for s in struc.get_residue_starts(arr[cmask])]
+            keep_ids = set(order[:max_residues])
+            sel = cmask & np.isin(arr.res_id, list(keep_ids))
+        if sel.any():
+            keep_mask |= sel
+            nums = arr.res_id[sel]
+            kept_windows.append(f"{chain}{int(nums.min())}-{int(nums.max())}")
+    cropped = arr[keep_mask]
     out = run_dir / "target_cropped.pdb"
-    out.write_text(new_st.make_pdb_string())
+    pf = pdb.PDBFile()
+    pf.set_structure(cropped)
+    pf.write(str(out))
 
-    kept_n = sum(len(ch) for ch in new_model)
+    kept_n = struc.get_residue_count(cropped)
     budget = f"{max_residues}-residue target cap (binder+target <= {MAX_COMPLEX_RESIDUES})"
     msgs: list[str] = []
     if hot_by_chain:
@@ -715,7 +719,7 @@ def register_complexa_target(task_name: str, structure_path: Path, hotspots: lis
                              binder_length: tuple[int, int] = BINDER_LENGTH,
                              chain: str = "A") -> dict:
     """Append/overwrite a Complexa targets_dict.yaml entry in the OPEN checkout
-    ($COMPLEXA_REPO). gemmi-based so it handles .cif and .pdb; flock-guarded with an
+    ($COMPLEXA_REPO). Handles .cif and .pdb targets; flock-guarded with an
     atomic temp-file rename so parallel runs can't shred the YAML. Empty `hotspots`
     => unconditioned design. Returns the written entry.
 
