@@ -58,12 +58,27 @@ class GeneLocus:
     def tss(self) -> int:
         """Transcription start site: transcript start on +strand, end on -strand.
 
-        Prefers the canonical transcript boundary when available; falls back to
-        the gene body otherwise.
+        Requires the canonical transcript. This used to fall back to the gene
+        body, which is why the distances in the field comments above matter:
+        a gene-body fallback puts ACTB's window 33,301 bp off its real TSS.
+        That window is still exactly 9,198 bp, so the client-side size gate
+        passes, no ``tss_index`` is sent, and the API returns a confident
+        score for the wrong locus — correctly sized, wrongly centred, with no
+        client-side tell. Refusing is the only honest option.
+
+        Raises:
+            EnsemblError: no canonical transcript was resolved for this gene.
         """
-        start = self.canonical_start if self.canonical_start is not None else self.start
-        end = self.canonical_end if self.canonical_end is not None else self.end
-        return start if self.strand >= 0 else end
+        if self.canonical_start is None or self.canonical_end is None:
+            raise EnsemblError(
+                f"{self.display_name} ({self.ensembl_id}): no canonical transcript "
+                f"resolved, so the TSS is unknown. Expression windowing needs the "
+                f"canonical transcript — the gene body can sit tens of kb away "
+                f"(ACTB: 33,301 bp) and would score the wrong window at full "
+                f"confidence. Re-fetch with expand=1, or supply the window and "
+                f"tss_index explicitly."
+            )
+        return self.canonical_start if self.strand >= 0 else self.canonical_end
 
 
 def _get(path: str, *, headers: Optional[dict] = None, params: Optional[dict] = None,
@@ -238,7 +253,9 @@ def fetch_gene_window_for_expression(symbol: str, species: str = "human") -> Tup
     meta = {
         "ensembl_id": locus.ensembl_id,
         "tss": tss,
-        "tss_source": "canonical-transcript" if locus.canonical_start is not None else "gene-body",
+        # Always canonical now: locus.tss raises rather than falling back to
+        # the gene body, so "gene-body" is no longer a reachable provenance.
+        "tss_source": "canonical-transcript",
         "region": f"{locus.seq_region}:{start}-{end}",
         "strand": locus.strand,
         "species": species,

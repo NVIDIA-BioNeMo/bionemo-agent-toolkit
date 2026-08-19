@@ -241,5 +241,9 @@ is in range but wrong is not an error, it just scores the wrong window.
 | `API error: [429 …]` | Rate limit | Back off; partner tiers have caps |
 | `API error: [504 timeout]` | Large sync req, cold GPU | Retry or shorten |
 | `parsed an empty sequence` | Empty/invalid FASTA | Check the file is a single ACGT record |
+| `invalid input — …: sequence contains characters outside ACGTN` | IUPAC ambiguity codes or gap characters | Resolve them to explicit bases; the parser refuses rather than deleting them, because deleting shifts every downstream coordinate |
+| `invalid input — …: expected a single FASTA record` | Multi-record FASTA | Split the file and submit one record per request |
+| `network error reaching the API` | DNS/TLS/connection failure or read timeout | Transport-level, not a request problem; retry |
+| `timed out waiting for the job` | Async job outlived the poll deadline | Retry, or shorten the input |
 
 More: `references/errors.md`.

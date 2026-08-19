@@ -1,0 +1,109 @@
+"""The client refuses malformed input instead of silently repairing it.
+
+Each case here is a real defect that shipped: the parser used to delete every
+character outside ACGTN and to concatenate multi-record files into one chimeric
+sequence, and the Ensembl helper used to fall back to gene-body coordinates
+when no canonical transcript was found. All three produced a confident,
+wrong-but-well-formed result with nothing for the caller to notice.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+from gi_client import FastaError, read_fasta  # noqa: E402
+from gi_ensembl import EnsemblError, GeneLocus  # noqa: E402
+
+
+def _write(tmp_path: Path, content: str) -> Path:
+    path = tmp_path / "input.fa"
+    path.write_text(content)
+    return path
+
+
+class TestReadFasta:
+    def test_accepts_a_clean_single_record(self, tmp_path):
+        path = _write(tmp_path, ">chr1 some description\nACGT\nacgt\n")
+        name, seq = read_fasta(path)
+        assert name == "chr1"
+        assert seq == "ACGTACGT", "lowercase and line breaks are formatting, not content"
+
+    def test_rejects_iupac_ambiguity_codes(self, tmp_path):
+        # Deleting these shifts every downstream coordinate, so the model would
+        # score a sequence the caller never supplied.
+        path = _write(tmp_path, ">x\nACGTRYKM\n")
+        with pytest.raises(FastaError) as exc:
+            read_fasta(path)
+        assert "outside ACGTN" in str(exc.value)
+        assert "IUPAC" in str(exc.value), "the hint should name why these specifically cannot be scored"
+
+    def test_rejects_non_iupac_junk_without_the_iupac_hint(self, tmp_path):
+        path = _write(tmp_path, ">x\nACGT--NN\n")
+        with pytest.raises(FastaError) as exc:
+            read_fasta(path)
+        assert "IUPAC" not in str(exc.value)
+
+    def test_rejects_multi_record_input(self, tmp_path):
+        path = _write(tmp_path, ">a\nACGT\n>b\nTTTT\n")
+        with pytest.raises(FastaError) as exc:
+            read_fasta(path)
+        assert "single FASTA record" in str(exc.value)
+        assert "found 2" in str(exc.value)
+
+    def test_error_names_the_offending_line(self, tmp_path):
+        path = _write(tmp_path, ">x\nACGT\nACGTR\n")
+        with pytest.raises(FastaError) as exc:
+            read_fasta(path)
+        assert "line 3" in str(exc.value)
+
+    def test_fasta_error_is_a_value_error(self):
+        # Callers doing broad input validation still catch it.
+        assert issubclass(FastaError, ValueError)
+
+    @pytest.mark.parametrize(
+        "fixture", sorted((SCRIPTS.parent / "assets" / "demo").glob("*.fa")), ids=lambda p: p.name
+    )
+    def test_bundled_demo_fixtures_still_parse(self, fixture):
+        # A stricter parser that rejects our own demos would be useless.
+        name, seq = read_fasta(fixture)
+        assert name and seq
+
+
+class TestCanonicalTss:
+    def _locus(self, **kw):
+        base = dict(
+            ensembl_id="ENSG0", seq_region="11", start=1000, end=2000,
+            strand=1, species="human", display_name="TEST",
+        )
+        base.update(kw)
+        return GeneLocus(**base)
+
+    def test_uses_canonical_start_on_plus_strand(self):
+        locus = self._locus(canonical_start=1500, canonical_end=1900)
+        assert locus.tss == 1500
+
+    def test_uses_canonical_end_on_minus_strand(self):
+        locus = self._locus(strand=-1, canonical_start=1500, canonical_end=1900)
+        assert locus.tss == 1900
+
+    def test_refuses_when_no_canonical_transcript(self):
+        # The old fallback returned the gene body here. That window is still
+        # exactly 9,198 bp, so the client-side size gate passes and the API
+        # returns a confident score for the wrong locus — ACTB's gene body sits
+        # 33,301 bp from its TSS. There is no client-side tell, so refusing is
+        # the only honest option.
+        locus = self._locus()
+        with pytest.raises(EnsemblError) as exc:
+            _ = locus.tss
+        assert "no canonical transcript" in str(exc.value)
+
+    def test_refuses_when_only_one_boundary_is_known(self):
+        locus = self._locus(canonical_start=1500)
+        with pytest.raises(EnsemblError):
+            _ = locus.tss

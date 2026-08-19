@@ -35,7 +35,9 @@ from typing import Any, Dict, Optional
 # Self-contained: import the sibling client module regardless of CWD.
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from gi_client import Client, GIError, read_fasta  # noqa: E402
+import requests  # noqa: E402  (transport errors surface at the call boundary)
+
+from gi_client import Client, FastaError, GIError, read_fasta  # noqa: E402
 
 SKILL_DIR = SCRIPT_DIR.parent
 DEMO_DIR = SKILL_DIR / "assets" / "demo"
@@ -396,7 +398,11 @@ def main() -> int:
     output_dir = args.output or Path(f"/tmp/gi-{task}")
 
     input_path = _resolve_input(args, spec)
-    sequence_name, sequence = read_fasta(input_path)
+    try:
+        sequence_name, sequence = read_fasta(input_path)
+    except FastaError as e:
+        print(f"[gi-{task}] invalid input — {e}", file=sys.stderr)
+        return 1
     if not sequence:
         print(f"Error: parsed an empty sequence from {input_path}", file=sys.stderr)
         return 1
@@ -504,6 +510,23 @@ def main() -> int:
             )
     except GIError as e:
         print(f"[gi-{task}] API error: {e}", file=sys.stderr)
+        return 2
+    except requests.RequestException as e:
+        # Connection refused, DNS failure, TLS error, read timeout — routine
+        # for a hosted service and not the caller's bug. gi_ensembl already
+        # maps these to a diagnostic; do the same here rather than exiting
+        # with a traceback that reads like a client defect.
+        print(f"[gi-{task}] network error reaching the API: {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return 2
+    except TimeoutError as e:
+        # Raised by wait_for_job when a job outlives --max-wait.
+        print(f"[gi-{task}] timed out waiting for the job: {e}", file=sys.stderr)
+        return 2
+    except KeyError as e:
+        # A 2xx whose body is missing a field we index (e.g. data.job_id on an
+        # async submit). Malformed upstream response, not a usage error.
+        print(f"[gi-{task}] unexpected API response shape: missing {e}", file=sys.stderr)
         return 2
 
     elapsed_ms = (time.monotonic() - started) * 1000.0

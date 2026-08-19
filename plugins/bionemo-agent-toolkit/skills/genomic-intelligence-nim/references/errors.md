@@ -100,7 +100,11 @@ for a ~20 kb sequence (longer on a cold GPU).
 - **Raw request body:** 16 MiB, enforced before parsing (`413
   payload_too_large`).
 - **Composite synchronous delivery:** 50,000 bp (`413 sync_too_large` above it).
-- **Single record per request:** split multi-record FASTA and run per record.
+- **Single record per request:** the runner refuses a multi-record FASTA rather
+  than concatenating it into one chimeric sequence. Split the file and run per
+  record. It also refuses bases outside `ACGTN` — deleting an IUPAC ambiguity
+  code would shift every position after it and score a sequence you did not
+  submit.
 - **Rate / concurrency:** per partner tier; `429` signals you have exceeded it.
 
 Authoritative limits are published as `minLength`/`maxLength` on each task's
