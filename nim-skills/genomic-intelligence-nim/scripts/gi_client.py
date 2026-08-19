@@ -32,7 +32,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import requests
 
@@ -52,16 +52,23 @@ MISSING_KEY_MESSAGE = (
 class GIError(RuntimeError):
     """Non-2xx response from the API. Mirrors the ``{error}`` envelope."""
 
-    def __init__(self, status: int, body: Dict[str, Any]):
+    def __init__(
+        self,
+        status: int,
+        body: Dict[str, Any],
+        headers: Optional[Mapping[str, str]] = None,
+    ):
         err = (body or {}).get("error", {}) if isinstance(body, dict) else {}
         self.status = status
         self.code = err.get("code", "http_error")
         self.message = err.get("message", "")
-        self.request_id = err.get("request_id")
+        # The envelope declares request_id required, but 413 sync_too_large
+        # omits it today. The X-Request-Id header is set on every response,
+        # so fall back to it — support tickets always need a correlation id.
+        self.request_id = err.get("request_id") or (headers or {}).get("X-Request-Id")
         self.details = err.get("details")
-        super().__init__(
-            f"[{status} {self.code}] {self.message} (request_id={self.request_id})"
-        )
+        rid = self.request_id or "unset"
+        super().__init__(f"[{status} {self.code}] {self.message} (request_id={rid})")
 
 
 def resolve_api_key(explicit: Optional[str] = None) -> str:
@@ -107,7 +114,7 @@ class Client:
         except ValueError:
             body = {"error": {"code": "non_json", "message": resp.text[:200]}}
         if not resp.ok:
-            raise GIError(resp.status_code, body)
+            raise GIError(resp.status_code, body, resp.headers)
         return body
 
     def health(self) -> Dict[str, Any]:
@@ -194,7 +201,7 @@ class Client:
                 body = r.json()
             except ValueError:
                 body = {"error": {"code": "non_json", "message": r.text[:200]}}
-            raise GIError(r.status_code, body)
+            raise GIError(r.status_code, body, r.headers)
 
 
 def read_fasta(path) -> Tuple[str, str]:

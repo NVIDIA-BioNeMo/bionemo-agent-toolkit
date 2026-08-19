@@ -161,8 +161,9 @@ Switch on `code` first, then read `details` — `details` is keyed on the siblin
 `{errors: […]}` object. Read it defensively (accept both) and never make control
 flow depend on its shape.
 
-`error.request_id` is always populated and mirrors the `X-Request-Id` response
-header. Every response carries `RateLimit-Limit`, `RateLimit-Remaining`,
+`error.request_id` mirrors the `X-Request-Id` response header. The header is
+set on every response; the body field is not — `413 sync_too_large` omits it
+today — so fall back to the header. Every response carries `RateLimit-Limit`, `RateLimit-Remaining`,
 `RateLimit-Reset` and `RateLimit-Policy`; a `429` adds `Retry-After`.
 
 Common: `401/403` (auth), `422 validation_failed` (bad body/length/model/options

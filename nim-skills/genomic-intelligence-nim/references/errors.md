@@ -11,14 +11,16 @@ code 2). The shape:
   "error": {
     "code": "validation_failed",
     "message": "human-readable explanation",
-    "request_id": "req_…",
+    "request_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "details": []
   }
 }
 ```
 
 Always quote the `request_id` when reporting an issue to Genomic Intelligence.
-It mirrors the `X-Request-Id` response header and is always populated.
+It mirrors the `X-Request-Id` response header. The header is set on every
+response; the body field is not — `413 sync_too_large` omits it today — so
+read the header as a fallback.
 
 `code` is a **closed 21-value enum**: `bad_request`, `unauthorized`, `forbidden`,
 `not_found`, `conflict`, `job_expired`, `payload_too_large`, `sync_too_large`,
