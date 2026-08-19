@@ -18,9 +18,9 @@ code 2). The shape:
 ```
 
 Always quote the `request_id` when reporting an issue to Genomic Intelligence.
-It mirrors the `X-Request-Id` response header. The header is set on every
-response; the body field is not — `413 sync_too_large` omits it today — so
-read the header as a fallback.
+It mirrors the `X-Request-Id` response header, and both are set on every
+response: error envelopes carry `error.request_id`, success envelopes carry
+`meta.request_id`. Reading the header as a fallback remains sound practice.
 
 `code` is a **closed 21-value enum**: `bad_request`, `unauthorized`, `forbidden`,
 `not_found`, `conflict`, `job_expired`, `payload_too_large`, `sync_too_large`,
@@ -30,13 +30,12 @@ read the header as a fallback.
 `http_error`, `unknown`. The schema explicitly says to treat an unlisted value as
 a generic failure, not a parse error.
 
-**Branch on `code`, never on `details` or `loc`.** `details` is documented as
-keyed on the sibling `code` (`ValidationFailedDetails`,
-`TaskNotSupportedByModelDetails`, `ModelNotFoundDetails`, `SyncTooLargeDetails`,
-`GenericDetails`, or null), but the server currently emits a validation failure's
-`details` as a **bare FastAPI error array** (`[{loc, msg, type}, …]`) rather than
-the `{errors: […]}` object the component declares. Read it defensively — accept
-both shapes — and keep control flow off it.
+**Branch on `code`, never on `details` or `loc`.** `details` is keyed on the
+sibling `code` (`ValidationFailedDetails`, `TaskNotSupportedByModelDetails`,
+`ModelNotFoundDetails`, `SyncTooLargeDetails`, `GenericDetails`, or null). A
+validation failure carries the declared `{errors: [{loc, msg, type}, …]}`
+object — the FastAPI error array wrapped under `errors`. Read it defensively
+and keep control flow off it.
 
 ## Common status codes
 
@@ -75,7 +74,10 @@ Every response — success or error — carries `RateLimit-Limit`,
 
 ## Async polling (`annotation`)
 
-`annotation` is async. The flow inside `scripts/gi_predict.py`:
+The skill runs `annotation` asynchronously by default; the API accepts either
+mode on every task (`Prefer: respond-async` is declared on all six predict
+operations, and annotation returns `200` synchronously without it). The flow
+inside `scripts/gi_predict.py`:
 
 1. `POST /v1/tasks/annotation/predict` with header `Prefer: respond-async`
    → returns `202` with `data.job_id`.

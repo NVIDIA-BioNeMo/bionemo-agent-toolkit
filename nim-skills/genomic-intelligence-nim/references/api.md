@@ -102,9 +102,6 @@ schema wins.
   300 bp promoter models 300), splice 15,000, enhancer 249, chromatin 1,000.
 - `trained_window_bp` — fixed receptive field; 9,198 for `g0-expression`, `null`
   for sliding-window models.
-- `max_seq_length_bp` — legacy and ambiguous: 500,000 everywhere **except**
-  `g0-expression`, where it is 9,198 (the trained window, not a cap). Prefer
-  `request_max_bp`.
 
 There is no `strand_sensitive` flag. The splice model is strand-specific in
 practice — feed transcript orientation.
@@ -156,15 +153,15 @@ Non-2xx responses carry:
 clients to treat an unlisted value as a generic failure, not a parse error.
 
 Switch on `code` first, then read `details` — `details` is keyed on the sibling
-`code` and is currently emitted as a bare FastAPI error **array**
-(`[{loc, msg, type}, …]`) even though `ValidationFailedDetails` declares an
-`{errors: […]}` object. Read it defensively (accept both) and never make control
-flow depend on its shape.
+`code` and matches the declared schema: `validation_failed` carries the
+`ValidationFailedDetails` object `{errors: [{loc, msg, type}, …]}`. Read it
+defensively and never make control flow depend on its shape.
 
-`error.request_id` mirrors the `X-Request-Id` response header. The header is
-set on every response; the body field is not — `413 sync_too_large` omits it
-today — so fall back to the header. Every response carries `RateLimit-Limit`, `RateLimit-Remaining`,
-`RateLimit-Reset` and `RateLimit-Policy`; a `429` adds `Retry-After`.
+`error.request_id` mirrors the `X-Request-Id` response header, and both are set
+on every response — error envelopes (including `413 sync_too_large`) and success
+envelopes, where it lives at `meta.request_id`. Every response carries
+`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` and
+`RateLimit-Policy`; a `429` adds `Retry-After`.
 
 Common: `401/403` (auth), `422 validation_failed` (bad body/length/model/options
 — including over-length sequence), `429` (rate limit), `413 payload_too_large`
@@ -202,10 +199,8 @@ Retry the same body with `Prefer: respond-async`.
 
 ## Version note
 
-Everything above describes the schema served from `2026.08.19.4`. Production
-(`api.genomicintelligence.ai`) may still be serving `2026.08.18.1` until that
-build is promoted; on the older build the six literal predict operations, the
-typed `options` objects, the per-task floors, the published composite, the
-`Prefer` parameter, the `code` enum and the new `bio_spec` fields are not yet
-present. Request URLs and response envelopes are unchanged either way. Check
-`info.version` in `/v1/openapi.json` if a detail here does not match.
+Everything above is live on `api.genomicintelligence.ai`, which serves
+gpu_service `2026.08.19.5`: the six literal predict operations, the typed
+`options` objects, the per-task floors, the published composite, the `Prefer`
+parameter, the `code` enum and the `bio_spec` fields. Check `info.version` in
+`/v1/openapi.json` if a detail here does not match.
