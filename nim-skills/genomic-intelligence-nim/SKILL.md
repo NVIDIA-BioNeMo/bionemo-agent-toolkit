@@ -139,8 +139,13 @@ FASTA=$(python scripts/gi_fetch.py --gene HBB --for-expression --out out/hbb.fa)
 python scripts/gi_predict.py --task expression --input "$FASTA" --description "K562 cells" --output out/expr
 
 # Or hand over a whole locus and name the TSS; the server slices TSS +/- 4,599 bp.
-# --region returns the strand you ask for and expression never reverse-complements,
-# so a minus-strand gene needs --strand -1. HBB is minus-strand.
+#
+# STRAND: expression scores whatever you send, in the orientation you send it.
+# It never reverse-complements, and nothing in the request or the response
+# reports strand -- a wrong-strand window returns a confident number, not an
+# error. Always submit gene-sense sequence. --region returns the strand you ask
+# for and defaults to --strand 1, so a minus-strand gene needs --strand -1
+# explicitly. HBB is minus-strand.
 LOCUS=$(python scripts/gi_fetch.py --region chr11:5,220,000-5,240,000 --strand -1 \
   --out out/locus.fa)
 # Offset of the TSS into the returned sequence, 0-based, whitespace stripped.
