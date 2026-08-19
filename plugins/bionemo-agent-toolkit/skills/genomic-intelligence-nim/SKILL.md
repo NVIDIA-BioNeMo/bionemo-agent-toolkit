@@ -29,19 +29,47 @@ Load supplemental files only when needed:
 
 ## The six tasks
 
-| Task | What it predicts | Mode | Length |
-|---|---|---|---|
-| `promoter` | Promoter regions (sliding window) | sync | 1–500,000 bp |
-| `splice` | Splice donor/acceptor sites | sync | 1–500,000 bp |
-| `enhancer` | Developmental & housekeeping enhancer activity | sync | 50–500,000 bp |
-| `chromatin` | Chromatin state across hundreds of tracks | sync | 1–500,000 bp |
-| `expression` | Expression as log(TPM+1) | sync | **exactly 9,198 bp** |
-| `annotation` | De-novo gene/transcript structure | **async** | 1–500,000 bp |
+Each task is its own published operation — `POST /v1/tasks/promoter/predict`,
+`/v1/tasks/splice/predict`, and so on — with its own request schema, its own
+minimum length, and its own closed `options` object. The URLs are unchanged from
+what callers already send.
+
+| Task | What it predicts | Recommended mode | Accepted length | `context_window_bp` |
+|---|---|---|---|---|
+| `promoter` | Promoter regions (sliding window) | sync | 300–500,000 bp | 2,000 bp (300 bp models exist) |
+| `splice` | Splice donor/acceptor sites | sync | 100–500,000 bp | 15,000 bp |
+| `enhancer` | Developmental & housekeeping enhancer activity | sync | 50–500,000 bp | 249 bp |
+| `chromatin` | Chromatin state across hundreds of tracks | sync | 200–500,000 bp | 1,000 bp |
+| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** | n/a (`trained_window_bp` 9,198) |
+| `annotation` | De-novo gene/transcript structure | async | 1,000–500,000 bp | n/a |
+
+`Recommended mode` is guidance, not a constraint — every task accepts both. Omit `Prefer` for a synchronous `200`; send `Prefer: respond-async` for a `202` plus `GET /v1/tasks/jobs/{job_id}`. Only the composite workflow enforces a mode, rejecting sync above 50,000 bp with `413 sync_too_large`.
+
+The minimum is **admission control, not regime**. A sequence above the floor but
+shorter than the selected model's `bio_spec.context_window_bp` is *accepted and
+scored* — against a window padded out to the context window. So a 100 bp enhancer
+request succeeds, but the model saw ~150 bp of padding; compare your length
+against `context_window_bp` (from `GET /v1/tasks/{task}/models`) to know whether
+it scored real sequence. Longer-than-context input is fine: the scanner steps a
+prediction window at a time and pads only the final partial window. All lengths
+are measured **after whitespace is stripped**, so a line-wrapped FASTA body can be
+pasted verbatim. Under the floor and over the cap are both
+`422 validation_failed` — over-length is *not* a `413`.
 
 `expression` additionally needs a cell-type/assay context string
-(`--description`, e.g. `"K562 cells"`) and an exact 9,198 bp TSS-centred window.
-`annotation` submits with `Prefer: respond-async` and polls to completion.
+(`--description`, e.g. `"K562 cells"`). The model always scores exactly one
+9,198 bp TSS-centred window, so 9,198 bp is a hard floor — but the endpoint
+accepts up to 500,000 bp and will cut the window for you if you pass
+`--tss-index` (the 0-based TSS offset into the sequence). `--tss-index` is
+required for any expression sequence that is not exactly 9,198 bp.
+`annotation` defaults to `Prefer: respond-async` and polls to completion; the
+mode is the runner's choice, not an API constraint.
 Details: `references/tasks.md`.
+
+`options` is closed (`additionalProperties: false`) on every task, and each task
+declares different keys — `description` exists only on `expression`. An
+unrecognised key is a hard `422 validation_failed`, never ignored, so never
+forward an option you have not confirmed against the live schema.
 
 ## Authentication
 
@@ -68,7 +96,7 @@ pip install requests
 
 Unlike the inline-only `nim-skills/`, this skill ships a small, self-contained
 (`requests`-only) runner, because the surface spans six tasks plus an async job
-(`annotation`) and an exact-window contract (`expression`) that do not inline
+(`annotation`) and a windowing contract (`expression`) that do not inline
 cleanly. Shipping `scripts/` is not prohibited by CONTRIBUTING and other skills
 do it; the runner is the same proven
 client used across Genomic Intelligence's other integrations.
@@ -112,7 +140,31 @@ python scripts/gi_predict.py --task promoter --input "$FASTA" --output out/promo
 # Expression of HBB in K562 — the exact 9,198 bp TSS window is built for you
 FASTA=$(python scripts/gi_fetch.py --gene HBB --for-expression --out out/hbb.fa)
 python scripts/gi_predict.py --task expression --input "$FASTA" --description "K562 cells" --output out/expr
+
+# Or hand over a whole locus and name the TSS; the server slices TSS +/- 4,599 bp.
+#
+# STRAND: expression scores whatever you send, in the orientation you send it.
+# It never reverse-complements, and nothing in the request or the response
+# reports strand -- a wrong-strand window returns a confident number, not an
+# error. Always submit gene-sense sequence. --region returns the strand you ask
+# for and defaults to --strand 1, so a minus-strand gene needs --strand -1
+# explicitly. HBB is minus-strand.
+LOCUS=$(python scripts/gi_fetch.py --region chr11:5,220,000-5,240,000 --strand -1 \
+  --out out/locus.fa)
+# Offset of the TSS into the returned sequence, 0-based, whitespace stripped.
+# Plus strand:  TSS_INDEX = TSS - REGION_START
+# Minus strand: TSS_INDEX = REGION_END - TSS      (the sequence is reverse-complemented)
+# Must satisfy 4599 <= TSS_INDEX <= len(sequence) - 4599.
+# HBB 5' end on the minus strand is 5,229,395 (Ensembl, GRCh38).
+TSS_INDEX=$(( 5240000 - 5229395 ))
+python scripts/gi_predict.py --task expression --input "$LOCUS" --description "K562 cells" \
+  --tss-index "$TSS_INDEX" --output out/expr
 ```
+
+Prefer `--for-expression` when you have a gene symbol: it resolves the canonical
+transcript and cuts the window for you, so there is no offset to get wrong. A
+`--tss-index` that is in range but wrong is not an error — it scores the wrong
+window and returns `200`.
 
 `gi_predict.py` prints a compact JSON summary to **stdout** (headline scalars
 only; bulky per-item arrays stay in `result.json`). Progress/verification lines
@@ -143,7 +195,7 @@ body = resp.json()          # {"data": {...}, "meta": {...}}
 print(body["data"]["summary"])
 ```
 
-Prefer the runner for `expression` (exact-window + `description`) and
+Prefer the runner for `expression` (window/`tss_index` bounds + `description`) and
 `annotation` (async) — those are error-prone to inline.
 
 ## Standard workflow
@@ -157,7 +209,8 @@ Prefer the runner for `expression` (exact-window + `description`) and
 3. **Predict:**
    ```bash
    python scripts/gi_predict.py --task <task> --input <FASTA> --output <dir> \
-     [--model <id>] [--description "<cell type>"]   # description: expression only
+     [--model <id>] [--description "<cell type>"] [--tss-index <n>]
+     # --description and --tss-index: expression only
    ```
 4. **Read the result:** parse the stdout JSON for the headline; open
    `<dir>/report.md` or `<dir>/result.json` for detail.
@@ -165,22 +218,28 @@ Prefer the runner for `expression` (exact-window + `description`) and
 ## Validate and report
 
 Treat an invalid alphabet, an out-of-bounds length, a missing `expression`
-window/description, or a non-2xx response as **hard failures** (the runner exits
-non-zero and names the cause on stderr). Treat zero hits on a sequence you
-expected to be feature-bearing as a **warning**. Record `meta.model` and
-`meta.request_id` for audit.
+window/description/`--tss-index`, or a non-2xx response as **hard failures** (the
+runner exits non-zero and names the cause on stderr). Treat zero hits on a
+sequence you expected to be feature-bearing as a **warning**. Record
+`meta.model` and `meta.request_id` for audit. For `expression`, also check the
+`scored_window` / `tss_index` echoed in the stdout summary: a `--tss-index` that
+is in range but wrong is not an error, it just scores the wrong window.
 
 ## Troubleshooting
 
 | Symptom (stderr) | Cause | Fix |
 |---|---|---|
 | `GI_API_KEY is not set` | No key | `export GI_API_KEY=gi_…` |
-| `invalid input — expects exactly 9,198 bp` | Wrong expression window — raised by **this client**, not the API (the API would truncate or pad and return a wrong score) | Use `gi_fetch.py --gene X --for-expression` |
+| `sequence too short: … < 9,198 bp minimum` | Expression sequence below the window size | Use `gi_fetch.py --gene X --for-expression` |
+| `sequence too short: … bp minimum` (other tasks) | Below the task floor (promoter 300, splice 100, enhancer 50, chromatin 200, annotation 1,000) | Fetch more sequence; server-side this is a `422`, not a `413` |
+| `API error: [413 payload_too_large]` | Raw request body over 16 MiB | Split the input; this is the body cap, not the sequence cap |
+| `--tss-index is required unless the sequence is exactly 9,198 bp` | Longer locus, no TSS named | Add `--tss-index <0-based offset>` |
+| `--tss-index … outside the allowed range` | TSS too close to an edge | Submit more flanking sequence |
 | `--description is required` | expression w/o context | `--description "K562 cells"` |
 | `API error: [401 …]` | Bad/revoked key | Re-check `GI_API_KEY` |
 | `API error: [422 …]` | Body/model rejected | Check `--model` in `references/tasks.md` |
 | `API error: [429 …]` | Rate limit | Back off; partner tiers have caps |
-| `API error: [504 upstream_timeout]` | Large sync req, cold GPU | Retry or shorten |
+| `API error: [504 timeout]` | Large sync req, cold GPU | Retry or shorten |
 | `parsed an empty sequence` | Empty/invalid FASTA | Check the file is a single ACGT record |
 
 More: `references/errors.md`.

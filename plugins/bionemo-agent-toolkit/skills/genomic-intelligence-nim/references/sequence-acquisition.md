@@ -18,7 +18,7 @@ python scripts/gi_fetch.py --gene TP53 --out tp53.fa
 # Coordinate range
 python scripts/gi_fetch.py --region chr17:7,661,779-7,687,546 --out region.fa
 
-# Exact 9,198 bp TSS-centred window (expression only)
+# 9,198 bp TSS-centred window (expression; or send a wider locus + --tss-index)
 python scripts/gi_fetch.py --gene HBB --for-expression --out hbb_tss.fa
 ```
 
@@ -33,8 +33,12 @@ python scripts/gi_predict.py --task promoter --input "$FASTA" --output out/
 
 ## TSS-centring (why `--for-expression` exists)
 
-The expression model requires **exactly 9,198 bp centred on the transcription
-start site (TSS)**. You cannot reliably build this from gene-body coordinates:
+The expression model always scores **exactly 9,198 bp centred on the
+transcription start site (TSS)**. You may either hand it a pre-cut 9,198 bp
+window (what `--for-expression` builds) or hand it up to 500,000 bp plus
+`--tss-index` and let the server slice. Either way you must know where the TSS
+is — the endpoint never discovers it, never pads, and never
+reverse-complements. You cannot reliably build this from gene-body coordinates:
 the gene's annotated start/end can sit far from the real TSS — HBB's gene end is
 2,324 bp from its canonical TSS, ACTB's is 33,301 bp. Mis-centring tanks the
 prediction.
@@ -76,7 +80,10 @@ coordinates.
 
 ## Limits
 
-Reference fetch is bounded by the task's own input cap (500,000 bp for most;
-exactly 9,198 bp for expression). Ensembl enforces its own per-request size
+Reference fetch is bounded by the task's own input cap (500,000 bp for every
+task) and its floor (promoter 300, splice 100, enhancer 50, chromatin 200,
+annotation 1,000, expression 9,198 bp). Fetch at least the model's
+`context_window_bp` if you want the score to reflect real sequence rather than
+padding — see `references/tasks.md`. Ensembl enforces its own per-request size
 limits on `/sequence/region`; very large ranges may be rejected upstream —
 fetch in pieces or narrow the region.

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Unified CLI for the Genomic Intelligence DNA-sequence tasks.
 
-One entry point covers all six tasks exposed by the hosted
-``/v1/tasks/{task}/predict`` contract:
+One entry point covers all six tasks exposed by the hosted API. Each is its own
+published operation at ``/v1/tasks/<task>/predict`` (same URLs as always, but a
+separate request schema per task):
 
     promoter · splice · enhancer · chromatin · expression · annotation
 
-It parses a single-record FASTA, calls the API (sync, or async for
-``annotation``), and writes ``report.md`` + ``result.json`` +
-``reproducibility/`` to the output directory.
+It parses a single-record FASTA, calls the API, and writes ``report.md`` +
+``result.json`` + ``reproducibility/`` to the output directory. Delivery is
+synchronous except for ``annotation``, which defaults to async because it is
+slow — the API accepts either mode on every task.
 
 Usage:
     python scripts/gi_predict.py --task promoter --demo
@@ -46,25 +48,28 @@ DISCLAIMER = (
 
 
 class TaskSpec:
-    """Per-task metadata: input bounds, async flag, demo fixture."""
+    """Per-task metadata: input bounds, default delivery mode, demo fixture."""
 
     def __init__(
         self,
         min_bp: int,
         max_bp: int,
-        async_mode: bool,
+        async_default: bool,
         demo: str,
-        exact_bp: Optional[int] = None,
+        window_bp: Optional[int] = None,
     ) -> None:
         self.min_bp = min_bp
         self.max_bp = max_bp
-        self.async_mode = async_mode
+        # Delivery mode this runner picks by default. The API accepts BOTH
+        # modes on every task (Prefer: respond-async is a per-request header),
+        # so this is a latency choice, not a constraint.
+        self.async_default = async_default
         self.demo = demo
-        self.exact_bp = exact_bp
+        # Fixed scoring-window width, if the task has one (expression: 9,198 bp).
+        # Anything longer than the window needs an explicit --tss-index.
+        self.window_bp = window_bp
 
     def validate(self, length: int) -> Optional[str]:
-        if self.exact_bp is not None and length != self.exact_bp:
-            return f"expects exactly {self.exact_bp:,} bp, got {length:,} bp"
         if length < self.min_bp:
             return f"sequence too short: {length:,} bp < {self.min_bp:,} bp minimum"
         if length > self.max_bp:
@@ -72,23 +77,55 @@ class TaskSpec:
         return None
 
 
-# Bounds follow the public /v1 contract. The minimums here are the *request*
-# floors, not per-model floors: each model enforces its own minimum server-side
-# and returns a clear 422 (g0-deepstarr needs 50 bp, dnabert-deepstarr 16). Since
-# --model can select any of them, a static client-side floor would reject input
-# the server accepts, so we leave it at 1 and let the server speak.
+# These bounds are a LOCAL MIRROR, not the authority. The authority is the
+# `minLength`/`maxLength` published on each task's request schema in the live
+# OpenAPI doc (https://api.genomicintelligence.ai/v1/openapi.json). Re-read it
+# if a rejection here disagrees with the server.
 #
-# expression is the one deliberate exception: it pins an exact 9,198 bp
-# TSS-centred window as a *client-side* guard, because the API would accept
-# another length and silently truncate or pad to the model's fixed window,
-# returning a confident score for the wrong input.
+# Each task has its own floor — the strictest its models need — enforced at
+# request validation before any model loads (there is no longer a shared
+# PredictRequest, and there are no per-model floors, so --model can never make a
+# rejected length legal). The floor is admission control, NOT a statement about
+# regime: a sequence above the floor but shorter than the selected model's
+# `bio_spec.context_window_bp` is accepted and scored against a window padded out
+# to the context window. Compare your length against `context_window_bp` (from
+# GET /v1/tasks/{task}/models) to know whether the model saw real sequence or
+# padding. Every task caps at 500,000 bp. Under-floor and over-max are both
+# 422 validation_failed server-side — a 413 means the 16 MiB raw-body cap, never
+# a long sequence.
+PROMOTER_MIN_BP = 300
+SPLICE_MIN_BP = 100
+ENHANCER_MIN_BP = 50
+CHROMATIN_MIN_BP = 200
+ANNOTATION_MIN_BP = 1_000
+MAX_BP = 500_000
+
+# expression's floor is also the width of the single window the model scores:
+# sequence[tss_index-4599 : tss_index+4599]. Send a pre-cut 9,198 bp window, or
+# send up to 500 kb plus --tss-index and let the server slice.
+#
+# The default path is deliberately stricter than the API: with no --tss-index,
+# this client requires *exactly* 9,198 bp rather than merely at-or-above the
+# floor. That is the tripwire — the server will happily score a 9,198 bp window
+# cut from the wrong place and return a confident 200, and there is no
+# client-side tell for a mis-centred window. Requiring the exact width keeps the
+# caller visibly responsible for TSS-centring. --tss-index is the explicit
+# opt-in that widens the accepted range to the full 9,198–500,000 bp the API
+# allows and hands the cut to the server; it is range-checked below, and what
+# was actually scored is echoed back from response meta rather than assumed.
+EXPRESSION_WINDOW_BP = 9_198
+EXPRESSION_TSS_RADIUS = EXPRESSION_WINDOW_BP // 2  # 4,599
+
 TASKS: Dict[str, TaskSpec] = {
-    "promoter": TaskSpec(1, 500_000, False, "promoter_tp53.fa"),
-    "splice": TaskSpec(1, 500_000, False, "splice_hbb.fa"),
-    "enhancer": TaskSpec(1, 500_000, False, "enhancer_eve.fa"),
-    "chromatin": TaskSpec(1, 500_000, False, "chromatin_active_promoter_chr19.fa"),
-    "expression": TaskSpec(9_198, 9_198, False, "expression_hbb_k562.fa", exact_bp=9_198),
-    "annotation": TaskSpec(1, 500_000, True, "annotation_tp53.fa"),
+    "promoter": TaskSpec(PROMOTER_MIN_BP, MAX_BP, False, "promoter_tp53.fa"),
+    "splice": TaskSpec(SPLICE_MIN_BP, MAX_BP, False, "splice_hbb.fa"),
+    "enhancer": TaskSpec(ENHANCER_MIN_BP, MAX_BP, False, "enhancer_eve.fa"),
+    "chromatin": TaskSpec(CHROMATIN_MIN_BP, MAX_BP, False, "chromatin_active_promoter_chr19.fa"),
+    "expression": TaskSpec(
+        EXPRESSION_WINDOW_BP, MAX_BP, False, "expression_hbb_k562.fa",
+        window_bp=EXPRESSION_WINDOW_BP,
+    ),
+    "annotation": TaskSpec(ANNOTATION_MIN_BP, MAX_BP, True, "annotation_tp53.fa"),
 }
 
 
@@ -110,7 +147,22 @@ def _parse_args() -> argparse.Namespace:
         "--description",
         type=str,
         default=None,
-        help="Cell type / assay context. REQUIRED by expression; ignored by other tasks.",
+        help=(
+            "Cell type / assay context. REQUIRED by expression; not accepted by "
+            "any other task (their options objects are closed), so it is dropped "
+            "with a warning if passed elsewhere."
+        ),
+    )
+    p.add_argument(
+        "--tss-index",
+        type=int,
+        default=None,
+        dest="tss_index",
+        help=(
+            "expression only: 0-based TSS offset into the sequence (whitespace "
+            "stripped). REQUIRED unless the sequence is exactly 9,198 bp. The "
+            "server scores sequence[tss_index-4599 : tss_index+4599]."
+        ),
     )
     p.add_argument("--api-key", type=str, default=None, help="Override GI_API_KEY env.")
     p.add_argument("--base-url", type=str, default=None, help="Override GI_BASE_URL (default: https://api.genomicintelligence.ai).")
@@ -159,6 +211,12 @@ def _summarize(task: str, body: Dict[str, Any]) -> Dict[str, Any]:
         pred = data.get("prediction") or {}
         out["log_tpm"] = pred.get("expression_log_tpm")
         out["tpm"] = pred.get("expression_tpm")
+        # Windowing provenance: an in-range but *wrong* tss_index scores the
+        # wrong 9,198 bp window and still returns 200, so surface what was
+        # actually scored rather than trusting the request.
+        counts = (body.get("meta") or {}).get("task_specific_counts") or {}
+        out["tss_index"] = counts.get("tss_index")
+        out["scored_window"] = counts.get("scored_window")
     elif task == "annotation":
         out["transcripts_found"] = summary.get("total_transcripts", summary.get("transcripts_found"))
         out["transcripts"] = data.get("transcripts") or []
@@ -234,11 +292,13 @@ def _repro_command(
     output_dir: Path,
     model: Optional[str] = None,
     description: Optional[str] = None,
+    tss_index: Optional[int] = None,
 ) -> str:
     """Build the exact re-runnable invocation for reproducibility/command.sh.
 
-    Emits --model and --description only when they were supplied, so a replay
-    reproduces the original call: expression requires --description (no default),
+    Emits --model, --description and --tss-index only when they were supplied,
+    so a replay reproduces the original call: expression requires --description
+    (no default) and --tss-index whenever the sequence is not exactly 9,198 bp,
     and a non-default --model must survive. Uses python3 and shell-quotes every
     value so paths/descriptions with spaces round-trip.
     """
@@ -252,6 +312,8 @@ def _repro_command(
         parts.append(f"--model {shlex.quote(model)}")
     if description is not None:
         parts.append(f"--description {shlex.quote(description)}")
+    if tss_index is not None:
+        parts.append(f"--tss-index {tss_index}")
     return " ".join(parts)
 
 
@@ -266,6 +328,7 @@ def _write_report(
     elapsed_ms: float,
     model: Optional[str] = None,
     description: Optional[str] = None,
+    tss_index: Optional[int] = None,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "result.json").write_text(
@@ -307,7 +370,7 @@ def _write_report(
 
     repro = output_dir / "reproducibility"
     repro.mkdir(exist_ok=True)
-    cmd = _repro_command(task, input_path, output_dir, model, description) + "\n"
+    cmd = _repro_command(task, input_path, output_dir, model, description, tss_index) + "\n"
     (repro / "command.sh").write_text("#!/usr/bin/env bash\nset -euo pipefail\n" + cmd)
     (repro / "command.sh").chmod(0o755)
     (repro / "environment.json").write_text(
@@ -343,11 +406,48 @@ def main() -> int:
         print(f"[gi-{task}] invalid input — {length_err}", file=sys.stderr)
         if task == "expression":
             print(
-                "  The expression model takes an exact 9,198 bp window centred on a TSS. "
-                "See references/tasks.md#expression.",
+                "  The expression model scores exactly one 9,198 bp TSS-centred window "
+                "(TSS ± 4,599), so 9,198 bp is a hard floor. Send a pre-cut window, or a "
+                "longer locus plus --tss-index. See references/tasks.md#expression.",
+                file=sys.stderr,
+            )
+        elif len(sequence) < spec.min_bp:
+            print(
+                f"  {task} needs at least {spec.min_bp:,} bp. This floor is published as "
+                f"minLength on the endpoint's request schema; the server rejects a shorter "
+                f"sequence with 422 validation_failed. See references/tasks.md.",
                 file=sys.stderr,
             )
         return 1
+
+    tss_index = args.tss_index
+    if task == "expression":
+        if tss_index is None:
+            # Default path: exact window only. See the EXPRESSION_WINDOW_BP note
+            # above for why this is stricter than the API's own floor.
+            if len(sequence) != EXPRESSION_WINDOW_BP:
+                print(
+                    f"[gi-expression] --tss-index is required unless the sequence is "
+                    f"exactly {EXPRESSION_WINDOW_BP:,} bp (got {len(sequence):,} bp). "
+                    "It is the 0-based TSS offset into the sequence. "
+                    "See references/tasks.md#expression.",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            lo, hi = EXPRESSION_TSS_RADIUS, len(sequence) - EXPRESSION_TSS_RADIUS
+            if not (lo <= tss_index <= hi):
+                print(
+                    f"[gi-expression] --tss-index {tss_index:,} outside the allowed range "
+                    f"[{lo:,}, {hi:,}] for a {len(sequence):,} bp sequence — the model needs "
+                    f"a full ±{EXPRESSION_TSS_RADIUS:,} bp window around the TSS; submit more "
+                    "flanking sequence.",
+                    file=sys.stderr,
+                )
+                return 1
+    elif tss_index is not None:
+        print(f"[gi-{task}] --tss-index applies to expression only; ignoring it.", file=sys.stderr)
+        tss_index = None
 
     if task == "expression" and not args.description:
         print(
@@ -362,18 +462,29 @@ def main() -> int:
     except RuntimeError as e:
         print(str(e), file=sys.stderr)
         return 2
+    # `options` is a closed (additionalProperties: false) object per task, and
+    # only ExpressionOptions declares `description`. Forwarding it on any other
+    # task is a hard 422 validation_failed (extra_forbidden), not a no-op — so
+    # drop it locally rather than letting the server reject the call.
     options: Dict[str, Any] = {}
     if args.description is not None:
-        options["description"] = args.description
+        if task == "expression":
+            options["description"] = args.description
+        else:
+            print(
+                f"[gi-{task}] --description applies to expression only; ignoring it "
+                f"({task} rejects unknown options keys with 422).",
+                file=sys.stderr,
+            )
 
     print(
         f"[gi-{task}] sequence_name={sequence_name} length={len(sequence):,} bp "
-        f"model={args.model or 'default'} mode={'async' if spec.async_mode else 'sync'}",
+        f"model={args.model or 'default'} mode={'async' if spec.async_default else 'sync'}",
         file=sys.stderr,
     )
     started = time.monotonic()
     try:
-        if spec.async_mode:
+        if spec.async_default:
             job_id = client.submit_async(
                 task, sequence=sequence, sequence_name=sequence_name,
                 model=args.model, options=options or None,
@@ -389,7 +500,7 @@ def main() -> int:
         else:
             body = client.predict(
                 task, sequence=sequence, sequence_name=sequence_name,
-                model=args.model, options=options or None,
+                model=args.model, options=options or None, tss_index=tss_index,
             )
     except GIError as e:
         print(f"[gi-{task}] API error: {e}", file=sys.stderr)
@@ -399,7 +510,7 @@ def main() -> int:
     summary = _summarize(task, body)
     _write_report(
         task, summary, body, output_dir, input_path, sequence_name, len(sequence),
-        elapsed_ms, model=args.model, description=args.description,
+        elapsed_ms, model=args.model, description=args.description, tss_index=tss_index,
     )
     print(f"[gi-{task}] OK — wrote {output_dir}/report.md ({elapsed_ms:.0f} ms wall)", file=sys.stderr)
 

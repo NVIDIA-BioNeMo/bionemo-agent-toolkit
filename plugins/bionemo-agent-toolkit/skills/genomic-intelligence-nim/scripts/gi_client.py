@@ -1,9 +1,18 @@
 """Client for the Genomic Intelligence API.
 
 Self-contained — this module has no dependencies beyond ``requests`` and is
-imported by ``gi_predict.py`` (same directory). It wraps the hosted
-``/v1/tasks/{task}/predict`` contract for all six DNA-sequence tasks
-(promoter, splice, enhancer, chromatin, expression, annotation).
+imported by ``gi_predict.py`` (same directory). It wraps the hosted predict
+contract for all six DNA-sequence tasks (promoter, splice, enhancer,
+chromatin, expression, annotation).
+
+Each task is its own published operation — ``POST /v1/tasks/promoter/predict``,
+``/v1/tasks/splice/predict``, and so on — with its own request schema, its own
+``minLength``, and its own closed ``options`` object. The URLs are the same
+strings this module has always built, so ``f"{base}/v1/tasks/{task}/predict"``
+stays correct; only the schema is per-task now. ``options`` is
+``additionalProperties: false`` on every task, so an unrecognised key is a hard
+``422 validation_failed`` rather than being ignored — never forward option keys
+you have not confirmed against the live schema.
 
 Auth resolution order:
 1. Explicit ``api_key=`` constructor arg (``--api-key`` on the CLI).
@@ -23,7 +32,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import requests
 
@@ -43,16 +52,23 @@ MISSING_KEY_MESSAGE = (
 class GIError(RuntimeError):
     """Non-2xx response from the API. Mirrors the ``{error}`` envelope."""
 
-    def __init__(self, status: int, body: Dict[str, Any]):
+    def __init__(
+        self,
+        status: int,
+        body: Dict[str, Any],
+        headers: Optional[Mapping[str, str]] = None,
+    ):
         err = (body or {}).get("error", {}) if isinstance(body, dict) else {}
         self.status = status
         self.code = err.get("code", "http_error")
         self.message = err.get("message", "")
-        self.request_id = err.get("request_id")
+        # Prefer the envelope's request_id; every error response carries it.
+        # Fall back to the X-Request-Id header for robustness (e.g. a non-JSON
+        # body from a proxy) — support tickets always need a correlation id.
+        self.request_id = err.get("request_id") or (headers or {}).get("X-Request-Id")
         self.details = err.get("details")
-        super().__init__(
-            f"[{status} {self.code}] {self.message} (request_id={self.request_id})"
-        )
+        rid = self.request_id or "unset"
+        super().__init__(f"[{status} {self.code}] {self.message} (request_id={rid})")
 
 
 def resolve_api_key(explicit: Optional[str] = None) -> str:
@@ -69,7 +85,7 @@ def resolve_api_key(explicit: Optional[str] = None) -> str:
 
 
 class Client:
-    """Thin synchronous client for /v1/tasks/{task}/predict."""
+    """Thin synchronous client for the /v1/tasks/<task>/predict endpoints."""
 
     def __init__(
         self,
@@ -96,9 +112,12 @@ class Client:
         try:
             body = resp.json()
         except ValueError:
-            body = {"error": {"code": "non_json", "message": resp.text[:200]}}
+            # http_error is a published enum value; the response arrived with a
+            # status and body, it just was not JSON. Client-origin errors carry
+            # no request_id, which distinguishes them from server codes.
+            body = {"error": {"code": "http_error", "message": resp.text[:200]}}
         if not resp.ok:
-            raise GIError(resp.status_code, body)
+            raise GIError(resp.status_code, body, resp.headers)
         return body
 
     def health(self) -> Dict[str, Any]:
@@ -112,12 +131,17 @@ class Client:
         sequence_name: str = "sequence",
         model: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        tss_index: Optional[int] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {"sequence": sequence, "sequence_name": sequence_name}
         if model is not None:
             body["model"] = model
         if options is not None:
             body["options"] = options
+        # expression only: 0-based TSS offset into the whitespace-stripped
+        # sequence. Required by the API unless the sequence is exactly 9,198 bp.
+        if tss_index is not None:
+            body["tss_index"] = tss_index
         r = self._session.post(
             f"{self.base_url}/v1/tasks/{task}/predict",
             json=body,
@@ -179,8 +203,8 @@ class Client:
             try:
                 body = r.json()
             except ValueError:
-                body = {"error": {"code": "non_json", "message": r.text[:200]}}
-            raise GIError(r.status_code, body)
+                body = {"error": {"code": "http_error", "message": r.text[:200]}}
+            raise GIError(r.status_code, body, r.headers)
 
 
 def read_fasta(path) -> Tuple[str, str]:

@@ -21,7 +21,9 @@ from typing import Optional, Tuple
 
 import requests
 
-# Expression model window — mirrors gpu_service expression exact_bp (2 * 4599).
+# Expression scoring window — mirrors gpu_service EXPRESSION_SEQUENCE_LENGTH
+# (2 * EXPRESSION_TSS_RADIUS = 2 * 4599). Building the window here means the
+# request needs no tss_index; longer submissions must supply one.
 EXPRESSION_SEQUENCE_LENGTH = 9_198
 
 DEFAULT_ENSEMBL_URL = "https://rest.ensembl.org"
