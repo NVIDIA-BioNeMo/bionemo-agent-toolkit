@@ -7,9 +7,10 @@ separate request schema per task):
 
     promoter · splice · enhancer · chromatin · expression · annotation
 
-It parses a single-record FASTA, calls the API (synchronously, or async for
-``annotation`` — the API accepts either mode on every task), and writes ``report.md`` + ``result.json`` +
-``reproducibility/`` to the output directory.
+It parses a single-record FASTA, calls the API, and writes ``report.md`` +
+``result.json`` + ``reproducibility/`` to the output directory. Delivery is
+synchronous except for ``annotation``, which defaults to async because it is
+slow — the API accepts either mode on every task.
 
 Usage:
     python scripts/gi_predict.py --task promoter --demo
