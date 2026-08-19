@@ -7,8 +7,8 @@ separate request schema per task):
 
     promoter · splice · enhancer · chromatin · expression · annotation
 
-It parses a single-record FASTA, calls the API (sync, or async for
-``annotation``), and writes ``report.md`` + ``result.json`` +
+It parses a single-record FASTA, calls the API (synchronously, or async for
+``annotation`` — the API accepts either mode on every task), and writes ``report.md`` + ``result.json`` +
 ``reproducibility/`` to the output directory.
 
 Usage:
@@ -47,19 +47,22 @@ DISCLAIMER = (
 
 
 class TaskSpec:
-    """Per-task metadata: input bounds, async flag, demo fixture."""
+    """Per-task metadata: input bounds, default delivery mode, demo fixture."""
 
     def __init__(
         self,
         min_bp: int,
         max_bp: int,
-        async_mode: bool,
+        async_default: bool,
         demo: str,
         window_bp: Optional[int] = None,
     ) -> None:
         self.min_bp = min_bp
         self.max_bp = max_bp
-        self.async_mode = async_mode
+        # Delivery mode this runner picks by default. The API accepts BOTH
+        # modes on every task (Prefer: respond-async is a per-request header),
+        # so this is a latency choice, not a constraint.
+        self.async_default = async_default
         self.demo = demo
         # Fixed scoring-window width, if the task has one (expression: 9,198 bp).
         # Anything longer than the window needs an explicit --tss-index.
@@ -476,12 +479,12 @@ def main() -> int:
 
     print(
         f"[gi-{task}] sequence_name={sequence_name} length={len(sequence):,} bp "
-        f"model={args.model or 'default'} mode={'async' if spec.async_mode else 'sync'}",
+        f"model={args.model or 'default'} mode={'async' if spec.async_default else 'sync'}",
         file=sys.stderr,
     )
     started = time.monotonic()
     try:
-        if spec.async_mode:
+        if spec.async_default:
             job_id = client.submit_async(
                 task, sequence=sequence, sequence_name=sequence_name,
                 model=args.model, options=options or None,

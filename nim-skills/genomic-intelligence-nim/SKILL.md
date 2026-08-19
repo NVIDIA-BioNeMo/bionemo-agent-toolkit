@@ -34,14 +34,16 @@ Each task is its own published operation — `POST /v1/tasks/promoter/predict`,
 minimum length, and its own closed `options` object. The URLs are unchanged from
 what callers already send.
 
-| Task | What it predicts | Mode | Accepted length | `context_window_bp` |
+| Task | What it predicts | Recommended mode | Accepted length | `context_window_bp` |
 |---|---|---|---|---|
 | `promoter` | Promoter regions (sliding window) | sync | 300–500,000 bp | 2,000 bp (300 bp models exist) |
 | `splice` | Splice donor/acceptor sites | sync | 100–500,000 bp | 15,000 bp |
 | `enhancer` | Developmental & housekeeping enhancer activity | sync | 50–500,000 bp | 249 bp |
 | `chromatin` | Chromatin state across hundreds of tracks | sync | 200–500,000 bp | 1,000 bp |
 | `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** | n/a (`trained_window_bp` 9,198) |
-| `annotation` | De-novo gene/transcript structure | **async** | 1,000–500,000 bp | n/a |
+| `annotation` | De-novo gene/transcript structure | async | 1,000–500,000 bp | n/a |
+
+`Recommended mode` is guidance, not a constraint — every task accepts both. Omit `Prefer` for a synchronous `200`; send `Prefer: respond-async` for a `202` plus `GET /v1/tasks/jobs/{job_id}`. Only the composite workflow enforces a mode, rejecting sync above 50,000 bp with `413 sync_too_large`.
 
 The minimum is **admission control, not regime**. A sequence above the floor but
 shorter than the selected model's `bio_spec.context_window_bp` is *accepted and
@@ -60,7 +62,8 @@ pasted verbatim. Under the floor and over the cap are both
 accepts up to 500,000 bp and will cut the window for you if you pass
 `--tss-index` (the 0-based TSS offset into the sequence). `--tss-index` is
 required for any expression sequence that is not exactly 9,198 bp.
-`annotation` submits with `Prefer: respond-async` and polls to completion.
+`annotation` defaults to `Prefer: respond-async` and polls to completion; the
+mode is the runner's choice, not an API constraint.
 Details: `references/tasks.md`.
 
 `options` is closed (`additionalProperties: false`) on every task, and each task

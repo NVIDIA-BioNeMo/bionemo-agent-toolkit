@@ -17,14 +17,16 @@ schema, the served schema wins.
 
 ## Summary
 
-| Task | Default architecture | Mode | Accepted length | `context_window_bp` | Demo fixture |
+| Task | Default architecture | Recommended mode | Accepted length | `context_window_bp` | Demo fixture |
 |---|---|---|---|---|---|
 | promoter | sliding-window promoter caller | sync | 300–500,000 bp | 2,000 bp | `promoter_tp53.fa` |
 | splice | BigBird long-context | sync | 100–500,000 bp | 15,000 bp | `splice_hbb.fa` |
 | enhancer | DeepSTARR (*Drosophila* S2) | sync | 50–500,000 bp | 249 bp | `enhancer_eve.fa` |
 | chromatin | DeepSEA multi-track | sync | 200–500,000 bp | 1,000 bp | `chromatin_active_promoter_chr19.fa` |
 | expression | TSS-window expression regressor | sync | **9,198–500,000 bp** | n/a (`trained_window_bp` 9,198) | `expression_hbb_k562.fa` |
-| annotation | structure-aware gene finder | **async** | 1,000–500,000 bp | n/a | `annotation_tp53.fa` |
+| annotation | structure-aware gene finder | async | 1,000–500,000 bp | n/a | `annotation_tp53.fa` |
+
+`Recommended mode` is guidance, not a constraint — every task accepts both. Omit `Prefer` for a synchronous `200`; send `Prefer: respond-async` for a `202` plus `GET /v1/tasks/jobs/{job_id}`. Only the composite workflow enforces a mode, rejecting sync above 50,000 bp with `413 sync_too_large`.
 
 There are no per-model floors: a task's minimum is the strictest its models need,
 and every model stays listed and loadable.
