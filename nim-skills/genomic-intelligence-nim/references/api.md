@@ -90,9 +90,8 @@ a padded window.
 Lengths and `tss_index` are measured on the **whitespace-stripped** sequence, so a
 line-wrapped FASTA body pastes verbatim (a `>` header line still fails the
 alphabet check). The runner validates length and `tss_index` bounds locally
-before any call — those local constants are a mirror of
-`gpu_service/core/limits.py`, which is published as `minLength`; the served
-schema wins.
+before any call — those local constants are a mirror of the `minLength`
+published on each task's request schema; the served schema wins.
 
 ## `bio_spec` (from `GET /v1/tasks/{task}/models`)
 

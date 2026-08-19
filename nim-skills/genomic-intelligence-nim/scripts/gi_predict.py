@@ -77,11 +77,10 @@ class TaskSpec:
         return None
 
 
-# These bounds are a LOCAL MIRROR, not the authority. The authority is
-# gpu_service/core/limits.py, published as `minLength`/`maxLength` on each
-# task's request schema in the live OpenAPI doc
-# (https://api.genomicintelligence.ai/v1/openapi.json). Re-read it if a
-# rejection here disagrees with the server.
+# These bounds are a LOCAL MIRROR, not the authority. The authority is the
+# `minLength`/`maxLength` published on each task's request schema in the live
+# OpenAPI doc (https://api.genomicintelligence.ai/v1/openapi.json). Re-read it
+# if a rejection here disagrees with the server.
 #
 # Each task has its own floor — the strictest its models need — enforced at
 # request validation before any model loads (there is no longer a shared

@@ -3,10 +3,15 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "I want to generate 20 drug-like molecules from scratch using GenMol. No scaffold — just generate novel molecules and rank them by drug-likeness. Use the hosted NVIDIA API. My NGC_API_KEY is already set in my environment.",
-      "expected_output": "A working Python script that calls the hosted GenMol endpoint with a masked SAFE input for de novo generation, requests 20 molecules with QED scoring, parses the response, and prints the results ranked by score.",
+      "prompt": "I want to generate 20 drug-like molecules from scratch using GenMol. No scaffold — just generate novel molecules and rank them by drug-likeness. Use the hosted NVIDIA API. My NGC_API_KEY is already set in my environment. Create and execute the request now, save the requested artifacts, and report values from the actual response; do not stop after writing the script.",
+      "expected_output": "A successfully executed hosted GenMol request with a masked SAFE input for de novo generation and QED scoring, plus at least 20 actual returned molecules saved and reported in score-ranked order.",
       "files": [],
       "assertions": [
+        {
+          "id": "hosted-request-executed",
+          "description": "Executes the hosted request instead of only writing code",
+          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived molecules, scores, and saved artifact paths"
+        },
         {
           "id": "hosted-endpoint-url",
           "description": "Uses the correct hosted endpoint URL",
@@ -38,7 +43,9 @@
           "check": "Script accesses result['molecules'] or result[\"molecules\"] and prints or displays each molecule's score"
         }
       ]
-    },
+    }
+  ],
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "I have a pyrrolidinone scaffold (SMILES: C1CC(=O)NC1) that I want to decorate with new fragments to generate drug-like analogs. Generate 10 molecules using GenMol with QED scoring. Use the hosted API.",
@@ -78,6 +85,7 @@
       ]
     },
     {
+      "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me set up GenMol locally with Docker on my H100 machine. My NGC_API_KEY is set. Once it's running, do a quick de novo generation of 5 molecules.",
       "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run GenMol with correct flags, health-check it, then send a no-auth generation request to localhost:8000 producing 5 molecules.",

@@ -1,0 +1,33 @@
+# Catalog exceptions — skill dirs allowed to exist WITHOUT a components.d
+# registration. The forked prune-orphans.sh scans the SOURCED roots
+# (library-skills/, open-models-skills/) and deletes any dir there that is
+# neither declared in components.d/*.yml nor listed below. The wholly-native
+# roots (nim-skills/, workflows/) are not scanned at all (see PRUNE_ROOTS in
+# .github/scripts/prune-orphans.sh), so they need no entry — but nim-skills and
+# workflows are listed here for documentation.
+#
+# Add an entry only with a documented reason and an owner.
+exceptions:
+  # --- native roots (not pruned; documented for clarity) ---
+  - dir: nim-skills
+    reason: NIM skills are native/canonical in this repo — source of truth is here (decoupled from the GitLab bionemo-nim-skills repo).
+    owner: trvachov
+    component: BioNeMo NIMs
+  - dir: workflows
+    reason: Native meta-skill workflows (generative_protein_binder_design, virtual_screening, ai_q) authored in-repo.
+    owner: trvachov
+    component: Workflows
+
+  # --- native skills inside a SCANNED (sourced) root — MUST be listed or the pruner deletes them ---
+  - dir: library-skills/parabricks
+    reason: No public GitHub source yet (was gitlab apizarro); native until a public repo exists.
+    owner: trvachov
+    component: Parabricks
+  - dir: library-skills/genomics-workflow-acceleration
+    reason: No public GitHub source yet (was gitlab apizarro); native until a public repo exists.
+    owner: trvachov
+    component: Genomics
+  - dir: library-skills/cuEquivariance
+    reason: Upstream (NVIDIA/cuEquivariance) exposes only an embedded SKILL.md inside a package dir, no clean skill folder to rsync; native until upstream ships a skill dir.
+    owner: trvachov
+    component: cuEquivariance

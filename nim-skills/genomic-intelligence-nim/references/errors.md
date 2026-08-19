@@ -103,7 +103,7 @@ for a ~20 kb sequence (longer on a cold GPU).
 - **Single record per request:** split multi-record FASTA and run per record.
 - **Rate / concurrency:** per partner tier; `429` signals you have exceeded it.
 
-Authoritative limits live in `gpu_service/core/limits.py` (one constant per task)
-and are published as `minLength`/`maxLength` in the live OpenAPI document at
+Authoritative limits are published as `minLength`/`maxLength` on each task's
+request schema in the live OpenAPI document at
 <https://api.genomicintelligence.ai/v1/openapi.json>. Numbers repeated in this
 skill are mirrors.

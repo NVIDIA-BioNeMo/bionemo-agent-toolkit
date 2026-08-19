@@ -9,8 +9,6 @@ All overrides use Hydra `++` (forced) syntax — `+` would error on keys not
 already in the config. Apply to a `complexa design` invocation; they propagate
 to all four stages (generate, filter, evaluate, analyze).
 
-Defaults that vary by pipeline are annotated as `(binder/ligand/AME)`.
-
 ## Top-level (pipeline YAML)
 
 These live at the root of `configs/search_*_pipeline.yaml`.
@@ -23,8 +21,8 @@ These live at the root of `configs/search_*_pipeline.yaml`.
 | `autoencoder_ckpt_path` | str | `${oc.env:CKPT_PATH}/complexa[_ligand\|_ame]_ae.ckpt` | `++autoencoder_ckpt_path=/data/my_ae.ckpt` | AE checkpoint path |
 | `seed` | int | `5` | `++seed=42` | Sampling RNG seed |
 | `ncpus_` | int | `24` | `++ncpus_=16` | CPU count for dataloader workers |
-| `gen_njobs` | int | `2` | `++gen_njobs=4` | Number of parallel generate jobs |
-| `eval_njobs` | int | `2` | `++eval_njobs=4` | Number of parallel evaluate jobs |
+| `gen_njobs` | int | `2` (binder/ligand/AME) | `++gen_njobs=4` | Number of parallel generate jobs |
+| `eval_njobs` | int | `2` (binder/ligand/AME) | `++eval_njobs=4` | Number of parallel evaluate jobs |
 | `lora.r` | int | `32` (ligand/AME), (unset for protein binder) | `++lora.r=64` | LoRA rank |
 | `lora.lora_alpha` | float | `64.0` | `++lora.lora_alpha=128.0` | LoRA scaling factor (typically 2x rank) |
 | `lora.lora_dropout` | float | `0.0` | `++lora.lora_dropout=0.1` | Dropout on LoRA inputs |
@@ -39,10 +37,10 @@ the per-pipeline variants.
 | Key | Type | Default | Example override | What it controls |
 |-----|------|---------|------------------|------------------|
 | `generation.task_name` | str | per config (e.g. `33_TrkA`, `39_7V11_LIGAND`, `M0096_1chm`) | `++generation.task_name=02_PDL1` | Target / AME task; must be a key in the relevant dict |
-| `generation.dataloader.batch_size` | int | `16` | `++generation.dataloader.batch_size=8` | Samples per forward pass; drop on OOM |
+| `generation.dataloader.batch_size` | int | `16` (binder/ligand/AME) | `++generation.dataloader.batch_size=8` | Samples per forward pass; drop on OOM |
 | `generation.dataloader.dataset.nres.low` | int | per-target binder_length[0] | `++generation.dataloader.dataset.nres.low=80` | Minimum binder / scaffold length |
 | `generation.dataloader.dataset.nres.high` | int | per-target binder_length[1] | `++generation.dataloader.dataset.nres.high=120` | Maximum binder / scaffold length |
-| `generation.dataloader.dataset.nres.nsamples` | int | `4` (binder), `2` (ligand), `4` (AME) | `++generation.dataloader.dataset.nres.nsamples=200` | Number of length samples |
+| `generation.dataloader.dataset.nres.nsamples` | int | `4` (binder), `2` (ligand), `4` (AME) | `++generation.dataloader.dataset.nres.nsamples=200` | Number of length samples per pipeline |
 | `generation.dataloader.dataset.nres.endpoint` | bool | `true` | `++generation.dataloader.dataset.nres.endpoint=false` | Include high in length range |
 | `generation.dataloader.dataset.nrepeat_per_sample` | int | `1` | `++generation.dataloader.dataset.nrepeat_per_sample=4` | How many designs per length sample |
 
@@ -106,7 +104,7 @@ post-hoc optimization of the binder sequence.
 
 | Key | Type | Default | Example override | What it controls |
 |-----|------|---------|------------------|------------------|
-| `generation.filter.filter_samples_limit` | int\|null | `1000` | `++generation.filter.filter_samples_limit=500` | Max samples after filtering (top-N by reward) |
+| `generation.filter.filter_samples_limit` | int\|null | `1000` (binder/ligand/AME) | `++generation.filter.filter_samples_limit=500` | Max samples after filtering (top-N by reward) |
 | `generation.filter.delete_non_top_n_samples` | bool | `false` (binder), `true` (ligand, AME) | `++generation.filter.delete_non_top_n_samples=false` | Delete vs move filtered-out samples |
 | `generation.filter.dedup_sequence` | bool | `true` | `++generation.filter.dedup_sequence=false` | Drop duplicate sequences before ranking |
 | `generation.filter.reward_threshold` | float\|null | `null` | `++generation.filter.reward_threshold=0.3` | Drop samples below this reward before top-N |
@@ -193,7 +191,7 @@ From `binder_analyze.yaml`, `ligand_binder_analyze.yaml`, `ame_analyze.yaml`.
 
 | Key | Type | Default | Example override | What it controls |
 |-----|------|---------|------------------|------------------|
-| `result_type` | enum | per pipeline | `++result_type=protein_binder` | One of: `protein_binder`, `ligand_binder`, `motif_ligand_binder` |
+| `result_type` | enum | per pipeline | `++result_type=protein_binder` | One of: `protein_binder`, `ligand_binder`, `monomer`, `motif_protein_binder`, `motif_ligand_binder` |
 | `aggregation.limit` | int\|null | `null` | `++aggregation.limit=200` | Limit number of result files merged (null = all) |
 | `aggregation.analysis_modes` | list | `[binder, monomer]` (binder, ligand), `[motif_binder, monomer]` (AME) | `++aggregation.analysis_modes=[binder]` | Which analysis functions to run |
 | `aggregation.success_thresholds.i_pAE.threshold` | float | `7.0` (protein_binder) | `++aggregation.success_thresholds.i_pAE.threshold=10.0` | Interface PAE threshold (after `* scale`) |
@@ -205,8 +203,8 @@ From `binder_analyze.yaml`, `ligand_binder_analyze.yaml`, `ame_analyze.yaml`.
 | `aggregation.success_thresholds.scRMSD.threshold` | float | `1.5` (protein_binder), `2.0` (ligand_binder, AME) | `++aggregation.success_thresholds.scRMSD.threshold=2.0` | scRMSD threshold |
 | `aggregation.success_thresholds.scRMSD.op` | str | `<` | `++aggregation.success_thresholds.scRMSD.op=<=` | Comparison operator |
 | `aggregation.success_thresholds.scRMSD.column_prefix` | str | `binder` | `++aggregation.success_thresholds.scRMSD.column_prefix=binder` | Column-name prefix |
-| `aggregation.motif_binder_success_thresholds.motif_rmsd_pred.threshold` | float | `1.5` (motif_ligand_binder) | `++aggregation.motif_binder_success_thresholds.motif_rmsd_pred.threshold=1.0` | Motif RMSD in refolded structure (AME) |
-| `aggregation.motif_binder_success_thresholds.motif_seq_recovery.threshold` | float | `0.5` (AME default) | `++aggregation.motif_binder_success_thresholds.motif_seq_recovery.threshold=0.8` | Motif sequence recovery threshold (AME) |
+| `aggregation.motif_binder_success_thresholds.motif_rmsd_pred.threshold` | float | `1.5` (motif_ligand_binder), `2.0` (motif_protein_binder) | `++aggregation.motif_binder_success_thresholds.motif_rmsd_pred.threshold=1.0` | Motif RMSD in refolded structure |
+| `aggregation.motif_binder_success_thresholds.motif_seq_recovery.threshold` | float | `0.5` (AME default), `1.0` (motif protein binder default) | `++aggregation.motif_binder_success_thresholds.motif_seq_recovery.threshold=0.8` | Motif sequence recovery threshold |
 | `aggregation.designability_thresholds.ca.esmfold.threshold` | float | `2.0` | `++aggregation.designability_thresholds.ca.esmfold.threshold=1.5` | Designability CA-scRMSD threshold |
 | `aggregation.ca_codesignability_thresholds.ca.esmfold.threshold` | float | `2.0` | `++aggregation.ca_codesignability_thresholds.ca.esmfold.threshold=1.5` | CA codesignability threshold |
 | `aggregation.allatom_codesignability_thresholds.all_atom.esmfold.threshold` | float | `2.0` | `++aggregation.allatom_codesignability_thresholds.all_atom.esmfold.threshold=2.5` | All-atom codesignability threshold |

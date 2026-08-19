@@ -1,6 +1,6 @@
 # Proteina-Complexa Skills
 
-Six project-local Claude Code skills covering setup, target configuration, design, evaluation, sweeps, and SLURM submission. Each skill picks the cheapest tool for its job — the `complexa` CLI where it adds real value (pipeline orchestration, weight downloads, Hydra-defaults validation), and direct file edits / Python module calls where the CLI would just be a thin wrapper.
+Five project-local Claude Code skills covering setup, target configuration, design, evaluation, and sweeps. Each skill picks the cheapest tool for its job — the `complexa` CLI where it adds real value (pipeline orchestration, weight downloads, Hydra-defaults validation), and direct file edits / Python module calls where the CLI would just be a thin wrapper.
 
 ## The three design pipelines
 
@@ -23,12 +23,11 @@ inside each `SKILL.md` for cases where they fit better.
 
 | Skill | Primary tool | CLI / alternative paths | When to use it |
 |---|---|---|---|
-| [`complexa-setup`](./complexa-setup/) | **CLI** (`complexa init` for `.env`, `complexa download` for weights) + **file-edit** of machine-specific `.env` paths | Use `complexa init` (not a bare `cp .env_example .env`) — it is the supported entry point. `preflight.sh` is the real readiness check; `complexa validate env` is only a shallow `.env`+`DATA_PATH`-exists smoke test | Fresh checkout, verifying an existing install, configuring `.env` |
-| [`complexa-target`](./complexa-target/) | **File-edit** of `configs/targets/{,ligand_}targets_dict.yaml` | `complexa target add/list/show` (CLI is a thin YAML-append wrapper that does **not** validate inputs); `complexa target show`/`rg` is the authoritative existence check; `complexa validate target CONFIG --target NAME` adds a PDB-path check (needs a real config) | Registering a new protein or ligand design target |
-| [`complexa-design`](./complexa-design/) | **CLI** (`complexa design <pipeline>` orchestrates 4 stages with logging) | Direct `python -m proteinfoundation.{generate,filter,evaluate,analyze}` for single-stage debug | Protein binder, ligand binder, AME motif + ligand scaffolding |
+| [`complexa-setup`](./complexa-setup/) | **File-edit** for `.env` + **CLI** (`complexa download`) for weights | `complexa init` is a `cp+sed` wrapper, fine either way; `complexa validate env` and `validate design` are the recommended CLI checks | Fresh checkout, verifying an existing install, configuring `.env` |
+| [`complexa-target`](./complexa-target/) | **File-edit** of `configs/targets/{,ligand_}targets_dict.yaml` | `complexa target add/list/show` (CLI is a thin YAML-append wrapper); `complexa validate target` still has unique value (Hydra defaults traversal) | Registering a new protein or ligand design target |
+| [`complexa-design`](./complexa-design/) | **CLI** (`complexa design <pipeline>` orchestrates 4 stages with logging) | Direct `python -m proteinfoundation.{generate,filter,evaluate,analyze}` for single-stage debug | Protein binder, ligand binder, AME motif scaffolding |
 | [`complexa-evaluate-pdbs`](./complexa-evaluate-pdbs/) | **CLI** (`complexa analysis <eval_cfg>` chains evaluate→analyze) | Direct `python -m proteinfoundation.{evaluate,analyze}` for debugging | Re-folding / scoring an existing PDB directory with AF2 / RF3 / ESMFold |
-| [`complexa-sweep`](./complexa-sweep/) | **Python script** (`script_utils/generate_inference_configs.py`) + SLURM launcher | No CLI — `complexa design` does not accept `--sweeper` | Finding optimal beam_width, nsteps, reward weights, etc. |
-| [`complexa-slurm`](./complexa-slurm/) | **Bash launchers** (`slurm_utils/launch_*.sh`) | No CLI; always preview with `--dry-run` first | Submitting jobs to a remote SLURM cluster |
+| [`complexa-sweep`](./complexa-sweep/) | **Python script** (`script_utils/generate_inference_configs.py`) + a `complexa design` loop | No CLI — `complexa design` does not accept `--sweeper`; generate configs first, then loop | Finding optimal beam_width, nsteps, reward weights, etc. |
 
 ## Shared infrastructure
 
@@ -38,39 +37,15 @@ inside each `SKILL.md` for cases where they fit better.
 | [`_shared/scripts/write_manifest.py`](./_shared/scripts/write_manifest.py) | Emits a pinned, replayable `run_manifest.json` per pipeline run. |
 | [`_shared/reference/hardware.md`](./_shared/reference/hardware.md) | Per-pipeline hardware requirements. |
 
-The skills require `complexa` (this repo's CLI), `bash`, and optionally `nvidia-smi`. `complexa-slurm` additionally requires `ssh`/`rsync` on the local box and a configured `.env` Section 5.
-
-## How the skills were built and validated
-
-Each skill went through the [`skill-creator`](https://github.com/anthropics/skills/tree/main/skill-creator) workflow:
-
-1. **Draft** — `SKILL.md` (≤300 lines) + progressive-disclosure `reference/*.md`. Authoring traced to source files (`cli_runner.py`, `target_cli.py`, `configs/**`, `slurm_utils/**`).
-2. **Test prompts** — 2 realistic per skill (12 total). Saved in `evals/<skill>/evals.json`.
-3. **Parallel eval** — for each prompt, ran a with-skill agent (sees the SKILL.md) vs a baseline (general Claude, repo grep-only). Both produce a planned `complexa …` invocation; no GPU runs.
-4. **Grade** — 6–10 objective assertions per prompt (uses correct flag? cites real override key? runs preflight? refuses unsafe shortcuts?).
-5. **Aggregate** — `benchmark.json` per skill: with-skill vs baseline pass-rate, wall-clock, tokens.
-6. **Iterate** — fixed 2 targeted regressions in iteration-2 (build_uv_env step, AME L:0 rename inline).
-
-Per-skill workspaces (`<skill>-workspace/iteration-N/`) are git-ignored; the SKILL.md content + evals.json are committed.
-
-## Headline numbers
-
-- With-skill avg pass-rate: **95.3%** vs baseline **73.5%** (Δ **+21.8 pts**).
-- Token cost: with-skill **24.5% cheaper** per task.
-- Wall-clock: with-skill **71.5 s/task** vs baseline **143.9 s/task**.
-- With-skill **strictly above baseline on every skill** (+6.2 to +40.3 pts).
+The skills require `complexa` (this repo's CLI), `bash`, and optionally `nvidia-smi`.
 
 ## Adding a new skill
 
-Follow the same loop:
+These skills were authored with Anthropic's [`skill-creator`](https://github.com/anthropics/skills/tree/main/skill-creator) workflow:
 
-```bash
-# 1. Draft SKILL.md and reference/ files
-# 2. Write evals/<new-skill>/evals.json
-# 3. Run iteration-1: spawn with-skill + baseline subagents per prompt
-# 4. Grade, aggregate, render eval viewer
-# 5. Iterate on regressions
-# 6. (optional) python -m scripts.run_loop --skill-path <new-skill> for trigger-description tuning
-```
+1. **Draft** — `SKILL.md` (≤300 lines) + progressive-disclosure `reference/*.md`. Anchor authoring to specific source files (`cli_runner.py`, `target_cli.py`, `configs/**`).
+2. **Test prompts** — a handful of realistic agent prompts per skill.
+3. **Parallel eval** — for each prompt, run a with-skill agent vs a baseline; grade against objective assertions (uses correct flag? cites real override key? runs preflight?).
+4. **Iterate** on regressions.
 
 The flagship reference is [`complexa-design`](./complexa-design/) — its SKILL.md anchors on a real scientific task (full pipeline → success rate + diversity) and shows the progressive-disclosure pattern at its widest (3 reference files).

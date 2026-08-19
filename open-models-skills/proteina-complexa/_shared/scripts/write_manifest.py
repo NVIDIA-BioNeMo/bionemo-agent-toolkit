@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-
 #!/usr/bin/env python3
 """write_manifest.py — emit run_manifest.json for a Proteina-Complexa run.
 

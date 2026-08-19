@@ -5,7 +5,10 @@
       "id": "1",
       "prompt": "Predict promoter regions in assets/demo/promoter_tp53.fa using Genomic Intelligence, and tell me how many promoter windows it found. My GI_API_KEY is set.",
       "expected_output": "Runs the provided gi_predict.py runner for the promoter task on the demo FASTA, then reports summary.promoter_windows / total_windows from the compact stdout JSON.",
-      "files": ["scripts/gi_predict.py", "assets/demo/promoter_tp53.fa"],
+      "files": [
+        "scripts/gi_predict.py",
+        "assets/demo/promoter_tp53.fa"
+      ],
       "assertions": [
         {
           "id": "uses-runner",
@@ -28,12 +31,18 @@
           "check": "Output reads 'promoter_windows' / 'total_windows' from the response summary"
         }
       ]
-    },
+    }
+  ],
+  "todo": "Deferred evals need network egress to api.genomicintelligence.ai and an Ensembl fetch (case 2) / async job polling (case 3); enable once the eval harness supports long-running third-party calls.",
+  "deferred_evals": [
     {
       "id": "2",
       "prompt": "Predict gene expression for HBB in K562 cells with Genomic Intelligence. I'll let you fetch the sequence.",
       "expected_output": "Fetches the exact 9,198 bp TSS-centred window for HBB (gi_fetch --for-expression), then runs the expression task with a required cell-type description, reporting log(TPM+1).",
-      "files": ["scripts/gi_predict.py", "scripts/gi_fetch.py"],
+      "files": [
+        "scripts/gi_predict.py",
+        "scripts/gi_fetch.py"
+      ],
       "assertions": [
         {
           "id": "expression-window",
@@ -61,7 +70,10 @@
       "id": "3",
       "prompt": "Run de-novo gene annotation on assets/demo/annotation_tp53.fa with Genomic Intelligence and list the transcripts it predicts.",
       "expected_output": "Runs the annotation task, which submits asynchronously and polls the job endpoint to completion, then reports the predicted transcripts.",
-      "files": ["scripts/gi_predict.py", "assets/demo/annotation_tp53.fa"],
+      "files": [
+        "scripts/gi_predict.py",
+        "assets/demo/annotation_tp53.fa"
+      ],
       "assertions": [
         {
           "id": "annotation-task",

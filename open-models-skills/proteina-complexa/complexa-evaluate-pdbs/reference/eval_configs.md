@@ -1,6 +1,6 @@
 # Evaluate-from-PDB-Dir Config Reference
 
-Companion to `SKILL.md`. Every `evaluate_*_from_pdb_dir.yaml` and its paired `analyze_*.yaml`, with the `result_type` they emit, the `dataset.*` keys they require, and the `metric.*` / `aggregation.*` knobs they accept. Worked examples at the bottom.
+Companion to `SKILL.md`. Every `evaluate_*_from_pdb_dir.yaml` and its paired `analyze_*.yaml`, with the `result_type` they emit, the `dataset.*` keys they require, and the `metric.*` / `aggregation.*` knobs they accept. Three worked examples at the bottom.
 
 ## 1. Design type → config matrix
 
@@ -9,9 +9,11 @@ Companion to `SKILL.md`. Every `evaluate_*_from_pdb_dir.yaml` and its paired `an
 | Protein binder         | `configs/evaluate_from_pdb_dir.yaml`         | `configs/analyze.yaml`      | `protein_binder`         | `colabdesign`, `rf3_latest`, `esmfold`, `boltz2_default`, `protenix_base_default_v0.5.0` | `soluble_mpnn` |
 | Ligand binder          | `configs/evaluate_from_pdb_dir.yaml`         | `configs/analyze.yaml`      | `ligand_binder`          | `rf3_latest` (default), `boltz2_default` | `ligand_mpnn` |
 | AME / motif ligand binder | `configs/evaluate_ame_from_pdb_dir.yaml`  | `configs/analyze_motif_binder.yaml` | `motif_ligand_binder` | `rf3_latest`            | `ligand_mpnn`           |
+| Motif protein binder   | `configs/evaluate_motif_binder.yaml` (no `_from_pdb_dir` variant; set `input_mode=pdb_dir`) | `configs/analyze_motif_binder.yaml` | `motif_protein_binder` | `colabdesign`, `rf3_latest` | `protein_mpnn` / `soluble_mpnn` |
 
 Notes:
 - The protein-binder and ligand-binder cases share `evaluate_from_pdb_dir.yaml`; switch behavior by setting `result_type`, `metric.binder_folding_method`, and `metric.inverse_folding_model` on the CLI.
+- There is no shipped `evaluate_motif_protein_binder_from_pdb_dir.yaml`; reuse `configs/evaluate_motif_binder.yaml` with `++input_mode=pdb_dir ++sample_storage_path=<dir>` and an appropriate `dataset/motif_target_dict_cfg` override.
 
 ## 2. Evaluate config schema
 
@@ -61,7 +63,7 @@ All `evaluate_*` configs share a top-level shape (run identification, `input_mod
 These ship for completeness; the `from_pdb_dir` variants are derived from them with `input_mode=pdb_dir` baked in.
 
 - `configs/evaluate.yaml` — unified binder evaluation, defaults `input_mode: generated`. Pass `++input_mode=pdb_dir ++sample_storage_path=<dir>` to evaluate an external directory.
-- `configs/evaluate_motif_binder.yaml` — AME / motif ligand binder unified config. Used by `evaluate_ame_from_pdb_dir.yaml` under the hood; only the `_from_pdb_dir` variant is needed for the PDB-directory workflow.
+- `configs/evaluate_motif_binder.yaml` — motif binder (protein + ligand variants). Set `++result_type=motif_protein_binder` (with AF2/ColabDesign + ProteinMPNN/SolubleMPNN) or rely on the default `motif_ligand_binder` (RF3 + LigandMPNN). Use this when you have motif-protein-binder PDBs — there is no dedicated `_from_pdb_dir` variant.
 
 ## 3. Analyze config schema
 
@@ -81,15 +83,31 @@ These ship for completeness; the `from_pdb_dir` variants are derived from them w
 
 ### `analyze_motif_binder.yaml`
 
-- `result_type: motif_ligand_binder`.
+- `result_type: motif_protein_binder` (default in the YAML) or `motif_ligand_binder` (override on CLI).
 - `aggregation.analysis_modes` — default `[motif_binder, binder, monomer]`.
-- `aggregation.motif_binder_success_thresholds` (`motif_ligand_binder` defaults):
-  - Binder: `scRMSD_bb3 <= 2.0`.
-  - Motif: `motif_rmsd_pred_all <= 1.5`, `correct_motif_sequence_all >= 1.0`, `has_ligand_clashes_all < 0.5`.
+- `aggregation.motif_binder_success_thresholds`:
+  - **`motif_protein_binder` defaults** — binder: `i_pAE*31 <= 7.0`, `pLDDT >= 0.8`, `scRMSD_ca < 2.0`; motif: `motif_rmsd_pred_all < 2.0`, `correct_motif_sequence_all >= 1.0`.
+  - **`motif_ligand_binder` defaults** — binder: `scRMSD_bb3 <= 2.0`; motif: `motif_rmsd_pred_all <= 1.5`, `correct_motif_sequence_all >= 1.0`, `has_ligand_clashes_all < 0.5`.
 - A sample is successful when **at least one redesign index** passes **every** binder criterion AND **every** motif criterion jointly. Per-redesign joint evaluation, not pooled.
 - `aggregation.success_thresholds` (binder-only mode) and the three monomer threshold dicts work identically to `analyze.yaml`.
 
-## 4. Ligand `L:0` rename for AME RF3 evaluation
+## 4. `motif_protein_binder` vs `motif_ligand_binder`
+
+Both come from `evaluate_motif_binder.yaml` family + `analyze_motif_binder.yaml`. The split is target-driven:
+
+| Property                    | `motif_protein_binder`           | `motif_ligand_binder` (AME)        |
+|-----------------------------|----------------------------------|------------------------------------|
+| Target                      | Protein receptor                 | Small molecule ligand              |
+| Folding (`binder_folding_method`) | `colabdesign` (AF2) or `rf3_latest` | `rf3_latest`                  |
+| Inverse folding             | `protein_mpnn` / `soluble_mpnn`  | `ligand_mpnn`                      |
+| Motif criteria              | RMSD + seq recovery              | RMSD + seq recovery + ligand clashes |
+| Default binder threshold    | `i_pAE*31 <= 7.0`, `pLDDT >= 0.8`, `scRMSD_ca < 2.0` | `scRMSD_bb3 <= 2.0` |
+| Default motif threshold     | `motif_rmsd_pred_all < 2.0`, `correct_motif_sequence_all >= 1.0` | `motif_rmsd_pred_all <= 1.5`, seq recovery, `has_ligand_clashes_all < 0.5` |
+| `evaluate_*_from_pdb_dir`   | none — use `evaluate_motif_binder.yaml` + `++input_mode=pdb_dir` | `evaluate_ame_from_pdb_dir.yaml` |
+
+When in doubt: if every PDB has a small-molecule ligand chain, it is `motif_ligand_binder`. If the second chain is another protein receptor, it is `motif_protein_binder`.
+
+## 5. Ligand `L:0` rename for AME RF3 evaluation
 
 Lifted from `README.md` "Evaluating AME Designs with Ligand Targets (RF3)":
 
@@ -110,7 +128,7 @@ Apply this transform once over the whole input directory before invoking
 came out of `complexa generate` with `protein_type=motif_binder`, the rename is
 already done.
 
-## 5. Worked examples
+## 6. Worked examples
 
 ### Example A — protein binder PDB directory, AF2 refold
 
@@ -155,24 +173,24 @@ Joint success criterion (from `analyze_motif_binder.yaml`, `motif_ligand_binder`
 
 ### Example C — ligand binder PDB directory, RF3 refold
 
-User: "Score these 50 7V11 ligand-binder designs with RF3."
+User: "Score this folder of 7V11 ligand-binder designs with RF3 and LigandMPNN."
 
 ```bash
 complexa analysis configs/evaluate_from_pdb_dir.yaml \
-  ++sample_storage_path=/data/v11_designs \
+  ++sample_storage_path=/data/7v11_designs \
   ++dataset.task_name=39_7V11_LIGAND \
   ++metric.binder_folding_method=rf3_latest \
   ++metric.inverse_folding_model=ligand_mpnn \
-  ++metric.sequence_types=[self,mpnn] \
+  ++metric.sequence_types=[self,mpnn_fixed] \
   ++metric.num_redesign_seqs=8 \
   ++result_type=ligand_binder \
   ++eval_njobs=2 \
-  ++run_name=v11_pdb_dir_rf3
+  ++run_name=7v11_pdb_dir_rf3
 ```
 
-Pass-rate filter (`ligand_binder` defaults): `mpnn_complex_min_ipAE * 31 < 2.0 AND mpnn_binder_scRMSD_ca < 2.0 AND mpnn_ligand_scRMSD_aligned_allatom < 5.0`.
+Pass-rate filter (applied by analyze): `min_ipAE * 31 < 2.0 AND scRMSD_ca < 2.0 AND ligand_scRMSD_aligned_allatom < 5.0`. Override via `++aggregation.success_thresholds.min_ipAE.threshold=…` etc.
 
-## 6. Pointers
+## 7. Pointers
 
 - Per-metric output column names: `docs/EVALUATION_METRICS.md` "Result CSV Reference".
 - Default thresholds and Python filter examples: `docs/EVALUATION_METRICS.md` "Success Criteria" and "Reading Results in Python".

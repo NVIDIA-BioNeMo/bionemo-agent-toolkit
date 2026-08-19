@@ -101,31 +101,44 @@ Common existing `source` directories: `bindcraft_targets`, `alpha_proteo_targets
 
 ## AME task names (NOT `complexa target`)
 
-The AME pipeline uses **task names**, not targets-dict entries. Tasks are defined in `configs/design_tasks/ame_dict_v2.yaml` under `motif_target_dict_cfg:`. They follow the `M####_<pdb>` naming convention (e.g. `M0024_1nzy`, `M0096_1chm`).
+The AME pipeline uses **task names**, not targets-dict entries. Task names are defined in `configs/design_tasks/ame_dict_v2.yaml` under `motif_target_dict_cfg:` and are file-edit-only — they have a richer schema than protein/ligand targets and the `complexa target` CLI does not touch them.
+
+### Grammar
+
+```
+M{NNNN}_{pdb_id}
+```
+
+| Component | Values | Meaning |
+|---|---|---|
+| `M{NNNN}` | `M0001` … | Zero-padded sequential ID assigned when the task is added. |
+| `pdb_id` | 4-char PDB code (lowercase) | Source PDB for the motif + ligand context. |
+
+Examples (drawn from `configs/design_tasks/ame_dict_v2.yaml`): `M0024_1nzy`, `M0096_1chm`.
 
 ### AME task schema
 
-Each entry has:
+Each entry under `motif_target_dict_cfg.<name>` has:
 
 | Field | Type | Example | Notes |
 |---|---|---|---|
-| `source` | str | `ame_targets` | Subdir of `${DATA_PATH}/` where the PDB lives. |
-| `target_filename` | str | `M0096_1chm_v2` | PDB stem (no `.pdb` extension). |
-| `ligand` | str | `"BCA"` or `"L:0"` | Three-letter CCD code, or `L:0` for RF3-safe generic ligand handling. |
-| `contig_atoms` | str | `"B64: [O, C]; B86: [CB, CA, N, C]; …"` | Per-residue motif atom selections. Hand-curated. |
-| `binder_length` | list[int] | `[180]` | Single fixed length (most AME tasks). |
-| `hotspot_residues` | list | `[null]` | Pocket is motif/ligand-defined; null is canonical. |
-| `use_bonds_from_file` | bool | `true` | Use bonds from PDB/CIF rather than inferring from coords. |
+| `source` | str | `ame_targets` | Subdirectory under `$DATA_PATH/target_data/`. |
+| `target_filename` | str | `1nzy_v2` | PDB stem (no `.pdb`). |
+| `ligand` | str | `"FAD"` | 3-letter PDB ligand code in the motif PDB. |
+| `contig_atoms` | str | `"A64: [O, C]; A86: [CB, CA, N, C]; ..."` | Hand-curated per-residue atom selection for the motif. |
+| `binder_length` | list[int] | `[100, 160]` | Length range for the scaffold. |
+| `use_bonds_from_file` | bool | `true` | Use bond info from the PDB. |
+| `pdb_id` | str | `"1nzy"` | Reference PDB ID, metadata only. |
 
 To run an AME task:
 
 ```bash
 complexa design configs/search_ame_local_pipeline.yaml \
-  ++run_name=ame_chm \
-  ++generation.task_name=M0096_1chm
+  ++run_name=ame_1nzy \
+  ++generation.task_name=M0024_1nzy
 ```
 
-**Do not use `complexa target add` for AME tasks** — they live in a different dict and use a different schema (no `target_input`, no real `hotspot_residues`, plus `contig_atoms` which is hand-curated).
+**Do not use `complexa target add` for AME tasks** — they live in a different dict and add the `contig_atoms` field (and use `motif_target_dict_cfg` instead of `target_dict_cfg`) that the CLI does not know how to construct.
 
 ## Worked examples
 
@@ -213,4 +226,3 @@ Resulting entry mirrors `Cambridge_bloodsugar_A_4D71_pdb` from `configs/targets/
 - Protein dict: `configs/targets/targets_dict.yaml`
 - Ligand dict: `configs/targets/ligand_targets_dict.yaml`
 - AME dict: `configs/design_tasks/ame_dict_v2.yaml`
-- AME pipeline docs: `configs/pipeline/ame/README.md`

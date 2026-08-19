@@ -8,10 +8,10 @@ length, and its own closed `options` object. There is no longer a shared
 returns a `{data, meta}` envelope. This skill's `scripts/gi_predict.py --task
 <task>` selects the endpoint; the table below documents what differs per task.
 
-Source of truth for bounds and models: `gpu_service/core/limits.py` (one constant
-per task) and `gpu_service/config/models.yaml`, published as `minLength` on each
-request schema in the live OpenAPI doc at
-<https://api.genomicintelligence.ai/v1/openapi.json>. The numbers below and in
+Source of truth for bounds and models: the live OpenAPI doc at
+<https://api.genomicintelligence.ai/v1/openapi.json>, where each task's floor is
+published as `minLength` on its own request schema, and the public task
+reference at <https://docs.genomicintelligence.ai/tasks>. The numbers below and in
 `scripts/gi_predict.py` are **mirrors** — if they disagree with the served
 schema, the served schema wins.
 

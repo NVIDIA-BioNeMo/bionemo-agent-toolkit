@@ -29,6 +29,8 @@
 | `e_value` | float | No | `0.0001` | 0.0–1.0 | Hit filtering threshold |
 | `iterations` | integer | No | `1` | 1–6 | Ignored for cascaded search |
 | `max_msa_sequences` | integer | No | `500` | 1–500 | Must equal `NIM_GLOBAL_MAX_MSA_DEPTH` when GPU Server enabled |
+| `NIM_MODEL_PROFILE` | (auto: `databases:all`) | Set to a hash from `list-model-profiles` to download only that profile's databases — cuts storage & startup time. `databases:uniref30` (~500 GB) is the paired-search profile; `databases:pdb70` (~100 MB) is a smoke test. |
+| `NIM_MODEL_NAME` | (unset) | Path to a mounted directory of custom/manually-downloaded MMSeqs2 databases. Completely replaces profile databases; NIM uses only DBs found under this path. |
 | `output_alignment_formats` | list[string] | No | `["a3m"]` | — | `"a3m"`, `"fasta"` |
 
 ### Response Body
@@ -153,7 +155,7 @@ docker run --rm --name msa-search \
 | Flag | Value | Notes |
 |---|---|---|
 | `--gpus` | `all` | Multi-GPU supported; 48 GB GPUs need ≥2 units |
-| Cache mount | `/opt/nim/.cache` | ~1.4 TB for full database download |
+| Cache mount | `/opt/nim/.cache` | ~1.4 TB for `databases:all`; far less with a task-specific `NIM_MODEL_PROFILE` (~500 GB UniRef30, ~100 MB PDB70) |
 | Image | `nvcr.io/nim/colabfold/msa-search:2` | v2.3.0 as of 2025; `:2` is the major version tag |
 
 ### Key Environment Variables
@@ -161,6 +163,8 @@ docker run --rm --name msa-search \
 | Variable | Default | Notes |
 |---|---|---|
 | `NIM_GLOBAL_MAX_MSA_DEPTH` | `500` | Must match `max_msa_sequences` in requests (GPU Server mode) |
+| `NIM_MODEL_PROFILE` | (auto: `databases:all`) | Set to a hash from `list-model-profiles` to download only that profile's databases — cuts storage & startup time. `databases:uniref30` (~500 GB) is the paired-search profile; `databases:pdb70` (~100 MB) is a smoke test. |
+| `NIM_MODEL_NAME` | (unset) | Path to a mounted directory of custom/manually-downloaded MMSeqs2 databases. Completely replaces profile databases; NIM uses only DBs found under this path. |
 
 ---
 
