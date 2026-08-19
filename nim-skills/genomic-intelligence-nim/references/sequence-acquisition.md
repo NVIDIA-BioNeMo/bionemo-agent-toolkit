@@ -80,7 +80,10 @@ coordinates.
 
 ## Limits
 
-Reference fetch is bounded by the task's own input cap (500,000 bp for most;
-expression additionally has a 9,198 bp floor). Ensembl enforces its own per-request size
+Reference fetch is bounded by the task's own input cap (500,000 bp for every
+task) and its floor (promoter 300, splice 100, enhancer 50, chromatin 200,
+annotation 1,000, expression 9,198 bp). Fetch at least the model's
+`context_window_bp` if you want the score to reflect real sequence rather than
+padding — see `references/tasks.md`. Ensembl enforces its own per-request size
 limits on `/sequence/region`; very large ranges may be rejected upstream —
 fetch in pieces or narrow the region.

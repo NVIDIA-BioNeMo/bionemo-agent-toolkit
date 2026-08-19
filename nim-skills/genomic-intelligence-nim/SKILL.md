@@ -29,14 +29,30 @@ Load supplemental files only when needed:
 
 ## The six tasks
 
-| Task | What it predicts | Mode | Length |
-|---|---|---|---|
-| `promoter` | Promoter regions (sliding window) | sync | 1–500,000 bp |
-| `splice` | Splice donor/acceptor sites | sync | 1–500,000 bp |
-| `enhancer` | Developmental & housekeeping enhancer activity | sync | 1–500,000 bp |
-| `chromatin` | Chromatin state across hundreds of tracks | sync | 1–500,000 bp |
-| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** |
-| `annotation` | De-novo gene/transcript structure | **async** | 1–500,000 bp |
+Each task is its own published operation — `POST /v1/tasks/promoter/predict`,
+`/v1/tasks/splice/predict`, and so on — with its own request schema, its own
+minimum length, and its own closed `options` object. The URLs are unchanged from
+what callers already send.
+
+| Task | What it predicts | Mode | Accepted length | Model context window |
+|---|---|---|---|---|
+| `promoter` | Promoter regions (sliding window) | sync | 300–500,000 bp | 2,000 bp (300 bp models exist) |
+| `splice` | Splice donor/acceptor sites | sync | 100–500,000 bp | 15,000 bp |
+| `enhancer` | Developmental & housekeeping enhancer activity | sync | 50–500,000 bp | 249 bp |
+| `chromatin` | Chromatin state across hundreds of tracks | sync | 200–500,000 bp | 1,000 bp |
+| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** | 9,198 bp (fixed, not sliding) |
+| `annotation` | De-novo gene/transcript structure | **async** | 1,000–500,000 bp | n/a |
+
+The minimum is **admission control, not regime**. A sequence above the floor but
+shorter than the selected model's `bio_spec.context_window_bp` is *accepted and
+scored* — against a window padded out to the context window. So a 100 bp enhancer
+request succeeds, but the model saw ~150 bp of padding; compare your length
+against `context_window_bp` (from `GET /v1/tasks/{task}/models`) to know whether
+it scored real sequence. Longer-than-context input is fine: the scanner steps a
+prediction window at a time and pads only the final partial window. All lengths
+are measured **after whitespace is stripped**, so a line-wrapped FASTA body can be
+pasted verbatim. Under the floor and over the cap are both
+`422 validation_failed` — over-length is *not* a `413`.
 
 `expression` additionally needs a cell-type/assay context string
 (`--description`, e.g. `"K562 cells"`). The model always scores exactly one
@@ -46,6 +62,11 @@ accepts up to 500,000 bp and will cut the window for you if you pass
 required for any expression sequence that is not exactly 9,198 bp.
 `annotation` submits with `Prefer: respond-async` and polls to completion.
 Details: `references/tasks.md`.
+
+`options` is closed (`additionalProperties: false`) on every task, and each task
+declares different keys — `description` exists only on `expression`. An
+unrecognised key is a hard `422 validation_failed`, never ignored, so never
+forward an option you have not confirmed against the live schema.
 
 ## Authentication
 
@@ -117,10 +138,20 @@ python scripts/gi_predict.py --task promoter --input "$FASTA" --output out/promo
 FASTA=$(python scripts/gi_fetch.py --gene HBB --for-expression --out out/hbb.fa)
 python scripts/gi_predict.py --task expression --input "$FASTA" --description "K562 cells" --output out/expr
 
-# Or hand over a whole locus and name the TSS; the server slices TSS ± 4,599 bp
-python scripts/gi_predict.py --task expression --input out/locus.fa --description "K562 cells" \
-  --tss-index 12345 --output out/expr
+# Or hand over a whole locus and name the TSS; the server slices TSS ± 4,599 bp.
+# Fetch the locus first, then compute the offset:
+#   tss_index = <TSS 1-based coordinate> - <region start coordinate>
+# counted on the whitespace-stripped sequence, and it must satisfy
+# 4599 <= tss_index <= len(sequence) - 4599.
+LOCUS=$(python scripts/gi_fetch.py --region chr11:5,220,000-5,240,000 --out out/locus.fa)
+python scripts/gi_predict.py --task expression --input "$LOCUS" --description "K562 cells" \
+  --tss-index <offset> --output out/expr
 ```
+
+Prefer `--for-expression` when you have a gene symbol: it resolves the canonical
+transcript and cuts the window for you, so there is no offset to get wrong. A
+`--tss-index` that is in range but wrong is not an error — it scores the wrong
+window and returns `200`.
 
 `gi_predict.py` prints a compact JSON summary to **stdout** (headline scalars
 only; bulky per-item arrays stay in `result.json`). Progress/verification lines
@@ -187,6 +218,8 @@ is in range but wrong is not an error, it just scores the wrong window.
 |---|---|---|
 | `GI_API_KEY is not set` | No key | `export GI_API_KEY=gi_…` |
 | `sequence too short: … < 9,198 bp minimum` | Expression sequence below the window size | Use `gi_fetch.py --gene X --for-expression` |
+| `sequence too short: … bp minimum` (other tasks) | Below the task floor (promoter 300, splice 100, enhancer 50, chromatin 200, annotation 1,000) | Fetch more sequence; server-side this is a `422`, not a `413` |
+| `API error: [413 payload_too_large]` | Raw request body over 16 MiB | Split the input; this is the body cap, not the sequence cap |
 | `--tss-index is required unless the sequence is exactly 9,198 bp` | Longer locus, no TSS named | Add `--tss-index <0-based offset>` |
 | `--tss-index … outside the allowed range` | TSS too close to an edge | Submit more flanking sequence |
 | `--description is required` | expression w/o context | `--description "K562 cells"` |

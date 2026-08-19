@@ -72,24 +72,42 @@ class TaskSpec:
         return None
 
 
-# Bounds mirror gpu_service/core/limits.py. Every task caps at 500 kb. The
-# expression task additionally has a 9,198 bp *floor*: the model always scores
-# exactly one 9,198 bp TSS-centred window, sequence[tss-4599 : tss+4599]. Send a
-# pre-cut 9,198 bp window, or send up to 500 kb plus --tss-index and let the
-# server slice. EXPRESSION_TSS_RADIUS = 9198 // 2.
+# These bounds are a LOCAL MIRROR, not the authority. The authority is
+# gpu_service/core/limits.py, published as `minLength`/`maxLength` on each
+# task's request schema in the live OpenAPI doc
+# (https://api.genomicintelligence.ai/v1/openapi.json). Re-read it if a
+# rejection here disagrees with the server.
+#
+# Each task has its own floor — the strictest its models need — enforced at
+# request validation before any model loads. The floor is admission control,
+# NOT a statement about regime: a sequence above the floor but shorter than the
+# selected model's `bio_spec.context_window_bp` is accepted and scored against a
+# window padded out to the context window. Compare your length against
+# `context_window_bp` (from GET /v1/tasks/{task}/models) to know whether the
+# model saw real sequence or padding. Every task caps at 500,000 bp.
+PROMOTER_MIN_BP = 300
+SPLICE_MIN_BP = 100
+ENHANCER_MIN_BP = 50
+CHROMATIN_MIN_BP = 200
+ANNOTATION_MIN_BP = 1_000
+MAX_BP = 500_000
+
+# expression's floor is also the width of the single window the model scores:
+# sequence[tss_index-4599 : tss_index+4599]. Send a pre-cut 9,198 bp window, or
+# send up to 500 kb plus --tss-index and let the server slice.
 EXPRESSION_WINDOW_BP = 9_198
 EXPRESSION_TSS_RADIUS = EXPRESSION_WINDOW_BP // 2  # 4,599
 
 TASKS: Dict[str, TaskSpec] = {
-    "promoter": TaskSpec(1, 500_000, False, "promoter_tp53.fa"),
-    "splice": TaskSpec(1, 500_000, False, "splice_hbb.fa"),
-    "enhancer": TaskSpec(1, 500_000, False, "enhancer_eve.fa"),
-    "chromatin": TaskSpec(1, 500_000, False, "chromatin_active_promoter_chr19.fa"),
+    "promoter": TaskSpec(PROMOTER_MIN_BP, MAX_BP, False, "promoter_tp53.fa"),
+    "splice": TaskSpec(SPLICE_MIN_BP, MAX_BP, False, "splice_hbb.fa"),
+    "enhancer": TaskSpec(ENHANCER_MIN_BP, MAX_BP, False, "enhancer_eve.fa"),
+    "chromatin": TaskSpec(CHROMATIN_MIN_BP, MAX_BP, False, "chromatin_active_promoter_chr19.fa"),
     "expression": TaskSpec(
-        EXPRESSION_WINDOW_BP, 500_000, False, "expression_hbb_k562.fa",
+        EXPRESSION_WINDOW_BP, MAX_BP, False, "expression_hbb_k562.fa",
         window_bp=EXPRESSION_WINDOW_BP,
     ),
-    "annotation": TaskSpec(1, 500_000, True, "annotation_tp53.fa"),
+    "annotation": TaskSpec(ANNOTATION_MIN_BP, MAX_BP, True, "annotation_tp53.fa"),
 }
 
 
@@ -111,7 +129,11 @@ def _parse_args() -> argparse.Namespace:
         "--description",
         type=str,
         default=None,
-        help="Cell type / assay context. REQUIRED by expression; ignored by other tasks.",
+        help=(
+            "Cell type / assay context. REQUIRED by expression; not accepted by "
+            "any other task (their options objects are closed), so it is dropped "
+            "with a warning if passed elsewhere."
+        ),
     )
     p.add_argument(
         "--tss-index",
@@ -371,6 +393,13 @@ def main() -> int:
                 "longer locus plus --tss-index. See references/tasks.md#expression.",
                 file=sys.stderr,
             )
+        elif len(sequence) < spec.min_bp:
+            print(
+                f"  {task} needs at least {spec.min_bp:,} bp. This floor is published as "
+                f"minLength on the endpoint's request schema; the server rejects a shorter "
+                f"sequence with 422 validation_failed. See references/tasks.md.",
+                file=sys.stderr,
+            )
         return 1
 
     tss_index = args.tss_index
@@ -413,9 +442,20 @@ def main() -> int:
     except RuntimeError as e:
         print(str(e), file=sys.stderr)
         return 2
+    # `options` is a closed (additionalProperties: false) object per task, and
+    # only ExpressionOptions declares `description`. Forwarding it on any other
+    # task is a hard 422 validation_failed (extra_forbidden), not a no-op — so
+    # drop it locally rather than letting the server reject the call.
     options: Dict[str, Any] = {}
     if args.description is not None:
-        options["description"] = args.description
+        if task == "expression":
+            options["description"] = args.description
+        else:
+            print(
+                f"[gi-{task}] --description applies to expression only; ignoring it "
+                f"({task} rejects unknown options keys with 422).",
+                file=sys.stderr,
+            )
 
     print(
         f"[gi-{task}] sequence_name={sequence_name} length={len(sequence):,} bp "
