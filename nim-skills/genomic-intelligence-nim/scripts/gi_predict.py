@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Unified CLI for the Genomic Intelligence DNA-sequence tasks.
 
-One entry point covers all six tasks exposed by the hosted
-``/v1/tasks/{task}/predict`` contract:
+One entry point covers all six tasks exposed by the hosted API. Each is its own
+published operation at ``/v1/tasks/<task>/predict`` (same URLs as always, but a
+separate request schema per task):
 
     promoter · splice · enhancer · chromatin · expression · annotation
 
@@ -79,12 +80,16 @@ class TaskSpec:
 # rejection here disagrees with the server.
 #
 # Each task has its own floor — the strictest its models need — enforced at
-# request validation before any model loads. The floor is admission control,
-# NOT a statement about regime: a sequence above the floor but shorter than the
-# selected model's `bio_spec.context_window_bp` is accepted and scored against a
-# window padded out to the context window. Compare your length against
-# `context_window_bp` (from GET /v1/tasks/{task}/models) to know whether the
-# model saw real sequence or padding. Every task caps at 500,000 bp.
+# request validation before any model loads (there is no longer a shared
+# PredictRequest, and there are no per-model floors, so --model can never make a
+# rejected length legal). The floor is admission control, NOT a statement about
+# regime: a sequence above the floor but shorter than the selected model's
+# `bio_spec.context_window_bp` is accepted and scored against a window padded out
+# to the context window. Compare your length against `context_window_bp` (from
+# GET /v1/tasks/{task}/models) to know whether the model saw real sequence or
+# padding. Every task caps at 500,000 bp. Under-floor and over-max are both
+# 422 validation_failed server-side — a 413 means the 16 MiB raw-body cap, never
+# a long sequence.
 PROMOTER_MIN_BP = 300
 SPLICE_MIN_BP = 100
 ENHANCER_MIN_BP = 50
@@ -95,6 +100,16 @@ MAX_BP = 500_000
 # expression's floor is also the width of the single window the model scores:
 # sequence[tss_index-4599 : tss_index+4599]. Send a pre-cut 9,198 bp window, or
 # send up to 500 kb plus --tss-index and let the server slice.
+#
+# The default path is deliberately stricter than the API: with no --tss-index,
+# this client requires *exactly* 9,198 bp rather than merely at-or-above the
+# floor. That is the tripwire — the server will happily score a 9,198 bp window
+# cut from the wrong place and return a confident 200, and there is no
+# client-side tell for a mis-centred window. Requiring the exact width keeps the
+# caller visibly responsible for TSS-centring. --tss-index is the explicit
+# opt-in that widens the accepted range to the full 9,198–500,000 bp the API
+# allows and hands the cut to the server; it is range-checked below, and what
+# was actually scored is echoed back from response meta rather than assumed.
 EXPRESSION_WINDOW_BP = 9_198
 EXPRESSION_TSS_RADIUS = EXPRESSION_WINDOW_BP // 2  # 4,599
 
@@ -405,6 +420,8 @@ def main() -> int:
     tss_index = args.tss_index
     if task == "expression":
         if tss_index is None:
+            # Default path: exact window only. See the EXPRESSION_WINDOW_BP note
+            # above for why this is stricter than the API's own floor.
             if len(sequence) != EXPRESSION_WINDOW_BP:
                 print(
                     f"[gi-expression] --tss-index is required unless the sequence is "

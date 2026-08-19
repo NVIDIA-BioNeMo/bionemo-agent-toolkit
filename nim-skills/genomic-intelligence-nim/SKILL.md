@@ -40,7 +40,7 @@ what callers already send.
 | `splice` | Splice donor/acceptor sites | sync | 100–500,000 bp | 15,000 bp |
 | `enhancer` | Developmental & housekeeping enhancer activity | sync | 50–500,000 bp | 249 bp |
 | `chromatin` | Chromatin state across hundreds of tracks | sync | 200–500,000 bp | 1,000 bp |
-| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** | 9,198 bp (fixed, not sliding) |
+| `expression` | Expression as log(TPM+1) | sync | **9,198–500,000 bp** | n/a (`trained_window_bp` 9,198) |
 | `annotation` | De-novo gene/transcript structure | **async** | 1,000–500,000 bp | n/a |
 
 The minimum is **admission control, not regime**. A sequence above the floor but

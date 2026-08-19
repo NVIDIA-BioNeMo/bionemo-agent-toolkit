@@ -78,7 +78,7 @@ def resolve_api_key(explicit: Optional[str] = None) -> str:
 
 
 class Client:
-    """Thin synchronous client for /v1/tasks/{task}/predict."""
+    """Thin synchronous client for the /v1/tasks/<task>/predict endpoints."""
 
     def __init__(
         self,
