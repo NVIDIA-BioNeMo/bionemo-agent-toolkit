@@ -9,9 +9,15 @@ can change independently.
 | Mode | Method | URL |
 |---|---|---|
 | Hosted generation | POST | `https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate` |
-| Local generation | POST | `http://localhost:8000/biology/arc/evo2/generate` |
-| Local forward/layer outputs | POST | `http://localhost:8000/biology/arc/evo2/forward` |
-| Local health check | GET | `http://localhost:8000/v1/health/ready` |
+| Local generation | POST | `$EVO2_NIM_URL/biology/arc/evo2/generate` |
+| Local forward/layer outputs | POST | `$EVO2_NIM_URL/biology/arc/evo2/forward` |
+| Local health check | GET | `$EVO2_NIM_URL/v1/health/ready` |
+
+Honor `NIM_API_MODE=hosted|local` when supplied. For local mode, set
+`EVO2_NIM_URL` to the base URL visible to the caller; default to
+`http://localhost:8000` only when no URL is configured. A separate task
+container should use the NIM's service DNS name rather than `localhost`. Never
+silently fall back from the selected mode to another endpoint.
 
 Hosted requests require `Authorization: Bearer $NGC_API_KEY`.
 Local inference requests use no auth header; `NGC_API_KEY` is passed to Docker
@@ -59,8 +65,9 @@ curl -sS -X POST \
 Local curl:
 
 ```bash
+evo2_nim_url="${EVO2_NIM_URL:-http://localhost:8000}"
 curl -sS -X POST \
-  http://localhost:8000/biology/arc/evo2/generate \
+  "${evo2_nim_url%/}/biology/arc/evo2/generate" \
   -H "Content-Type: application/json" \
   -d '{"sequence":"ACTGACTGACTGACTG","num_tokens":8,"top_k":1,"enable_sampled_probs":true}'
 ```

@@ -20,11 +20,16 @@ payload = {
 ## Local Generation Payload
 
 ```python
-url = "http://localhost:8000/biology/arc/evo2/generate"
+import os
+
+nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000").rstrip("/")
+url = f"{nim_url}/biology/arc/evo2/generate"
 headers = {"Content-Type": "application/json"}
 ```
 
-Do not send `Authorization` to local inference requests.
+Do not send `Authorization` to local inference requests. Honor
+`NIM_API_MODE=local` when supplied, and do not replace a configured
+`EVO2_NIM_URL` with `localhost` or silently switch to hosted inference.
 
 ## Local Forward Payload
 
@@ -33,6 +38,7 @@ payload = {
     "sequence": "ACTGACTGACTG",
     "output_layers": ["output_layer", "decoder.layers.3.self_attention"],
 }
+url = f"{nim_url}/biology/arc/evo2/forward"
 ```
 
 ## Decode Forward Response
