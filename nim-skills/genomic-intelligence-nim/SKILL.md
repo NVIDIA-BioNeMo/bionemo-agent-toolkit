@@ -34,7 +34,7 @@ Each task is its own published operation — `POST /v1/tasks/promoter/predict`,
 minimum length, and its own closed `options` object. The URLs are unchanged from
 what callers already send.
 
-| Task | What it predicts | Mode | Accepted length | Model context window |
+| Task | What it predicts | Mode | Accepted length | `context_window_bp` |
 |---|---|---|---|---|
 | `promoter` | Promoter regions (sliding window) | sync | 300–500,000 bp | 2,000 bp (300 bp models exist) |
 | `splice` | Splice donor/acceptor sites | sync | 100–500,000 bp | 15,000 bp |
@@ -138,14 +138,19 @@ python scripts/gi_predict.py --task promoter --input "$FASTA" --output out/promo
 FASTA=$(python scripts/gi_fetch.py --gene HBB --for-expression --out out/hbb.fa)
 python scripts/gi_predict.py --task expression --input "$FASTA" --description "K562 cells" --output out/expr
 
-# Or hand over a whole locus and name the TSS; the server slices TSS ± 4,599 bp.
-# Fetch the locus first, then compute the offset:
-#   tss_index = <TSS 1-based coordinate> - <region start coordinate>
-# counted on the whitespace-stripped sequence, and it must satisfy
-# 4599 <= tss_index <= len(sequence) - 4599.
-LOCUS=$(python scripts/gi_fetch.py --region chr11:5,220,000-5,240,000 --out out/locus.fa)
+# Or hand over a whole locus and name the TSS; the server slices TSS +/- 4,599 bp.
+# --region returns the strand you ask for and expression never reverse-complements,
+# so a minus-strand gene needs --strand -1. HBB is minus-strand.
+LOCUS=$(python scripts/gi_fetch.py --region chr11:5,220,000-5,240,000 --strand -1 \
+  --out out/locus.fa)
+# Offset of the TSS into the returned sequence, 0-based, whitespace stripped.
+# Plus strand:  TSS_INDEX = TSS - REGION_START
+# Minus strand: TSS_INDEX = REGION_END - TSS      (the sequence is reverse-complemented)
+# Must satisfy 4599 <= TSS_INDEX <= len(sequence) - 4599.
+# HBB 5' end on the minus strand is 5,229,395 (Ensembl, GRCh38).
+TSS_INDEX=$(( 5240000 - 5229395 ))
 python scripts/gi_predict.py --task expression --input "$LOCUS" --description "K562 cells" \
-  --tss-index <offset> --output out/expr
+  --tss-index "$TSS_INDEX" --output out/expr
 ```
 
 Prefer `--for-expression` when you have a gene symbol: it resolves the canonical
@@ -226,7 +231,7 @@ is in range but wrong is not an error, it just scores the wrong window.
 | `API error: [401 …]` | Bad/revoked key | Re-check `GI_API_KEY` |
 | `API error: [422 …]` | Body/model rejected | Check `--model` in `references/tasks.md` |
 | `API error: [429 …]` | Rate limit | Back off; partner tiers have caps |
-| `API error: [504 upstream_timeout]` | Large sync req, cold GPU | Retry or shorten |
+| `API error: [504 timeout]` | Large sync req, cold GPU | Retry or shorten |
 | `parsed an empty sequence` | Empty/invalid FASTA | Check the file is a single ACGT record |
 
 More: `references/errors.md`.

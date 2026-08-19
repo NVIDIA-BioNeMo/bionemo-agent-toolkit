@@ -168,7 +168,7 @@ header. Every response carries `RateLimit-Limit`, `RateLimit-Remaining`,
 Common: `401/403` (auth), `422 validation_failed` (bad body/length/model/options
 — including over-length sequence), `429` (rate limit), `413 payload_too_large`
 (raw body over 16 MiB), `415 unsupported_format` (an unsupported `format` query
-value — never a silent fallback to JSON), `504 upstream_timeout` (large sync
+value — never a silent fallback to JSON), `504 timeout` (large sync
 request on a cold GPU). More: `references/errors.md`.
 
 Per-task `format` values: promoter `json|bed|bedgraph`, splice `json|bed|gff3`,

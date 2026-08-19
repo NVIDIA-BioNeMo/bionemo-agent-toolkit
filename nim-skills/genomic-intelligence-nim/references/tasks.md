@@ -17,14 +17,14 @@ schema, the served schema wins.
 
 ## Summary
 
-| Task | Default model | Mode | Accepted length | Model context window | Demo fixture |
+| Task | Default architecture | Mode | Accepted length | `context_window_bp` | Demo fixture |
 |---|---|---|---|---|---|
-| promoter | `g0-promoter-2000bp` | sync | 300–500,000 bp | 2,000 bp | `promoter_tp53.fa` |
-| splice | `g0-splice-bigbird` | sync | 100–500,000 bp | 15,000 bp | `splice_hbb.fa` |
-| enhancer | `g0-deepstarr` | sync | 50–500,000 bp | 249 bp | `enhancer_eve.fa` |
-| chromatin | `g0-deepsea` | sync | 200–500,000 bp | 1,000 bp | `chromatin_active_promoter_chr19.fa` |
-| expression | `g0-expression` | sync | **9,198–500,000 bp** | 9,198 bp (fixed) | `expression_hbb_k562.fa` |
-| annotation | `g0-annotation` | **async** | 1,000–500,000 bp | n/a | `annotation_tp53.fa` |
+| promoter | sliding-window promoter caller | sync | 300–500,000 bp | 2,000 bp | `promoter_tp53.fa` |
+| splice | BigBird long-context | sync | 100–500,000 bp | 15,000 bp | `splice_hbb.fa` |
+| enhancer | DeepSTARR (*Drosophila* S2) | sync | 50–500,000 bp | 249 bp | `enhancer_eve.fa` |
+| chromatin | DeepSEA multi-track | sync | 200–500,000 bp | 1,000 bp | `chromatin_active_promoter_chr19.fa` |
+| expression | TSS-window expression regressor | sync | **9,198–500,000 bp** | n/a (`trained_window_bp` 9,198) | `expression_hbb_k562.fa` |
+| annotation | structure-aware gene finder | **async** | 1,000–500,000 bp | n/a | `annotation_tp53.fa` |
 
 There are no per-model floors: a task's minimum is the strictest its models need,
 and every model stays listed and loadable.
@@ -33,7 +33,7 @@ and every model stays listed and loadable.
 validation before any model loads. A request above the floor but shorter than the
 selected model's `bio_spec.context_window_bp` is **accepted and scored** — against
 a window padded out to the context window. Enhancer is the sharp case: the bound
-is 50 bp but `g0-deepstarr`'s context window is 249 bp, so 50–248 bp is scored
+is 50 bp but the enhancer context window is 249 bp, so 50–248 bp is scored
 mostly on padding. Compare your length against `context_window_bp` (from
 `GET /v1/tasks/{task}/models`) to know whether the model saw real sequence.
 Longer-than-context input is fine — the scanner steps a prediction window at a
@@ -73,25 +73,24 @@ Predicts promoter regions over a sliding window. `data.summary` reports
 bedGraph via the API directly.
 
 Non-human models exist (Drosophila, yeast, Arabidopsis) — pass `--model`. The
-default `g0-promoter-2000bp` targets human/mammalian sequence.
+default promoter model targets human/mammalian sequence.
 
 ## splice
 
 Predicts splice **donor** and **acceptor** sites. `data.sites` lists each site
 with `name`, `start`, `end`, `site_type` (donor/acceptor), `score`, and
-`strand`. Default model `g0-splice-bigbird` (BigBird long-context). Good demo: a
+`strand`. The default splice model uses a BigBird long-context architecture. Good demo: a
 gene with known introns (the bundled `splice_hbb.fa` is HBB).
 
 ## enhancer
 
-Scores enhancer activity. The default `g0-deepstarr` (DeepSTARR) reports
+Scores enhancer activity. The default enhancer model (DeepSTARR) reports
 **developmental** and **housekeeping** enhancer scores —
 `summary.dev_score_max` / `summary.hk_score_max` per window. DeepSTARR is a
 *Drosophila* model; the bundled demo (`enhancer_eve.fa`, the eve locus) reflects
 that. Use the appropriate model for your organism.
 
-The 50 bp floor is `g0-deepstarr`'s admission gate (the `dnabert-deepstarr`
-alternative tolerates 16 bp, but the task floor is the strictest one). It is not
+The 50 bp floor is the strictest gate any enhancer model needs. It is not
 a biologically meaningful range: the model's `context_window_bp` is 249, so a
 50–248 bp request is accepted and scored against a padded 249 bp window. Submit
 at least 249 bp if you want the score to reflect real sequence.
@@ -99,7 +98,7 @@ at least 249 bp if you want the score to reflect real sequence.
 ## chromatin
 
 Annotates chromatin state across a large panel of tracks (histone marks, DNase,
-ATAC, TF binding) — the default `g0-deepsea` (DeepSEA) covers hundreds of
+ATAC, TF binding) — the default chromatin model (DeepSEA architecture) covers hundreds of
 features. `summary.total_annotations` is the headline; the full per-track matrix
 is in `data`. Output also available as BED via the API.
 
