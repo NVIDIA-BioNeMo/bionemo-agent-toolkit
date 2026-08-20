@@ -152,15 +152,16 @@ class Client:
         and fail there with an AttributeError or KeyError, which reads as a
         client bug rather than a bad response.
         """
-        if not isinstance(body, dict) or "data" not in body:
+        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
             raise GIError(
                 resp.status_code,
                 {
                     "error": {
                         "code": "http_error",
                         "message": (
-                            f"expected a JSON object with a 'data' key, got "
-                            f"{type(body).__name__}"
+                            "expected a JSON object with an object 'data' key, "
+                            f"got {type(body).__name__} with data="
+                            f"{type(body.get('data')).__name__ if isinstance(body, dict) else 'n/a'}"
                         ),
                     }
                 },
@@ -195,7 +196,7 @@ class Client:
             json=body,
             timeout=self.timeout,
         )
-        return self._check(r)
+        return self._require_envelope(self._check(r), r)
 
     def submit_async(
         self,

@@ -243,3 +243,41 @@ class TestWhitespaceIsFormattingNotContent:
     def test_ambiguity_codes_are_still_refused(self, tmp_path, body):
         with pytest.raises(FastaError):
             read_fasta(_write(tmp_path, f">r\n{body}"))
+class TestSyncPredictIsValidatedToo:
+    """The sync path needs the same envelope check as the async one.
+
+    An earlier patch wrapped only wait_for_job, so predict() still returned a
+    200 with no data key straight to the report writer, which wrote an empty
+    report and reported ok=true.
+    """
+
+    class _Resp:
+        status_code, headers, ok = 200, {}, True
+
+        def __init__(self, payload):
+            self._payload, self.text = payload, ""
+
+        def json(self):
+            return self._payload
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"meta": {}},                 # no data key at all
+            {"data": None, "meta": {}},   # null data
+            {"data": "summary", "meta": {}},  # non-object data
+            {"data": [1, 2], "meta": {}},     # array data
+        ],
+    )
+    def test_a_200_without_an_object_data_is_refused(self, payload):
+        with pytest.raises(gi_client.GIError):
+            gi_client.Client._require_envelope(payload, self._Resp(payload))
+
+    def test_predict_wraps_the_sync_path(self):
+        import inspect
+
+        src = inspect.getsource(gi_client.Client.predict)
+        assert "_require_envelope" in src, (
+            "predict() must validate the envelope; a patch that misses this "
+            "line leaves the sync path unguarded while the async one is fine"
+        )
