@@ -83,6 +83,12 @@ with `name`, `start`, `end`, `site_type` (donor/acceptor), `score`, and
 `strand`. The default splice model uses a BigBird long-context architecture. Good demo: a
 gene with known introns (the bundled `splice_hbb.fa` is HBB).
 
+`start` and `end` bound a tokenizer span, not the exon/intron junction. The span
+is one variable-width token — 4–10 bp across the sequences measured so far —
+reported with a `token_index`, and the junction lies somewhere inside it. Do not
+derive a base position from the pair, and do not intersect it against reference
+annotation as though it marked a boundary.
+
 ## enhancer
 
 Scores enhancer activity. The default enhancer model (DeepSTARR) reports
