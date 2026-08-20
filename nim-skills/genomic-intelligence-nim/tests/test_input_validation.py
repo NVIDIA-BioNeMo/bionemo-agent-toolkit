@@ -9,6 +9,7 @@ wrong-but-well-formed result with nothing for the caller to notice.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+import gi_predict  # noqa: E402
 from gi_client import FastaError, read_fasta  # noqa: E402
 from gi_ensembl import (  # noqa: E402
     EXPRESSION_SEQUENCE_LENGTH,
@@ -138,3 +140,26 @@ class TestExpressionWindowCentring:
         # on the plus strand, reverse-complemented on the minus strand.
         offset = tss - start if strand == 1 else end - tss
         assert offset == EXPRESSION_SEQUENCE_LENGTH // 2
+class TestDemoMustBeAskedFor:
+    """Omitting --input must not fall back to the bundled fixture.
+
+    The fallback produced a complete run — real request id, real scores, a
+    written report — for a sequence the caller never supplied, and nothing in
+    the output distinguished it from a real one.
+    """
+
+    def _args(self, **kw):
+        defaults = {"demo": False, "input_file": None}
+        defaults.update(kw)
+        return argparse.Namespace(**defaults)
+
+    def test_no_input_and_no_demo_exits(self):
+        spec = gi_predict.TASKS["promoter"]
+        with pytest.raises(SystemExit) as exc:
+            gi_predict._resolve_input(self._args(), spec)
+        assert exc.value.code == 2
+
+    def test_demo_flag_still_resolves_the_fixture(self):
+        spec = gi_predict.TASKS["promoter"]
+        path = gi_predict._resolve_input(self._args(demo=True), spec)
+        assert path.name == spec.demo
