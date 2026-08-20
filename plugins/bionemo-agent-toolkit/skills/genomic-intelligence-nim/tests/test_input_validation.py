@@ -334,13 +334,19 @@ class TestAsyncSubmitIsValidatedToo:
 class TestNestedFieldsOfTheWrongType:
     """`_require_envelope` passing is not a promise about what is inside `data`.
 
-    The envelope check guarantees `data` is an object and stops there, which is
-    the right scope for it — it is shared by six tasks and must not encode any
-    one task's schema. So the report writer still meets whatever `data.summary`
-    or `meta` actually contains, and it runs *after* main()'s try/except has
-    closed: an AttributeError there is a traceback, not the API-error
-    diagnostic. The `x or {}` guards it used to rely on only covered null and
-    absent; a truthy wrong type sailed through them.
+    The envelope check guarantees `data` is a non-empty object and stops there,
+    which is the right scope for it — it is shared by six tasks and must not
+    encode any one task's schema. So the report writer still meets whatever
+    `data.summary` or `meta` actually contains, and it runs *after* main()'s
+    first try/except has closed.
+
+    Two wrong answers were available here and both were taken in turn. The
+    `x or {}` guards only covered null and absent, so a truthy wrong type
+    reached `.get` and raised AttributeError — a traceback that reads as a
+    client bug. Coercing it to `{}` instead produced a zero-valued report
+    printed with `"ok": true`, which is worse: a malformed response became
+    indistinguishable from a real prediction of nothing. The third option is a
+    typed refusal, which is what these pin.
 
     These call `_summarize` and `_write_report` rather than asserting on their
     source, because the defect this pins is a missing call site and a source
@@ -363,20 +369,97 @@ class TestNestedFieldsOfTheWrongType:
     @pytest.mark.parametrize(
         "task", ["promoter", "splice", "enhancer", "chromatin", "expression", "annotation"]
     )
-    def test_summarize_survives_every_task(self, task, body):
-        out = gi_predict._summarize(task, body)
+    def test_a_wrong_typed_field_is_refused_not_coerced(self, task, body):
+        """Whichever task reads the offending field must refuse the body.
+
+        A task that never reads it is entitled to succeed — `enhancer` does not
+        touch `data.transcripts` — so the assertion is on the failure mode, not
+        on every combination failing: either a typed refusal naming the field,
+        or a clean summary. Never an AttributeError, and never a summary built
+        out of a substituted empty value.
+        """
+        try:
+            out = gi_predict._summarize(task, body)
+        except gi_predict.ResponseShapeError as e:
+            assert "should be an" in str(e)
+            return
         assert isinstance(out, dict)
         assert isinstance(out["raw_summary"], dict)
 
+    @pytest.mark.parametrize(
+        "body,field",
+        [
+            ({"data": {"summary": "all good"}}, "data.summary"),
+            ({"data": {"summary": ["a", "b"]}}, "data.summary"),
+            ({"data": {"summary": 0.94}}, "data.summary"),
+            ({"data": {"summary": {}, "regions": "chr1"}}, "data.regions"),
+            ({"data": {"summary": {}, "sites": [1, 2, 3]}}, "data.sites"),
+        ],
+    )
+    def test_the_offending_field_is_named(self, body, field):
+        task = {"data.summary": "promoter", "data.regions": "promoter",
+                "data.sites": "splice"}[field]
+        with pytest.raises(gi_predict.ResponseShapeError) as exc:
+            gi_predict._summarize(task, body)
+        assert field in str(exc.value)
+
     @pytest.mark.parametrize("body", _MALFORMED)
     @pytest.mark.parametrize("task", ["promoter", "splice", "expression", "annotation"])
-    def test_the_report_still_writes(self, tmp_path, task, body):
-        summary = gi_predict._summarize(task, body)
-        gi_predict._write_report(
-            task, summary, body, tmp_path, tmp_path / "in.fa", "seq", 9198, 12.0,
-        )
+    def test_the_report_never_half_writes(self, tmp_path, task, body):
+        """A refusal may happen; a traceback or a silent zero report may not."""
+        try:
+            summary = gi_predict._summarize(task, body)
+            gi_predict._write_report(
+                task, summary, body, tmp_path, tmp_path / "in.fa", "seq", 9198, 12.0,
+            )
+        except gi_predict.ResponseShapeError:
+            return
         assert (tmp_path / "report.md").exists()
         assert (tmp_path / "result.json").exists()
+
+    def test_main_reports_it_instead_of_exiting_zero(self, tmp_path, monkeypatch, capsys):
+        """The whole point: exit 2 with a diagnostic, not 0 with `"ok": true`.
+
+        Drives `main()` rather than grepping it for a handler, because the last
+        defect of this shape (GI-055) was a source-level edit that matched
+        nothing and still read as correct in review.
+        """
+        fa = tmp_path / "in.fa"
+        fa.write_text(">seq\n" + "ACGT" * 100 + "\n")
+
+        class _FakeClient:
+            def __init__(self, *a, **kw):
+                pass
+
+            def predict(self, *a, **kw):
+                return {"data": {"summary": "all good"}, "meta": {}}
+
+        monkeypatch.setattr(gi_predict, "Client", _FakeClient)
+        monkeypatch.setenv("GI_API_KEY", "partner-test-key")
+        monkeypatch.setattr(
+            sys, "argv",
+            ["gi_predict.py", "--task", "promoter", "--input", str(fa),
+             "--output", str(tmp_path / "out")],
+        )
+
+        assert gi_predict.main() == 2
+        err = capsys.readouterr()
+        assert "unexpected API response shape" in err.err
+        assert "data.summary" in err.err
+        assert '"ok": true' not in err.out
+        assert not (tmp_path / "out" / "report.md").exists()
+
+    def test_absent_and_null_are_still_legitimate(self):
+        """Only a *present, wrong-typed* field is malformed.
+
+        A task with no `prediction` omits it; coercing that to `{}` is correct
+        and must not become a refusal, or every sparse-but-valid response breaks.
+        """
+        body = {"data": {"summary": {"total_windows": 5}, "regions": None},
+                "meta": None}
+        out = gi_predict._summarize("promoter", body)
+        assert out["regions"] == []
+        assert out["raw_summary"] == {"total_windows": 5}
 
     def test_a_well_formed_body_still_reports_its_rows(self, tmp_path):
         body = {

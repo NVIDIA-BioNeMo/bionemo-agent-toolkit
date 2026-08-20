@@ -198,43 +198,84 @@ def _resolve_input(args: argparse.Namespace, spec: TaskSpec) -> Path:
 _BULKY_SUMMARY_KEYS = {"regions", "sites", "transcripts", "raw_summary"}
 
 
-def _as_obj(v: Any) -> Dict[str, Any]:
-    """Treat a response field as a mapping, or substitute an empty one.
+class ResponseShapeError(RuntimeError):
+    """A 2xx body whose nested fields contradict their documented types.
 
-    `_require_envelope` guarantees `data` is an object; it deliberately does not
-    police per-task fields nested inside it. The `x or {}` idiom this replaces
-    handled null and absent but not a *truthy* wrong type: a `"summary"` that
-    arrives as a string passes `or {}` untouched and then raises AttributeError
-    on `.get`, in the report writer, which runs after main()'s try/except has
-    closed. That surfaces as a traceback instead of the API-error diagnostic.
+    Distinct from `GIError`, which covers what the API itself reported. This is
+    a well-formed envelope carrying a field the contract says is an object or an
+    array and that arrived as something else.
     """
-    return v if isinstance(v, dict) else {}
 
 
-def _as_objs(v: Any) -> list:
+def _as_obj(v: Any, field: str) -> Dict[str, Any]:
+    """Read a response field documented as an object.
+
+    `_require_envelope` guarantees `data` is a non-empty object; it deliberately
+    does not police per-task fields nested inside it, because it is shared by
+    six tasks and must not encode any one task's schema. So the checking happens
+    here.
+
+    Absent or null is legitimate — a task that has no `prediction` omits it — and
+    becomes `{}`. A field that is *present with the wrong type* is a malformed
+    response and is reported as one.
+
+    Two failure modes have to be avoided here, and they pull in opposite
+    directions. The `x or {}` idiom this replaces handled null and absent but not
+    a truthy wrong type: a `"summary"` arriving as a string passed `or {}`
+    untouched and then raised AttributeError on `.get`, in the report writer,
+    which runs after main()'s try/except has closed — a traceback that reads as a
+    client bug. Substituting `{}` for it instead fixes the traceback and creates
+    something worse: a zero-valued report printed with `"ok": true`, so a bad
+    response is indistinguishable from a real prediction of nothing. Raise a
+    typed error that main() turns into the same diagnostic it gives any other
+    malformed response, and it is neither.
+    """
+    if v is None:
+        return {}
+    if not isinstance(v, dict):
+        raise ResponseShapeError(
+            f"{field} should be an object, got {type(v).__name__}"
+        )
+    return v
+
+
+def _as_objs(v: Any, field: str) -> list:
     """Same, for a field documented as an array of objects.
 
-    A truthy non-list (a bare string) is iterable, so `or []` lets it through
-    and the row loop iterates its characters; non-object elements fail the same
-    way. Both are dropped rather than rendered.
+    A truthy non-list (a bare string) is iterable, so `or []` let it through and
+    the row loop iterated its characters; non-object elements fail the same way.
+    Neither is silently dropped — an array whose elements are the wrong type is a
+    malformed response, and a report missing rows it should have had is exactly
+    the silent wrong answer this is here to prevent.
     """
-    return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+    if v is None:
+        return []
+    if not isinstance(v, list):
+        raise ResponseShapeError(
+            f"{field} should be an array, got {type(v).__name__}"
+        )
+    for i, x in enumerate(v):
+        if not isinstance(x, dict):
+            raise ResponseShapeError(
+                f"{field}[{i}] should be an object, got {type(x).__name__}"
+            )
+    return v
 
 
 def _summarize(task: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """Pick the most useful headline numbers per task from `data`."""
-    data = _as_obj(body.get("data"))
-    summary = _as_obj(data.get("summary"))
+    data = _as_obj(body.get("data"), "data")
+    summary = _as_obj(data.get("summary"), "data.summary")
     out: Dict[str, Any] = {"task": task, "model": data.get("model")}
     if task == "promoter":
         out["promoter_windows"] = summary.get("promoter_windows")
         out["total_windows"] = summary.get("total_windows")
-        out["regions"] = _as_objs(data.get("regions"))
+        out["regions"] = _as_objs(data.get("regions"), "data.regions")
     elif task == "splice":
         out["sites_found"] = summary.get("total_sites", summary.get("sites_found"))
         out["donor_sites"] = summary.get("donor_sites")
         out["acceptor_sites"] = summary.get("acceptor_sites")
-        out["sites"] = _as_objs(data.get("sites"))
+        out["sites"] = _as_objs(data.get("sites"), "data.sites")
     elif task == "enhancer":
         out["windows_processed"] = summary.get("total_windows", summary.get("windows_processed"))
         out["dev_score_max"] = summary.get("dev_score_max")
@@ -243,18 +284,21 @@ def _summarize(task: str, body: Dict[str, Any]) -> Dict[str, Any]:
         out["windows_processed"] = summary.get("total_windows", summary.get("windows_processed"))
         out["total_annotations"] = summary.get("total_annotations")
     elif task == "expression":
-        pred = _as_obj(data.get("prediction"))
+        pred = _as_obj(data.get("prediction"), "data.prediction")
         out["log_tpm"] = pred.get("expression_log_tpm")
         out["tpm"] = pred.get("expression_tpm")
         # Windowing provenance: an in-range but *wrong* tss_index scores the
         # wrong 9,198 bp window and still returns 200, so surface what was
         # actually scored rather than trusting the request.
-        counts = _as_obj(_as_obj(body.get("meta")).get("task_specific_counts"))
+        counts = _as_obj(
+            _as_obj(body.get("meta"), "meta").get("task_specific_counts"),
+            "meta.task_specific_counts",
+        )
         out["tss_index"] = counts.get("tss_index")
         out["scored_window"] = counts.get("scored_window")
     elif task == "annotation":
         out["transcripts_found"] = summary.get("total_transcripts", summary.get("transcripts_found"))
-        out["transcripts"] = _as_objs(data.get("transcripts"))
+        out["transcripts"] = _as_objs(data.get("transcripts"), "data.transcripts")
     out["raw_summary"] = summary
     return out
 
@@ -270,7 +314,7 @@ def _headline_lines(task: str, summary: Dict[str, Any]) -> list[str]:
             f"- Promoter windows: **{summary.get('promoter_windows', 0)}** / "
             f"{summary.get('total_windows', 0)} total"
         )
-        regions = _as_objs(summary.get("regions"))
+        regions = _as_objs(summary.get("regions"), "data.regions")
         if regions:
             lines += ["", "| Name | Start | End | Score |", "|---|---|---|---|"]
             for r in regions[:20]:
@@ -283,7 +327,7 @@ def _headline_lines(task: str, summary: Dict[str, Any]) -> list[str]:
             f"- Splice sites found: **{summary.get('sites_found') or 0}** "
             f"({summary.get('donor_sites') or 0} donor + {summary.get('acceptor_sites') or 0} acceptor)"
         )
-        sites = _as_objs(summary.get("sites"))[:20]
+        sites = _as_objs(summary.get("sites"), "data.sites")[:20]
         if sites:
             lines += ["", "| Name | Start | Type | Score |", "|---|---|---|---|"]
             for s in sites:
@@ -310,7 +354,7 @@ def _headline_lines(task: str, summary: Dict[str, Any]) -> list[str]:
             lines.append("- See `result.json` for the full prediction payload.")
     elif task == "annotation":
         lines.append(f"- Transcripts found: **{summary.get('transcripts_found') or 0}**")
-        tx = _as_objs(summary.get("transcripts"))[:20]
+        tx = _as_objs(summary.get("transcripts"), "data.transcripts")[:20]
         if tx:
             lines += ["", "| Name | Start | End | Strand | Score |", "|---|---|---|---|---|"]
             for t in tx:
@@ -370,7 +414,7 @@ def _write_report(
         json.dumps({"summary": summary, "full_response": body}, indent=2)
     )
 
-    meta = _as_obj(body.get("meta"))
+    meta = _as_obj(body.get("meta"), "meta")
     report_model = summary.get("model") or "—"  # effective model for the report
     lines = [
         f"# Genomic Intelligence — {task} report",
@@ -563,17 +607,26 @@ def main() -> int:
         return 2
 
     elapsed_ms = (time.monotonic() - started) * 1000.0
-    summary = _summarize(task, body)
-    _write_report(
-        task, summary, body, output_dir, input_path, sequence_name, len(sequence),
-        elapsed_ms, model=args.model, description=args.description, tss_index=tss_index,
-    )
+    # The report writer runs outside the block above, so its own view of a
+    # malformed response needs its own handler. Without one a wrong-typed nested
+    # field either raised a traceback or — once the helpers coerced it — printed
+    # a zero-valued report with ok=true. Both are worse than exiting 2 with the
+    # field named.
+    try:
+        summary = _summarize(task, body)
+        meta = _as_obj(body.get("meta"), "meta")
+        _write_report(
+            task, summary, body, output_dir, input_path, sequence_name, len(sequence),
+            elapsed_ms, model=args.model, description=args.description, tss_index=tss_index,
+        )
+    except ResponseShapeError as e:
+        print(f"[gi-{task}] unexpected API response shape: {e}", file=sys.stderr)
+        return 2
     print(f"[gi-{task}] OK — wrote {output_dir}/report.md ({elapsed_ms:.0f} ms wall)", file=sys.stderr)
 
     # stdout = a compact machine-readable summary so the agent gets the answer
     # inline without reading a file. The bulky per-item arrays (regions / sites /
     # transcripts) stay in result.json — only headline scalars go here.
-    meta = _as_obj(body.get("meta"))
     headline = {k: v for k, v in summary.items() if k not in _BULKY_SUMMARY_KEYS}
     stdout_payload = {
         "ok": True,
