@@ -1,8 +1,8 @@
 # API reference — the /v1 contract
 
 Genomic Intelligence exposes one versioned REST contract. Each task is its own
-published operation with its own request schema — the shared `PredictRequest` is
-gone. Authoritative, live schema:
+published operation with its own request schema; there is no shared request
+model. Authoritative, live schema:
 <https://api.genomicintelligence.ai/v1/openapi.json> (human view:
 <https://api.genomicintelligence.ai/redoc>). This file is a point-in-time
 snapshot — if it disagrees with the OpenAPI doc, the OpenAPI doc wins.
@@ -49,7 +49,7 @@ object, so an unknown key is a hard `422 validation_failed` with
 {
   "sequence": "ACGT…",           // required; A/C/G/T(/N); per-task minLength
   "sequence_name": "TP53",        // optional label echoed back (max 128 chars)
-  "model": "g0-promoter-2000bp",  // optional; omit for the task default
+  "model": "…",                   // optional; omit to use the task default
   "options": { "threshold": 0.5 } // task-specific, closed; see below
 }
 ```
@@ -97,10 +97,12 @@ published on each task's request schema; the served schema wins.
 
 - `request_max_bp` — the enforced ceiling (500,000 for every model).
 - `context_window_bp` — the model's own sliding window in bp; `null` for
-  annotation and expression. Live: promoter `g0-promoter-2000bp` 2,000 (the
-  300 bp promoter models 300), splice 15,000, enhancer 249, chromatin 1,000.
-- `trained_window_bp` — fixed receptive field; 9,198 for `g0-expression`, `null`
-  for sliding-window models.
+  annotation and expression. Promoter is 2,000 for the 2,000 bp models and 300
+  for the 300 bp models; splice 15,000, enhancer 249, chromatin 1,000. Read the
+  value for the model you are actually using from
+  `GET /v1/tasks/{task}/models`.
+- `trained_window_bp` — fixed receptive field; 9,198 for the expression model,
+  `null` for sliding-window models.
 
 There is no `strand_sensitive` flag. The splice model is strand-specific in
 practice — feed transcript orientation.
@@ -196,10 +198,11 @@ Above **50,000 bp** the composite forces async: a synchronous request over that
 size is `413 sync_too_large` with `error.details = {sequence_length, threshold}`.
 Retry the same body with `Prefer: respond-async`.
 
-## Version note
+## Authority
 
-Everything above is live on `api.genomicintelligence.ai`, which serves
-gpu_service `2026.08.19.5`: the six literal predict operations, the typed
+Everything above describes the contract the Genomic Intelligence API serves at
+`api.genomicintelligence.ai`: the six literal predict operations, the typed
 `options` objects, the per-task floors, the published composite, the `Prefer`
-parameter, the `code` enum and the `bio_spec` fields. Check `info.version` in
-`/v1/openapi.json` if a detail here does not match.
+parameter, the `code` enum and the `bio_spec` fields. The served schema at
+<https://api.genomicintelligence.ai/v1/openapi.json> is authoritative — check it
+if a detail here does not match.

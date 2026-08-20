@@ -7,9 +7,9 @@ chromatin, expression, annotation).
 
 Each task is its own published operation — ``POST /v1/tasks/promoter/predict``,
 ``/v1/tasks/splice/predict``, and so on — with its own request schema, its own
-``minLength``, and its own closed ``options`` object. The URLs are the same
-strings this module has always built, so ``f"{base}/v1/tasks/{task}/predict"``
-stays correct; only the schema is per-task now. ``options`` is
+``minLength``, and its own closed ``options`` object. The paths differ only in
+the task segment, so one formatted URL covers all six; the request bodies do
+not, which is why the per-task validation below is not shared. ``options`` is
 ``additionalProperties: false`` on every task, so an unrecognised key is a hard
 ``422 validation_failed`` rather than being ignored — never forward option keys
 you have not confirmed against the live schema.

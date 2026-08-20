@@ -2,8 +2,8 @@
 """Unified CLI for the Genomic Intelligence DNA-sequence tasks.
 
 One entry point covers all six tasks exposed by the hosted API. Each is its own
-published operation at ``/v1/tasks/<task>/predict`` (same URLs as always, but a
-separate request schema per task):
+published operation at ``/v1/tasks/<task>/predict``, with a separate request
+schema per task:
 
     promoter · splice · enhancer · chromatin · expression · annotation
 
@@ -85,9 +85,8 @@ class TaskSpec:
 # if a rejection here disagrees with the server.
 #
 # Each task has its own floor — the strictest its models need — enforced at
-# request validation before any model loads (there is no longer a shared
-# PredictRequest, and there are no per-model floors, so --model can never make a
-# rejected length legal). The floor is admission control, NOT a statement about
+# request validation before any model loads. There are no per-model floors, so
+# --model can never make a rejected length legal. The floor is admission control, NOT a statement about
 # regime: a sequence above the floor but shorter than the selected model's
 # `bio_spec.context_window_bp` is accepted and scored against a window padded out
 # to the context window. Compare your length against `context_window_bp` (from
@@ -520,7 +519,7 @@ def main() -> int:
               file=sys.stderr)
         return 2
     except TimeoutError as e:
-        # Raised by wait_for_job when a job outlives --max-wait.
+        # Raised by wait_for_job when a job outlives its poll deadline.
         print(f"[gi-{task}] timed out waiting for the job: {e}", file=sys.stderr)
         return 2
     except KeyError as e:

@@ -51,10 +51,12 @@ def test_expression_command_keeps_description():
 
 
 def test_command_keeps_nondefault_model():
+    # Any non-default model id: the guard is that --model survives the replay,
+    # not that this particular id exists.
     cmd = gi_predict._repro_command(
-        "promoter", Path("in.fa"), Path("out"), model="g0-promoter-2000bp", description=None
+        "promoter", Path("in.fa"), Path("out"), model="non-default-model", description=None
     )
-    assert _reparse(cmd).model == "g0-promoter-2000bp"
+    assert _reparse(cmd).model == "non-default-model"
 
 
 def test_command_omits_absent_flags():

@@ -3,9 +3,8 @@
 The Genomic Intelligence `/v1` API exposes six DNA-sequence tasks. Each is its
 own published operation — `POST /v1/tasks/promoter/predict`,
 `/v1/tasks/splice/predict`, … — with its own request schema, its own minimum
-length, and its own closed `options` object. There is no longer a shared
-`PredictRequest`. The URLs are unchanged; only the schemas are per-task. Each
-returns a `{data, meta}` envelope. This skill's `scripts/gi_predict.py --task
+length, and its own closed `options` object. There is no shared request model;
+the schemas are per-task. Each returns a `{data, meta}` envelope. This skill's `scripts/gi_predict.py --task
 <task>` selects the endpoint; the table below documents what differs per task.
 
 Source of truth for bounds and models: the live OpenAPI doc at

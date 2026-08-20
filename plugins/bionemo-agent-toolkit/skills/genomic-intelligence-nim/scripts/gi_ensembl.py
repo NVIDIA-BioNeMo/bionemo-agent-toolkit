@@ -1,8 +1,8 @@
 """Ensembl REST helpers: resolve a gene symbol or genomic region to reference sequence.
 
-Ported from the Genomic Intelligence MCP server (`gi_mcp/_ensembl.py`) and
-de-coupled from it — only dependency is ``requests``. Same public REST API the
-Web UI's GeneSearch uses (rest.ensembl.org); no API key required.
+Self-contained — the only dependency is ``requests``. It calls the public
+Ensembl REST API (rest.ensembl.org); no API key is required, and no Genomic
+Intelligence key is used here.
 
 Three flows used by the skill's acquisition CLI (``gi_fetch.py``):
   - fetch_by_symbol(symbol)               → full gene-body sequence
@@ -21,9 +21,11 @@ from typing import Optional, Tuple
 
 import requests
 
-# Expression scoring window — mirrors gpu_service EXPRESSION_SEQUENCE_LENGTH
-# (2 * EXPRESSION_TSS_RADIUS = 2 * 4599). Building the window here means the
-# request needs no tss_index; longer submissions must supply one.
+# Expression scoring window: the fixed 9,198 bp the expression task scores,
+# 4,599 bp either side of the TSS. Published as ``minLength`` on the expression
+# request schema at https://api.genomicintelligence.ai/v1/openapi.json. Building
+# the window here means the request needs no tss_index; longer submissions must
+# supply one.
 EXPRESSION_SEQUENCE_LENGTH = 9_198
 
 DEFAULT_ENSEMBL_URL = "https://rest.ensembl.org"
@@ -58,13 +60,13 @@ class GeneLocus:
     def tss(self) -> int:
         """Transcription start site: transcript start on +strand, end on -strand.
 
-        Requires the canonical transcript. This used to fall back to the gene
-        body, which is why the distances in the field comments above matter:
-        a gene-body fallback puts ACTB's window 33,301 bp off its real TSS.
-        That window is still exactly 9,198 bp, so the client-side size gate
-        passes, no ``tss_index`` is sent, and the API returns a confident
-        score for the wrong locus — correctly sized, wrongly centred, with no
-        client-side tell. Refusing is the only honest option.
+        Requires the canonical transcript, and raises rather than falling back
+        to the gene body. A gene-body fallback puts ACTB's window 33,301 bp off
+        its real TSS. That window is still exactly 9,198 bp, so the
+        client-side size gate passes, no ``tss_index`` is sent, and the API
+        returns a confident score for the wrong locus — correctly sized,
+        wrongly centred, with no client-side tell. Refusing is the only honest
+        option.
 
         Raises:
             EnsemblError: no canonical transcript was resolved for this gene.
@@ -158,8 +160,8 @@ def fetch_region(seq_region: str, start: int, end: int, species: str = "human",
     return "".join(lines).upper()
 
 
-# Coordinate string → (chrom, start, end). Lenient like the Web UI's GeneSearch
-# (commas / en–em dashes / `..` / optional `chr`).
+# Coordinate string → (chrom, start, end). Deliberately lenient about the forms
+# users paste: commas, en/em dashes, `..`, and an optional `chr` prefix.
 _REGION_RE = re.compile(r"^(?:chr)?([A-Za-z0-9]+):(\d+)(?:-(\d+))?$", re.IGNORECASE)
 
 
@@ -253,8 +255,8 @@ def fetch_gene_window_for_expression(symbol: str, species: str = "human") -> Tup
     meta = {
         "ensembl_id": locus.ensembl_id,
         "tss": tss,
-        # Always canonical now: locus.tss raises rather than falling back to
-        # the gene body, so "gene-body" is no longer a reachable provenance.
+        # Always canonical: locus.tss raises rather than falling back to the
+        # gene body, so no other provenance is reachable.
         "tss_source": "canonical-transcript",
         "region": f"{locus.seq_region}:{start}-{end}",
         "strand": locus.strand,

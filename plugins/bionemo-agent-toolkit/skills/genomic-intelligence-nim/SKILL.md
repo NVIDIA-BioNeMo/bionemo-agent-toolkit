@@ -9,9 +9,9 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Genomic Intelligence NIM
 
-One skill, six DNA-sequence prediction tasks, served by Genomic Intelligence's
-hosted GPU service. Give it a **gene name**, a **genomic region**, or a **FASTA**;
-it resolves a sequence, calls `POST /v1/tasks/{task}/predict`, and writes a
+One skill, six DNA-sequence prediction tasks, served by the hosted Genomic
+Intelligence API. Give it a **gene name**, a **genomic region**, or a **FASTA**;
+it resolves a sequence, calls that task's own predict operation, and writes a
 report + machine-readable JSON. Inference is remote — no model weights, GPU, or
 heavyweight Python stack; the only dependency is `requests`.
 
@@ -26,6 +26,8 @@ Load supplemental files only when needed:
 > **Hosted, third-party service.** Genomic Intelligence is operated by Genomic
 > Intelligence, not NVIDIA. The interface is the hosted-NIM shape (HTTPS +
 > `Authorization: Bearer` + JSON). There is no local Docker mode.
+>
+> Research and development use. Not for clinical or diagnostic decisions.
 
 ## The six tasks
 
@@ -94,12 +96,10 @@ pip install requests
 
 ## Provided scripts
 
-Unlike the inline-only `nim-skills/`, this skill ships a small, self-contained
-(`requests`-only) runner, because the surface spans six tasks plus an async job
-(`annotation`) and a windowing contract (`expression`) that do not inline
-cleanly. Shipping `scripts/` is not prohibited by CONTRIBUTING and other skills
-do it; the runner is the same proven
-client used across Genomic Intelligence's other integrations.
+This skill ships a small, self-contained (`requests`-only) runner rather than
+inline snippets: the surface spans six tasks plus an async job (`annotation`)
+and a windowing contract (`expression`) that do not inline cleanly. The runner
+is the same client Genomic Intelligence's other integrations use.
 
 - **`scripts/gi_predict.py`** — one CLI, six tasks: FASTA → prediction →
   `report.md` + `result.json` + `reproducibility/`, and a compact JSON summary on
