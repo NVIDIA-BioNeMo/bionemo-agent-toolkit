@@ -18,7 +18,12 @@ SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from gi_client import FastaError, read_fasta  # noqa: E402
-from gi_ensembl import EnsemblError, GeneLocus  # noqa: E402
+from gi_ensembl import (  # noqa: E402
+    EXPRESSION_SEQUENCE_LENGTH,
+    EnsemblError,
+    GeneLocus,
+    expression_window_bounds,
+)
 
 
 def _write(tmp_path: Path, content: str) -> Path:
@@ -107,3 +112,29 @@ class TestCanonicalTss:
         locus = self._locus(canonical_start=1500)
         with pytest.raises(EnsemblError):
             _ = locus.tss
+class TestExpressionWindowCentring:
+    """The TSS must land at offset 4,599 on both strands.
+
+    The API scores ``sequence[tss_index-4599 : tss_index+4599]`` and defaults
+    ``tss_index`` to 4,599 for a submission of exactly 9,198 bp. Ensembl
+    reverse-complements the region for ``strand=-1``, so a window built as if
+    the sequence always read low-to-high puts a minus-strand TSS at 4,598 —
+    still exactly 9,198 bp, so the size gate passes and the API scores a
+    window shifted by one with nothing for the caller to notice.
+    """
+
+    @pytest.mark.parametrize("strand", [1, -1])
+    def test_window_is_exactly_the_expression_length(self, strand):
+        start, end = expression_window_bounds(1_000_000, strand)
+        assert end - start + 1 == EXPRESSION_SEQUENCE_LENGTH
+
+    @pytest.mark.parametrize(
+        "strand,tss",
+        [(1, 1_000_000), (-1, 5_227_071)],  # HBB's canonical TSS is on the minus strand
+    )
+    def test_tss_lands_where_the_api_expects_it(self, strand, tss):
+        start, end = expression_window_bounds(tss, strand)
+        # Offset of the TSS in the sequence as Ensembl returns it: low-to-high
+        # on the plus strand, reverse-complemented on the minus strand.
+        offset = tss - start if strand == 1 else end - tss
+        assert offset == EXPRESSION_SEQUENCE_LENGTH // 2

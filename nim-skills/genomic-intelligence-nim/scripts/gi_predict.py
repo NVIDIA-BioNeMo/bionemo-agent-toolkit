@@ -171,7 +171,18 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _resolve_input(args: argparse.Namespace, spec: TaskSpec) -> Path:
-    if args.demo or args.input_file is None:
+    # Running the demo has to be asked for. Falling back to it when --input is
+    # simply absent produces a full report, with a real request id and real
+    # scores, for a sequence the caller never supplied — and nothing in the
+    # output says so.
+    if not args.demo and args.input_file is None:
+        print(
+            "Error: no input. Pass --input <FASTA>, or --demo to run the "
+            f"bundled {spec.demo} fixture.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if args.demo:
         demo_path = DEMO_DIR / spec.demo
         if not demo_path.exists():
             print(f"Error: bundled demo fixture missing at {demo_path}", file=sys.stderr)

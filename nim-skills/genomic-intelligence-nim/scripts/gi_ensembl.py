@@ -228,20 +228,43 @@ def fetch_by_symbol(symbol: str, species: str = "human", flank_bp: int = 0) -> T
     return seq, meta
 
 
+def expression_window_bounds(tss: int, strand: int) -> Tuple[int, int]:
+    """Genomic bounds of the EXPRESSION_SEQUENCE_LENGTH window around a TSS.
+
+    The API scores ``sequence[tss_index-4599 : tss_index+4599]`` and, for a
+    submission of exactly EXPRESSION_SEQUENCE_LENGTH bp, defaults ``tss_index``
+    to 4,599 — the only legal value. So the TSS must land at offset 4,599 of
+    the sequence *as submitted*, and which genomic base that is depends on the
+    strand: Ensembl reverse-complements the region for ``strand=-1``, so the
+    sequence reads from ``end`` down to ``start`` and the TSS sits at
+    ``end - tss`` rather than ``tss - start``. Giving the extra base to the
+    high side on the minus strand puts both strands at 4,599.
+
+    A one-base error here cannot be caught downstream: the window is still
+    exactly 9,198 bp, so the client-side size gate passes, no ``tss_index`` is
+    sent, and the API returns a confident score for a window shifted by one.
+    """
+    half = EXPRESSION_SEQUENCE_LENGTH // 2  # 4599
+    if strand == -1:
+        start, end = tss - half + 1, tss + half
+    else:
+        start, end = tss - half, tss + half - 1
+    return start, end
+
+
 def fetch_gene_window_for_expression(symbol: str, species: str = "human") -> Tuple[str, dict]:
     """Symbol → exactly EXPRESSION_SEQUENCE_LENGTH bp centred on the TSS.
 
     The expression model demands a precise window. We take the TSS from the
     gene's *canonical transcript* (expand=1) — gene-body boundaries can sit
     thousands of bp from the real TSS (HBB: 2,324 bp; ACTB: 33,301 bp), which
-    would mis-centre the window and tank the prediction — and grab half the
-    window on each side (the +1 keeps the total at exactly 9,198 bp).
+    would mis-centre the window and tank the prediction — and take the window
+    from ``expression_window_bounds``, which centres it the way the API reads
+    it on either strand.
     """
     locus = lookup_symbol(symbol, species, expand=True)
     tss = locus.tss
-    half = EXPRESSION_SEQUENCE_LENGTH // 2  # 4599
-    start = tss - half
-    end = tss + half - 1  # inclusive → (tss+4598) - (tss-4599) + 1 = 9198
+    start, end = expression_window_bounds(tss, locus.strand)
     if start < 1:
         raise EnsemblError(
             f"{symbol} TSS too close to chromosome start to extract a "
