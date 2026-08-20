@@ -306,3 +306,67 @@ class TestAsyncSubmitIsValidatedToo:
         c = gi_client.Client.__new__(gi_client.Client)
         body = gi_client.Client._require_envelope(_Resp().json(), _Resp())
         assert body["data"].get("job_id") is None
+
+
+class TestNestedFieldsOfTheWrongType:
+    """`_require_envelope` passing is not a promise about what is inside `data`.
+
+    The envelope check guarantees `data` is an object and stops there, which is
+    the right scope for it — it is shared by six tasks and must not encode any
+    one task's schema. So the report writer still meets whatever `data.summary`
+    or `meta` actually contains, and it runs *after* main()'s try/except has
+    closed: an AttributeError there is a traceback, not the API-error
+    diagnostic. The `x or {}` guards it used to rely on only covered null and
+    absent; a truthy wrong type sailed through them.
+
+    These call `_summarize` and `_write_report` rather than asserting on their
+    source, because the defect this pins is a missing call site and a source
+    grep is exactly what failed to catch the last one.
+    """
+
+    _MALFORMED = [
+        {"data": {"summary": "all good"}},          # summary as a string
+        {"data": {"summary": ["a", "b"]}},          # summary as an array
+        {"data": {"summary": 0.94}},                # summary as a float
+        {"data": {"prediction": "high"}},           # prediction as a string
+        {"data": {"summary": {}}, "meta": "req-1"},  # meta as a string
+        {"data": {"summary": {}}, "meta": {"task_specific_counts": "n/a"}},
+        {"data": {"summary": {}, "regions": "chr1"}},      # array field as a string
+        {"data": {"summary": {}, "sites": [1, 2, 3]}},     # non-object elements
+        {"data": {"summary": {}, "transcripts": "ENST1"}},
+    ]
+
+    @pytest.mark.parametrize("body", _MALFORMED)
+    @pytest.mark.parametrize(
+        "task", ["promoter", "splice", "enhancer", "chromatin", "expression", "annotation"]
+    )
+    def test_summarize_survives_every_task(self, task, body):
+        out = gi_predict._summarize(task, body)
+        assert isinstance(out, dict)
+        assert isinstance(out["raw_summary"], dict)
+
+    @pytest.mark.parametrize("body", _MALFORMED)
+    @pytest.mark.parametrize("task", ["promoter", "splice", "expression", "annotation"])
+    def test_the_report_still_writes(self, tmp_path, task, body):
+        summary = gi_predict._summarize(task, body)
+        gi_predict._write_report(
+            task, summary, body, tmp_path, tmp_path / "in.fa", "seq", 9198, 12.0,
+        )
+        assert (tmp_path / "report.md").exists()
+        assert (tmp_path / "result.json").exists()
+
+    def test_a_well_formed_body_still_reports_its_rows(self, tmp_path):
+        body = {
+            "data": {
+                "summary": {"promoter_windows": 2, "total_windows": 5},
+                "regions": [{"name": "r1", "start": 10, "end": 20, "score": 0.9}],
+            },
+            "meta": {"request_id": "req-1"},
+        }
+        summary = gi_predict._summarize("promoter", body)
+        assert summary["regions"] == body["data"]["regions"]
+        gi_predict._write_report(
+            "promoter", summary, body, tmp_path, tmp_path / "in.fa", "seq", 9198, 12.0,
+        )
+        report = (tmp_path / "report.md").read_text()
+        assert "req-1" in report and "r1" in report
