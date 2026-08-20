@@ -124,6 +124,7 @@ class Client:
         )
 
     def _check(self, resp: requests.Response) -> Dict[str, Any]:
+        malformed = False
         try:
             body = resp.json()
         except ValueError:
@@ -131,8 +132,40 @@ class Client:
             # status and body, it just was not JSON. Client-origin errors carry
             # no request_id, which distinguishes them from server codes.
             body = {"error": {"code": "http_error", "message": resp.text[:200]}}
+            malformed = True
         if not resp.ok:
             raise GIError(resp.status_code, body, resp.headers)
+        if malformed:
+            # A 2xx whose body did not parse must not be returned as a result.
+            # The synthetic error envelope above is built for the failure path;
+            # returning it here would hand the caller {"error": ...} with ok=true.
+            raise GIError(resp.status_code, body, resp.headers)
+        return body
+
+    @staticmethod
+    def _require_envelope(body: Any, resp: requests.Response) -> Dict[str, Any]:
+        """A prediction or job result carries a ``{data, meta}`` object.
+
+        Only for those two. ``/health`` and ``GET /v1/tasks/{task}/models`` are
+        deliberately un-enveloped and must not be checked here. A 200 with an
+        empty, null or non-object body would otherwise reach the report writer
+        and fail there with an AttributeError or KeyError, which reads as a
+        client bug rather than a bad response.
+        """
+        if not isinstance(body, dict) or "data" not in body:
+            raise GIError(
+                resp.status_code,
+                {
+                    "error": {
+                        "code": "http_error",
+                        "message": (
+                            f"expected a JSON object with a 'data' key, got "
+                            f"{type(body).__name__}"
+                        ),
+                    }
+                },
+                resp.headers,
+            )
         return body
 
     def health(self) -> Dict[str, Any]:
@@ -202,7 +235,20 @@ class Client:
         while True:
             r = self.get_job(job_id)
             if r.status_code == 200:
-                return r.json()
+                try:
+                    body = r.json()
+                except ValueError:
+                    raise GIError(
+                        r.status_code,
+                        {
+                            "error": {
+                                "code": "http_error",
+                                "message": f"job {job_id} returned a non-JSON 200",
+                            }
+                        },
+                        r.headers,
+                    ) from None
+                return self._require_envelope(body, r)
             if r.status_code == 202:
                 if on_progress is not None:
                     try:
@@ -237,7 +283,8 @@ def read_fasta(path) -> Tuple[str, str]:
     are formatting, not content.
 
     Raises:
-        FastaError: more than one record, or a base outside ``ACGTN``.
+        FastaError: more than one record, a base outside ``ACGTN``, or
+            sequence appearing before the first header.
     """
     name = None
     record_names: list[str] = []
@@ -254,7 +301,20 @@ def read_fasta(path) -> Tuple[str, str]:
                 if name is None:
                     name = header
                 continue
-            upper = line.upper()
+            if name is None:
+                raise FastaError(
+                    f"{path}: sequence on line {lineno} before any '>' header. "
+                    f"Those bases would be scored under the first record's name, "
+                    f"and the coordinates returned would not describe what you "
+                    f"submitted. Add a header, or remove the stray lines."
+                )
+            # Whitespace anywhere in the line is formatting, not content: the
+            # API strips newlines, spaces and tabs before measuring length, so
+            # a space-grouped body (10-base blocks from a viewer or Sanger
+            # output) must parse here too. Stripping it moves nothing in
+            # coordinate space, which is what separates it from an ambiguity
+            # code we refuse to guess at.
+            upper = "".join(line.split()).upper()
             for char in upper:
                 if char not in "ACGTN":
                     offenders.setdefault(char, lineno)

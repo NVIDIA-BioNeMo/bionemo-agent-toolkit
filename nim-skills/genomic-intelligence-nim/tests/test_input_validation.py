@@ -18,6 +18,7 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+import gi_client  # noqa: E402
 import gi_predict  # noqa: E402
 from gi_client import FastaError, read_fasta  # noqa: E402
 from gi_ensembl import (  # noqa: E402
@@ -163,3 +164,82 @@ class TestDemoMustBeAskedFor:
         spec = gi_predict.TASKS["promoter"]
         path = gi_predict._resolve_input(self._args(demo=True), spec)
         assert path.name == spec.demo
+class TestSequenceBeforeFirstHeader:
+    """Bases before the first '>' must be refused, not absorbed.
+
+    They were appended to the first record, so the API scored a sequence the
+    caller never named and returned coordinates for it. The multi-record check
+    does not see this: such a file has exactly one header.
+    """
+
+    def test_pre_header_sequence_is_rejected(self, tmp_path):
+        path = _write(tmp_path, "ACGTACGT\n>real_record\nGGGGCCCC\n")
+        with pytest.raises(FastaError) as exc:
+            read_fasta(path)
+        assert "before any" in str(exc.value)
+
+    def test_a_normal_single_record_still_parses(self, tmp_path):
+        path = _write(tmp_path, ">real_record\nACGT\nGGGG\n")
+        name, seq = read_fasta(path)
+        assert (name, seq) == ("real_record", "ACGTGGGG")
+
+
+class TestSuccessfulResponsesAreValidated:
+    """A 2xx is not automatically a result.
+
+    A non-JSON 200 used to be turned into an error-shaped dict and returned as
+    a success, and an empty or non-object 200 reached the report writer and
+    failed there as an AttributeError.
+    """
+
+    class _Resp:
+        status_code = 200
+        headers: dict = {}
+        ok = True
+
+        def __init__(self, payload=None, text=""):
+            self._payload, self.text = payload, text
+
+        def json(self):
+            if self._payload is None:
+                raise ValueError("not json")
+            return self._payload
+
+    def test_non_json_200_raises_instead_of_returning_an_error_shape(self):
+        c = gi_client.Client.__new__(gi_client.Client)
+        with pytest.raises(gi_client.GIError):
+            c._check(self._Resp(text="<html>gateway</html>"))
+
+    @pytest.mark.parametrize("payload", [{}, [], {"meta": {}}, "text", None])
+    def test_a_200_without_data_is_not_a_result(self, payload):
+        with pytest.raises(gi_client.GIError):
+            gi_client.Client._require_envelope(payload, self._Resp(payload))
+
+    def test_a_well_formed_envelope_passes_through(self):
+        body = {"data": {"summary": {}}, "meta": {}}
+        assert gi_client.Client._require_envelope(body, self._Resp(body)) is body
+class TestWhitespaceIsFormattingNotContent:
+    """Whitespace is normalized; only content is refused.
+
+    The API strips newlines, spaces and tabs before measuring length, so a
+    space-grouped body has to parse here too or the client is stricter than
+    the service it guards.
+    """
+
+    @pytest.mark.parametrize(
+        "body,expected",
+        [
+            ("ACGT\nGGGG\n", "ACGTGGGG"),
+            ("ACGTACGTAC GTACGTACGT\n", "ACGTACGTACGTACGTACGT"),
+            ("ACGT\tACGT\n", "ACGTACGT"),
+            ("  ACGT  \n\n  GGGG\n", "ACGTGGGG"),
+            ("acgtACGT\n", "ACGTACGT"),
+        ],
+    )
+    def test_layout_is_normalized(self, tmp_path, body, expected):
+        assert read_fasta(_write(tmp_path, f">r\n{body}"))[1] == expected
+
+    @pytest.mark.parametrize("body", ["ACGTRACGT\n", "ACGT R ACGT\n"])
+    def test_ambiguity_codes_are_still_refused(self, tmp_path, body):
+        with pytest.raises(FastaError):
+            read_fasta(_write(tmp_path, f">r\n{body}"))
