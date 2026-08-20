@@ -281,3 +281,28 @@ class TestSyncPredictIsValidatedToo:
             "predict() must validate the envelope; a patch that misses this "
             "line leaves the sync path unguarded while the async one is fine"
         )
+class TestAsyncSubmitIsValidatedToo:
+    """submit_async reads data.job_id, so it needs the envelope check as well.
+
+    A 200 with no data key raised KeyError, which the CLI catches; a non-object
+    data raised TypeError, which it does not. Both are malformed responses, not
+    client bugs, and both should surface as GIError.
+    """
+
+    def test_submit_async_wraps_the_envelope(self):
+        import inspect
+
+        src = inspect.getsource(gi_client.Client.submit_async)
+        assert "_require_envelope" in src
+
+    def test_a_missing_job_id_is_a_gi_error(self):
+        class _Resp:
+            status_code, headers, ok = 200, {}, True
+            text = ""
+
+            def json(self):
+                return {"data": {}, "meta": {}}
+
+        c = gi_client.Client.__new__(gi_client.Client)
+        body = gi_client.Client._require_envelope(_Resp().json(), _Resp())
+        assert body["data"].get("job_id") is None
