@@ -210,7 +210,9 @@ class TestSuccessfulResponsesAreValidated:
         with pytest.raises(gi_client.GIError):
             c._check(self._Resp(text="<html>gateway</html>"))
 
-    @pytest.mark.parametrize("payload", [{}, [], {"meta": {}}, "text", None])
+    @pytest.mark.parametrize(
+        "payload", [{}, [], {"meta": {}}, "text", None, {"data": {}, "meta": {}}]
+    )
     def test_a_200_without_data_is_not_a_result(self, payload):
         with pytest.raises(gi_client.GIError):
             gi_client.Client._require_envelope(payload, self._Resp(payload))
@@ -267,6 +269,7 @@ class TestSyncPredictIsValidatedToo:
             {"data": None, "meta": {}},   # null data
             {"data": "summary", "meta": {}},  # non-object data
             {"data": [1, 2], "meta": {}},     # array data
+            {"data": {}, "meta": {"request_id": "req-1"}},  # object, but no result in it
         ],
     )
     def test_a_200_without_an_object_data_is_refused(self, payload):
@@ -295,7 +298,14 @@ class TestAsyncSubmitIsValidatedToo:
         src = inspect.getsource(gi_client.Client.submit_async)
         assert "_require_envelope" in src
 
-    def test_a_missing_job_id_is_a_gi_error(self):
+    def test_an_empty_data_never_reaches_the_job_id_read(self):
+        """`{"data": {}}` is refused by the envelope check itself.
+
+        It used to pass, leaving `data.job_id` to catch it on this path only —
+        and nothing at all to catch it on the sync and job-result paths, which
+        wrote a zero-valued report and printed ok=true.
+        """
+
         class _Resp:
             status_code, headers, ok = 200, {}, True
             text = ""
@@ -303,9 +313,22 @@ class TestAsyncSubmitIsValidatedToo:
             def json(self):
                 return {"data": {}, "meta": {}}
 
-        c = gi_client.Client.__new__(gi_client.Client)
-        body = gi_client.Client._require_envelope(_Resp().json(), _Resp())
-        assert body["data"].get("job_id") is None
+        with pytest.raises(gi_client.GIError):
+            gi_client.Client._require_envelope(_Resp().json(), _Resp())
+
+    def test_a_data_without_job_id_is_still_a_gi_error(self):
+        """The job_id check stays: a non-empty `data` can still lack it."""
+        body = {"data": {"status": "queued"}, "meta": {}}
+
+        class _Resp:
+            status_code, headers, ok = 200, {}, True
+            text = ""
+
+            def json(self):
+                return body
+
+        checked = gi_client.Client._require_envelope(body, _Resp())
+        assert checked["data"].get("job_id") is None
 
 
 class TestNestedFieldsOfTheWrongType:

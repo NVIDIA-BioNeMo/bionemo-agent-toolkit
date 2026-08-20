@@ -151,17 +151,24 @@ class Client:
         empty, null or non-object body would otherwise reach the report writer
         and fail there with an AttributeError or KeyError, which reads as a
         client bug rather than a bad response.
+
+        ``data`` must also be non-empty. All three call sites read content out
+        of it — a prediction payload, ``data.job_id``, a finished job's result —
+        so ``{"data": {}}`` is malformed for every one of them, and accepting it
+        wrote a zero-valued report and printed ``"ok": true`` with no prediction
+        in it.
         """
-        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(data, dict) or not data:
             raise GIError(
                 resp.status_code,
                 {
                     "error": {
                         "code": "http_error",
                         "message": (
-                            "expected a JSON object with an object 'data' key, "
-                            f"got {type(body).__name__} with data="
-                            f"{type(body.get('data')).__name__ if isinstance(body, dict) else 'n/a'}"
+                            "expected a JSON object with a non-empty object "
+                            f"'data' key, got {type(body).__name__} with data="
+                            + ("empty object" if isinstance(data, dict) else type(data).__name__)
                         ),
                     }
                 },
