@@ -1,0 +1,369 @@
+"""Client for the Genomic Intelligence API.
+
+Self-contained — this module has no dependencies beyond ``requests`` and is
+imported by ``gi_predict.py`` (same directory). It wraps the hosted predict
+contract for all six DNA-sequence tasks (promoter, splice, enhancer,
+chromatin, expression, annotation).
+
+Each task is its own published operation — ``POST /v1/tasks/promoter/predict``,
+``/v1/tasks/splice/predict``, and so on — with its own request schema, its own
+``minLength``, and its own closed ``options`` object. The paths differ only in
+the task segment, so one formatted URL covers all six; the request bodies do
+not, which is why the per-task validation below is not shared. ``options`` is
+``additionalProperties: false`` on every task, so an unrecognised key is a hard
+``422 validation_failed`` rather than being ignored — never forward option keys
+you have not confirmed against the live schema.
+
+Auth resolution order:
+1. Explicit ``api_key=`` constructor arg (``--api-key`` on the CLI).
+2. ``GI_API_KEY`` environment variable.
+
+If neither is supplied, ``resolve_api_key`` raises ``RuntimeError`` with
+onboarding instructions. Request a partner key at
+contact@genomicintelligence.ai, then ``export GI_API_KEY=gi_…``.
+
+Base URL: ``GI_BASE_URL`` env, default ``https://api.genomicintelligence.ai``.
+
+Contract reference: https://docs.genomicintelligence.ai
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from pathlib import Path
+from typing import Any, Dict, Mapping, Optional, Tuple
+
+import requests
+
+
+DEFAULT_BASE_URL = "https://api.genomicintelligence.ai"
+
+MISSING_KEY_MESSAGE = (
+    "GI_API_KEY is not set. This skill calls the hosted Genomic "
+    "Intelligence API (https://api.genomicintelligence.ai) and requires a "
+    "partner bearer key.\n\n"
+    "Request a key at contact@genomicintelligence.ai, then:\n"
+    "    export GI_API_KEY=gi_yourkeyhere\n\n"
+    "See references/authentication.md for details."
+)
+
+
+# IUPAC ambiguity codes. Listed so the parser can say *why* it is refusing:
+# these are legitimate FASTA content the model cannot score, which is a
+# different problem from a stray character and deserves a different hint.
+_IUPAC_AMBIGUITY = "RYSWKMBDHV"
+
+
+class FastaError(ValueError):
+    """Malformed FASTA input, rejected rather than silently repaired.
+
+    Subclasses ``ValueError`` so a caller doing broad input validation still
+    catches it, while callers that want to distinguish input problems from
+    API problems can catch this specifically.
+    """
+
+
+class GIError(RuntimeError):
+    """Non-2xx response from the API. Mirrors the ``{error}`` envelope."""
+
+    def __init__(
+        self,
+        status: int,
+        body: Dict[str, Any],
+        headers: Optional[Mapping[str, str]] = None,
+    ):
+        err = (body or {}).get("error", {}) if isinstance(body, dict) else {}
+        self.status = status
+        self.code = err.get("code", "http_error")
+        self.message = err.get("message", "")
+        # Prefer the envelope's request_id; every error response carries it.
+        # Fall back to the X-Request-Id header for robustness (e.g. a non-JSON
+        # body from a proxy) — support tickets always need a correlation id.
+        self.request_id = err.get("request_id") or (headers or {}).get("X-Request-Id")
+        self.details = err.get("details")
+        rid = self.request_id or "unset"
+        super().__init__(f"[{status} {self.code}] {self.message} (request_id={rid})")
+
+
+def resolve_api_key(explicit: Optional[str] = None) -> str:
+    """Apply the auth resolution order documented at module top.
+
+    Raises ``RuntimeError`` with onboarding instructions if no key is found.
+    """
+    if explicit:
+        return explicit
+    env = os.environ.get("GI_API_KEY")
+    if env:
+        return env
+    raise RuntimeError(MISSING_KEY_MESSAGE)
+
+
+class Client:
+    """Thin synchronous client for the /v1/tasks/<task>/predict endpoints."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        timeout: float = 300.0,
+    ) -> None:
+        self.api_key = resolve_api_key(api_key)
+        self.base_url = (
+            base_url or os.environ.get("GI_BASE_URL") or DEFAULT_BASE_URL
+        ).rstrip("/")
+        self.timeout = timeout
+        self._session = requests.Session()
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "BioNeMo-GI-Skill/0.1.0",
+            }
+        )
+
+    def _check(self, resp: requests.Response) -> Dict[str, Any]:
+        malformed = False
+        try:
+            body = resp.json()
+        except ValueError:
+            # http_error is a published enum value; the response arrived with a
+            # status and body, it just was not JSON. Client-origin errors carry
+            # no request_id, which distinguishes them from server codes.
+            body = {"error": {"code": "http_error", "message": resp.text[:200]}}
+            malformed = True
+        if not resp.ok:
+            raise GIError(resp.status_code, body, resp.headers)
+        if malformed:
+            # A 2xx whose body did not parse must not be returned as a result.
+            # The synthetic error envelope above is built for the failure path;
+            # returning it here would hand the caller {"error": ...} with ok=true.
+            raise GIError(resp.status_code, body, resp.headers)
+        return body
+
+    @staticmethod
+    def _require_envelope(body: Any, resp: requests.Response) -> Dict[str, Any]:
+        """A prediction or job result carries a ``{data, meta}`` object.
+
+        Only for those two. ``/health`` and ``GET /v1/tasks/{task}/models`` are
+        deliberately un-enveloped and must not be checked here. A 200 with an
+        empty, null or non-object body would otherwise reach the report writer
+        and fail there with an AttributeError or KeyError, which reads as a
+        client bug rather than a bad response.
+
+        ``data`` must also be non-empty. All three call sites read content out
+        of it — a prediction payload, ``data.job_id``, a finished job's result —
+        so ``{"data": {}}`` is malformed for every one of them, and accepting it
+        wrote a zero-valued report and printed ``"ok": true`` with no prediction
+        in it.
+        """
+        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(data, dict) or not data:
+            raise GIError(
+                resp.status_code,
+                {
+                    "error": {
+                        "code": "http_error",
+                        "message": (
+                            "expected a JSON object with a non-empty object "
+                            f"'data' key, got {type(body).__name__} with data="
+                            + ("empty object" if isinstance(data, dict) else type(data).__name__)
+                        ),
+                    }
+                },
+                resp.headers,
+            )
+        return body
+
+    def health(self) -> Dict[str, Any]:
+        r = self._session.get(f"{self.base_url}/health", timeout=self.timeout)
+        return self._check(r)
+
+    def predict(
+        self,
+        task: str,
+        sequence: str,
+        sequence_name: str = "sequence",
+        model: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+        tss_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"sequence": sequence, "sequence_name": sequence_name}
+        if model is not None:
+            body["model"] = model
+        if options is not None:
+            body["options"] = options
+        # expression only: 0-based TSS offset into the whitespace-stripped
+        # sequence. Required by the API unless the sequence is exactly 9,198 bp.
+        if tss_index is not None:
+            body["tss_index"] = tss_index
+        r = self._session.post(
+            f"{self.base_url}/v1/tasks/{task}/predict",
+            json=body,
+            timeout=self.timeout,
+        )
+        return self._require_envelope(self._check(r), r)
+
+    def submit_async(
+        self,
+        task: str,
+        sequence: str,
+        sequence_name: str = "sequence",
+        model: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        body: Dict[str, Any] = {"sequence": sequence, "sequence_name": sequence_name}
+        if model is not None:
+            body["model"] = model
+        if options is not None:
+            body["options"] = options
+        r = self._session.post(
+            f"{self.base_url}/v1/tasks/{task}/predict",
+            headers={"Prefer": "respond-async"},
+            json=body,
+            timeout=self.timeout,
+        )
+        body = self._require_envelope(self._check(r), r)
+        job_id = body["data"].get("job_id")
+        if not isinstance(job_id, str) or not job_id:
+            raise GIError(
+                r.status_code,
+                {
+                    "error": {
+                        "code": "http_error",
+                        "message": "async submit returned no job_id in data",
+                    }
+                },
+                r.headers,
+            )
+        return job_id
+
+    def get_job(self, job_id: str) -> requests.Response:
+        return self._session.get(
+            f"{self.base_url}/v1/tasks/jobs/{job_id}", timeout=self.timeout
+        )
+
+    def wait_for_job(
+        self,
+        job_id: str,
+        poll_interval: float = 2.0,
+        max_wait: float = 30 * 60,
+        on_progress=None,
+    ) -> Dict[str, Any]:
+        deadline = time.monotonic() + max_wait
+        while True:
+            r = self.get_job(job_id)
+            if r.status_code == 200:
+                try:
+                    body = r.json()
+                except ValueError:
+                    raise GIError(
+                        r.status_code,
+                        {
+                            "error": {
+                                "code": "http_error",
+                                "message": f"job {job_id} returned a non-JSON 200",
+                            }
+                        },
+                        r.headers,
+                    ) from None
+                return self._require_envelope(body, r)
+            if r.status_code == 202:
+                if on_progress is not None:
+                    try:
+                        on_progress((r.json().get("data") or {}).get("progress") or {})
+                    except Exception:
+                        pass
+                if time.monotonic() > deadline:
+                    raise TimeoutError(
+                        f"job {job_id} did not finish within {max_wait}s"
+                    )
+                time.sleep(poll_interval)
+                continue
+            try:
+                body = r.json()
+            except ValueError:
+                body = {"error": {"code": "http_error", "message": r.text[:200]}}
+            raise GIError(r.status_code, body, r.headers)
+
+
+def read_fasta(path) -> Tuple[str, str]:
+    """Parse a single-record FASTA. Returns (sequence_name, sequence).
+
+    Rejects malformed input rather than repairing it. Earlier versions
+    silently deleted every character outside ``ACGTN`` and concatenated a
+    multi-record file into one chimeric sequence under the first record's
+    name. Both are unrecoverable once they happen: deleting an IUPAC
+    ambiguity code shifts every base after it, so the model scores a
+    sequence the caller never supplied and returns a confident result with
+    nothing to indicate the substitution.
+
+    Whitespace, blank lines and lowercase input are still handled — those
+    are formatting, not content.
+
+    Raises:
+        FastaError: more than one record, a base outside ``ACGTN``, or
+            sequence appearing before the first header.
+    """
+    name = None
+    record_names: list[str] = []
+    seq_parts: list[str] = []
+    offenders: Dict[str, int] = {}
+    with open(Path(path)) as fh:
+        for lineno, line in enumerate(fh, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                header = line[1:].split()[0] if line[1:].split() else "sequence"
+                record_names.append(header)
+                if name is None:
+                    name = header
+                continue
+            if name is None:
+                raise FastaError(
+                    f"{path}: sequence on line {lineno} before any '>' header. "
+                    f"Those bases would be scored under the first record's name, "
+                    f"and the coordinates returned would not describe what you "
+                    f"submitted. Add a header, or remove the stray lines."
+                )
+            # Whitespace anywhere in the line is formatting, not content: the
+            # API strips newlines, spaces and tabs before measuring length, so
+            # a space-grouped body (10-base blocks from a viewer or Sanger
+            # output) must parse here too. Stripping it moves nothing in
+            # coordinate space, which is what separates it from an ambiguity
+            # code we refuse to guess at.
+            upper = "".join(line.split()).upper()
+            for char in upper:
+                if char not in "ACGTN":
+                    offenders.setdefault(char, lineno)
+            seq_parts.append(upper)
+
+    if len(record_names) > 1:
+        shown = ", ".join(record_names[:3])
+        more = f", … ({len(record_names)} total)" if len(record_names) > 3 else ""
+        raise FastaError(
+            f"{path}: expected a single FASTA record, found {len(record_names)} "
+            f"({shown}{more}). Concatenating them would submit a chimeric "
+            f"sequence under one name — split the file and submit one record "
+            f"per request."
+        )
+
+    if offenders:
+        detail = ", ".join(
+            f"{char!r} (first at line {lineno})"
+            for char, lineno in sorted(offenders.items(), key=lambda kv: kv[1])[:5]
+        )
+        ambiguity = sorted(c for c in offenders if c in _IUPAC_AMBIGUITY)
+        hint = (
+            " IUPAC ambiguity codes cannot be scored; resolve them to explicit "
+            "bases or submit a different region."
+            if ambiguity
+            else " Remove or resolve them before submitting."
+        )
+        raise FastaError(
+            f"{path}: sequence contains characters outside ACGTN: {detail}.{hint}"
+        )
+
+    return name or "sequence", "".join(seq_parts)
