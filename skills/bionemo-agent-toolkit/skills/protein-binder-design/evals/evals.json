@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": "1",
-      "prompt": "Design 50 de novo mini-binders against the SARS-CoV-2 RBD (use the target registry entry) at the ACE2-contact epitope. Generate backbones, design 8 sequences each, co-fold the shortlist against the target, and rank by interface confidence. Save a run manifest and a ranked CSV.",
+      "prompt": "Design 50 de novo mini-binders against PD-L1 (use the target registry entry) at its defined interface epitope. Generate backbones, design 8 sequences each, co-fold the shortlist against the target, and rank by interface confidence. Save a run manifest and a ranked CSV.",
       "expected_output": "An orchestration that composes the rfdiffusion-nim, proteinmpnn-nim, and boltz2-nim/openfold3-nim skills in order, remaps epitope residues, writes a run manifest via scripts/manifest.py, applies the ipTM/pLDDT/RMSD filter, and exports a ranked candidates.csv.",
       "files": [],
       "assertions": [
