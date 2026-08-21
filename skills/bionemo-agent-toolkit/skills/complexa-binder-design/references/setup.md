@@ -47,11 +47,11 @@ runs the scripts (the Proteina-Complexa `.venv` is convenient):
 
 ```bash
 # in the Proteina-Complexa venv (uv) or any py>=3.10 env:
-uv pip install numpy gemmi pyyaml        # or: pip install numpy gemmi pyyaml
+uv pip install numpy biotite pyyaml        # or: pip install numpy biotite pyyaml
 bash scripts/fetch_ipsae.sh              # vendors the MIT ipSAE script into vendor/ipsae/
 ```
 
-> `gemmi` + `pyyaml` are required for Stage 1 (structure parsing, crop, target
+> `biotite` + `pyyaml` are required for Stage 1 (structure parsing, crop, target
 > registration). `numpy` for validation scoring. ipSAE is fetched, not bundled.
 
 ## 3. AF2 reward — configure it OR bypass it (pick one)

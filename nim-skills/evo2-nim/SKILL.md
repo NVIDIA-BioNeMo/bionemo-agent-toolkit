@@ -20,13 +20,22 @@ Use Evo 2 for DNA generation and, locally, layer-output extraction. Use this
 
 ## Choose Mode
 
-Ask only when context is unclear:
+Honor `NIM_API_MODE` when it is set. Accepted values are `hosted` and `local`.
+If it is unset, treat an explicit `EVO2_NIM_URL` as local; otherwise ask when
+the requested mode is unclear:
 
 > Hosted NVIDIA API or local Docker Evo 2 NIM?
 
 - Hosted generation: `https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate`
-- Local generation: `http://localhost:8000/biology/arc/evo2/generate`
-- Local forward/layer outputs: `http://localhost:8000/biology/arc/evo2/forward`
+- Local base URL: `$EVO2_NIM_URL`, falling back to `http://localhost:8000`
+- Local generation: `$EVO2_NIM_URL/biology/arc/evo2/generate`
+- Local forward/layer outputs: `$EVO2_NIM_URL/biology/arc/evo2/forward`
+
+Always resolve local health and inference routes from `EVO2_NIM_URL` when it
+is present. `localhost` works only when the caller and NIM share a network
+namespace; a caller in a separate container usually needs a service URL such
+as `http://evo2-nim:8000`. Do not silently switch modes when the selected
+endpoint is unavailable. Report the failed endpoint and fix its configuration.
 
 The hosted docs expose generation. `/forward` is documented for local Docker;
 do not invent a hosted `/forward` endpoint. Hosted requests use `Authorization: Bearer $NGC_API_KEY`. Supported local Docker
@@ -83,7 +92,8 @@ docker run --rm -it --name evo2-nim \
 Readiness:
 
 ```bash
-until curl -sf http://localhost:8000/v1/health/ready; do sleep 10; done
+evo2_nim_url="${EVO2_NIM_URL:-http://localhost:8000}"
+until curl -sf "${evo2_nim_url%/}/v1/health/ready"; do sleep 10; done
 ```
 
 If RTX PRO 6000 Blackwell Workstation fails with no Transformer Engine
@@ -101,8 +111,6 @@ import os
 from pathlib import Path
 import requests
 
-HOSTED = True
-
 def clean_dna(value: str) -> str:
     seq = "".join(value.upper().split())
     invalid = sorted(set(seq) - set("ACGT"))
@@ -111,14 +119,22 @@ def clean_dna(value: str) -> str:
     return seq
 
 prompt = clean_dna("ACTGACTGACTGACTG")
-nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000")
+mode = os.getenv("NIM_API_MODE")
+if mode is None:
+    mode = "local" if os.getenv("EVO2_NIM_URL") else "hosted"
+if mode not in {"hosted", "local"}:
+    raise ValueError("NIM_API_MODE must be 'hosted' or 'local'")
+
+nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000").rstrip("/")
 url = (
     "https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate"
-    if HOSTED else f"{nim_url}/biology/arc/evo2/generate"
+    if mode == "hosted" else f"{nim_url}/biology/arc/evo2/generate"
 )
 headers = {"Content-Type": "application/json"}
-if HOSTED:
+if mode == "hosted":
     api_key = os.getenv("NGC_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set NGC_API_KEY for hosted Evo 2")
     headers["Authorization"] = f"Bearer {api_key}"
 
 payload = {
@@ -157,7 +173,10 @@ import os
 import numpy as np
 import requests
 
-nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000")
+mode = os.getenv("NIM_API_MODE", "local")
+if mode != "local":
+    raise RuntimeError("Evo 2 /forward is available only in local mode")
+nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000").rstrip("/")
 payload = {
     "sequence": clean_dna("ACTGACTGACTG"),
     "output_layers": ["output_layer", "decoder.layers.3.self_attention"],
@@ -194,8 +213,11 @@ and optional `enable_logits`.
 
 - `401/403`: hosted key missing/expired or not sent as Bearer token.
 - `422`: wrong field names such as `max_tokens` instead of `num_tokens`.
-- Local auth confusion: do not send `Authorization` to localhost.
-- Local startup: first run downloads model assets; wait on `/v1/health/ready`.
+- Local endpoint confusion: print `NIM_API_MODE` and `EVO2_NIM_URL`; do not
+  replace a configured service URL with `localhost`.
+- Local auth confusion: do not send `Authorization` to local inference.
+- Local startup: first run downloads model assets; poll
+  `$EVO2_NIM_URL/v1/health/ready` before inference.
 - FP8 failure: use hosted, 7B on a supported FP8 GPU, or documented 40B GPUs.
 
 <!-- ci-touch: force NVSkills CI to validate this skill (temporary — revert before merge) -->

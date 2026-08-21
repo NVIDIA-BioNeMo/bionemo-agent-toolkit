@@ -17,7 +17,7 @@ optional — do not run both). Endpoints/auth: read `boltz2-nim` / `openfold3-ni
   residues to `X` — the Boltz2 NIM rejects a3m with `B/J/O/U/Z/*`).
 - **Target chain → structural template (optional, stringent).** Pass the known
   `target.pdb/.cif` as a Boltz2 per-polymer `structural_templates` entry; build
-  the CIF with `scripts/pdb_to_boltz_template_cif.py` (plain gemmi output is
+  the CIF with `scripts/pdb_to_boltz_template_cif.py` (plain biotite output is
   rejected — the template needs `label_seq_id` 1..N + populated
   `_entity_poly_seq`). Use when you want to dock against the exact geometry.
 

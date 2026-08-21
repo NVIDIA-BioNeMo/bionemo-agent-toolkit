@@ -50,7 +50,7 @@
     {
       "id": "2",
       "prompt": "Run Evo 2 locally with Docker and then do a quick DNA generation smoke test against localhost. My NGC_API_KEY and LOCAL_NIM_CACHE are already configured; use the default model unless I set NIM_VARIANT=7b. Please warn me if my GPU is not compatible.",
-      "expected_output": "Docker startup and health-check commands using the Evo2 image, repo env contract, FP8-capable GPU guidance, optional NIM_VARIANT, local no-auth inference, and a localhost generation request.",
+      "expected_output": "Docker startup and health-check commands using the Evo2 image, repo env contract, FP8-capable GPU guidance, optional NIM_VARIANT, local no-auth inference, and an EVO2_NIM_URL-aware generation request with a localhost fallback.",
       "files": [],
       "assertions": [
         {
@@ -76,12 +76,12 @@
         {
           "id": "health-check",
           "description": "Polls local readiness before inference",
-          "check": "Output contains 'localhost:8000/v1/health/ready'"
+          "check": "Output builds the readiness URL from EVO2_NIM_URL with localhost:8000 only as a fallback"
         },
         {
           "id": "local-no-auth-endpoint",
           "description": "Uses local generation endpoint with no Authorization header",
-          "check": "Script contains 'localhost:8000/biology/arc/evo2/generate' and does not send 'Authorization' to local inference"
+          "check": "Script builds the local generation endpoint from EVO2_NIM_URL and does not send 'Authorization' to local inference"
         }
       ]
     },
@@ -94,7 +94,7 @@
         {
           "id": "local-forward-endpoint",
           "description": "Uses the correct local forward endpoint",
-          "check": "Script contains 'localhost:8000/biology/arc/evo2/forward'"
+          "check": "Script builds the local forward endpoint from EVO2_NIM_URL with localhost:8000 only as a fallback"
         },
         {
           "id": "forward-fields",

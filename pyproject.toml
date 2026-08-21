@@ -23,12 +23,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 # Third-party packages imported by the Python helper scripts in this repo:
-#   gemmi  -> */complexa-binder-design/scripts/{pdb_interface,pipeline,preflight_design,pdb_to_boltz_template_cif}.py
-#   numpy  -> */complexa-binder-design/scripts/validate_binders.py, */protein-binder-design/scripts/metrics.py
-#   pyyaml -> */complexa-binder-design/scripts/pipeline.py
+#   biotite -> */complexa-binder-design/scripts/{pdb_interface,pipeline,preflight_design,pdb_to_boltz_template_cif}.py
+#   numpy   -> */complexa-binder-design/scripts/validate_binders.py, */protein-binder-design/scripts/metrics.py
+#   pyyaml  -> */complexa-binder-design/scripts/pipeline.py
 # Everything else the scripts import is Python standard library.
 dependencies = [
-    "gemmi>=0.6.5",
+    "biotite>=1.0",
     "numpy>=1.26",
     "pyyaml>=6.0",
 ]

@@ -58,8 +58,8 @@ vars — is in **[`references/setup.md`](references/setup.md)**. After setup, ru
    [build.nvidia.com](https://build.nvidia.com) (`export NVIDIA_API_KEY=nvapi-...`)
    or self-hosted (`--endpoint local`).
 3. **ipSAE** — `bash scripts/fetch_ipsae.sh` (one-time; MIT, fetched not bundled).
-4. **Python** ≥ 3.10 with `numpy`, `gemmi`, `pyyaml` (Stage-1 structure handling +
-   target registration); `gemmi` also enables Boltz2 templates. The optional
+4. **Python** ≥ 3.10 with `numpy`, `biotite`, `pyyaml` (Stage-1 structure handling +
+   target registration); `biotite` also enables Boltz2 templates. The optional
    **Paperclip** CLI enables the literature-mining hotspot fallback.
 
 Then plan a target with **no GPU**:
