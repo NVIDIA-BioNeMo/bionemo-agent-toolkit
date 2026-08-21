@@ -26,3 +26,15 @@ rules:
       `docker login nvcr.io`. This is first-party, user-facing setup guidance for
       the user's own credential file — not credential theft. No SSH keys, cloud
       credential stores, or third-party secret files are accessed.
+  - id: "SQP-2"
+    path: "*SKILL.md"
+    reason: >-
+      Reviewed false positive (BioNeMo, omosafi@nvidia.com, 2026-08-21).
+      SQP-2 flags evo2-nim transmitting a user-supplied DNA sequence to
+      NVIDIA's own hosted NIM endpoint (health.api.nvidia.com) — the skill's
+      documented, intended, first-party inference call. This is the same
+      disclosed transmission pattern rated MEDIUM-advisory (non-blocking) on
+      every sibling NIM skill (boltz2, msa-search, proteinmpnn, molmim,
+      openfold2/3); the HIGH severity is scanner nondeterminism under
+      skillspector 2.9.6, not a new exfiltration risk. The skill documents the
+      local Docker NIM path for sensitive or proprietary sequences.
