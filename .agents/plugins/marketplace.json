@@ -8,7 +8,7 @@
             "name": "bionemo-agent-toolkit",
             "source": {
                 "source": "local",
-                "path": "./plugins/bionemo-agent-toolkit"
+                "path": "./skills/bionemo-agent-toolkit"
             },
             "policy": {
                 "installation": "AVAILABLE",

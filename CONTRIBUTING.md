@@ -50,6 +50,12 @@ Every skill directory must be claimed by **exactly one** registry
 (`components.d` or `catalog-exceptions.yml`), or the orphan pruner
 (`.github/scripts/prune-orphans.sh`) deletes it.
 
+The deployable aggregate under `skills/bionemo-agent-toolkit/skills/` is
+generated from those grouped source directories. Do not edit the aggregate
+copy directly; run `python scripts/plugin_sync.py --write` after changing a
+source skill. The root `plugins -> skills` symlink is a temporary compatibility
+path for existing plugin consumers.
+
 ### Onboarding a source repo
 
 Add `components.d/<slug>.yml`, meet the requirements below, and open a PR:

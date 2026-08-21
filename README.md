@@ -56,7 +56,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **Proteina-Complexa** | Protein binder design for protein and small molecule targets. Combines a pretrained flow-based generative model (built on La-Proteina) with inference-time optimization for high-quality binder generation. | [`complexa-setup`](open-models-skills/proteina-complexa/complexa-setup), [`complexa-target`](open-models-skills/proteina-complexa/complexa-target), [`complexa-design`](open-models-skills/proteina-complexa/complexa-design), [`complexa-sweep`](open-models-skills/proteina-complexa/complexa-sweep), [`complexa-evaluate-pdbs`](open-models-skills/proteina-complexa/complexa-evaluate-pdbs) |
 | **KERMT** | Pretrained graph neural network for molecular property prediction (ADMET). Multi-task extension of GROVER with accelerated data loading via cuik-molmaker. SOTA on real-world ADMET data. | [`kermt-setup`](open-models-skills/kermt/skills/kermt-setup), [`kermt-infer`](open-models-skills/kermt/skills/kermt-infer), [`kermt-embed`](open-models-skills/kermt/skills/kermt-embed), [`kermt-finetune`](open-models-skills/kermt/skills/kermt-finetune), [`kermt-continue-pretrain`](open-models-skills/kermt/skills/kermt-continue-pretrain), [`kermt-pretrain-scratch`](open-models-skills/kermt/skills/kermt-pretrain-scratch), [`kermt-add-cmim-pretrain`](open-models-skills/kermt/skills/kermt-add-cmim-pretrain), [`kermt-monitor`](open-models-skills/kermt/skills/kermt-monitor) |
 | **Parabricks** | Agent-ready skills built on Parabricks for accelerated genomic analysis and workflows. | [`parabricks`](library-skills/parabricks), [`genomics-workflow-acceleration`](library-skills/genomics-workflow-acceleration) |
-| **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvMolKit) |
+| **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvmolkit-usage) |
 | **cuEquivariance** | Build equivariant neural-network primitives (segmented tensor products, CG coefficients). | [`cuequivariance`](library-skills/cuequivariance) |
 
 ## Evaluating NIM Skill Lift
@@ -160,8 +160,10 @@ comparison.
   ```
 
 Every skill is a directory with a `SKILL.md` (YAML frontmatter + instructions),
-optional `references/`, and optional `scripts/`. The generated, installable plugin
-lives in [`plugins/bionemo-agent-toolkit/`](plugins/bionemo-agent-toolkit).
+optional `references/`, and optional `scripts/`. The generated aggregate lives in
+[`skills/bionemo-agent-toolkit/`](skills/bionemo-agent-toolkit). For compatibility
+with the native plugin marketplaces, [`plugins`](plugins) temporarily remains a
+symlink to `skills`.
 
 ## License
 

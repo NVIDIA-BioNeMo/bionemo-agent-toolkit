@@ -46,7 +46,7 @@ commenting `/nvskills-ci` on a PR in the repo that owns the skill.
 |---|---|---|
 | `open-models-skills/kermt/*` (8) | `NVIDIA-BioNeMo/KERMT` | [KERMT#26](https://github.com/NVIDIA-BioNeMo/KERMT/pull/26) |
 | `open-models-skills/proteina-complexa/*` (5) | `NVIDIA-BioNeMo/Proteina-Complexa` | [Proteina-Complexa#60](https://github.com/NVIDIA-BioNeMo/Proteina-Complexa/pull/60) |
-| `library-skills/nvMolKit` (1) | `NVIDIA-BioNeMo/nvMolKit` | [nvMolKit#248](https://github.com/NVIDIA-BioNeMo/nvMolKit/pull/248) |
+| `library-skills/nvmolkit-usage` (1) | `NVIDIA-BioNeMo/nvMolKit` | [nvMolKit#248](https://github.com/NVIDIA-BioNeMo/nvMolKit/pull/248) |
 
 The same card content was opened as a PR against each source repo. When those
 merge, the corresponding entries here become retirable.
