@@ -1,0 +1,20 @@
+[
+  {"query": "Predict promoter regions in this DNA sequence with Genomic Intelligence", "should_trigger": true},
+  {"query": "Find splice donor and acceptor sites in this transcript", "should_trigger": true},
+  {"query": "Score enhancer activity for this Drosophila regulatory sequence", "should_trigger": true},
+  {"query": "Annotate chromatin state across tracks for this human region", "should_trigger": true},
+  {"query": "Predict gene expression in K562 cells from this genomic window", "should_trigger": true},
+  {"query": "Run de-novo gene / transcript annotation on this FASTA", "should_trigger": true},
+  {"query": "Predict regulatory features of TP53 directly from sequence", "should_trigger": true},
+  {"query": "What is the promoter/expression profile of HBB? Use the DNA language model API", "should_trigger": true},
+  {"query": "Use the Genomic Intelligence hosted API to analyze this DNA", "should_trigger": true},
+  {"query": "Fetch the TSS-centred window for a gene and predict its expression", "should_trigger": true},
+  {"query": "Predict a protein structure from FASTA using OpenFold3", "should_trigger": false},
+  {"query": "Generate a DNA continuation from this seed with Evo 2", "should_trigger": false},
+  {"query": "Dock a ligand to a protein receptor and return binding poses", "should_trigger": false},
+  {"query": "Design protein sequences for this backbone with ProteinMPNN", "should_trigger": false},
+  {"query": "Calculate GC content of this DNA string with plain Python", "should_trigger": false},
+  {"query": "Call variants from this BAM file and write a VCF", "should_trigger": false},
+  {"query": "Cluster single-cell RNA-seq expression matrices", "should_trigger": false},
+  {"query": "Summarize the promoter biology literature without calling an API", "should_trigger": false}
+]
