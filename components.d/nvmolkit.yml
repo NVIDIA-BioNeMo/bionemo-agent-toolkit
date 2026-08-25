@@ -6,4 +6,4 @@ description: GPU-accelerated RDKit-compatible cheminformatics — conformer gene
 ref: main
 skills:
   - path: skills/nvmolkit-usage
-    catalog_dir: library-skills/nvMolKit
+    catalog_dir: library-skills/nvmolkit-usage

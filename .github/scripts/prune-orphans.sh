@@ -7,7 +7,7 @@
 #   - Upstream scans a single flat `skills/*/` root. We scan the SOURCED group
 #     roots in PRUNE_ROOTS (the wholly-native roots nim-skills/ and workflows/
 #     are never scanned, so they can't be pruned).
-#   - catalog_dir values are full grouped paths (e.g. library-skills/nvMolKit),
+#   - catalog_dir values are full grouped paths (e.g. library-skills/nvmolkit-usage),
 #     kept at DEPTH 1 under their group root, so the scan and the expected-set
 #     comparison both use full relative paths.
 #
@@ -62,7 +62,7 @@ for root in $PRUNE_ROOTS; do
   [ -d "$root" ] || continue
   for d in "$root"/*/; do
     [ -d "$d" ] || continue
-    rel="${d%/}"                       # e.g. library-skills/nvMolKit
+    rel="${d%/}"                       # e.g. library-skills/nvmolkit-usage
     if ! grep -qxF "$rel" "$expected"; then
       echo "$rel" >> "$orphans"
     fi
