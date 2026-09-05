@@ -3,12 +3,10 @@
 Full flag matrix, destination layout, and NGC source for every checkpoint
 Complexa can pull.
 
-`complexa download` is a thin Python wrapper around `env/download_startup.sh`.
-The CLI (`src/proteinfoundation/cli/cli_runner.py:download_main`) accepts the
-documented flags below and forwards them to the bash script. It is a first-party,
-developer-run CLI invoked with a fixed, documented set of flags — it takes no
-untrusted or network-supplied input, so the forwarded arguments are not an
-injection surface.
+`complexa download` is a thin Python wrapper around `env/download_startup.sh`
+— the CLI argparse (in `src/proteinfoundation/cli/cli_runner.py:download_main`)
+forwards `sys.argv[2:]` straight to the bash script, so any flag the bash
+script accepts is reachable.
 
 ---
 
@@ -29,7 +27,8 @@ The Python argparse explicitly defines these flags:
 The underlying bash script also accepts per-model flags (`--pmpnn`,
 `--ligmpnn`, `--af2`, `--esm2`, `--esmfold`, `--rf3`, `--boltz2`) that pass
 through unchanged. They are listed in `env/download_startup.sh:show_help` but
-not in the Python argparse — the bash script accepts them directly.
+not in the Python argparse — they still work because of the `sys.argv[2:]`
+passthrough.
 
 | Passthrough flag | Destination | Approx size |
 |------------------|-------------|-------------|
