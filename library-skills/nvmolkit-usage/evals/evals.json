@@ -168,6 +168,21 @@
       ],
       "expected_skill": "nvmolkit-usage",
       "expected_script": null
+    },
+    {
+      "id": "nvmolkit-usage-012",
+      "prompt": "Write nvMolKit code that finds maximum common substructures for the explicit molecule pairs [(0, 1), (2, 3), (0, 2)]. Preserve that pair order, allow any atom and any bond to match, set a 5-second timeout for each pair, and report atom/bond counts plus whether each search timed out.",
+      "expected_output": "The agent constructs RDKit molecules, calls nvmolkit.mcs.findMCS once in explicit-pairs mode, and reads the ordered MCSBatchResult correctly, including each MCSResult's counts and canceled flag.",
+      "assertions": [
+        "The code imports findMCS from nvmolkit.mcs and calls it once for the batch",
+        "The code passes mode='pairs' and the explicit pairs [(0, 1), (2, 3), (0, 2)] without reordering or deduplicating them",
+        "The code uses atom_compare='any', bond_compare='any', and timeout_seconds=5",
+        "The code iterates in result.pairs order and materializes each item with result[pair_idx] or result.get_result(pair_idx)",
+        "The code reports num_atoms, num_bonds, and canceled for every requested pair",
+        "The agent explains that timeout_seconds is a per-pair budget and that a canceled result may contain the best partial MCS found"
+      ],
+      "expected_skill": "nvmolkit-usage",
+      "expected_script": null
     }
   ]
 }
