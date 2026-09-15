@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Protein Binder Design (workflow)
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Run a de novo binder design campaign by composing atomic NIM skills. This skill
 owns orchestration, handoff contracts, filtering, validation, and the run
 manifest. It does NOT duplicate per-NIM API details — defer those to each

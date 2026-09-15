@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # MolMIM NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Generate, sample, embed, and decode small molecules with MolMIM. Use this
 `SKILL.md` for first-pass hosted/local usage; load supplemental files only when
 needed:

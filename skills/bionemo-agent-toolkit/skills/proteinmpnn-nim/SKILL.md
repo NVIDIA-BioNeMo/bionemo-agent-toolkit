@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # ProteinMPNN NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Design protein sequences for a supplied backbone PDB. Use this `SKILL.md` for
 first-pass hosted/local usage; load supplemental files only when needed:
 

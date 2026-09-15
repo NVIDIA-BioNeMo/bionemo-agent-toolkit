@@ -12,6 +12,8 @@ permissions:
 
 # Complexa Binder Design (workflow)
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 From one request — "design binders for `<target>`" — to ranked, **independently
 validated** binders. Each returned binder is a **co-designed sequence + predicted
 binder–target complex**, gated by interface confidence, by whether the binder

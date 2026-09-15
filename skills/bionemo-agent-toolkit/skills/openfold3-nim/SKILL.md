@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # OpenFold3 NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Predict biomolecular structures with OpenFold3. It supports proteins, DNA, RNA,
 small-molecule ligands, and multi-entity assemblies. Use this `SKILL.md` for
 basic hosted/local NIM use; load supplemental files only when the task needs

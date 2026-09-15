@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # DiffDock NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Predict protein-ligand binding poses with blind docking. Use this `SKILL.md` for
 first-pass hosted/local usage; load supplemental files only when needed:
 

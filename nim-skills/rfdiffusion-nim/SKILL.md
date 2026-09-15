@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # RFDiffusion NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Design protein backbone PDBs for de novo proteins, motif scaffolds, and binders.
 Use this `SKILL.md` for first-pass hosted/local usage; load supplemental files
 only when needed:

@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Boltz2 NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Predict biomolecular structures and optional ligand affinity. Use this
 `SKILL.md` for first-pass hosted/local usage; load supplemental files only when
 needed:
