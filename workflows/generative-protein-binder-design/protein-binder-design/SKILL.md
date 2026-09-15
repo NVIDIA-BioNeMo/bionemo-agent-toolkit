@@ -5,6 +5,9 @@ description: >
 license: Apache-2.0
 compatibility: "numpy>=1.24; requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
+permissions:
+  - env      # reads NVIDIA_API_KEY/NGC_API_KEY and configured NIM endpoints
+  - network  # calls hosted NVIDIA APIs or user-configured local NIM endpoints
 ---
 
 # Protein Binder Design (workflow)
@@ -13,8 +16,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 Run a de novo binder design campaign by composing atomic NIM skills. This skill
 owns orchestration, handoff contracts, filtering, validation, and the run
-manifest. It does NOT duplicate per-NIM API details — defer those to each
-atomic skill's `SKILL.md`.
+manifest. For per-NIM API details, consult the corresponding NIM skill.
 
 ## Composed skills
 

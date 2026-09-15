@@ -11,7 +11,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 <!-- nv-carps: dummy edit to trigger NIM skill validation. -->
 
-Generate protein MSAs with GPU-accelerated MMSeqs2. Use this `SKILL.md` for
+Generate protein MSAs with GPU-accelerated MMSeqs2. Use this guide for
 first-pass hosted/local usage; load supplemental files only when needed:
 
 - `references/api.md`: exact endpoints, schemas, Docker flags, response fields.
