@@ -7,12 +7,12 @@
       "expected_output": "An orchestration that composes the rfdiffusion-nim, proteinmpnn-nim, and boltz2-nim/openfold3-nim skills in order, remaps epitope residues, writes a run manifest via scripts/manifest.py, applies the ipTM/pLDDT/RMSD filter, and exports a ranked candidates.csv.",
       "files": [],
       "assertions": [
-        {"id": "composes-rfdiffusion", "description": "Uses RFdiffusion for binder backbones", "check": "Plan invokes the rfdiffusion-nim skill with a binder contig and hotspot_res"},
-        {"id": "composes-proteinmpnn", "description": "Uses ProteinMPNN for sequence design", "check": "Plan invokes the proteinmpnn-nim skill and drops the native/WT row from mfasta"},
-        {"id": "composes-cofold", "description": "Co-folds binder with target", "check": "Plan invokes boltz2-nim or openfold3-nim to co-fold the binder with the target and collects ipTM or confidence"},
-        {"id": "writes-manifest", "description": "Writes a run manifest", "check": "Plan uses scripts/manifest.py (Manifest.create, set_scores, apply_filters, to_csv)"},
-        {"id": "applies-filter", "description": "Applies default filter thresholds", "check": "Plan filters on ipTM >= 0.8, binder pLDDT >= 80, self-consistency RMSD <= 2.0"},
-        {"id": "remaps-epitope", "description": "Remaps epitope residues", "check": "Plan remaps epitope author numbering using scripts/pdb_utils.py before use"}
+        "[composes-rfdiffusion] Uses RFdiffusion for binder backbones: Plan invokes the rfdiffusion-nim skill with a binder contig and hotspot_res",
+        "[composes-proteinmpnn] Uses ProteinMPNN for sequence design: Plan invokes the proteinmpnn-nim skill and drops the native/WT row from mfasta",
+        "[composes-cofold] Co-folds binder with target: Plan invokes boltz2-nim or openfold3-nim to co-fold the binder with the target and collects ipTM or confidence",
+        "[writes-manifest] Writes a run manifest: Plan uses scripts/manifest.py (Manifest.create, set_scores, apply_filters, to_csv)",
+        "[applies-filter] Applies default filter thresholds: Plan filters on ipTM >= 0.8, binder pLDDT >= 80, self-consistency RMSD <= 2.0",
+        "[remaps-epitope] Remaps epitope residues: Plan remaps epitope author numbering using scripts/pdb_utils.py before use"
       ]
     },
     {
@@ -21,10 +21,10 @@
       "expected_output": "Adds scrambled-sequence negative controls and published-binder positive controls through the same co-folding pipeline, marks them is_control in the manifest, and reports success rate as n_passed / n_candidates.",
       "files": [],
       "assertions": [
-        {"id": "negative-controls", "description": "Generates scrambled negative controls", "check": "Plan uses scripts/controls.py to scramble binder sequences and marks them is_control with control_type scrambled"},
-        {"id": "positive-controls", "description": "Uses published binders as positive controls", "check": "Plan re-scores published binders from the registry through the same pipeline as positive controls"},
-        {"id": "success-rate", "description": "Reports a success rate", "check": "Plan reports success rate as n_passed divided by n_candidates from manifest.summary()"},
-        {"id": "same-pipeline", "description": "Controls run through identical pipeline", "check": "Controls are co-folded and scored with the same settings as the designs"}
+        "[negative-controls] Generates scrambled negative controls: Plan uses scripts/controls.py to scramble binder sequences and marks them is_control with control_type scrambled",
+        "[positive-controls] Uses published binders as positive controls: Plan re-scores published binders from the registry through the same pipeline as positive controls",
+        "[success-rate] Reports a success rate: Plan reports success rate as n_passed divided by n_candidates from manifest.summary()",
+        "[same-pipeline] Controls run through identical pipeline: Controls are co-folded and scored with the same settings as the designs"
       ]
     },
     {
@@ -33,9 +33,9 @@
       "expected_output": "Loads the existing manifest with Manifest.load, identifies candidates lacking the needed scores/artifacts, and resumes without re-running completed stages.",
       "files": [],
       "assertions": [
-        {"id": "loads-manifest", "description": "Loads the existing manifest", "check": "Plan calls Manifest.load on the run directory"},
-        {"id": "resumes-incomplete", "description": "Skips completed candidates", "check": "Plan only processes candidates missing required scores or artifacts"},
-        {"id": "no-recompute", "description": "Does not recompute finished stages", "check": "Plan avoids re-running stages already recorded in the manifest"}
+        "[loads-manifest] Loads the existing manifest: Plan calls Manifest.load on the run directory",
+        "[resumes-incomplete] Skips completed candidates: Plan only processes candidates missing required scores or artifacts",
+        "[no-recompute] Does not recompute finished stages: Plan avoids re-running stages already recorded in the manifest"
       ]
     }
   ]
