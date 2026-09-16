@@ -55,7 +55,7 @@
       "expected_output": "The agent provides a complete nvMolKit port using batched embedding, batched MMFF optimization, and the batch conformer RMSD API, with nvMolKit-compatible ETKDG parameters and safe result handling.",
       "assertions": [
         "The agent creates explicit-hydrogen RDKit molecules with Chem.AddHs before embedding",
-        "The agent creates ETKDGv3 parameters and sets useRandomCoords = True as required by nvMolKit",
+        "The agent creates ETKDGv3 parameters without setting useRandomCoords",
         "The agent calls nvmolkit.embedMolecules.EmbedMolecules once on the molecule collection with confsPerMolecule=20",
         "The agent calls MMFFOptimizeMoleculesConfs once on the molecule collection with maxIters=500 instead of retaining the RDKit per-molecule optimization loop",
         "The agent calls GetConformerRMSMatrixBatch on the heavy-atom molecule collection",
@@ -102,7 +102,7 @@
       "expected_output": "The agent writes a complete batch-oriented nvMolKit conformer workflow using compatible ETKDG parameters, batched MMFF and RMSD calls, invalid-molecule handling, and structured summaries.",
       "assertions": [
         "The code parses the SMILES and adds explicit hydrogens before ETKDG and MMFF",
-        "The code uses ETKDGv3 with useRandomCoords = True",
+        "The code uses ETKDGv3; eigenvalue-based and random-coordinate initialization are both valid",
         "The code calls EmbedMolecules once on the valid molecule collection with an explicit positive confsPerMolecule value",
         "The code calls MMFFOptimizeMoleculesConfs once on the collection and handles molecules lacking MMFF parameters or reports the indexed ValueError cleanly",
         "The code calls GetConformerRMSMatrixBatch on heavy-atom molecules rather than using the single-molecule API as its primary loop",
@@ -143,10 +143,10 @@
     },
     {
       "id": "nvmolkit-usage-010",
-      "prompt": "Here is an existing good nvMolKit ETKDG embedding script. Modify it to use nvMolKit autotuning for the HardwareOptions used by EmbedMolecules. Do not run or benchmark it; provide the updated script only.\n\n```python\nfrom pathlib import Path\nimport json\nimport time\n\nimport torch\nfrom rdkit import Chem\nfrom rdkit.Chem import AddHs\nfrom rdkit.Chem.rdDistGeom import ETKDGv3\n\nfrom nvmolkit.embedMolecules import EmbedMolecules\n\nsmiles_path = Path(\"molecules.smi\")\nsmiles = [\n    line.split()[0]\n    for line in smiles_path.read_text().splitlines()\n    if line.strip() and not line.startswith(\"#\")\n]\nmols = [AddHs(Chem.MolFromSmiles(smi)) for smi in smiles]\n\nparams = ETKDGv3()\nparams.useRandomCoords = True\nparams.randomSeed = 0xC0FFEE\n\nstart = time.perf_counter()\nEmbedMolecules(mols, params, confsPerMolecule=10, maxIterations=-1)\ntorch.cuda.synchronize()\nelapsed = time.perf_counter() - start\n\nsummary = {\n    \"molecules\": len(mols),\n    \"conformers\": sum(mol.GetNumConformers() for mol in mols),\n    \"elapsed_seconds\": elapsed,\n}\nPath(\"embedding_summary.json\").write_text(\n    json.dumps(summary, indent=2, sort_keys=True)\n)\n```",
+      "prompt": "Here is an existing good nvMolKit ETKDG embedding script. Modify it to use nvMolKit autotuning for the HardwareOptions used by EmbedMolecules. Do not run or benchmark it; provide the updated script only.\n\n```python\nfrom pathlib import Path\nimport json\nimport time\n\nimport torch\nfrom rdkit import Chem\nfrom rdkit.Chem import AddHs\nfrom rdkit.Chem.rdDistGeom import ETKDGv3\n\nfrom nvmolkit.embedMolecules import EmbedMolecules\n\nsmiles_path = Path(\"molecules.smi\")\nsmiles = [\n    line.split()[0]\n    for line in smiles_path.read_text().splitlines()\n    if line.strip() and not line.startswith(\"#\")\n]\nmols = [AddHs(Chem.MolFromSmiles(smi)) for smi in smiles]\n\nparams = ETKDGv3()\nparams.randomSeed = 0xC0FFEE\n\nstart = time.perf_counter()\nEmbedMolecules(mols, params, confsPerMolecule=10, maxIterations=-1)\ntorch.cuda.synchronize()\nelapsed = time.perf_counter() - start\n\nsummary = {\n    \"molecules\": len(mols),\n    \"conformers\": sum(mol.GetNumConformers() for mol in mols),\n    \"elapsed_seconds\": elapsed,\n}\nPath(\"embedding_summary.json\").write_text(\n    json.dumps(summary, indent=2, sort_keys=True)\n)\n```",
       "expected_output": "The agent preserves the existing workflow, calls the supported tune_embed_molecules API on a representative workload, applies TuneResult.best_config through hardwareOptions= to the full EmbedMolecules call, and retains summary output.",
       "assertions": [
-        "The updated script preserves SMILES loading, AddHs, ETKDGv3 with useRandomCoords=True, full-workload embedding, and embedding_summary.json output",
+        "The updated script preserves SMILES loading, AddHs, ETKDGv3, full-workload embedding, and embedding_summary.json output",
         "The script imports and calls nvmolkit.autotune.tune_embed_molecules or an equivalent supported import of that function",
         "The script may tune on a representative subset while keeping the full collection for the production EmbedMolecules call",
         "The script reads TuneResult.best_config and passes it to the full EmbedMolecules call via hardwareOptions=",
@@ -165,6 +165,21 @@
         "The agent states that speedup should not be expected for this tiny workload",
         "The agent recommends measuring throughput with many molecules or representative large batches",
         "The agent does not recommend a per-molecule nvMolKit loop or claim the code demonstrates an nvMolKit performance regression"
+      ],
+      "expected_skill": "nvmolkit-usage",
+      "expected_script": null
+    },
+    {
+      "id": "nvmolkit-usage-012",
+      "prompt": "Write nvMolKit code that finds maximum common substructures for the explicit molecule pairs [(0, 1), (2, 3), (0, 2)]. Preserve that pair order, allow any atom and any bond to match, set a 5-second timeout for each pair, and report atom/bond counts plus whether each search timed out.",
+      "expected_output": "The agent constructs RDKit molecules, calls nvmolkit.mcs.findMCS once in explicit-pairs mode, and reads the ordered MCSBatchResult correctly, including each MCSResult's counts and canceled flag.",
+      "assertions": [
+        "The code imports findMCS from nvmolkit.mcs and calls it once for the batch",
+        "The code passes mode='pairs' and the explicit pairs [(0, 1), (2, 3), (0, 2)] without reordering or deduplicating them",
+        "The code uses atom_compare='any', bond_compare='any', and timeout_seconds=5",
+        "The code iterates in result.pairs order and materializes each item with result[pair_idx] or result.get_result(pair_idx)",
+        "The code reports num_atoms, num_bonds, and canceled for every requested pair",
+        "The agent explains that timeout_seconds is a per-pair budget and that a canceled result may contain the best partial MCS found"
       ],
       "expected_skill": "nvmolkit-usage",
       "expected_script": null
