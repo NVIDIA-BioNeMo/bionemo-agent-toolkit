@@ -198,7 +198,7 @@ Alongside the manifest, save the ranked `sweep_summary.csv` from Step 6 to `./sw
 
 Total GPU-time for a sweep = `N_configs × per_run_GPU_time`. A single `search_binder_local_pipeline` run on one A100 is roughly 30–90 min (binder length + nsteps dependent). A 4-axis × 4-value sweep = 256 configs × ~60 min = ~256 GPU-hours — at that scale, plan on a multi-GPU host with the Step-4 sharding pattern.
 
-Refer to the shared hardware reference for the per-run baseline + VRAM minima.
+Refer to [`.claude/skills/_shared/reference/hardware.md`](../_shared/reference/hardware.md) for the per-run baseline + VRAM minima.
 
 ## Troubleshooting
 
