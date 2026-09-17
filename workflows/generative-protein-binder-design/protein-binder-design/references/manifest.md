@@ -63,6 +63,11 @@ m.to_csv()
 m2 = Manifest.load("runs/demo")
 ```
 
+`apply_filters()` requires every enabled metric to be present and finite. Missing
+or invalid scores cannot pass. Set a threshold to `null` only when deliberately
+disabling that criterion for the campaign, and disclose the override. A composite
+confidence field does not satisfy an ipTM requirement.
+
 ## Resumability
 
 Because state lives in `manifest.json`, an interrupted campaign resumes by

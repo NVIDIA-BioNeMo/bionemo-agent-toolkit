@@ -21,7 +21,15 @@ needed:
 - `references/validation.md`: mmCIF, confidence, affinity, and chemistry checks.
 - `references/examples.md`: compact hosted/local payload patterns.
 
-## Choose Mode
+## Instructions
+
+Read credentials from the environment only when needed. Check presence with
+`bool(os.getenv("NGC_API_KEY"))`; keep key values and Authorization headers out of
+terminal output, logs, saved artifacts, and the final response. Avoid environment
+dumps when diagnosing authentication. If the hosted key is absent, report the
+missing variable before submitting a request.
+
+### Choose Mode
 
 Ask only when context is unclear:
 
@@ -75,7 +83,9 @@ until curl -sf http://localhost:8000/v1/health/ready; do sleep 5; done
 
 First startup downloads about 30 GB of model weights.
 
-## Request Pattern
+## Examples
+
+### Prediction Request
 
 ```python
 import os
@@ -88,7 +98,10 @@ url = (
 )
 headers = {"Content-Type": "application/json"}
 if HOSTED:
-    headers["Authorization"] = f"Bearer {os.getenv('NGC_API_KEY')}"
+    api_key = os.getenv("NGC_API_KEY")
+    if not api_key:
+        raise SystemExit("NGC_API_KEY is required for the hosted API")
+    headers["Authorization"] = f"Bearer {api_key}"
 
 payload = {
     "polymers": [{

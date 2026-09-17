@@ -32,7 +32,17 @@ NIM skill set). They are **not required**: `references/pipeline.md` carries the
 concrete request shape for every NIM call, so an agent with NIM access can follow
 this skill standalone. For endpoints/auth see **Configuration** below.
 
-## Pipeline
+## Instructions
+
+Resolve the campaign inputs before inference. The bundled `assets/targets.json`
+is a template, not a populated PD-L1 registry. A named target needs a verified
+structure, chain, and epitope; controls need existing candidate sequences and
+sourced positive controls; resuming needs the original manifest and artifacts.
+Check the supplied paths first. If an input or NIM credential is missing, record
+the blocker and the unexecuted stages. Do not invent registry entries, measured
+scores, or an interrupted run. An empty CSV is not a completed campaign.
+
+### Pipeline
 
 1. **Target prep** — get the target PDB + epitope; map epitope/hotspot author
    residue numbers to RFdiffusion `hotspot_res` strings; optionally build a
@@ -69,6 +79,8 @@ final report. Schema and usage: `references/manifest.md`.
 
 - ipTM ≥ 0.8, binder pLDDT ≥ 80, self-consistency RMSD ≤ 2.0 Å.
 - Override per campaign and record overrides in the manifest `filters`.
+- Every enabled metric needs a finite score to pass. Keep a composite confidence
+  value in its own field; do not substitute it for an unavailable ipTM.
 
 ## Validation
 
@@ -80,8 +92,9 @@ metric definitions: `references/validation.md`.
 
 ## Human-in-the-loop + cost
 
-- Confirm target, epitope/hotspots, binder length range, and hosted-vs-local
-  with the user before generating backbones (AskUserQuestion).
+- Reuse target, epitope/hotspots, binder length range, and hosted-vs-local
+  choices already supplied by the user. Ask only for unresolved inputs before
+  generating backbones.
 - Co-folding is the expensive stage: co-fold a capped shortlist, review, then
   expand. State hosted vs local once and reuse it across all NIM calls.
 
@@ -97,8 +110,13 @@ Each composed NIM is reached over HTTP; choose **hosted** or **local** once and
 reuse it for every call:
 
 - **Hosted** (managed): base URL `https://health.api.nvidia.com/v1/...` per NIM at
-  [build.nvidia.com](https://build.nvidia.com); set `NVIDIA_API_KEY` (sent as
-  `Authorization: Bearer`). Read keys from the env — never hardcode them.
+  [build.nvidia.com](https://build.nvidia.com); use `NGC_API_KEY` or the
+  `NVIDIA_API_KEY` fallback (sent as `Authorization: Bearer`). Read keys from the
+  environment. Check only presence with
+  `bool(os.getenv("NGC_API_KEY") or os.getenv("NVIDIA_API_KEY"))`; never print
+  environment dumps, key values, or authorization headers. An `OPENAI_API_KEY`
+  belongs to the agent runtime and must not be used as a NIM credential. If both
+  NIM keys are absent, report missing access before sending authenticated calls.
 - **Local** (self-hosted NGC containers): point each NIM at its local URL
   (e.g. `http://localhost:8000/...`); local NIMs need no auth header. To **launch** the
   NIMs yourself (docker run per NIM, persistent caches, health checks, and the GPU
@@ -108,6 +126,21 @@ reuse it for every call:
 
 Per-NIM paths, request/response schemas, and worked `curl`/Python examples live in
 `references/pipeline.md`.
+
+## Examples
+
+- **New campaign:** with a verified target entry and NIM access, create the
+  manifest, remap residues with `pdb_utils.py`, generate backbones, design binder
+  sequences, co-fold a shortlist, and save response-derived scores before
+  filtering and exporting. Record any stages that could not run.
+- **Controls:** load the existing campaign, use `make_scrambled_controls` on
+  its binder sequences, and add sourced published binders. Mark all controls
+  `is_control=True`, co-fold with the same settings, then report
+  `n_passed / n_candidates` from `summary()` with controls excluded. With no
+  candidates the rate is unavailable; disclose incomplete scoring.
+- **Resume:** call `Manifest.load("runs/<campaign>")`, inspect required scores
+  and saved artifacts, and execute only missing stages. Reuse saved predictions
+  when only metric extraction is missing; preserve completed candidates.
 
 ## Scripts
 
