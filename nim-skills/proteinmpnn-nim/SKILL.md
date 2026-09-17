@@ -9,7 +9,9 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # ProteinMPNN NIM
 
-Design protein sequences for a supplied backbone PDB. Use this `SKILL.md` for
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
+Design protein sequences for a supplied backbone PDB. Use this guide for
 first-pass hosted/local usage; load supplemental files only when needed:
 
 - `references/api.md`: exact endpoints, schemas, Docker flags, response fields.
@@ -28,7 +30,8 @@ when neither the environment nor the user's request makes the mode clear:
 > Hosted NVIDIA API or local Docker NIM?
 
 - Hosted: `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict`
-- Local: `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/biology/ipd/proteinmpnn/predict`
+- Local: append `/biology/ipd/proteinmpnn/predict` to `PROTEINMPNN_NIM_URL`
+  (default base URL: `http://localhost:8000`).
 
 Local inference paths do not include `/v1/`. Hosted requests use `Authorization: Bearer $NGC_API_KEY`. Supported local Docker
 startup uses `NGC_API_KEY` (or `NVIDIA_API_KEY` via the preflight) for

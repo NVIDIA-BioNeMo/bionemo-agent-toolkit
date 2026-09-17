@@ -17,9 +17,12 @@ For each target it reports and validates:
 Usage:
   python3 scripts/preflight_design.py IL1R1 HER2 PIN1 TNFL9 EFNB1 CEACAM1 AHSP
   python3 scripts/preflight_design.py P04626                 # by accession
+  python3 scripts/preflight_design.py 1BRS --chain A          # PDB author chain
+  python3 scripts/preflight_design.py target.pdb --chain A    # local structure
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -108,43 +111,87 @@ def _accessible_residue_count(model, segs):
 
 
 # ----------------------------------------------------------------- per-target plan
-def plan(target: str, binder_max: int = None) -> dict:
+def _pdb_target(structure_path: Path, chain: str | None):
+    """Select one protein chain and find contacts in the supplied co-complex.
+
+    Keep author numbering: these hotspots are used with this structure, not an
+    AFDB model. A single-chain structure has no measured partner interface.
+    """
+    import biotite.structure as struc
+
+    model = _model(structure_path)
+    if model is None:
+        raise ValueError("structure contains no atoms")
+    protein = model[struc.filter_amino_acids(model)]
+    chains = list(dict.fromkeys(str(c) for c in protein.chain_id))
+    if chain is None:
+        if len(chains) != 1:
+            raise ValueError(f"select a target with --chain; protein chains: {', '.join(chains) or 'none'}")
+        chain = chains[0]
+    if chain not in chains:
+        raise ValueError(f"protein chain {chain!r} absent; available: {', '.join(chains) or 'none'}")
+    target = protein[protein.chain_id == chain]
+    if any(str(code).strip() for code in target.ins_code):
+        raise ValueError("target chain has insertion codes; prepare unambiguous integer residue numbering first")
+    heavy = protein[~((protein.element == "H") | (protein.element == "D"))]
+    target_heavy = heavy[heavy.chain_id == chain]
+    partners = heavy[heavy.chain_id != chain]
+    hotspots = []
+    if partners.array_length() and target_heavy.array_length():
+        hits = struc.CellList(partners, cell_size=5.0).get_atoms(target_heavy.coord, radius=5.0)
+        positions = sorted(set(int(r) for r in target_heavy.res_id[(hits != -1).any(axis=1)]))
+        hotspots = [{"chain": chain, "position": p, "source": "pdb_interface"} for p in positions]
+    return target, chain, hotspots
+
+
+def plan(target: str, binder_max: int = None, *, chain: str | None = None) -> dict:
     binder_max = binder_max if binder_max is not None else P.BINDER_LENGTH[1]
     cap_target = P.MAX_COMPLEX_RESIDUES - binder_max
     rep = {"target": target, "checks": {}}
-    spec = P.resolve_target_spec(target)
+    path = Path(target)
+    if path.is_file() and path.suffix.lower() in (".pdb", ".cif", ".mmcif"):
+        spec = {"pdb_path" if path.suffix.lower() == ".pdb" else "cif_path": str(path),
+                "resolved_from": str(path)}
+    else:
+        spec = P.resolve_target_spec(target)
     acc = spec.get("uniprot")
     rep["uniprot"] = acc
     rep["resolved_from"] = spec.get("resolved_from")
-    if not acc:
-        rep["error"] = "could not resolve to a UniProt accession"
-        return rep
-
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
-        # fetch AFDB structure
-        P._run([sys.executable, str(P.FETCH_STRUCTURE), acc, "-o", str(td)], timeout=600)
-        cif = next(iter(sorted(td.glob(f"AF-{acc}-*model*.cif"))), None)
-        if cif is None:
-            rep["error"] = "no AFDB model"
-            return rep
         import biotite.structure as struc
-        model = _model(cif)
+        if acc:
+            # Preserve the AFDB/UniProt accessibility and hotspot workflow.
+            P._run([sys.executable, str(P.FETCH_STRUCTURE), acc, "-o", str(td)], timeout=600)
+            cif = next(iter(sorted(td.glob(f"AF-{acc}-*model*.cif"))), None)
+            if cif is None:
+                rep["error"] = "no AFDB model"
+                return rep
+            model = _model(cif)
+            if chain is not None and (model is None or not (model.chain_id == chain).any()):
+                raise ValueError(f"protein chain {chain!r} absent from AFDB structure")
+            p = P._run([sys.executable, str(P.UNIPROT_TOOLS), "get", acc], timeout=300)
+            entry = json.loads(p.stdout)
+            entry = entry if "features" in entry else entry.get("results", [entry])[0]
+            hs, segs, provenance, hmsgs = HS.resolve_hotspots(entry)
+            rep["topology"] = HS.accessibility(entry)["note"]
+            rep["uniprot_messages"] = hmsgs
+        else:
+            for _ in P.resolve_target(spec, td):
+                pass
+            structure = td / ("target.cif" if spec.get("cif_path") else "target.pdb")
+            model, chain, hs = _pdb_target(structure, chain)
+            rep["pdb"] = spec.get("pdb")
+            rep["chain"] = chain
+            rep["topology"] = f"PDB author chain {chain}; accessibility not annotated"
+            rep["uniprot_messages"] = ([] if hs else [
+                "No protein partner contacts found; supply an evidence-based surface patch before generation."
+            ])
+            segs, provenance = None, "pdb_interface" if hs else "none"
         full_len = struc.get_residue_count(model)
         rep["full_length"] = full_len
-
-        # UniProt entry -> accessibility + functional hotspots
-        p = P._run([sys.executable, str(P.UNIPROT_TOOLS), "get", acc], timeout=300)
-        entry = json.loads(p.stdout)
-        entry = entry if "features" in entry else entry.get("results", [entry])[0]
-        # Same resolver the live pipeline uses: PDB co-complex interface (gold) ->
-        # UniProt functional, restricted to the accessible/extracellular range.
-        hs, segs, provenance, hmsgs = HS.resolve_hotspots(entry)
-        acc_info = HS.accessibility(entry)
-        rep["topology"] = acc_info["note"]
         rep["accessible_residues"] = _accessible_residue_count(model, segs)
         rep["source"] = provenance
-        rep["uniprot_messages"] = hmsgs
         rep["raw_hotspots"] = [f"{h['chain']}{h['position']}({h.get('source', '?')})" for h in hs]
 
         # align to structure: keep only residues present, attach identity
@@ -191,7 +238,7 @@ def plan(target: str, binder_max: int = None) -> dict:
                     if w_lo <= int(model.res_id[st]) <= w_hi
                     and (not segs or any(s <= int(model.res_id[st]) <= e for s, e in segs))]
             cond_len = len(kept)
-            crop_note = f"epitope crop A{min(kept)}-{max(kept)} within {('ECD ' if segs else '')}cap"
+            crop_note = f"epitope crop {chain or 'A'}{min(kept)}-{max(kept)} within {('ECD ' if segs else '')}cap"
         rep["conditioned_length"] = cond_len
         rep["conditioning"] = crop_note
 
@@ -206,14 +253,14 @@ def plan(target: str, binder_max: int = None) -> dict:
 
 def _fmt(rep: dict) -> str:
     L = []
-    head = f"━━━ {rep['target']} ({rep.get('uniprot','?')}) ━━━"
+    head = f"━━━ {rep['target']} ({rep.get('uniprot') or rep.get('pdb') or 'local structure'}) ━━━"
     L.append(head)
     if rep.get("error"):
         L.append(f"  ERROR: {rep['error']}")
         return "\n".join(L)
     L.append(f"  full length: {rep['full_length']} aa | {rep['topology']}")
     L.append(f"  conditioned on: {rep['conditioned_length']} aa  ({rep['conditioning']})")
-    L.append(f"  hotspots (UniProt): raw={rep['raw_hotspots']}")
+    L.append(f"  hotspots ({rep['source']}): raw={rep['raw_hotspots']}")
     if rep.get("compaction"):
         L.append(f"  compaction: {rep['compaction']}")
     L.append(f"  FINAL hotspots ({rep['n_hotspots']}): {rep['final_hotspots'] or '— NONE (needs PDB-interface/Paperclip)'}")
@@ -227,15 +274,25 @@ def _fmt(rep: dict) -> str:
     return "\n".join(L)
 
 
-def main():
-    targets = sys.argv[1:] or ["IL1R1", "HER2", "PIN1", "TNFL9", "EFNB1", "CEACAM1", "AHSP"]
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("targets", nargs="*", help="protein names, UniProt accessions, PDB IDs, or local PDB/mmCIF paths")
+    parser.add_argument("--chain", help="target author chain (required for multichain PDB structures)")
+    args = parser.parse_args(argv)
+    targets = args.targets or ["IL1R1", "HER2", "PIN1", "TNFL9", "EFNB1", "CEACAM1", "AHSP"]
+    status = 0
     for t in targets:
         try:
-            print(_fmt(plan(t)))
+            report = plan(t, chain=args.chain)
+            print(_fmt(report))
+            if report.get("error") or not all(passed for passed, _ in report["checks"].values()):
+                status = 1
         except Exception as e:  # noqa: BLE001
             print(f"━━━ {t} ━━━\n  EXCEPTION: {type(e).__name__}: {e}")
+            status = 1
         print()
+    return status
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
