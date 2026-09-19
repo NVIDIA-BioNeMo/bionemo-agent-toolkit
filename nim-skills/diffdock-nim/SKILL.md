@@ -9,7 +9,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # DiffDock NIM
 
-Predict protein-ligand binding poses with blind docking. Use this `SKILL.md` for
+Predict protein-ligand binding poses with blind docking. Use this guide for
 first-pass hosted/local usage; load supplemental files only when needed:
 
 - `references/api.md`: exact hosted/local endpoints, schemas, Docker flags.
