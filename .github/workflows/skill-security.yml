@@ -1,8 +1,8 @@
 name: skill-security
 
-# Advisory security scan of the skills using SkillSpector (https://github.com/NVIDIA/skillspector).
-# Runs fully offline (--no-llm): no API key, deterministic. Non-blocking for now
-# (continue-on-error) so findings can be reviewed before deciding to gate.
+# Advisory offline scan: changed source skills on PRs, full catalog on main.
+# Findings remain visible in JSON artifacts even when an existing reviewed
+# per-skill baseline suppresses them from the risk score.
 
 on:
   pull_request:
@@ -12,8 +12,14 @@ on:
       - "open-models-skills/**"
       - "workflows/**"
       - ".github/workflows/skill-security.yml"
+      - "scripts/scan_skills.py"
+      - "scripts/plugin_sync.py"
+      - "tests/test_scan_skills.py"
   push:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   skillspector:
@@ -21,17 +27,30 @@ jobs:
     continue-on-error: true          # advisory: does not block merges
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Test scan selection and failure handling
+        run: python -m unittest discover -s tests -p test_scan_skills.py
       - name: Install SkillSpector
         run: pip install "git+https://github.com/NVIDIA/skillspector.git"
-      - name: Scan each skill (offline)
+      - name: Scan selected skills (offline)
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          find nim-skills library-skills open-models-skills workflows \
-            -name SKILL.md -not -path '*/vendor/*' -not -path '*/evals/*' \
-            | xargs -n1 dirname | sort -u \
-            | while read -r d; do
-                echo "== $d =="
-                skillspector scan "$d" --no-llm
-              done
+          args=()
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            : "${PR_BASE_SHA:?Pull requests require a base revision}"
+            args+=(--base-ref "$PR_BASE_SHA")
+          fi
+          python scripts/scan_skills.py "${args[@]}" \
+            --output-dir "$RUNNER_TEMP/skillspector-reports"
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillspector-reports
+          path: ${{ runner.temp }}/skillspector-reports/
+          if-no-files-found: ignore
