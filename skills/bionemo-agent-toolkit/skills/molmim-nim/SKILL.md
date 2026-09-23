@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 # MolMIM NIM
 
 Generate, sample, embed, and decode small molecules with MolMIM. Use this
-`SKILL.md` for first-pass hosted/local usage; load supplemental files only when
+guide for first-pass hosted/local usage; load supplemental files only when
 needed:
 
 - `references/api.md`: endpoints, schema, Docker flags, response fields.
