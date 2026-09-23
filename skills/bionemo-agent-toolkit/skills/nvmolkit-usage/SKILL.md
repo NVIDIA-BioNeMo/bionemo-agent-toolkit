@@ -1,25 +1,23 @@
 ---
 name: nvmolkit-usage
 description: >-
-  Write code that calls the installed nvMolKit Python API for GPU-accelerated,
-  batched RDKit-style operations - Morgan fingerprints, Tanimoto/cosine
-  similarity, ETKDG conformer embedding, MMFF/UFF optimization, TFD, conformer
-  RMSD, Butina clustering, and substructure search. Use when the user is
-  importing `nvmolkit.*`, debugging an `nvmolkit` call, choosing between
-  nvMolKit and RDKit for a batched cheminformatics workflow, or wiring nvMolKit
-  results into a torch/numpy pipeline. Out of scope: building nvMolKit from
-  source.
+  Use when writing or debugging nvMolKit Python code for GPU-accelerated RDKit
+  fingerprints, similarity, conformers, clustering, and molecular searches.
 license: Apache-2.0
 metadata:
+  author: Kevin Boyd (@scal444)
   owner: Kevin Boyd (@scal444)
-  risk_tier: skill
+  risk-tier: skill
+  tags: [cheminformatics, rdkit, cuda]
 ---
 
 # nvMolKit usage
 
-## What nvMolKit is
+## Purpose
 
 GPU-accelerated, batched implementations of common RDKit operations. APIs mirror RDKit where possible but are batch-oriented: they take lists of `rdkit.Chem.Mol` (or lists of fingerprints) and process them in parallel on one or more GPUs. nvMolKit links against RDKit at build time; inputs and outputs are real RDKit `Mol` objects.
+
+This skill covers the installed Python API. Building nvMolKit from source is out of scope.
 
 ## Where nvMolKit does well
 
@@ -29,25 +27,39 @@ Reach for nvMolKit when:
 - The metric is **throughput / total wall time across the batch**, not per-molecule latency.
 - The same operation is **repeated identically** across the batch (fingerprinting a library, embedding/minimizing many conformers, bulk pairwise similarity), so the GPU stays saturated.
 
-Plain RDKit is usually the better choice for single-molecule one-offs or workflows that can't be expressed as a batch. nvMolKit is not meant to replace RDKit for those cases.
-
-## Runtime requirements
+## Requirements
 
 - An NVIDIA GPU with compute capability 7.0 (V100) or higher
 - A CUDA driver compatible with CUDA 12.6+.
 - A working `torch` install with CUDA support (nvMolKit returns GPU tensors via `torch`'s CUDA array interface).
 
-If CUDA is unavailable, nvMolKit calls raise. There is no CPU fallback - if the user needs one, use RDKit directly for that path.
-
 When helping with installation, make the user choose a PyTorch CUDA backend that the host driver supports before installing nvMolKit. nvMolKit's PyPI wheels are built with CUDA Toolkit 12.9 and depend on CUDA 12 runtime packages, but pip/uv can still select a CUDA 13 PyTorch wheel unless the install command says otherwise.
 
 - Conda: prefer conda-forge `pytorch-gpu`; pin `cuda-version=12.6` or another CUDA version supported by the driver.
-- pip: send the user to the PyTorch install selector (`https://pytorch.org/get-started/locally/`) or previous-versions page (`https://pytorch.org/get-started/previous-versions/`) to install `torch` for a CUDA 12.x backend before installing nvMolKit.
+- pip: send the user to the [PyTorch install selector](https://pytorch.org/get-started/locally/) or [previous-versions page](https://pytorch.org/get-started/previous-versions/) to install `torch` for a CUDA 12.x backend before installing nvMolKit.
 - uv: install nvMolKit with an explicit backend, e.g. `uv pip install --torch-backend=cu128 nvmolkit`.
 
-## Verify the install before writing real code
+## Inputs
 
-Run this once to confirm nvMolKit is importable and a GPU op works end to end:
+- Required: choose an operation and supply molecules or fingerprints from the user's code or molecular dataset. Parse SMILES with RDKit and reject failed parses (`None`).
+- Molecular operations use RDKit `Mol` objects. Add hydrogens for ETKDG; minimization and conformer comparisons need existing conformers.
+- Fingerprint similarity takes packed `AsyncGpuResult`, torch tensors, or NumPy arrays: one molecule per row, with `int32` or `uint32` words.
+- Optional: take conformer counts, fingerprint settings, cutoffs, output modes, and hardware options from the user's requested workflow; otherwise use the documented API defaults.
+
+## Limitations
+
+- CUDA is required; there is no CPU fallback. Use RDKit directly when CPU execution is needed.
+- Plain RDKit is usually preferable for single-molecule work or operations that cannot be batched.
+- ETKDG does not support custom bounds matrices, custom CPCI, coordinate maps, or separate-fragment embedding.
+- Substructure search does not support chirality-aware matching, enhanced stereochemistry, or other advanced RDKit `SubstructMatchParameters` options.
+
+## Instructions
+
+1. Run the smoke test below before writing nvMolKit code.
+2. Choose an API from the entry-point table and apply its input requirements.
+3. Handle its result as described below; synchronize asynchronous GPU results before host reads.
+
+### Verify the install before writing real code
 
 ```python
 import nvmolkit
@@ -68,7 +80,7 @@ print("fps shape:", tuple(fps.shape), "dtype:", fps.dtype)
 # Expected: shape (3, 32), dtype torch.int32  (1024 bits packed into 32 int32s per row)
 ```
 
-If this fails, point the user at the install guide on the docs site rather than guessing - see "Going deeper" below.
+If this fails, point the user at the [installation guide](https://nvidia-bionemo.github.io/nvMolKit/#installation) rather than guessing.
 
 ## Entry points
 
@@ -77,15 +89,16 @@ If this fails, point the user at the install guide on the docs site rather than 
 | Morgan fingerprints | `nvmolkit.fingerprints` | `MorganFingerprintGenerator(radius, fpSize).GetFingerprints(mols)` |
 | Bulk Tanimoto / cosine similarity | `nvmolkit.similarity` | `crossTanimotoSimilarity(...)`, `crossCosineSimilarity(...)`, plus `*MemoryConstrained` variants for results too large to fit in GPU memory |
 | ETKDG conformer embedding | `nvmolkit.embedMolecules` | `EmbedMolecules(molecules, params, confsPerMolecule, ...)` |
-| MMFF94 optimization (one-shot) | `nvmolkit.mmffOptimization` | `MMFFOptimizeMoleculesConfs(molecules, ...)` |
-| UFF optimization (one-shot) | `nvmolkit.uffOptimization` | `UFFOptimizeMoleculesConfs(molecules, ...)` |
-| Forcefield with custom options + constraints | `nvmolkit.batchedForcefield` | `MMFFBatchedForcefield(mols, properties=..., nonBondedThreshold=..., ignoreInterfragInteractions=..., hardwareOptions=...)`, `UFFBatchedForcefield(mols, vdwThreshold=..., ...)`. Per-molecule view `ff[i]` exposes `add_distance_constraint`, `add_position_constraint`, `add_angle_constraint`, `add_torsion_constraint`. Methods: `.compute_energy()`, `.compute_gradients()`, `.minimize(maxIters, forceTol)` |
+| MMFF94 optimization (one-shot) | `nvmolkit.mmffOptimization` | `MMFFOptimizeMoleculesConfs(molecules, ..., minimizerKind=..., fireOptions=...)` |
+| UFF optimization (one-shot) | `nvmolkit.uffOptimization` | `UFFOptimizeMoleculesConfs(molecules, ..., minimizerKind=..., fireOptions=...)` |
+| Forcefield with custom options + constraints | `nvmolkit.batchedForcefield` | `MMFFBatchedForcefield(mols, properties=..., nonBondedThreshold=..., ignoreInterfragInteractions=..., hardwareOptions=...)`, `UFFBatchedForcefield(mols, vdwThreshold=..., ...)`. Per-molecule view `ff[i]` exposes `add_distance_constraint`, `add_position_constraint`, `add_angle_constraint`, `add_torsion_constraint`. Methods: `.compute_energy()`, `.compute_gradients()`, `.minimize(maxIters, forceTol, minimizerKind=..., fireOptions=...)` |
 | Pairwise conformer RMSD | `nvmolkit.conformerRmsd` | `GetConformerRMSMatrix(mol)`, `GetConformerRMSMatrixBatch(mols)` |
 | Torsion Fingerprint Deviation (TFD) | `nvmolkit.tfd` | `GetTFDMatrix(mol)`, `GetTFDMatrices(mols)` |
-| Butina clustering | `nvmolkit.clustering` | `butina(distance_matrix, cutoff)` (precomputed matrix), `fused_butina(fingerprints, cutoff)` (memory-efficient, on-the-fly) |
+| Butina clustering | `nvmolkit.clustering` | `butina(distance_matrix, cutoff)` (precomputed matrix), `fused_butina(fingerprints, cutoff)` (memory-efficient, on-the-fly); both support explicit RDKit and device output modes |
 | Substructure search | `nvmolkit.substructure` | `hasSubstructMatch`, `countSubstructMatches`, `getSubstructMatches` |
+| Maximum common substructure | `nvmolkit.mcs` | `findMCS(mols, ...)` for all pairs, explicit pairs, or two paired molecule lists |
 | Hardware tuning (batch size, GPU IDs) | `nvmolkit.types` | `HardwareOptions(...)` passed to ETKDG / MMFF / UFF |
-| Optional autotuning of `HardwareOptions` | `nvmolkit.autotune` | `tune_embed_molecules`, `tune_mmff_optimize`, `tune_uff_optimize`, `tune_batched_forcefield`. Requires the `optuna` package |
+| Optional autotuning | `nvmolkit.autotune` | `tune_embed_molecules`, `tune_mmff_optimize`, `tune_uff_optimize`, `tune_batched_forcefield`, `tune_substructure`, `tune_mcs`. Requires the `optuna` package |
 
 ## Result types and execution model
 
@@ -111,7 +124,7 @@ APIs that take a `stream` argument:
 - `butina`, `fused_butina`
 - `GetConformerRMSMatrix`, `GetConformerRMSMatrixBatch`
 
-Other APIs (ETKDG, MMFF/UFF optimization, TFD, substructure search) are synchronous to the caller — no stream plumbing needed.
+Other APIs (ETKDG, MMFF/UFF optimization, TFD, substructure search, MCS) are synchronous to the caller — no stream plumbing needed.
 
 Typical pattern:
 
@@ -144,41 +157,26 @@ Used by ETKDG embedding and MMFF/UFF optimization (one-shot and `BatchedForcefie
 
 The default mode (`CoordinateOutput.RDKIT_CONFORMERS`) still writes optimized coordinates back into each `Mol` and returns Python lists of energies/convergence flags. Reach for `CoordinateOutput.DEVICE` when chaining downstream GPU work (e.g. ETKDG → MMFF → similarity scoring) without host round-trips.
 
+### `MCSBatchResult`
+
+`findMCS` is synchronous and returns an `MCSBatchResult` backed by CPU NumPy
+arrays. Results are always flat: `result[k]` (or `result.get_result(k)`)
+materializes the result at pair position `k`, not generally the result for
+molecule `k`. Use `result.pairs[k]` to identify that pair. In `all_pairs` mode
+these are the generated pairs over `mols`; in `pairs` mode they exactly preserve
+the supplied pair sequence; in `paired_lists` mode item `k` compares `mols[k]`
+with `mols_b[k]`, while `result.pairs[k]` uses the combined-table indices
+`(k, len(mols) + k)`. Each `MCSResult` has `pair`, `num_atoms`, `num_bonds`,
+`canceled`, `atom_mapping`, and `bond_mapping`; the two columns of each mapping
+index the first and second molecule of that result pair, respectively.
+
 ## Configuration
 
-Two configuration objects expose the GPU/CPU knobs.
+For ETKDG, forcefield, substructure, or MCS tuning, read the
+[advanced configuration reference](references/advanced-usage.md#configuration).
+It lists configuration fields, defaults, GPU selection, and autotuning APIs.
 
-### `HardwareOptions` (ETKDG, MMFF, UFF)
-
-`from nvmolkit.types import HardwareOptions`. Passed via `hardwareOptions=` to `EmbedMolecules`, `MMFFOptimizeMoleculesConfs`, `UFFOptimizeMoleculesConfs`, and the `BatchedForcefield` constructors. Every field has an "auto" sentinel; the defaults are usually fine.
-
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `preprocessingThreads` | int | `-1` (all visible CPUs) | CPU threads for preprocessing |
-| `batchSize` | int | `-1` (auto-tuned) | Number of conformers per GPU batch |
-| `batchesPerGpu` | int | `-1` (auto) | Concurrent batches per GPU; must be `>0` or `-1` |
-| `gpuIds` | `list[int]` | `[]` (all visible GPUs) | Specific device ordinals to target |
-
-Passing a `gpuIds` entry for a device that isn't visible raises `RuntimeError: invalid device ordinal`. For finding good values automatically across a representative sample, see `nvmolkit.autotune` (requires the `optuna` extra); each `tune_*` function returns a `TuneResult` whose `best_config` is a fully-populated `HardwareOptions` ready to pass back into the real call.
-
-`HardwareOptions` round-trips through `to_dict()` / `from_dict()` for persisting tuned configs to disk.
-
-### `SubstructSearchConfig` (substructure search)
-
-`from nvmolkit.substructure import SubstructSearchConfig`. Passed via `config=` to `hasSubstructMatch`, `countSubstructMatches`, and `getSubstructMatches`.
-
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `batchSize` | int | `1024` | (target, query) pairs per GPU batch |
-| `workerThreads` | int | `-1` (auto) | GPU runner threads per GPU |
-| `preprocessingThreads` | int | `-1` (auto) | CPU threads for preprocessing |
-| `maxMatches` | int | `0` (unlimited) | Max matches returned per (target, query) pair |
-| `uniquify` | bool | `False` | Drop duplicate matches that differ only in atom enumeration order |
-| `gpuIds` | `list[int] \| None` | `None` (current device only) | Specific device ordinals to target |
-
-Substructure search currently does not support chirality-aware matching, enhanced stereochemistry, or other advanced RDKit `SubstructMatchParameters` options.
-
-## Recipes
+## Examples
 
 ### Morgan fingerprints + bulk Tanimoto similarity
 
@@ -210,7 +208,6 @@ from nvmolkit.embedMolecules import EmbedMolecules
 
 mols = [AddHs(MolFromSmiles(smi)) for smi in ["C1CCCCC1", "C1CCCCC2CCCCC12", "COO"]]
 params = ETKDGv3()
-params.useRandomCoords = True
 
 EmbedMolecules(mols, params, confsPerMolecule=10, maxIterations=-1)
 
@@ -218,7 +215,7 @@ for mol in mols:
     print(mol.GetNumConformers())
 ```
 
-Inputs are `list[Mol]`, sanitized and with hydrogens added (`AddHs`). Conformers are added in-place. `params.useRandomCoords` must be `True` - nvMolKit's ETKDG only supports random-coord initialization. A handful of niche `EmbedParameters` options are not supported (bounds matrices, custom CPCI, coord maps, separate-fragment embedding); the Features section of the docs site lists the full restrictions.
+Inputs are sanitized `list[Mol]` with hydrogens added (`AddHs`). Conformers are added in-place; see Limitations for unsupported embedding options.
 
 ### MMFF94 minimization of a batch of conformers
 
@@ -229,7 +226,7 @@ from nvmolkit.embedMolecules import EmbedMolecules
 from nvmolkit.mmffOptimization import MMFFOptimizeMoleculesConfs
 
 mols = [AddHs(MolFromSmiles(smi)) for smi in ["CCO", "CCN", "c1ccccc1"]]
-params = ETKDGv3(); params.useRandomCoords = True
+params = ETKDGv3()
 EmbedMolecules(mols, params, confsPerMolecule=5)
 
 energies = MMFFOptimizeMoleculesConfs(mols, maxIters=500)
@@ -239,6 +236,12 @@ for mol, mol_energies in zip(mols, energies):
 
 Inputs are `list[Mol]` with conformers already populated (typically by ETKDG, RDKit's `EmbedMultipleConfs`, or a prior nvMolKit call). Coordinates are updated in place; the return is `list[list[float]]` of optimized energies aligned with the input molecule order and conformer index. UFF is identical in shape: swap in `from nvmolkit.uffOptimization import UFFOptimizeMoleculesConfs`.
 
+BFGS is the default minimizer. To use FIRE, pass `minimizerKind="FIRE"`;
+optionally customize it with a
+`nvmolkit.types.FireOptions` instance through `fireOptions=`. The one-shot MMFF
+and UFF functions and both batched-forcefield `.minimize()` methods accept the
+same selector.
+
 If any input molecule is `None` or lacks MMFF/UFF atom types, the call raises `ValueError`. The exception's `args[1]` is a dict with keys `"none"` and `"no_params"` listing the offending indices - useful for filtering a noisy input set.
 
 ### Conformer RMSD and Butina clustering
@@ -247,7 +250,7 @@ If any input molecule is `None` or lacks MMFF/UFF atom types, the call raises `V
 import torch
 from rdkit import Chem
 from rdkit.Chem.rdDistGeom import EmbedMultipleConfs
-from nvmolkit.clustering import butina
+from nvmolkit.clustering import ButinaOutputMode, butina
 from nvmolkit.conformerRmsd import GetConformerRMSMatrixBatch
 
 mols = [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in ["CCCCCC", "c1ccccc1"]]
@@ -262,52 +265,91 @@ condensed = GetConformerRMSMatrixBatch(heavy_mols)
 
 # Butina expects a square distance matrix, so request square GPU tensors.
 square = GetConformerRMSMatrixBatch(heavy_mols, output_format="square")
-clusters = [butina(distance_matrix, cutoff=0.5).torch() for distance_matrix in square]
+results = [
+    butina(distance_matrix, cutoff=0.5, output=ButinaOutputMode.DEVICE)
+    for distance_matrix in square
+]
 
 torch.cuda.synchronize()
-for mol_clusters in clusters:
-    print(mol_clusters.cpu().tolist())
+for result in results:
+    print(result.cluster_ids.torch().cpu().tolist())
 ```
+
+Both Butina functions return GPU-resident results by default:
+
+- The default, `output=ButinaOutputMode.DEVICE`, returns cluster IDs, centroids, and sizes.
+- `output=ButinaOutputMode.RDKIT` returns RDKit cluster tuples on the host. The first element of each cluster is its centroid.
+
+The device output fields are `AsyncGpuResult` objects. Use `.torch()` to access
+their CUDA tensors without a host copy or `.numpy()` to synchronize and copy a
+field to the host.
 
 `GetConformerRMSMatrix(mol)` and `GetConformerRMSMatrixBatch(mols)` default to `output_format="condensed"`, returning `AsyncGpuResult` objects that wrap RDKit-style flat vectors of length `N * (N - 1) // 2`. Use `output_format="square"` when chaining into `butina()` or any other API that expects an `N x N` distance matrix. Both forms live on the GPU; call `.numpy()` on condensed results or synchronize before moving square tensors to the CPU.
 
-### Custom forcefield options + constraints (`BatchedForcefield`)
+### Atom-Atom Path similarity and directed sphere exclusion clustering
 
-Reach for `MMFFBatchedForcefield` / `UFFBatchedForcefield` instead of the one-shot `MMFFOptimizeMoleculesConfs` / `UFFOptimizeMoleculesConfs` when you need any of:
-
-- Custom `maxIters` / `forceTol` per call
-- Per-molecule `nonBondedThreshold` (MMFF) or `vdwThreshold` (UFF), or per-molecule `ignoreInterfragInteractions`
-- Per-molecule `MMFFMolProperties` objects (e.g. MMFF94s vs MMFF94)
-- Distance, position, angle, or torsion constraints
-- Standalone `compute_energy()` / `compute_gradients()` without minimization
+Atom-Atom Path (AAP) similarity with directed sphere exclusion (DISE)
+clustering provides device and RDKit-style output modes:
 
 ```python
-from rdkit.Chem import AddHs, MolFromSmiles
-from rdkit.Chem.rdDistGeom import EmbedMultipleConfs
-from nvmolkit.batchedForcefield import MMFFBatchedForcefield
+from rdkit import Chem
+from nvmolkit.clustering import DISEOutputMode, aap_dise
 
-mols = [AddHs(MolFromSmiles(smi)) for smi in ["CCO", "CCCCCC"]]
-for mol in mols:
-    EmbedMultipleConfs(mol, numConfs=5)
-
-ff = MMFFBatchedForcefield(
-    mols,
-    nonBondedThreshold=[100.0, 20.0],
-    ignoreInterfragInteractions=True,
-)
-
-ff[0].add_position_constraint(0, max_displ=0.1, force_constant=50.0)
-ff[1].add_distance_constraint(0, 4, relative=False, min_len=1.8, max_len=2.2, force_constant=25.0)
-
-energies, converged = ff.minimize(maxIters=500, forceTol=1e-4)
-for mol, mol_energies, mol_converged in zip(mols, energies, converged):
-    print(mol.GetNumConformers(), mol_energies, mol_converged)
+molecules = [Chem.MolFromSmiles(smiles) for smiles in ["CCCC", "CCCO", "CCOC"]]
+device_result = aap_dise(molecules)
+rdkit_clusters = aap_dise(molecules, output=DISEOutputMode.RDKIT)
 ```
 
-All conformers of each input molecule are minimized in one batch. Constraints attached via `ff[i].add_*_constraint(...)` apply to every conformer of molecule `i`; constraint setters mark the wrapper dirty and the native forcefield rebuilds on the next call. Pass `output=CoordinateOutput.DEVICE` to `.minimize(...)` to keep optimized coordinates on the GPU (`Device3DResult`) instead of writing them back into RDKit conformers. UFF is the same shape: `UFFBatchedForcefield(mols, vdwThreshold=..., ...)`.
+`device_result` has `cluster_ids`, `centroids`, and `cluster_sizes` fields;
+cluster IDs are zero-based and contiguous. `DISEOutputMode.RDKIT` describes
+the centroid-first RDKit cluster representation, not an RDKit implementation
+of the AAP+DISE algorithm. The current DISE control loop synchronizes before
+returning either mode; `DEVICE` describes the stable schema and where the
+result resides, not asynchronous execution of the overall call.
+
+### Maximum common substructure search
+
+```python
+from rdkit import Chem
+from nvmolkit.mcs import findMCS
+
+mols = [Chem.MolFromSmiles(smi) for smi in ["CCO", "CCN", "c1ccccc1O"]]
+result = findMCS(mols, mode="pairs", pairs=[(0, 1), (0, 2)])
+
+for pair_idx, pair in enumerate(result.pairs):
+    item = result[pair_idx]
+    print(pair, item.num_atoms, item.num_bonds, item.atom_mapping)
+```
+
+The default `mode="all_pairs"` generates the upper triangle including the
+diagonal. `mode="pairs"` preserves an explicit pair list exactly, including
+duplicates and reversed pairs. `mode="paired_lists"` zips `mols` with an
+equally sized `mols_b`. Timeouts are per pair; inspect `item.canceled` because a
+timed-out result can contain the best partial MCS found.
+
+Matching options include `atom_compare`, `bond_compare`, valence/formal-charge
+matching, and atom/bond ring-only matching. Unsupported RDKit fMCS options
+raise instead of silently changing semantics. For repeated representative
+explicit-pair workloads, `nvmolkit.autotune.tune_mcs` returns a `TuneResult`.
+Its `best_config` is the tuned `MCSConfig` to pass to
+`findMCS(..., config=result.best_config)`.
+
+### Custom forcefield options + constraints (`BatchedForcefield`)
+
+For per-molecule forcefield settings, geometric constraints, or separate
+energy and gradient calls, read the
+[advanced forcefield recipe](references/advanced-usage.md#custom-forcefield-options-and-constraints).
+
+## Troubleshooting
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| `torch.cuda.is_available()` is false | GPU access, driver compatibility, or the torch CUDA build is missing | Check the GPU and driver, then follow the installation guidance above to select a compatible torch build. |
+| `RuntimeError: invalid device ordinal` | A requested `gpuIds` entry is not visible | Use device indices below `torch.cuda.device_count()` or the API's documented GPU defaults. |
+| An RDKit option is rejected | The option is unsupported by that nvMolKit API | Use supported options only if they preserve the requested behavior; otherwise use RDKit for that operation. |
 
 ## Going deeper
 
 - Full feature list, API reference, and guides: <https://nvidia-bionemo.github.io/nvMolKit/>
 - What changed in each release: <https://nvidia-bionemo.github.io/nvMolKit/changelog.html>
-- Worked examples (Jupyter notebooks): the `examples/` directory in the GitHub repo
+- Worked examples (Jupyter notebooks): the [examples/ directory](https://github.com/NVIDIA-BioNeMo/nvMolKit/tree/main/examples) in the GitHub repo
