@@ -5,11 +5,14 @@ description: >
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
+permissions:
+  - env      # reads NGC_API_KEY/NVIDIA_API_KEY and local NIM setup variables
+  - network  # hosted MSA requests and documented NGC/local NIM setup
 ---
 
 # MSA-Search NIM
 
-Generate protein MSAs with GPU-accelerated MMSeqs2. Use this `SKILL.md` for
+Generate protein MSAs with GPU-accelerated MMSeqs2. Use this guide for
 first-pass hosted/local usage; load supplemental files only when needed:
 
 - `references/api.md`: exact endpoints, schemas, Docker flags, response fields.
@@ -280,6 +283,24 @@ Notes:
 
 Use exact case-sensitive database names and response keys.
 
+For a hosted standard search, run the bundled client from this skill's directory.
+It submits the real request, validates both database results, and saves the raw
+JSON and A3M files. Choose a new output directory for each run:
+
+```bash
+python scripts/hosted_search.py \
+  --sequence SGSMKTAISLPDETFDRVSRRASELGMSRSEFFTKAAQR \
+  --output-dir msa-output
+```
+
+The client reads `NGC_API_KEY` or `NVIDIA_API_KEY` from the environment. It permits
+at most two requests, each with a 10-second connection timeout and a 300-second
+read timeout, with five seconds between attempts. If it exits nonzero, report the
+service failure and stop. Do not restart it repeatedly, extend timeouts beyond the
+task budget, or replace the missing response with synthetic alignments.
+
+The underlying request format, also usable with a running local NIM, is:
+
 ```python
 import os
 import requests
@@ -371,3 +392,9 @@ template, and sequence sanity checks, read `references/validation.md`.
 - Paired MSA requires at least two sequences.
 - Local URL 404 usually means an accidental `/v1/` prefix.
 - First local run can take hours while databases populate `LOCAL_NIM_CACHE`.
+- Hosted HTTP 502/503/504 or repeated read timeouts indicate that the hosted
+  request did not complete. Check service availability after the bounded retry;
+  a longer client timeout cannot fix a server-generated HTTP 504.
+- Do not invent a polling URL for `health.api.nvidia.com`. The published standard
+  MSA example uses synchronous POST; a pending response needs a documented
+  service-specific completion mechanism before it can count as a result.

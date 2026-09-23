@@ -9,8 +9,10 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Evo 2 NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Use Evo 2 for DNA generation and, locally, layer-output extraction. Use this
-`SKILL.md` for basic hosted/local use; load supplemental files only when needed:
+guide for basic hosted/local use; load supplemental files only when needed:
 
 - `references/api.md`: exact schemas, layer names, Docker flags, hardware notes.
 - `references/science.md`: genomic use cases, limits, and interpretation.

@@ -9,7 +9,9 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # GenMol NIM
 
-Generate drug-like molecules with GenMol. Use this `SKILL.md` for first-pass
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
+Generate drug-like molecules with GenMol. Use this guide for first-pass
 hosted/local usage; load supplemental files only when needed:
 
 - `references/api.md`: endpoints, schema, Docker flags, response fields.

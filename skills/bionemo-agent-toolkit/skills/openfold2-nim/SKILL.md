@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # OpenFold2 NIM
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Predict a single protein-chain structure from an amino-acid sequence, with
 optional A3M multiple sequence alignments and mmCIF templates. Use this
 guide for basic hosted/local NIM use; load supplemental files only when

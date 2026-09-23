@@ -5,13 +5,14 @@
 | Mode | Method | URL |
 |---|---|---|
 | Hosted | POST | `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict` |
-| Local Docker | POST | `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/biology/ipd/proteinmpnn/predict` |
-| Health (local) | GET | `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/v1/health/ready` |
+| Local Docker | POST | `http://localhost:8000/biology/ipd/proteinmpnn/predict` |
+| Health (local) | GET | `http://localhost:8000/v1/health/ready` |
 
 **IMPORTANT**: Local path has no `/v1/` prefix.
 
-Set `NIM_API_MODE=local` and, when the client is not in the NIM container,
-set `PROTEINMPNN_NIM_URL` to the container-reachable base URL. Do not use the
+The local URLs above use the default base URL. Set `NIM_API_MODE=local` and,
+when the client is not in the NIM container, set `PROTEINMPNN_NIM_URL` to the
+container-reachable base URL and append the same endpoint paths. Do not use the
 client container's `localhost` for a NIM running in a separate container. Local
 inference requests do not use an authorization header.
 

@@ -12,6 +12,8 @@ permissions:
 
 # Complexa Binder Design (workflow)
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 From one request — "design binders for `<target>`" — to ranked, **independently
 validated** binders. Each returned binder is a **co-designed sequence + predicted
 binder–target complex**, gated by interface confidence, by whether the binder
@@ -91,9 +93,15 @@ Then enforce, deterministically:
   O(n²) pair-feature map over the whole complex, so crop large targets to an epitope
   window (original numbering preserved).
 
-**Preflight (no GPU):** `python3 scripts/preflight_design.py <name|accession> …`
+**Preflight (no GPU):** `python3 scripts/preflight_design.py <name|accession|PDB|structure-path> …`
 reports the conditioned length, re-aligned hotspots + source, compactness, the ≤500
 budget, and a READY / NEEDS-ATTENTION verdict. Review before spending GPU.
+For PDB inputs, specify the author chain, for example
+`python3 scripts/preflight_design.py 1BRS --chain A`. Interface contacts use the
+supplied co-complex and preserve its residue numbering. A structure with no
+protein partner needs a separately justified surface patch; preflight reports
+NEEDS ATTENTION and exits nonzero when its checks fail. READY describes target
+geometry only; check the generation and validation runtime with `check_setup.sh`.
 
 ## Stage 2 — generate (Proteina-Complexa, open CLI)
 

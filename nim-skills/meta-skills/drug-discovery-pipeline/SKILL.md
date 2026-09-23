@@ -19,6 +19,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Drug Discovery Pipeline
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Screen drug candidates end-to-end using three BioNeMo NIMs in sequence:
 
 ```

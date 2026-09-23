@@ -19,6 +19,8 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # MSA Structure Prediction Pipeline
 
+<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
+
 Predict protein structures with high accuracy by chaining two BioNeMo NIMs:
 
 ```
