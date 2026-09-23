@@ -18,11 +18,16 @@
     },
     {
       "id": "nvmolkit-usage-trigger-004",
+      "prompt": "Use nvMolKit to find maximum common substructures for a batch of explicit molecule pairs.",
+      "expected": "trigger"
+    },
+    {
+      "id": "nvmolkit-usage-trigger-005",
       "prompt": "Write a pandas data cleaning script for a CSV of customers.",
       "expected": "no_trigger"
     },
     {
-      "id": "nvmolkit-usage-trigger-005",
+      "id": "nvmolkit-usage-trigger-006",
       "prompt": "Use RDKit to calculate one descriptor for a single molecule; I do not have a GPU.",
       "expected": "no_trigger"
     }
