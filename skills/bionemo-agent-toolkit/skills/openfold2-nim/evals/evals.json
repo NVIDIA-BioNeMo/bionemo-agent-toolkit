@@ -7,41 +7,13 @@
       "expected_output": "A successfully executed hosted OpenFold2 request using Bearer auth from NGC_API_KEY, with sequence/input_id/selected_models/relax_prediction and a minimal A3M alignment, plus the actual response summary, full JSON response, and any returned PDB or mmCIF structure artifacts.",
       "files": [],
       "assertions": [
-        {
-          "id": "hosted-request-executed",
-          "description": "Executes the hosted request instead of only writing code",
-          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived values and saved artifact paths"
-        },
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted OpenFold2 endpoint URL",
-          "check": "Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold2/predict-structure-from-msa-and-template'"
-        },
-        {
-          "id": "bearer-auth-header",
-          "description": "Sets Authorization header with Bearer token from NGC_API_KEY",
-          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
-        },
-        {
-          "id": "required-sequence-field",
-          "description": "Payload contains the required sequence field with the requested sequence",
-          "check": "Script contains 'sequence' and 'MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT'"
-        },
-        {
-          "id": "selected-models-and-relax",
-          "description": "Payload uses selected_models and relax_prediction for smoke-test control",
-          "check": "Script contains 'selected_models' and '1' and 'relax_prediction' and 'False'"
-        },
-        {
-          "id": "a3m-alignment-shape",
-          "description": "Provides an A3M alignment under alignments with alignment and format fields",
-          "check": "Script contains 'alignments' and 'a3m' and 'alignment' and 'format'"
-        },
-        {
-          "id": "saves-json-and-structure",
-          "description": "Saves the full JSON response and structure-like PDB/mmCIF output",
-          "check": "Script writes JSON response and saves structure text containing 'ATOM' or 'data_' to '.pdb' or '.cif' files"
-        }
+        "[hosted-request-executed] Executes the hosted request instead of only writing code: Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived values and saved artifact paths",
+        "[hosted-endpoint-url] Uses the correct hosted OpenFold2 endpoint URL: Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold2/predict-structure-from-msa-and-template'",
+        "[bearer-auth-header] Sets Authorization header with Bearer token from NGC_API_KEY: Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'",
+        "[required-sequence-field] Payload contains the required sequence field with the requested sequence: Script contains 'sequence' and 'MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPT'",
+        "[selected-models-and-relax] Payload uses selected_models and relax_prediction for smoke-test control: Script contains 'selected_models' and '1' and 'relax_prediction' and 'False'",
+        "[a3m-alignment-shape] Provides an A3M alignment under alignments with alignment and format fields: Script contains 'alignments' and 'a3m' and 'alignment' and 'format'",
+        "[saves-json-and-structure] Saves the full JSON response and structure-like PDB/mmCIF output: Script writes JSON response and saves structure text containing 'ATOM' or 'data_' to '.pdb' or '.cif' files"
       ]
     }
   ],
@@ -52,36 +24,12 @@
       "expected_output": "A Python payload showing alignments as database -> a3m -> alignment/format, explicit_templates with mmCIF content, use_templates true, and relax_prediction/selected_models fields. The answer should explain that current OpenFold2 docs use explicit mmCIF templates and mention MSA Search as the handoff for deeper A3M generation.",
       "files": [],
       "assertions": [
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted OpenFold2 endpoint URL",
-          "check": "Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold2/predict-structure-from-msa-and-template'"
-        },
-        {
-          "id": "alignment-database-shape",
-          "description": "Uses nested alignments database -> a3m -> alignment/format",
-          "check": "Script contains 'alignments' and 'a3m' and 'alignment' and 'format'"
-        },
-        {
-          "id": "explicit-template-field",
-          "description": "Uses explicit_templates for mmCIF template input",
-          "check": "Script contains 'explicit_templates' and 'mmcif' or 'cif'"
-        },
-        {
-          "id": "use-templates-field",
-          "description": "Enables templates explicitly",
-          "check": "Script contains 'use_templates' and 'True'"
-        },
-        {
-          "id": "no-hhr-template-example",
-          "description": "Documents explicit mmCIF template format for current OpenFold2",
-          "check": "Output contains 'mmCIF' or 'explicit_templates'"
-        },
-        {
-          "id": "msa-search-handoff",
-          "description": "Mentions MSA Search as the handoff source for deeper A3M alignments",
-          "check": "Output contains 'MSA Search' or 'msa-search'"
-        }
+        "[hosted-endpoint-url] Uses the correct hosted OpenFold2 endpoint URL: Script contains 'health.api.nvidia.com/v1/biology/openfold/openfold2/predict-structure-from-msa-and-template'",
+        "[alignment-database-shape] Uses nested alignments database -> a3m -> alignment/format: Script contains 'alignments' and 'a3m' and 'alignment' and 'format'",
+        "[explicit-template-field] Uses explicit_templates for mmCIF template input: Script contains 'explicit_templates' and 'mmcif' or 'cif'",
+        "[use-templates-field] Enables templates explicitly: Script contains 'use_templates' and 'True'",
+        "[no-hhr-template-example] Documents explicit mmCIF template format for current OpenFold2: Output contains 'mmCIF' or 'explicit_templates'",
+        "[msa-search-handoff] Mentions MSA Search as the handoff source for deeper A3M alignments: Output contains 'MSA Search' or 'msa-search'"
       ]
     },
     {
@@ -91,36 +39,12 @@
       "expected_output": "Docker setup commands that source optional repo-root .env, support NVIDIA_API_KEY fallback to NGC_API_KEY, require LOCAL_NIM_CACHE, docker login to nvcr.io, run nvcr.io/nim/openfold/openfold2:latest with --gpus device=0 and cache mount /opt/nim/.cache, poll /v1/health/ready, and call localhost:8000/biology/openfold/openfold2/predict-structure-from-msa-and-template with no Authorization.",
       "files": [],
       "assertions": [
-        {
-          "id": "docker-login-nvcr",
-          "description": "Includes docker login command for nvcr.io with oauthtoken",
-          "check": "Output contains 'docker login nvcr.io' and 'oauthtoken'"
-        },
-        {
-          "id": "docker-image-tag",
-          "description": "References the correct OpenFold2 container image",
-          "check": "Output contains 'nvcr.io/nim/openfold/openfold2:latest'"
-        },
-        {
-          "id": "env-contract-and-cache",
-          "description": "Local setup uses repo env contract and LOCAL_NIM_CACHE",
-          "check": "Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /opt/nim/.cache"
-        },
-        {
-          "id": "single-gpu-device",
-          "description": "Uses a single selected GPU for local OpenFold2",
-          "check": "Output contains '--gpus' and 'device=0' or 'NIM_TEST_GPU'"
-        },
-        {
-          "id": "health-check-loop",
-          "description": "Polls local readiness before inference",
-          "check": "Output contains 'localhost:8000/v1/health/ready'"
-        },
-        {
-          "id": "local-no-auth-endpoint",
-          "description": "Local inference targets localhost without /v1 and with no Authorization",
-          "check": "Script contains 'localhost:8000/biology/openfold/openfold2/predict-structure-from-msa-and-template' and does not send 'Authorization'"
-        }
+        "[docker-login-nvcr] Includes docker login command for nvcr.io with oauthtoken: Output contains 'docker login nvcr.io' and 'oauthtoken'",
+        "[docker-image-tag] References the correct OpenFold2 container image: Output contains 'nvcr.io/nim/openfold/openfold2:latest'",
+        "[env-contract-and-cache] Local setup uses repo env contract and LOCAL_NIM_CACHE: Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /opt/nim/.cache",
+        "[single-gpu-device] Uses a single selected GPU for local OpenFold2: Output contains '--gpus' and 'device=0' or 'NIM_TEST_GPU'",
+        "[health-check-loop] Polls local readiness before inference: Output contains 'localhost:8000/v1/health/ready'",
+        "[local-no-auth-endpoint] Local inference targets localhost without /v1 and with no Authorization: Script contains 'localhost:8000/biology/openfold/openfold2/predict-structure-from-msa-and-template' and does not send 'Authorization'"
       ]
     },
     {
@@ -129,36 +53,12 @@
       "expected_output": "A hosted OpenFold2 Python script using selected_models [1,2,3,4,5], relax_prediction true, optional alignments and explicit_templates, full JSON saving plus PDB/CIF structure extraction, guidance that OpenFold2 is monomer-only, hosted docs list 1-1000 residues while local docs support up to 2048 on supported hardware, and complexes should use OpenFold3 or Boltz2.",
       "files": [],
       "assertions": [
-        {
-          "id": "all-selected-models",
-          "description": "Uses all five OpenFold2/AlphaFold2 parameter sets",
-          "check": "Script contains 'selected_models' and '1' and '2' and '3' and '4' and '5'"
-        },
-        {
-          "id": "relax-production",
-          "description": "Enables relaxation for production-quality output",
-          "check": "Script contains 'relax_prediction' and 'True' or 'true'"
-        },
-        {
-          "id": "template-vs-msa-guidance",
-          "description": "Explains using templates only when biologically relevant and otherwise using MSA-only input",
-          "check": "Output contains 'templates' and 'MSA' and 'explicit_templates'"
-        },
-        {
-          "id": "monomer-only-caveat",
-          "description": "States that OpenFold2 NIM is monomer-only",
-          "check": "Output contains 'monomer'"
-        },
-        {
-          "id": "sequence-length-caveat",
-          "description": "Documents hosted/local sequence length caveat",
-          "check": "Output contains '1000' and '2048'"
-        },
-        {
-          "id": "saves-ranked-results",
-          "description": "Saves every returned structure and keeps confidence ordering auditable",
-          "check": "Script contains 'pdb' and 'cif' and 'json'"
-        }
+        "[all-selected-models] Uses all five OpenFold2/AlphaFold2 parameter sets: Script contains 'selected_models' and '1' and '2' and '3' and '4' and '5'",
+        "[relax-production] Enables relaxation for production-quality output: Script contains 'relax_prediction' and 'True' or 'true'",
+        "[template-vs-msa-guidance] Explains using templates only when biologically relevant and otherwise using MSA-only input: Output contains 'templates' and 'MSA' and 'explicit_templates'",
+        "[monomer-only-caveat] States that OpenFold2 NIM is monomer-only: Output contains 'monomer'",
+        "[sequence-length-caveat] Documents hosted/local sequence length caveat: Output contains '1000' and '2048'",
+        "[saves-ranked-results] Saves every returned structure and keeps confidence ordering auditable: Script contains 'pdb' and 'cif' and 'json'"
       ]
     }
   ]

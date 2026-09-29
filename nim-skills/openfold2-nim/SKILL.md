@@ -11,7 +11,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 Predict a single protein-chain structure from an amino-acid sequence, with
 optional A3M multiple sequence alignments and mmCIF templates. Use this
-`SKILL.md` for basic hosted/local NIM use; load supplemental files only when
+guide for basic hosted/local NIM use; load supplemental files only when
 the task needs deeper context:
 
 - `references/api.md`: exact endpoints, schemas, Docker flags, response fields.
