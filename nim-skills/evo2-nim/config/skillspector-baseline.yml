@@ -6,6 +6,28 @@
 version: 1
 
 rules:
+  - id: "TT3"
+    path: "*scripts/generate.py"
+    reason: >-
+      Reviewed 2026-09-29 against the client and its request-contract tests.
+      The reported tainted URL is EVO2_NIM_URL, the user-selected local NIM
+      address, not a credential. It is validated as an HTTP(S) URL without
+      embedded credentials, query, or fragment. Local requests have no
+      Authorization header. Hosted requests use the fixed health.api.nvidia.com
+      endpoint and send NGC_API_KEY only as its required Bearer authentication;
+      redirects are disabled. Neither request artifacts nor summaries contain
+      the key. This exception covers the documented inference client only.
+  - id: "LP1"
+    path: "*scripts/generate.py"
+    reason: >-
+      Reviewed 2026-09-29 against the client and its request-contract tests.
+      The agent invokes this client through the declared Bash tool. Its
+      documented capabilities are reading NGC_API_KEY/NIM_API_MODE/EVO2_NIM_URL,
+      submitting the user's DNA to the chosen Evo 2 endpoint, and saving outputs
+      through the declared filesystem tools. The scanner maps Bash only to
+      shell and requires separate Env/WebFetch tool names even though this
+      Python client does not call either tool. The environment and network
+      operations are the explicitly requested inference workflow.
   - id: "PE3"
     path: "*SKILL.md"
     reason: >-

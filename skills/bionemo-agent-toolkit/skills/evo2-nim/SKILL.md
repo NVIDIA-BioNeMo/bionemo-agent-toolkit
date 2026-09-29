@@ -9,14 +9,34 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Evo 2 NIM
 
-Use Evo 2 for DNA generation and, locally, layer-output extraction. Use this
-`SKILL.md` for basic hosted/local use; load supplemental files only when needed:
+Use Evo 2 for DNA generation and, locally, layer-output extraction. Load
+supplemental files only when needed:
 
 - `references/api.md`: exact schemas, layer names, Docker flags, hardware notes.
 - `references/science.md`: genomic use cases, limits, and interpretation.
 - `references/parameters.md`: generation/forward parameter effects.
 - `references/validation.md`: DNA, probability, timing, and tensor checks.
 - `references/examples.md`: compact hosted/local request patterns.
+
+## Instructions
+
+For generation, use `scripts/generate.py` to execute the request, validate the
+response, and save its artifacts. Resolve the script path relative to this
+skill's directory and choose an output directory in the user's workspace.
+Use the user's sequence and requested parameters; the example below is only
+a smoke test.
+
+1. Select the requested mode. For hosted generation, go directly to the
+   generation example; Docker setup and local forward passes are separate tasks.
+2. When the user asks to run generation, execute the client and inspect its
+   exit status and result. Writing a script alone does not complete that request.
+3. Report the generated DNA (or its file for long sequences), actual
+   `elapsed_ms`, sampled-probability summary, seed, and artifact paths from the
+   successful run. Read the saved response or metrics if any result is unclear.
+
+If the request or validation fails, report the actual failure and any diagnostic
+files. Do not replace an unavailable API response with example values. For a
+code-only request, provide the command without making an inference call.
 
 ## Choose Mode
 
@@ -44,6 +64,42 @@ registry login, entitlement checks, and first-run model downloads; pass it
 into the container with `-e NGC_API_KEY`. Local inference requests use no
 auth header after readiness. Warm-cache key-free startup varies by
 image/version and should not be assumed.
+
+## Examples
+
+Normalize prompts before sending. Use A/C/G/T unless ambiguous bases are a
+deliberate modeling choice and clearly reported.
+
+For a hosted generation request, run the bundled client with the user's inputs
+(the script path below is relative to the skill directory):
+
+```bash
+python scripts/generate.py \
+  --mode hosted \
+  --sequence ACTGACTGACTGACTG \
+  --num-tokens 64 --seed 1 \
+  --temperature 0.7 --top-k 3 --top-p 0.0 \
+  --output-dir /path/to/workspace/evo2-output
+```
+
+For an already-ready local NIM, use `--mode local`; the client resolves
+`EVO2_NIM_URL` and sends no Authorization header. It never switches endpoints
+after a failed request. Set `--timeout` for a longer read if the user requests
+a larger generation; failed requests are not automatically resubmitted.
+
+The client saves `request.json`, the actual `response.json`, `generated.fasta`,
+and `metrics.json` in the chosen output directory. It validates the requested
+number of generated bases, A/C/G/T alphabet, finite sampled probabilities in
+`[0, 1]`, and nonnegative timing before printing a successful summary. Existing
+outputs are not overwritten; choose a new output directory for each run.
+The FASTA contains generated bases only, not the input prompt prepended again.
+
+`sampled_probs` is requested by the client and summarized with count/min/max/mean;
+the full values stay in the saved response. A missing or malformed probability
+array is a validation failure, not permission to invent confidence values.
+Only request `enable_logits` in a custom request when needed; logits can make
+responses large. See `references/api.md` for custom payloads.
+`random_seed` supports development reproducibility, not biological certainty.
 
 ## Local Docker Requirements
 
@@ -100,68 +156,6 @@ If RTX PRO 6000 Blackwell Workstation fails with no Transformer Engine
 attention backend, treat it as outside the current validated matrix and rerun
 on a documented GPU/runtime.
 
-## DNA Generation
-
-Normalize prompts before sending. Use A/C/G/T unless ambiguous bases are a
-deliberate modeling choice and clearly reported.
-
-```python
-import json
-import os
-from pathlib import Path
-import requests
-
-def clean_dna(value: str) -> str:
-    seq = "".join(value.upper().split())
-    invalid = sorted(set(seq) - set("ACGT"))
-    if invalid:
-        raise ValueError(f"Unexpected DNA characters: {''.join(invalid)}")
-    return seq
-
-prompt = clean_dna("ACTGACTGACTGACTG")
-mode = os.getenv("NIM_API_MODE")
-if mode is None:
-    mode = "local" if os.getenv("EVO2_NIM_URL") else "hosted"
-if mode not in {"hosted", "local"}:
-    raise ValueError("NIM_API_MODE must be 'hosted' or 'local'")
-
-nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000").rstrip("/")
-url = (
-    "https://health.api.nvidia.com/v1/biology/arc/evo2-40b/generate"
-    if mode == "hosted" else f"{nim_url}/biology/arc/evo2/generate"
-)
-headers = {"Content-Type": "application/json"}
-if mode == "hosted":
-    api_key = os.getenv("NGC_API_KEY")
-    if not api_key:
-        raise RuntimeError("Set NGC_API_KEY for hosted Evo 2")
-    headers["Authorization"] = f"Bearer {api_key}"
-
-payload = {
-    "sequence": prompt,
-    "num_tokens": 64,
-    "temperature": 0.7,
-    "top_k": 3,
-    "top_p": 0.0,
-    "random_seed": 1,
-    "enable_sampled_probs": True,
-    "enable_elapsed_ms_per_token": True,
-}
-response = requests.post(url, headers=headers, json=payload, timeout=180)
-response.raise_for_status()
-result = response.json()
-seq = result["sequence"]
-if sorted(set(seq.upper()) - set("ACGT")):
-    raise ValueError("Generated sequence contains unexpected non-ACGT bases")
-
-Path("evo2_generation.json").write_text(json.dumps(result, indent=2) + "\n")
-Path("evo2_generated.fa").write_text(f">evo2_generated\n{seq}\n")
-print(f"Generated {len(seq)} bases in {result.get('elapsed_ms')} ms")
-```
-
-Only request `enable_logits` when needed; logits can make responses large.
-`random_seed` supports development reproducibility, not biological certainty.
-
 ## Local Forward Pass
 
 Forward returns base64-encoded NPZ tensors.
@@ -177,8 +171,12 @@ mode = os.getenv("NIM_API_MODE", "local")
 if mode != "local":
     raise RuntimeError("Evo 2 /forward is available only in local mode")
 nim_url = os.getenv("EVO2_NIM_URL", "http://localhost:8000").rstrip("/")
+sequence = "ACTGACTGACTG"  # Replace with the user's DNA sequence.
+sequence = "".join(sequence.upper().split())
+if not sequence or set(sequence) - set("ACGT"):
+    raise ValueError("Expected nonempty A/C/G/T DNA")
 payload = {
-    "sequence": clean_dna("ACTGACTGACTG"),
+    "sequence": sequence,
     "output_layers": ["output_layer", "decoder.layers.3.self_attention"],
 }
 response = requests.post(
