@@ -33,8 +33,8 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [API Calls, Code, Files] <br>
-**Output Format:** [JSON API responses, Python code blocks, and tabular .smi files] <br>
+**Output Type(s):** [API Calls, Code, Shell commands, Files] <br>
+**Output Format:** [JSON API responses, Python and Bash code blocks, and tabular .smi files] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
 
