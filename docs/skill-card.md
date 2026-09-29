@@ -20,7 +20,7 @@ vendored into the catalog. The skills do reference third-party open-source tools
 and public data sources at runtime (see Known Risks and Mitigations). <br>
 
 ### License/Terms of Use: <br>
-Dual-licensed `Apache-2.0 OR CC-BY-4.0` — source code (scripts, tooling) under
+Dual-licensed `Apache-2.0 AND CC-BY-4.0` — source code (scripts, tooling) under
 Apache-2.0; skills, documentation, and content files (`SKILL.md`, workflow
 definitions, README files) additionally available under CC-BY-4.0. See
 [`LICENSE`](../LICENSE), [`LICENSE-APACHE-2.0`](../LICENSE-APACHE-2.0),
