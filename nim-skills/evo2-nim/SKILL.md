@@ -88,10 +88,14 @@ after a failed request. Set `--timeout` for a longer read if the user requests
 a larger generation; failed requests are not automatically resubmitted.
 
 The client saves `request.json`, the actual `response.json`, `generated.fasta`,
-and `metrics.json` in the chosen output directory. It validates the requested
-number of generated bases, A/C/G/T alphabet, finite sampled probabilities in
+and `metrics.json` in the chosen output directory. It also saves the exact
+response body in `response.raw` before checking HTTP status or parsing JSON,
+so diagnostics survive malformed JSON and non-finite probability/timing values.
+It validates the requested number of generated bases, A/C/G/T alphabet, finite sampled probabilities in
 `[0, 1]`, and nonnegative timing before printing a successful summary. Existing
-outputs are not overwritten; choose a new output directory for each run.
+directories are never reused, even if empty. Choose an output directory that
+does not exist; the client creates it atomically so concurrent runs cannot
+overwrite each other's artifacts.
 The FASTA contains generated bases only, not the input prompt prepended again.
 
 `sampled_probs` is requested by the client and summarized with count/min/max/mean;

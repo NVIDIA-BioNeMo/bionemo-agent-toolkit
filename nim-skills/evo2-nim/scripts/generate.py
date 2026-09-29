@@ -105,11 +105,14 @@ def generate(args: argparse.Namespace) -> dict:
     output = args.output_dir.resolve()
     paths = {name: output / filename for name, filename in {
         "request": "request.json", "response": "response.json",
+        "raw_response": "response.raw",
         "fasta": "generated.fasta", "metrics": "metrics.json",
     }.items()}
-    if any(path.exists() for path in paths.values()):
-        raise FileExistsError("Output files already exist; choose a new --output-dir for this request")
-    output.mkdir(parents=True, exist_ok=True)
+    # Directory creation atomically reserves every artifact path for this run.
+    try:
+        output.mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise FileExistsError("Output directory already exists; choose a new --output-dir for this request") from exc
     paths["request"].write_text(json.dumps(payload, indent=2) + "\n")
     # Keep the endpoint and request visible without ever printing the credential.
     print(json.dumps({
@@ -119,10 +122,12 @@ def generate(args: argparse.Namespace) -> dict:
     start = time.monotonic()
     response = requests.post(url, headers=headers, json=payload, timeout=(10, args.timeout), allow_redirects=False)
     wall_ms = round((time.monotonic() - start) * 1000)
+    # Keep the exact body even when HTTP status, JSON parsing, or validation fails.
+    paths["raw_response"].write_bytes(response.content)
     if response.status_code != 200:
         raise RuntimeError(f"Evo 2 returned HTTP {response.status_code}; generation was not completed")
     result = response.json()
-    # Preserve the actual response even if validation fails; never manufacture missing fields.
+    # The parsed JSON supplements the raw body; never manufacture missing fields.
     paths["response"].write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
     metrics = validate_result(result, args.num_tokens)
     fasta = f">evo2_generated seed={args.seed}\n{result['sequence']}\n"
@@ -153,7 +158,8 @@ def main() -> int:
     parser.add_argument("--top-p", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=1, help="Development reproducibility seed")
     parser.add_argument("--timeout", type=float, default=180, help="Response read timeout in seconds")
-    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True,
+                        help="New directory reserved for this request; must not already exist")
     args = parser.parse_args()
     try:
         generate(args)

@@ -1,6 +1,7 @@
 """Client contract tests with synthetic responses; no model or API credentials required."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
@@ -107,7 +108,33 @@ class GenerateTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, f"HTTP {status}"):
                         client.generate(self.args)
                 self.assertEqual(post.call_count, 1)
+                self.assertEqual((self.args.output_dir / "response.raw").read_bytes(), response(status=status).content)
                 self.assertFalse((self.args.output_dir / "generated.fasta").exists())
+
+    def test_malformed_responses_preserve_exact_body_without_success_artifacts(self):
+        bodies = [b'{"sequence":', b'<html>upstream error</html>']
+        for field, value in [("sampled_probs", [float("nan")] * 8),
+                             ("elapsed_ms", float("inf")),
+                             ("elapsed_ms_per_token", [float("-inf")] * 8)]:
+            data = response_data()
+            data[field] = value
+            bodies.append(json.dumps(data).encode())
+        bodies.append(json.dumps(response_data()).replace('"elapsed_ms": 125', '"elapsed_ms": 1e309').encode())
+        for index, body in enumerate(bodies):
+            with self.subTest(body=body):
+                self.args.output_dir = self.output / str(index)
+                malformed = response()
+                malformed._content = body
+                log = io.StringIO()
+                with patch.dict(os.environ, {"NGC_API_KEY": "test-key"}, clear=True), \
+                        patch.object(client.requests, "post", return_value=malformed) as post, redirect_stdout(log):
+                    with self.assertRaises(ValueError):
+                        client.generate(self.args)
+                self.assertEqual(post.call_count, 1)
+                self.assertEqual((self.args.output_dir / "response.raw").read_bytes(), body)
+                self.assertFalse((self.args.output_dir / "generated.fasta").exists())
+                self.assertFalse((self.args.output_dir / "metrics.json").exists())
+                self.assertNotIn('"status": "completed"', log.getvalue())
 
     def test_existing_outputs_are_not_overwritten_or_resubmitted(self):
         self.output.mkdir()
@@ -118,6 +145,47 @@ class GenerateTests(unittest.TestCase):
                 client.generate(self.args)
             post.assert_not_called()
         self.assertEqual(existing.read_text(), '{"existing": true}\n')
+
+    def test_existing_empty_directory_is_not_reused(self):
+        self.output.mkdir()
+        with patch.dict(os.environ, {"NGC_API_KEY": "test-key"}, clear=True), patch.object(client.requests, "post") as post:
+            with self.assertRaises(FileExistsError):
+                client.generate(self.args)
+            post.assert_not_called()
+        self.assertEqual(list(self.output.iterdir()), [])
+
+    def test_concurrent_runs_reserve_output_before_sending_one_request(self):
+        # Make both callers reach directory creation before either proceeds.
+        # A separate existence check followed by exist_ok=True lets both win.
+        ready = threading.Barrier(2)
+        mkdir = Path.mkdir
+
+        def synchronized_mkdir(path, *args, **kwargs):
+            if path == self.output:
+                ready.wait(timeout=5)
+            return mkdir(path, *args, **kwargs)
+
+        def run(seed):
+            args = argparse.Namespace(**{**vars(self.args), "seed": seed})
+            try:
+                return client.generate(args)
+            except FileExistsError:
+                return None
+
+        with patch.dict(os.environ, {"NGC_API_KEY": "test-key"}, clear=True), \
+                patch.object(Path, "mkdir", synchronized_mkdir), \
+                patch.object(client.requests, "post", return_value=response()) as post, redirect_stdout(io.StringIO()):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(run, seed) for seed in (10, 20)]
+                results = [future.result(timeout=10) for future in futures]
+        winners = [result for result in results if result is not None]
+        self.assertEqual(len(winners), 1)
+        self.assertEqual(post.call_count, 1)
+        saved_request = json.loads((self.output / "request.json").read_text())
+        saved_metrics = json.loads((self.output / "metrics.json").read_text())
+        self.assertEqual(saved_request["random_seed"], winners[0]["random_seed"])
+        self.assertEqual(saved_metrics["random_seed"], winners[0]["random_seed"])
+        self.assertEqual(post.call_args.kwargs["json"], saved_request)
 
     def test_cli_executes_local_request_and_reports_persisted_results(self):
         received = []
