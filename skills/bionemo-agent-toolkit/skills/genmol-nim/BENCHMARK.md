@@ -35,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 87.4% — baseline ran, but no comparable score was available; uplift unavailable | 85.4% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 100.0% → 100.0% (±0.0 points) | 0.0% → 50.0% (+50.0 points) |
+| Overall | 86.7% — baseline ran, but no comparable score was available; uplift unavailable | 94.9% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 0.0% → 100.0% (+100.0 points) | 50.0% → 100.0% (+50.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 98.0% — baseline ran, but no comparable score was available; uplift unavailable | 91.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 65.0% → 65.0% (±0.0 points) | 50.7% → 100.0% (+49.3 points) |
-| Efficiency | 74.1% — baseline ran, but no comparable score was available; uplift unavailable | 86.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 85.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 57.9% → 65.0% (+7.1 points) | 87.9% → 100.0% (+12.1 points) |
+| Efficiency | 68.6% — baseline ran, but no comparable score was available; uplift unavailable | 89.3% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -52,11 +52,11 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 472,233 | 806,618 | -334,385 | -41.46% | skill 1/1; base 1/1 |
-| claude-code | 1 | 472,233 | 806,618 | -334,385 | -41.46% | skill 1/1; base 1/1 |
-| codex | All cases | 110,831 | 402,485 | -291,654 | -72.46% | skill 1/1; base 1/1 |
-| codex | 1 | 110,831 | 402,485 | -291,654 | -72.46% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 583,064 | 1,209,103 | -626,039 | -51.78% | skill 2/2; base 2/2 |
+| claude-code | All cases | 418,380 | 653,616 | -235,236 | -35.99% | skill 1/1; base 1/1 |
+| claude-code | 1 | 418,380 | 653,616 | -235,236 | -35.99% | skill 1/1; base 1/1 |
+| codex | All cases | 167,536 | 179,655 | -12,119 | -6.75% | skill 1/1; base 1/1 |
+| codex | 1 | 167,536 | 179,655 | -12,119 | -6.75% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 585,916 | 833,271 | -247,355 | -29.68% | skill 2/2; base 2/2 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -64,7 +64,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 22 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 21 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
 | Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 1 task(s) |
 
@@ -78,7 +78,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in parameters.md (`skills/bionemo-agent-toolkit/skills/genmol-nim/SKILL.md`)
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/genmol-nim`)
 - **MEDIUM** SCHEMA/body_recommended_section: Missing recommended section: '## Instructions' (`skills/bionemo-agent-toolkit/skills/genmol-nim/SKILL.md`)
-- 17 additional finding(s) are available in the full evaluation artifacts.
+- 16 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 

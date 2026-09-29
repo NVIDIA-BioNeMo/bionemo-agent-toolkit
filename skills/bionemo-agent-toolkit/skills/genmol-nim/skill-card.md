@@ -1,5 +1,5 @@
 ## Description: <br>
-Generate novel drug-like molecules using the GenMol NIM microservice for de novo generation, scaffold decoration, motif extension, lead optimization, QED or LogP ranking, hosted NVIDIA API calls, or local Docker deployment. <br>
+Generate novel drug-like molecules using the GenMol NIM microservice for de novo generation, scaffold decoration, motif extension, lead optimization, and QED or LogP ranking via hosted NVIDIA API or local Docker deployment. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 AND CC-BY-4.0 <br>
 ## Use Case: <br>
-Developers and computational chemists use this skill to generate novel drug-like molecules for early-stage drug discovery workflows, including de novo generation, scaffold decoration, motif extension, and lead optimization with QED or LogP ranking. <br>
+Developers and scientists use this skill to generate novel drug-like molecules, perform scaffold decoration, motif extension, and lead optimization using the GenMol NIM microservice via hosted NVIDIA API or local Docker deployment. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -33,8 +33,8 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [API Calls, Code, Shell commands, Files] <br>
-**Output Format:** [Markdown with inline Python and bash code blocks] <br>
+**Output Type(s):** [API Calls, Code, Files] <br>
+**Output Format:** [JSON API responses, Python code blocks, and tabular .smi files] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
 
@@ -45,20 +45,20 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-1 evaluation task (1 positive), 3 attempts per task, evaluated in isolated k8s-sandbox pods. <br>
+1 evaluation task (1 positive), 3 attempts per task, each in an isolated k8s-sandbox pod. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
-- Security: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Checks final-answer correctness against the reference answer. <br>
-- Discoverability: Checks whether the expected skill was selected and the workflow executed. <br>
-- Effectiveness: Checks whether the user's goal was achieved and expected workflow behavior was followed. <br>
-- Efficiency: Checks tool-call productivity and token efficiency. <br>
+- Security: Whether the skill avoids unsafe operations, secret leakage, and unauthorized access. <br>
+- Correctness: Final-answer correctness against the reference answer. <br>
+- Discoverability: Whether the expected skill was selected and activated when needed. <br>
+- Effectiveness: Whether the skill helped complete the user's goal (50% goal accuracy + 50% behavior check). <br>
+- Efficiency: Tool-call productivity and token efficiency (50% each). <br>
 
 Underlying evaluation signals used in this run: <br>
-- `security`: Unsafe operations, secret leakage, and unauthorized access. <br>
+- `security`: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
-- `skill_execution`: Whether the expected skill was selected, decoys avoided, and workflow executed. <br>
+- `skill_execution`: Whether the expected skill was selected, decoys avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
 - `skill_efficiency`: Tool-call productivity. <br>
@@ -69,12 +69,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 87.4% — uplift unavailable | 85.4% — uplift unavailable |
-| Security | 100.0% → 100.0% (±0.0 points) | 0.0% → 50.0% (+50.0 points) |
+| Overall | 86.7% | 94.9% |
+| Security | 0.0% → 100.0% (+100.0 points) | 50.0% → 100.0% (+50.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 98.0% — uplift unavailable | 91.0% — uplift unavailable |
-| Effectiveness | 65.0% → 65.0% (±0.0 points) | 50.7% → 100.0% (+49.3 points) |
-| Efficiency | 74.1% — uplift unavailable | 86.1% — uplift unavailable |
+| Discoverability | 100.0% | 85.0% |
+| Effectiveness | 57.9% → 65.0% (+7.1 points) | 87.9% → 100.0% (+12.1 points) |
+| Efficiency | 68.6% | 89.3% |
 
 ## Skill Version(s): <br>
 0.1.0 (source: pyproject.toml) <br>
