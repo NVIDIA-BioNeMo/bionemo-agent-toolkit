@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.license]
-text = "Apache-2.0 OR CC-BY-4.0"
+text = "Apache-2.0 AND CC-BY-4.0"
 
 [[project.authors]]
 name = "NVIDIA Corporation"

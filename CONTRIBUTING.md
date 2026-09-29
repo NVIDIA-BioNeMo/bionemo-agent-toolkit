@@ -166,4 +166,4 @@ Full text available at [https://developercertificate.org](https://developercerti
 
 ## License
 
-By contributing, you agree that your contributions will be dual-licensed under the terms described in the [LICENSE](LICENSE) file (`Apache-2.0 OR CC-BY-4.0`).
+By contributing, you agree that your contributions will be dual-licensed under the terms described in the [LICENSE](LICENSE) file (`Apache-2.0 AND CC-BY-4.0`).
