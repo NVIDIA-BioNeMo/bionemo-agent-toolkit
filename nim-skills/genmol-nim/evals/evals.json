@@ -36,10 +36,12 @@
       "todo": "Waiting on local Docker setup in Harbor before enabling this eval.",
       "id": "3",
       "prompt": "Help me set up GenMol locally with Docker on my H100 machine. My NGC_API_KEY is set. Once it's running, do a quick de novo generation of 5 molecules.",
-      "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, run GenMol with correct flags, health-check it, then send a no-auth generation request to localhost:8000 producing 5 molecules.",
+      "expected_output": "Step-by-step Docker setup commands that use shell env first and optional repo-root .env overrides, require NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, authenticate to nvcr.io using --password-stdin before running GenMol with port 8000 bound to 127.0.0.1, health-check it, then send a no-auth generation request to localhost:8000 producing 5 molecules.",
       "files": [],
       "assertions": [
         "[env-contract-and-cache] Local setup uses the repo env contract and LOCAL_NIM_CACHE: Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE into the container",
+        "[registry-login-before-run] Authenticates image pulls before starting the container: Output uses docker login nvcr.io with the literal username '$oauthtoken' and --password-stdin before docker run, passing NGC_API_KEY via stdin without exposing its value in logs or Docker command-line arguments",
+        "[loopback-port-binding] Keeps the unauthenticated local API bound to loopback: docker run publishes port 8000 with '-p 127.0.0.1:8000:8000' or equivalent --publish syntax",
         "[docker-image-tag] References the correct GenMol container image and version: Output contains 'nvcr.io/nim/nvidia/genmol:1.0.1'",
         "[shm-size-2g] docker run includes --shm-size=2G: Output contains '--shm-size=2G' or '--shm-size 2G'",
         "[single-gpu-env-var] Sets NVIDIA_VISIBLE_DEVICES=0 for single GPU operation: Output contains 'NVIDIA_VISIBLE_DEVICES' and '0'",

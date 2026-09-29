@@ -27,19 +27,20 @@ Ask only when context is unclear:
 - Hosted: `https://health.api.nvidia.com/v1/biology/nvidia/genmol/generate`
 - Local: `http://localhost:8000/generate`
 
-Hosted requests use `Authorization: Bearer $NGC_API_KEY`. Supported local Docker
-startup uses `NGC_API_KEY` (or `NVIDIA_API_KEY` via the preflight) for
-registry login, entitlement checks, and first-run model downloads; pass it
-into the container with `-e NGC_API_KEY`. Local inference requests use no
-auth header after readiness. Warm-cache key-free startup varies by
+Hosted requests use `Authorization: Bearer $NGC_API_KEY`. For local Docker,
+authenticate image pulls with `docker login nvcr.io` using `NGC_API_KEY`
+(or `NVIDIA_API_KEY` via the preflight). Pass `-e NGC_API_KEY` into the
+container for entitlement checks and first-run model downloads. Local inference
+requests use no auth header after readiness, so bind the published port to
+loopback with `-p 127.0.0.1:8000:8000`. Warm-cache key-free startup varies by
 image/version and should not be assumed.
 
 ## Local Docker
 
 Use shell env first; source repo-root `.env` only if present. Do not print keys.
-For local setup answers, include this sequence: env preflight, `docker login`,
-`docker run`, readiness loop, then a no-auth localhost request. Do not invent a
-cache default or drop the `NVIDIA_API_KEY` fallback.
+For local setup answers, include this sequence: env preflight, `docker login`
+with `--password-stdin`, `docker run`, readiness loop, then a no-auth localhost
+request. Do not invent a cache default or drop the `NVIDIA_API_KEY` fallback.
 
 For the exact startup preflight (`.env` sourcing, `NVIDIA_API_KEY` fallback,
 `--shm-size=2G`, both `--ulimit` flags, `docker login`, and the `docker run`
