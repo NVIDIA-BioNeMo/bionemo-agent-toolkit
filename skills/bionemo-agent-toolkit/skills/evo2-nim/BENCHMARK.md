@@ -35,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 94.1% — baseline ran, but no comparable score was available; uplift unavailable | 90.9% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
+| Overall | 91.6% — baseline ran, but no comparable score was available; uplift unavailable | 87.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 50.0% → 100.0% (+50.0 points) | 50.0% → 100.0% (+50.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 95.0% — baseline ran, but no comparable score was available; uplift unavailable | 85.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 52.9% → 100.0% (+47.1 points) | 50.7% → 100.0% (+49.3 points) |
-| Efficiency | 75.4% — baseline ran, but no comparable score was available; uplift unavailable | 69.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 85.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 92.9% → 80.0% (-12.9 points) | 66.4% → 85.7% (+19.3 points) |
+| Efficiency | 77.9% — baseline ran, but no comparable score was available; uplift unavailable | 64.7% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -52,11 +52,11 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 490,498 | 676,561 | -186,063 | -27.50% | skill 1/1; base 1/1 |
-| claude-code | 1 | 490,498 | 676,561 | -186,063 | -27.50% | skill 1/1; base 1/1 |
-| codex | All cases | 205,950 | 375,153 | -169,203 | -45.10% | skill 1/1; base 1/1 |
-| codex | 1 | 205,950 | 375,153 | -169,203 | -45.10% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 696,448 | 1,051,714 | -355,266 | -33.78% | skill 2/2; base 2/2 |
+| claude-code | All cases | 341,369 | 1,268,174 | -926,805 | -73.08% | skill 1/1; base 1/1 |
+| claude-code | 1 | 341,369 | 1,268,174 | -926,805 | -73.08% | skill 1/1; base 1/1 |
+| codex | All cases | 209,936 | 220,174 | -10,238 | -4.65% | skill 1/1; base 1/1 |
+| codex | 1 | 209,936 | 220,174 | -10,238 | -4.65% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 551,305 | 1,488,348 | -937,043 | -62.96% | skill 2/2; base 2/2 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -73,11 +73,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **HIGH** DUPLICATE/duplicate: Duplicate content found across SKILL.md and references/api.md:
-  "# 40B default: 0,1 for 2x H100; set 0 for a single H200." in SKILL.md (lines 123-127)
-  vs "# For 7B: export NIM_VARIANT=7b; export NIM_TEST_GPUS="${NIM_TEST_GPUS:-0}"" in SKILL.md (lines 128-149)
-  vs "# 40B default: use 0,1 for 2x H100 80 GB; set NIM_TEST_GPUS=0 for a single H200." in references/api.md (lines 176-180)
-  vs "# Optional: export NIM_VARIANT=7b and add `-e NIM_VARIANT` for the 7B model." in references/api.md (lines 181-201) (`SKILL.md:123`)
+- **CRITICAL** CONTENT_DEDUP/llm_error: LLM analysis failed for a content cluster (`skills/bionemo-agent-toolkit/skills/evo2-nim`)
 - **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: SKILL_SPEC recommended field missing: 'metadata.author' (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)

@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 AND CC-BY-4.0 <br>
 ## Use Case: <br>
-Developers and engineers use this skill for DNA sequence generation, genomic analysis, and layer-output extraction via NVIDIA BioNeMo NIM, in both hosted API and local Docker deployment modes. <br>
+Developers and engineers using agent-assisted workflows for DNA sequence generation, genomic analysis, and BioNeMo NIM microservice integration. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -27,14 +27,14 @@ Mitigation: Review and scan skill before deployment. <br>
 ## Reference(s): <br>
 - [Evo 2 NIM API Reference](references/api.md) <br>
 - [Genomic Use Cases and Interpretation](references/science.md) <br>
-- [Generation and Forward Parameter Effects](references/parameters.md) <br>
+- [Generation and Forward Parameters](references/parameters.md) <br>
 - [Validation Checks](references/validation.md) <br>
-- [Request Pattern Examples](references/examples.md) <br>
+- [Hosted and Local Request Examples](references/examples.md) <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Code, Files, Shell commands] <br>
-**Output Format:** [Markdown with inline bash and Python code blocks] <br>
+**Output Type(s):** [Shell commands, Code, Analysis, Files] <br>
+**Output Format:** [Markdown with inline code blocks and FASTA files] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
 
@@ -45,23 +45,23 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-1 evaluation task (1 positive), 3 attempts per task, each in an isolated k8s-sandbox pod. <br>
+1 evaluation task (1 positive, 3 attempts per task) in isolated k8s-sandbox pods. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
-- Security: Whether the skill is safe to use, checking for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Whether the final answer is correct against the reference answer. <br>
-- Discoverability: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
-- Effectiveness: Whether the skill helped complete the user's goal (50% goal accuracy + 50% behavior check). <br>
-- Efficiency: Whether wasted tool calls and token usage were avoided (50% tool productivity + 50% token efficiency). <br>
+- Security: Whether the skill avoids unsafe operations, secret leakage, and unauthorized access. <br>
+- Correctness: Final-answer correctness against the reference answer. <br>
+- Discoverability: Whether the expected skill was selected and activated when needed. <br>
+- Effectiveness: Whether the skill helped complete the user's goal and expected workflow (goal_accuracy 50% + behavior_check 50%). <br>
+- Efficiency: Whether the skill avoided wasted tool calls and token usage (skill_efficiency 50% + token_efficiency 50%). <br>
 
 Underlying evaluation signals used in this run: <br>
 - `security`: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
-- `skill_execution`: Whether the expected skill was selected and the workflow executed. <br>
+- `skill_execution`: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
-- `skill_efficiency`: Tool-call productivity; routing is scored under Discoverability. <br>
+- `skill_efficiency`: Tool-call productivity. <br>
 - `token_efficiency`: Actual uncached prompt plus completion token usage. <br>
 
 
@@ -69,12 +69,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 94.1% | 90.9% |
-| Security | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
+| Overall | 91.6% | 87.1% |
+| Security | 50.0% → 100.0% (+50.0 points) | 50.0% → 100.0% (+50.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 95.0% | 85.0% |
-| Effectiveness | 52.9% → 100.0% (+47.1 points) | 50.7% → 100.0% (+49.3 points) |
-| Efficiency | 75.4% | 69.7% |
+| Discoverability | 100.0% | 85.0% |
+| Effectiveness | 92.9% → 80.0% (-12.9 points) | 66.4% → 85.7% (+19.3 points) |
+| Efficiency | 77.9% | 64.7% |
 
 ## Skill Version(s): <br>
 0.1.0 (source: pyproject.toml) <br>
