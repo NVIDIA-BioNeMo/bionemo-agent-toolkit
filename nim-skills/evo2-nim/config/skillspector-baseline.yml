@@ -29,6 +29,15 @@ rules:
       Python client does not call either tool. The environment and network
       operations are the explicitly requested inference workflow.
   - id: "PE3"
+    path: "*evals/evals.json"
+    reason: >-
+      Reviewed 2026-09-29. The finding is the literal .env filename in a
+      deferred local-Docker evaluation assertion. It describes the same
+      user-owned repo-root dotenv setup already reviewed in SKILL.md and
+      references/api.md; this JSON is test data and does not load credentials.
+      The active hosted evaluation reads NGC_API_KEY from the environment.
+      No credential-file access is added to the executable generation client.
+  - id: "PE3"
     path: "*SKILL.md"
     reason: >-
       Reviewed false positive (BioNeMo, omosafi@nvidia.com, 2026-08-12).
