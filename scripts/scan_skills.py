@@ -67,6 +67,17 @@ def scan_skills(skills: list[Path], output_dir: Path) -> int:
         row = f"| {skill.name} | {status} | {risk} | {findings} | {suppressed} | {inspection} |"
         summary.append(row)
         print(row, flush=True)
+        if status == 1:
+            print(f"SkillSpector risk check failed for {skill.name} (score {risk}/100).", flush=True)
+            for issue in data["issues"]:
+                location = issue.get("location") or {}
+                label = issue.get("pattern") or issue.get("explanation") or "Finding"
+                detail = (
+                    f"{issue.get('severity', 'UNKNOWN')} {issue.get('id', '?')} "
+                    f"at {location.get('file', '?')}:{location.get('start_line') or '?'}: {label}"
+                )
+                # Keep each finding on one line; full evidence stays in the JSON.
+                print("  " + " ".join(detail.split()), flush=True)
 
     if not skills:
         summary = ["## SkillSpector results", "", "No changed source skills to scan."]

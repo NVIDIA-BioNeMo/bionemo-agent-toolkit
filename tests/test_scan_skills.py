@@ -1,4 +1,5 @@
 """Regression coverage for the advisory SkillSpector workflow."""
+import io
 import json
 import subprocess
 import sys
@@ -65,6 +66,39 @@ class SelectionTests(unittest.TestCase):
 
 
 class ScanTests(unittest.TestCase):
+    def test_risk_failure_logs_active_findings_and_preserves_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = io.StringIO()
+
+            def scan(command, **kwargs):
+                report = Path(command[command.index("--output") + 1])
+                report.write_text(json.dumps({
+                    "risk_assessment": {"score": 56},
+                    "issues": [
+                        {
+                            "id": "PE3", "severity": "HIGH", "pattern": "Credential Access",
+                            "location": {"file": "evals/evals.json", "start_line": 41},
+                        },
+                        {
+                            "id": "RP1", "severity": "MEDIUM", "pattern": None,
+                            "explanation": "Docker image without a tag\nor digest",
+                            "location": {"file": "references/api.md", "start_line": 105},
+                        },
+                    ],
+                    "suppressed_count": 1,
+                    "suppressed": [{"pattern": "Suppressed credential finding"}],
+                    "analysis_completeness": {"status": "partial"},
+                }))
+                return subprocess.CompletedProcess(command, 1)
+
+            with patch("scan_skills.subprocess.run", side_effect=scan), patch.dict("os.environ", {}, clear=True), patch("sys.stdout", output):
+                self.assertEqual(scan_skills([root / "diffdock-nim"], root / "reports"), 1)
+            self.assertIn("risk check failed for diffdock-nim (score 56/100)", output.getvalue())
+            self.assertIn("HIGH PE3 at evals/evals.json:41: Credential Access", output.getvalue())
+            self.assertIn("MEDIUM RP1 at references/api.md:105: Docker image without a tag or digest", output.getvalue())
+            self.assertNotIn("Suppressed credential finding", output.getvalue())
+
     def test_failures_do_not_skip_later_skills_and_baselines_are_explicit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
