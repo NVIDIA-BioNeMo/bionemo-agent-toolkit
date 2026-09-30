@@ -21,6 +21,9 @@ exact aria2c + `NIM_MODEL_NAME` commands.
 
 ## Hosted Standard MSA
 
+Run `scripts/hosted_search.py` from the skill root to save the response and A3M
+files. The request payload is:
+
 ```python
 payload = {
     "sequence": sequence,
