@@ -26,11 +26,13 @@ requires-python = ">=3.10"
 #   biotite -> */complexa-binder-design/scripts/{pdb_interface,pipeline,preflight_design,pdb_to_boltz_template_cif}.py
 #   numpy   -> */complexa-binder-design/scripts/validate_binders.py, */protein-binder-design/scripts/metrics.py
 #   pyyaml  -> */complexa-binder-design/scripts/pipeline.py
+#   requests -> */evo2-nim/scripts/generate.py
 # Everything else the scripts import is Python standard library.
 dependencies = [
     "biotite>=1.0",
     "numpy>=1.26",
     "pyyaml>=6.0",
+    "requests>=2.28",
 ]
 
 [project.license]
