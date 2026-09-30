@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 AND CC-BY-4.0 <br>
 ## Use Case: <br>
-Developers and engineers using agent-assisted workflows for DNA sequence generation, genomic analysis, and BioNeMo NIM microservice integration. <br>
+Developers and engineers using agent-assisted workflows for DNA sequence generation, genomic analysis, local layer-output extraction, and BioNeMo NIM microservice integration. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
