@@ -9,41 +9,13 @@
         "evals/files/1R42.pdb"
       ],
       "assertions": [
-        {
-          "id": "hosted-request-executed",
-          "description": "Executes the hosted request instead of only writing code",
-          "check": "Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived designed sequences, scores, and the saved FASTA path"
-        },
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted ProteinMPNN endpoint URL",
-          "check": "Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'"
-        },
-        {
-          "id": "bearer-auth-header",
-          "description": "Sets Authorization header with Bearer token from NGC_API_KEY",
-          "check": "Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'"
-        },
-        {
-          "id": "input-pdb-field",
-          "description": "Sends PDB file content as 'input_pdb' field (inline string, not file path)",
-          "check": "Script reads 1R42.pdb and passes its content to 'input_pdb' field in the payload"
-        },
-        {
-          "id": "num-seq-per-target",
-          "description": "num_seq_per_target is set to 10",
-          "check": "Script contains 'num_seq_per_target' and '10'"
-        },
-        {
-          "id": "saves-mfasta-output",
-          "description": "Saves the mfasta string from the response to a .fa file",
-          "check": "Script accesses 'mfasta' from response and writes it to a file with .fa or .fasta extension"
-        },
-        {
-          "id": "scores-reported",
-          "description": "Reports scores only for designed sequences",
-          "check": "Script accounts for the native/WT FASTA row when present and pairs scores with designed sequences, not the WT row"
-        }
+        "[hosted-request-executed] Executes the hosted request instead of only writing code: Trajectory shows successful execution of the hosted request, and the final response reports actual response-derived designed sequences, scores, and the saved FASTA path",
+        "[hosted-endpoint-url] Uses the correct hosted ProteinMPNN endpoint URL: Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'",
+        "[bearer-auth-header] Sets Authorization header with Bearer token from NGC_API_KEY: Script contains 'Authorization' and 'Bearer' and 'NGC_API_KEY'",
+        "[input-pdb-field] Sends PDB file content as 'input_pdb' field (inline string, not file path): Script reads 1R42.pdb and passes its content to 'input_pdb' field in the payload",
+        "[num-seq-per-target] num_seq_per_target is set to 10: Script contains 'num_seq_per_target' and '10'",
+        "[saves-mfasta-output] Saves the mfasta string from the response to a .fa file: Script accesses 'mfasta' from response and writes it to a file with .fa or .fasta extension",
+        "[scores-reported] Reports scores only for designed sequences: Script accounts for the native/WT FASTA row when present and pairs scores with designed sequences, not the WT row"
       ]
     }
   ],
@@ -54,36 +26,12 @@
       "expected_output": "A Python script targeting the hosted endpoint with input_pdb_chains=['A'], num_seq_per_target=5, sampling_temp=[0.2], and omit_AAs=['C'], reading structure.pdb and saving the designed sequences.",
       "files": [],
       "assertions": [
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted endpoint URL",
-          "check": "Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'"
-        },
-        {
-          "id": "input-pdb-chains",
-          "description": "Uses input_pdb_chains to limit design to chain A",
-          "check": "Script contains 'input_pdb_chains' and 'A'"
-        },
-        {
-          "id": "sampling-temp-array",
-          "description": "sampling_temp is passed as an array (even for a single value)",
-          "check": "Script contains 'sampling_temp' with value [0.2] or as a list containing 0.2"
-        },
-        {
-          "id": "omit-cysteines",
-          "description": "omit_AAs excludes cysteine ('C')",
-          "check": "Script contains 'omit_AAs' and 'C'"
-        },
-        {
-          "id": "num-seq-5",
-          "description": "num_seq_per_target is set to 5",
-          "check": "Script contains 'num_seq_per_target' and '5'"
-        },
-        {
-          "id": "saves-output",
-          "description": "Saves designed sequences to a FASTA file",
-          "check": "Script writes the mfasta response to a file"
-        }
+        "[hosted-endpoint-url] Uses the correct hosted endpoint URL: Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'",
+        "[input-pdb-chains] Uses input_pdb_chains to limit design to chain A: Script contains 'input_pdb_chains' and 'A'",
+        "[sampling-temp-array] sampling_temp is passed as an array (even for a single value): Script contains 'sampling_temp' with value [0.2] or as a list containing 0.2",
+        "[omit-cysteines] omit_AAs excludes cysteine ('C'): Script contains 'omit_AAs' and 'C'",
+        "[num-seq-5] num_seq_per_target is set to 5: Script contains 'num_seq_per_target' and '5'",
+        "[saves-output] Saves designed sequences to a FASTA file: Script writes the mfasta response to a file"
       ]
     },
     {
@@ -93,36 +41,12 @@
       "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, using the correct image tag, single GPU flag, and the unique cache mount path /home/nvs/.cache/nim (not /opt/nim/.cache), then a health check and no-auth request script to localhost:8000.",
       "files": [],
       "assertions": [
-        {
-          "id": "docker-image-tag",
-          "description": "References the correct ProteinMPNN container image",
-          "check": "Output contains 'nvcr.io/nim/ipd/proteinmpnn'"
-        },
-        {
-          "id": "env-contract-and-cache",
-          "description": "Local setup uses the repo env contract and LOCAL_NIM_CACHE",
-          "check": "Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /home/nvs/.cache/nim"
-        },
-        {
-          "id": "cache-mount-path",
-          "description": "Volume mount uses /home/nvs/.cache/nim (not /opt/nim/.cache)",
-          "check": "Output contains '/home/nvs/.cache/nim' as the container-side cache path in the -v mount"
-        },
-        {
-          "id": "health-check",
-          "description": "Includes health check before sending request",
-          "check": "Output contains health check against localhost:8000/v1/health/ready"
-        },
-        {
-          "id": "local-endpoint-no-v1",
-          "description": "Local request uses path without /v1/ prefix",
-          "check": "Script contains 'localhost:8000/biology/ipd/proteinmpnn/predict'"
-        },
-        {
-          "id": "input-pdb-inline",
-          "description": "PDB content is sent inline in input_pdb field, not as a file path",
-          "check": "Script reads backbone.pdb file content and passes the string content to input_pdb"
-        }
+        "[docker-image-tag] References the correct ProteinMPNN container image: Output contains 'nvcr.io/nim/ipd/proteinmpnn'",
+        "[env-contract-and-cache] Local setup uses the repo env contract and LOCAL_NIM_CACHE: Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /home/nvs/.cache/nim",
+        "[cache-mount-path] Volume mount uses /home/nvs/.cache/nim (not /opt/nim/.cache): Output contains '/home/nvs/.cache/nim' as the container-side cache path in the -v mount",
+        "[health-check] Includes health check before sending request: Output contains health check against localhost:8000/v1/health/ready",
+        "[local-endpoint-no-v1] Local request uses path without /v1/ prefix: Script contains 'localhost:8000/biology/ipd/proteinmpnn/predict'",
+        "[input-pdb-inline] PDB content is sent inline in input_pdb field, not as a file path: Script reads backbone.pdb file content and passes the string content to input_pdb"
       ]
     },
     {
@@ -131,36 +55,12 @@
       "expected_output": "A Python script with use_soluble_model=True, sampling_temp=[0.1, 0.3, 0.5], and omit_AAs=['M'], calling the hosted endpoint and saving the multi-FASTA output.",
       "files": [],
       "assertions": [
-        {
-          "id": "hosted-endpoint-url",
-          "description": "Uses the correct hosted endpoint URL",
-          "check": "Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'"
-        },
-        {
-          "id": "soluble-model",
-          "description": "use_soluble_model is set to True",
-          "check": "Script contains 'use_soluble_model' and 'True'"
-        },
-        {
-          "id": "multiple-temperatures",
-          "description": "sampling_temp contains multiple temperature values",
-          "check": "Script contains 'sampling_temp' with a list containing 0.1, 0.3, and 0.5 (or similar multiple values)"
-        },
-        {
-          "id": "omit-methionine",
-          "description": "omit_AAs excludes methionine ('M')",
-          "check": "Script contains 'omit_AAs' and 'M'"
-        },
-        {
-          "id": "saves-mfasta",
-          "description": "Saves multi-FASTA output to a file",
-          "check": "Script writes mfasta from response to a .fa or .fasta file"
-        },
-        {
-          "id": "pdb-read-inline",
-          "description": "Reads PDB file and passes content inline (not path)",
-          "check": "Script reads protein.pdb and passes its text content as input_pdb string"
-        }
+        "[hosted-endpoint-url] Uses the correct hosted endpoint URL: Script contains 'health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict'",
+        "[soluble-model] use_soluble_model is set to True: Script contains 'use_soluble_model' and 'True'",
+        "[multiple-temperatures] sampling_temp contains multiple temperature values: Script contains 'sampling_temp' with a list containing 0.1, 0.3, and 0.5 (or similar multiple values)",
+        "[omit-methionine] omit_AAs excludes methionine ('M'): Script contains 'omit_AAs' and 'M'",
+        "[saves-mfasta] Saves multi-FASTA output to a file: Script writes mfasta from response to a .fa or .fasta file",
+        "[pdb-read-inline] Reads PDB file and passes content inline (not path): Script reads protein.pdb and passes its text content as input_pdb string"
       ]
     }
   ]
