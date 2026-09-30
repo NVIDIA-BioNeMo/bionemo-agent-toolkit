@@ -9,7 +9,7 @@ Recommended for publication based on the completed evaluation evidence in this r
 ## Evaluation Metadata
 
 - Skill: `evo2-nim`
-- Evaluation date: 2026-09-29
+- Evaluation date: 2026-09-30
 - Evaluator version: `1.5.6`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`), Codex (`openai/openai/gpt-5.5`)
 - Tasks: 1 evaluation tasks (1 positive)
@@ -35,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 91.6% — baseline ran, but no comparable score was available; uplift unavailable | 87.1% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 50.0% → 100.0% (+50.0 points) | 50.0% → 100.0% (+50.0 points) |
+| Overall | 94.9% — baseline ran, but no comparable score was available; uplift unavailable | 91.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 100.0% → 100.0% (±0.0 points) | 50.0% → 100.0% (+50.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 85.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 92.9% → 80.0% (-12.9 points) | 66.4% → 85.7% (+19.3 points) |
-| Efficiency | 77.9% — baseline ran, but no comparable score was available; uplift unavailable | 64.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 90.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 100.0% → 100.0% (±0.0 points) | 36.4% → 100.0% (+63.6 points) |
+| Efficiency | 74.3% — baseline ran, but no comparable score was available; uplift unavailable | 66.6% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -52,11 +52,11 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 341,369 | 1,268,174 | -926,805 | -73.08% | skill 1/1; base 1/1 |
-| claude-code | 1 | 341,369 | 1,268,174 | -926,805 | -73.08% | skill 1/1; base 1/1 |
-| codex | All cases | 209,936 | 220,174 | -10,238 | -4.65% | skill 1/1; base 1/1 |
-| codex | 1 | 209,936 | 220,174 | -10,238 | -4.65% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 551,305 | 1,488,348 | -937,043 | -62.96% | skill 2/2; base 2/2 |
+| claude-code | All cases | 297,130 | 554,993 | -257,863 | -46.46% | skill 1/1; base 1/1 |
+| claude-code | 1 | 297,130 | 554,993 | -257,863 | -46.46% | skill 1/1; base 1/1 |
+| codex | All cases | 233,585 | 253,870 | -20,285 | -7.99% | skill 1/1; base 1/1 |
+| codex | 1 | 233,585 | 253,870 | -20,285 | -7.99% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 530,715 | 808,863 | -278,148 | -34.39% | skill 2/2; base 2/2 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -65,7 +65,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
 | Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 26 finding(s) |
-| Tier 2 | Semantic deduplication | **PASSED WITH OBSERVATIONS** | 2 validator(s); 1 finding(s) |
+| Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
 | Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 1 task(s) |
 
 ## Findings and Observations
@@ -73,12 +73,12 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **CRITICAL** CONTENT_DEDUP/llm_error: LLM analysis failed for a content cluster (`skills/bionemo-agent-toolkit/skills/evo2-nim`)
 - **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: SKILL_SPEC recommended field missing: 'metadata.author' (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: SKILL_SPEC recommended field missing: 'metadata.tags' (`skills/bionemo-agent-toolkit/skills/evo2-nim/SKILL.md`)
-- 22 additional finding(s) are available in the full evaluation artifacts.
+- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/evo2-nim`)
+- 21 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 

@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 AND CC-BY-4.0 <br>
 ## Use Case: <br>
-Developers and engineers using agent-assisted workflows for DNA sequence generation, genomic analysis, local layer-output extraction, and BioNeMo NIM microservice integration. <br>
+Developers and engineers use this skill to generate and analyze DNA sequences via NVIDIA's Evo 2 BioNeMo NIM, supporting hosted API and local Docker deployment workflows. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -26,17 +26,17 @@ Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
 - [Evo 2 NIM API Reference](references/api.md) <br>
-- [Genomic Use Cases and Interpretation](references/science.md) <br>
-- [Generation and Forward Parameters](references/parameters.md) <br>
-- [Validation Checks](references/validation.md) <br>
-- [Hosted and Local Request Examples](references/examples.md) <br>
+- [Science Reference](references/science.md) <br>
+- [Parameters Reference](references/parameters.md) <br>
+- [Validation Reference](references/validation.md) <br>
+- [Examples](references/examples.md) <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Shell commands, Code, Analysis, Files] <br>
-**Output Format:** [Markdown with inline code blocks and FASTA files] <br>
+**Output Type(s):** [Shell commands, Code, Files, Analysis] <br>
+**Output Format:** [Markdown with inline bash and Python code blocks] <br>
 **Output Parameters:** [1D] <br>
-**Other Properties Related to Output:** [None] <br>
+**Other Properties Related to Output:** [Saves request.json, response.json, generated.fasta, and metrics.json artifacts] <br>
 
 ## Evaluation Agents Used: <br>
 - Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`) <br>
@@ -45,18 +45,18 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-1 evaluation task (1 positive, 3 attempts per task) in isolated k8s-sandbox pods. <br>
+1 evaluation task (1 positive), 3 attempts per task, each in an isolated sandbox pod. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
-- Security: Whether the skill avoids unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Final-answer correctness against the reference answer. <br>
-- Discoverability: Whether the expected skill was selected and activated when needed. <br>
-- Effectiveness: Whether the skill helped complete the user's goal and expected workflow (goal_accuracy 50% + behavior_check 50%). <br>
-- Efficiency: Whether the skill avoided wasted tool calls and token usage (skill_efficiency 50% + token_efficiency 50%). <br>
+- Security: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
+- Correctness: Checks final-answer correctness against the reference answer. <br>
+- Discoverability: Checks whether the expected skill was selected and the workflow executed. <br>
+- Effectiveness: Checks whether the user's goal was achieved and expected workflow behavior was followed. <br>
+- Efficiency: Checks tool-call productivity and token usage efficiency. <br>
 
 Underlying evaluation signals used in this run: <br>
-- `security`: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
+- `security`: Unsafe operations, secret leakage, and unauthorized access. <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
 - `skill_execution`: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
@@ -69,12 +69,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 91.6% | 87.1% |
-| Security | 50.0% → 100.0% (+50.0 points) | 50.0% → 100.0% (+50.0 points) |
-| Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 100.0% | 85.0% |
-| Effectiveness | 92.9% → 80.0% (-12.9 points) | 66.4% → 85.7% (+19.3 points) |
-| Efficiency | 77.9% | 64.7% |
+| Overall | 94.9% | 91.3% |
+| Security | 100.0% → 100.0% (±0.0 pts) | 50.0% → 100.0% (+50.0 pts) |
+| Correctness | 100.0% → 100.0% (±0.0 pts) | 100.0% → 100.0% (±0.0 pts) |
+| Discoverability | 100.0% | 90.0% |
+| Effectiveness | 100.0% → 100.0% (±0.0 pts) | 36.4% → 100.0% (+63.6 pts) |
+| Efficiency | 74.3% | 66.6% |
 
 ## Skill Version(s): <br>
 0.1.0 (source: pyproject.toml) <br>
