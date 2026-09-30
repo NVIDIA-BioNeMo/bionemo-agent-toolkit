@@ -5,15 +5,40 @@
 | Mode | Method | URL |
 |---|---|---|
 | Hosted | POST | `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict` |
-| Local Docker | POST | `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/biology/ipd/proteinmpnn/predict` |
-| Health (local) | GET | `${PROTEINMPNN_NIM_URL:-http://localhost:8000}/v1/health/ready` |
+| Local Docker | POST | `http://localhost:8000/biology/ipd/proteinmpnn/predict` |
+| Health (local) | GET | `http://localhost:8000/v1/health/ready` |
 
 **IMPORTANT**: Local path has no `/v1/` prefix.
 
-Set `NIM_API_MODE=local` and, when the client is not in the NIM container,
-set `PROTEINMPNN_NIM_URL` to the container-reachable base URL. Do not use the
+The local URLs above use the default base URL. Set `NIM_API_MODE=local` and,
+when the client is not in the NIM container, set `PROTEINMPNN_NIM_URL` to the
+container-reachable base URL and append the same endpoint paths. Do not use the
 client container's `localhost` for a NIM running in a separate container. Local
 inference requests do not use an authorization header.
+
+## Data Handling and Permissions
+
+`SKILL.md` declares `network` for inference HTTP requests and `env` for reading
+`NIM_API_MODE`, `PROTEINMPNN_NIM_URL`, and the hosted `NGC_API_KEY`. The existing
+`Read` and `Write` tool declarations cover the user's PDB and saved artifacts.
+
+- **Hosted:** the full PDB content and design parameters leave the user's
+  environment in a JSON POST to
+  `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict`. The API key
+  is sent only as an HTTPS Bearer authorization header, not in the JSON body or
+  saved request. The client does not follow redirects.
+- **Local:** the same input is sent to the user-selected `PROTEINMPNN_NIM_URL`
+  (default `http://localhost:8000`) with no authorization header. Use an approved
+  NIM deployment for confidential structures; setting a remote URL still sends
+  the structure to that machine. Registry authentication and model downloads
+  during Docker setup are separate from inference.
+- **Authorization:** disclose the hosted upload before execution. An explicit
+  request to process the PDB with the hosted API or prior approval authorizes
+  that transfer; otherwise obtain confirmation first. Never silently fall back
+  from local to hosted processing.
+- **Artifacts:** `request.json` retains the full input PDB; response, FASTA,
+  and summary files retain the returned sequences and scores. Choose an output
+  location suitable for this data, and never save or print API credentials.
 
 ---
 
@@ -52,8 +77,16 @@ All fields are optional (minimum: provide `input_pdb`).
 | Field | Type | Description |
 |---|---|---|
 | `mfasta` | string | Multi-FASTA string with all designed sequences |
-| `scores` | array[float] | Log-probabilities per designed sequence (higher = more confident) |
+| `scores` | array[float] | Returned sequence scores; match to designed records and preserve the values |
 | `probs` | array | Per-position amino acid probabilities |
+
+The [NIM endpoint documentation](https://docs.nvidia.com/nim/bionemo/proteinmpnn/latest/endpoints.html)
+describes the JSON scores as log-probabilities. The original ProteinMPNN FASTA
+[`score` and `global_score` fields](https://github.com/dauparas/ProteinMPNN#readme)
+are negative log-probabilities (lower is better); `score` covers designed
+residues, while `global_score` covers all residues. Keep the score source explicit
+and verify the served version's convention before ranking across these fields.
+Scores are not calibrated folding or binding probabilities.
 
 ### Example mfasta output
 
