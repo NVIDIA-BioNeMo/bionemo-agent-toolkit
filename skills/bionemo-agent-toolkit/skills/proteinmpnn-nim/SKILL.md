@@ -1,10 +1,13 @@
 ---
 name: proteinmpnn-nim
 description: >
-  Run ProteinMPNN inverse folding via NVIDIA NIM to design protein sequences for a target backbone. Use for ProteinMPNN, inverse folding, sequence design, backbone redesign, fixed chains/residues, omit_AAs, sampling temperature, soluble model, hosted NVIDIA API, local Docker, PDB input, and multi-FASTA output.
+  Run ProteinMPNN inverse folding via NVIDIA NIM to design protein sequences for a target backbone. Sends user-provided PDB files and design parameters to NVIDIA's hosted API, authenticated with an environment API key, or to a user-selected local NIM. Use for sequence design, backbone redesign, fixed chains and residues, omit_AAs, sampling temperature, soluble model, local Docker, and multi-FASTA output.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "Python >=3.10; requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
+permissions:
+  - network
+  - env
 ---
 
 # ProteinMPNN NIM
@@ -40,6 +43,25 @@ into the container with `-e NGC_API_KEY`. Local inference requests use no
 auth header after readiness. Warm-cache key-free startup varies by
 image/version and should not be assumed.
 
+## Data Transfer and Authorization
+
+Before a hosted request, tell the user that the **entire PDB file and design
+parameters will be uploaded to NVIDIA's hosted API** at the endpoint above.
+Proceed if the user has explicitly requested hosted processing of that PDB or
+already approved the transfer; otherwise ask for confirmation before submitting.
+For confidential structures, recommend a local NIM in the user's approved
+environment. A configured local URL may point to another machine; use only the
+configured or user-selected destination. Do not switch from local to hosted processing without
+the user's authorization.
+
+The client reads `NIM_API_MODE`, `PROTEINMPNN_NIM_URL`, and, for hosted mode,
+`NGC_API_KEY` from the environment. It sends the key only in the HTTPS
+Authorization header to the hosted endpoint; local inference sends no key.
+Keep credentials out of logs and saved artifacts. The output directory contains
+the full input PDB in `request.json` and the returned sequences and scores, so
+use a location appropriate for the input's sensitivity. See
+[`references/api.md`](references/api.md) for endpoint and data-handling details.
+
 ## Local Docker
 
 For local setup, run the full sequence — env preflight, `docker login`,
@@ -68,7 +90,8 @@ those without submitting an inference request.
 
 1. Use the user's PDB path and requested sequence count. The client reads the
    entire PDB into `input_pdb`; do not replace or truncate the supplied backbone.
-2. Select `--mode hosted` or `--mode local`. Hosted mode uploads the PDB to the
+2. Select `--mode hosted` or `--mode local` and follow **Data Transfer and
+   Authorization** above before submitting. Hosted mode uploads the PDB to the
    documented NVIDIA endpoint and requires `NGC_API_KEY` in the environment.
    Check only whether the key is set; do not print it, dump the environment, or
    save authentication headers. Local inference sends no authorization header.

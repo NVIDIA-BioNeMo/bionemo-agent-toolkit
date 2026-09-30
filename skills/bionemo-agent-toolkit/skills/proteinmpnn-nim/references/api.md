@@ -16,6 +16,30 @@ container-reachable base URL and append the same endpoint paths. Do not use the
 client container's `localhost` for a NIM running in a separate container. Local
 inference requests do not use an authorization header.
 
+## Data Handling and Permissions
+
+`SKILL.md` declares `network` for inference HTTP requests and `env` for reading
+`NIM_API_MODE`, `PROTEINMPNN_NIM_URL`, and the hosted `NGC_API_KEY`. The existing
+`Read` and `Write` tool declarations cover the user's PDB and saved artifacts.
+
+- **Hosted:** the full PDB content and design parameters leave the user's
+  environment in a JSON POST to
+  `https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict`. The API key
+  is sent only as an HTTPS Bearer authorization header, not in the JSON body or
+  saved request. The client does not follow redirects.
+- **Local:** the same input is sent to the user-selected `PROTEINMPNN_NIM_URL`
+  (default `http://localhost:8000`) with no authorization header. Use an approved
+  NIM deployment for confidential structures; setting a remote URL still sends
+  the structure to that machine. Registry authentication and model downloads
+  during Docker setup are separate from inference.
+- **Authorization:** disclose the hosted upload before execution. An explicit
+  request to process the PDB with the hosted API or prior approval authorizes
+  that transfer; otherwise obtain confirmation first. Never silently fall back
+  from local to hosted processing.
+- **Artifacts:** `request.json` retains the full input PDB; response, FASTA,
+  and summary files retain the returned sequences and scores. Choose an output
+  location suitable for this data, and never save or print API credentials.
+
 ---
 
 ## Request Body Schema
