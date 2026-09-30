@@ -11,14 +11,14 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 Predict biomolecular structures with OpenFold3. It supports proteins, DNA, RNA,
 small-molecule ligands, and multi-entity assemblies. Use this guide for
-basic hosted/local NIM use; load supplemental files only when the task needs
+basic hosted and local NIM use; load supplemental files only when the task needs
 deeper context:
 
 - `references/api.md`: exact endpoints, schemas, Docker flags, response fields.
 - `references/science.md`: purpose, strengths, limitations, and model handoffs.
 - `references/parameters.md`: molecule fields, MSAs, templates, samples, tuning.
 - `references/validation.md`: artifact checks and scientific sanity checks.
-- `references/examples.md`: compact hosted/local request patterns.
+- `references/examples.md`: compact hosted and local request patterns.
 
 ## Choose Mode
 
@@ -34,22 +34,26 @@ Mode difference: the local prediction path has no `/v1/` prefix. Hosted requests
 startup uses `NGC_API_KEY` (or `NVIDIA_API_KEY` via the preflight) for
 registry login, entitlement checks, and first-run model downloads; pass it
 into the container with `-e NGC_API_KEY`. Local inference requests use no
-auth header after readiness. Warm-cache key-free startup varies by
-image/version and should not be assumed.
+auth header after readiness, so bind the host port to loopback with
+`-p 127.0.0.1:8000:8000`. Warm-cache key-free startup varies by image version
+and should not be assumed.
 
 ## Auth And Environment
 
-Do not print API keys. Confirm they exist with shell tests, not echoes.
+Use credentials already supplied in the environment or injected by a secret
+manager. Do not load credential files, print keys, or enable shell tracing.
+Confirm keys exist with shell tests.
 
 Hosted needs `NGC_API_KEY` in the request header. Local startup needs
 `NGC_API_KEY`, or `NVIDIA_API_KEY` as a fallback, plus `LOCAL_NIM_CACHE`.
-A repo-root `.env` file may be sourced as a local override before validation.
 
 ## Local Docker
 
 Use the official OpenFold3 NIM image and mount `LOCAL_NIM_CACHE` at
-`/opt/nim/.cache`. First startup downloads model artifacts and can take several
-minutes.
+`/opt/nim/.cache`. Before executing setup, explain that registry authentication
+sends the key to the NVIDIA registry at https://nvcr.io and first startup
+downloads about 10–15 GB of model weights into the cache. Run deployment only
+when requested; for a setup guide, provide the commands without running them.
 
 When writing local setup commands, copy the preflight below exactly. Do not
 replace it with a simple `: "${NGC_API_KEY:?Set NGC_API_KEY}"` check, do not
@@ -59,28 +63,27 @@ should show the literal `--gpus "device=0"`; choose a different device only
 when the user asks.
 
 ```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
+set +x
 
 if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
+  NGC_API_KEY="$NVIDIA_API_KEY"
 fi
 : "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
+export NGC_API_KEY
 : "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
-
-echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 
 mkdir -p "${LOCAL_NIM_CACHE}"
 chmod 755 "${LOCAL_NIM_CACHE}"
 
+printf '%s\n' "$NGC_API_KEY" | \
+  docker login nvcr.io --username '$oauthtoken' --password-stdin && \
 docker run --rm --name openfold3 \
   --runtime=nvidia \
   --gpus "device=0" \
   --shm-size=16g \
   -e NGC_API_KEY \
   -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
+  -p 127.0.0.1:8000:8000 \
   nvcr.io/nim/openfold/openfold3:latest
 ```
 

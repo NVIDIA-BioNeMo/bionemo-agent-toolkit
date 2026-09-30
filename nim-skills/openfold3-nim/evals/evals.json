@@ -32,14 +32,16 @@
     {
       "id": "3",
       "prompt": "Help me set up the OpenFold3 NIM locally with Docker. I have an A100 80GB GPU and NGC_API_KEY is set. After setup, predict the structure of this protein: ACDEFGHIKLMNPQRSTVWY.",
-      "expected_output": "Docker setup commands using shell env first and optional repo-root .env overrides, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, running with --gpus 'device=0', --shm-size=16g, and the correct cache mount path, then a health check loop and no-auth prediction script targeting localhost:8000.",
+      "expected_output": "Docker setup commands using supplied environment variables without loading credential files, requiring NGC_API_KEY or NVIDIA_API_KEY fallback plus LOCAL_NIM_CACHE, authenticating to nvcr.io using --password-stdin, and starting the container only after successful login. The container uses --gpus 'device=0', --shm-size=16g, the correct cache mount path, and port 8000 bound to 127.0.0.1, followed by a health check loop and no-auth prediction script targeting localhost:8000.",
       "files": [],
       "assertions": [
-        "[docker-login-nvcr] Includes docker login command for nvcr.io with oauthtoken: Output contains 'docker login nvcr.io' and 'oauthtoken'",
+        "[docker-login-nvcr] Authenticates image pulls before container startup: Commands use docker login nvcr.io with the literal username '$oauthtoken' and --password-stdin, passing NGC_API_KEY via stdin without exposing its value in logs or command-line arguments",
+        "[login-failure-stops-startup] Prevents startup after failed registry authentication: Commands use an explicit success condition or shell error handling so a failed login prevents container startup",
+        "[loopback-port-binding] Keeps the unauthenticated local API on loopback: The startup command publishes port 8000 with '-p 127.0.0.1:8000:8000' or equivalent --publish syntax",
         "[docker-image-tag] References the correct OpenFold3 container image: Output contains 'nvcr.io/nim/openfold/openfold3'",
         "[single-gpu-flag] Uses single GPU device specification: Output contains '--gpus' and 'device=0'",
         "[shm-size-flag] Includes --shm-size flag (required for this NIM): Output contains '--shm-size' and '16'",
-        "[env-contract-and-cache] Local setup uses the repo env contract and LOCAL_NIM_CACHE: Output sources repo-root .env only if present, supports NVIDIA_API_KEY fallback to NGC_API_KEY, requires LOCAL_NIM_CACHE, and mounts LOCAL_NIM_CACHE to /opt/nim/.cache",
+        "[env-contract-and-cache] Local setup uses supplied environment variables and LOCAL_NIM_CACHE: Commands use credentials from the environment without loading credential files, support NVIDIA_API_KEY fallback to NGC_API_KEY, export NGC_API_KEY for the container, require LOCAL_NIM_CACHE, and mount LOCAL_NIM_CACHE to /opt/nim/.cache",
         "[local-endpoint-url] Prediction script targets localhost:8000 without /v1/ prefix: Script contains 'localhost:8000/biology/openfold/openfold3/predict'"
       ]
     },

@@ -116,28 +116,35 @@
 
 ## Docker Reference
 
+Provide credentials and the cache path through the environment; this example
+does not load credential files. Keep shell tracing disabled. Registry login
+uses the key on stdin, and the container starts only if login succeeds.
+The container uses the key for entitlement checks and first-run model downloads
+of about 10–15 GB. Local inference is unauthenticated, so the published host
+port binds to loopback.
+
 ```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
+set +x
 
-# Keep this fallback even when NGC_API_KEY is already set; it is the repo env contract.
 if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
+  NGC_API_KEY="$NVIDIA_API_KEY"
 fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY in the environment or repo-root .env}"
+: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY}"
+export NGC_API_KEY
+: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE}"
 
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment or repo-root .env}"
 mkdir -p "${LOCAL_NIM_CACHE}"
 chmod 755 "${LOCAL_NIM_CACHE}"
 
+printf '%s\n' "$NGC_API_KEY" | \
+  docker login nvcr.io --username '$oauthtoken' --password-stdin && \
 docker run --rm --name openfold3 \
   --runtime=nvidia \
   --gpus "device=0" \
   --shm-size=16g \
   -e NGC_API_KEY \
   -v "${LOCAL_NIM_CACHE}:/opt/nim/.cache" \
-  -p 8000:8000 \
+  -p 127.0.0.1:8000:8000 \
   nvcr.io/nim/openfold/openfold3:latest
 ```
 
@@ -145,6 +152,7 @@ docker run --rm --name openfold3 \
 |---|---|---|
 | `--gpus` | `device=0` | Single GPU only; choose another device only when required |
 | `--shm-size` | `16g` | Required |
+| `-p` | `127.0.0.1:8000:8000` | Bind the unauthenticated API to the host's loopback address |
 | Cache mount | `/opt/nim/.cache` | ~10–15 GB model weights |
 | Image | `nvcr.io/nim/openfold/openfold3:latest` | v1.4.0 as of 2025 |
 
