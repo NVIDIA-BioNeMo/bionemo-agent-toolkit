@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 # GenMol NIM
 
 Generate drug-like molecules with GenMol. Use this guide for first-pass
-hosted/local usage; load supplemental files only when needed:
+hosted and local usage; load supplemental files only when needed:
 
 - `references/api.md`: endpoints, schema, Docker flags, response fields.
 - `references/science.md`: use cases, strengths, limits, and handoffs.
@@ -33,19 +33,26 @@ authenticate image pulls with `docker login nvcr.io` using `NGC_API_KEY`
 container for entitlement checks and first-run model downloads. Local inference
 requests use no auth header after readiness, so bind the published port to
 loopback with `-p 127.0.0.1:8000:8000`. Warm-cache key-free startup varies by
-image/version and should not be assumed.
+image version and should not be assumed.
 
 ## Local Docker
 
-Use shell env first; source repo-root `.env` only if present. Do not print keys.
+Use credentials already supplied in the shell environment or injected by a
+secret manager. Do not load credential files, print keys, or enable shell tracing.
 For local setup answers, include this sequence: env preflight, `docker login`
 with `--password-stdin`, `docker run`, readiness loop, then a no-auth localhost
 request. Do not invent a cache default or drop the `NVIDIA_API_KEY` fallback.
 
-For the exact startup preflight (`.env` sourcing, `NVIDIA_API_KEY` fallback,
+Before executing local setup, explain that registry authentication sends the key
+to the NVIDIA registry at https://nvcr.io and first-run model downloads use
+about 20 GB in `LOCAL_NIM_CACHE`.
+Execute deployment only when the user requests it; for a setup guide, provide
+the commands without running them.
+
+For the exact startup preflight (environment checks, `NVIDIA_API_KEY` fallback,
 `--shm-size=2G`, both `--ulimit` flags, `docker login`, and the `docker run`
 for `nvcr.io/nim/nvidia/genmol:1.0.1`), copy the command block in
-[`references/api.md`](references/api.md) under **Docker run reference** verbatim.
+[`references/api.md`](references/api.md) under **Local container startup** verbatim.
 
 GenMol is single-GPU; `NIM_TEST_GPU` defaults to `0`. Wait for readiness:
 
@@ -89,8 +96,8 @@ if HOSTED:
 payload = {
     "smiles": "[*{20-30}]",  # SAFE notation
     "num_molecules": 30,
-    "temperature": "1.0",    # string, not float
-    "noise": "1.0",          # string, not float
+    "temperature": "1",      # string, not float
+    "noise": "1",            # string, not float
     "step_size": 1,
     "scoring": "QED",        # or "LogP"
     "unique": False,

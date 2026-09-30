@@ -116,23 +116,26 @@ On failure:
 
 ---
 
-## Docker run reference
+## Local container startup
 
 Passing `-e NGC_API_KEY` to the container does not authenticate the image pull.
 The commands below log in to NGC using the key on stdin, then start the container
 only if login succeeds. The unauthenticated API is bound to `127.0.0.1`.
+Provide the key and cache path through the environment before running this
+example; it does not load credential files. Keep shell tracing disabled.
+Registry login authenticates to `nvcr.io` using the key; the container also uses
+it for entitlement checks and model downloads, which need about 20 GB of cache.
 
 ```bash
-set -a
-[ -f .env ] && . ./.env
-set +a
+set +x
 
 if [ -z "${NGC_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-  export NGC_API_KEY="$NVIDIA_API_KEY"
+  NGC_API_KEY="$NVIDIA_API_KEY"
 fi
-: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY in the environment or repo-root .env}"
+: "${NGC_API_KEY:?Set NGC_API_KEY or NVIDIA_API_KEY in the environment}"
+export NGC_API_KEY
 
-: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment or repo-root .env}"
+: "${LOCAL_NIM_CACHE:?Set LOCAL_NIM_CACHE in the environment}"
 export NIM_TEST_GPU="${NIM_TEST_GPU:-0}"
 mkdir -p "${LOCAL_NIM_CACHE}"
 chmod 755 "${LOCAL_NIM_CACHE}"
