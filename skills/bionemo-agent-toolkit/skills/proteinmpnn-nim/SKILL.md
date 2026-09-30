@@ -3,7 +3,7 @@ name: proteinmpnn-nim
 description: >
   Run ProteinMPNN inverse folding via NVIDIA NIM to design protein sequences for a target backbone. Use for ProteinMPNN, inverse folding, sequence design, backbone redesign, fixed chains/residues, omit_AAs, sampling temperature, soluble model, hosted NVIDIA API, local Docker, PDB input, and multi-FASTA output.
 license: Apache-2.0 AND CC-BY-4.0
-compatibility: "requests>=2.28"
+compatibility: "Python >=3.10; requests>=2.28"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
 
@@ -22,7 +22,7 @@ first-pass hosted/local usage; load supplemental files only when needed:
 
 ## Choose Mode
 
-Honor an explicitly configured runtime before asking. `NIM_API_MODE=local` selects
+Honor the user's explicit mode; otherwise use the configured runtime. `NIM_API_MODE=local` selects
 the local service at `PROTEINMPNN_NIM_URL`; the URL defaults to
 `http://localhost:8000` for a NIM running in the same host or container. Ask only
 when neither the environment nor the user's request makes the mode clear:
@@ -59,53 +59,67 @@ proteinmpnn_nim_url="${PROTEINMPNN_NIM_URL:-http://localhost:8000}"
 until curl -sf "${proteinmpnn_nim_url%/}/v1/health/ready"; do sleep 5; done
 ```
 
-## Request Pattern
+## Instructions
 
-Read PDB content inline; do not send only a file path.
+For a request to execute a design, run [`scripts/design.py`](scripts/design.py)
+and inspect its results. Writing a request script alone does not complete an
+execution request. If the user asks only for code or setup instructions, provide
+those without submitting an inference request.
 
-```python
-import os
-from pathlib import Path
-import requests
+1. Use the user's PDB path and requested sequence count. The client reads the
+   entire PDB into `input_pdb`; do not replace or truncate the supplied backbone.
+2. Select `--mode hosted` or `--mode local`. Hosted mode uploads the PDB to the
+   documented NVIDIA endpoint and requires `NGC_API_KEY` in the environment.
+   Check only whether the key is set; do not print it, dump the environment, or
+   save authentication headers. Local inference sends no authorization header.
+3. Choose a new `--output-dir` for each request. The client reserves it before
+   submitting, preserves the raw response for diagnostics, and validates the
+   designed sequence count and score alignment before reporting completion.
+4. Read `summary.json` and report the actual results described below. If the
+   request or validation fails, report the failure and diagnostic path; do not
+   substitute example sequences or repeatedly resubmit the same request.
 
-HOSTED = os.getenv("NIM_API_MODE", "hosted").strip().lower() != "local"
-pdb_content = Path("1R42.pdb").read_text()
-nim_url = os.getenv("PROTEINMPNN_NIM_URL", "http://localhost:8000").rstrip("/")
-url = (
-    "https://health.api.nvidia.com/v1/biology/ipd/proteinmpnn/predict"
-    if HOSTED else f"{nim_url}/biology/ipd/proteinmpnn/predict"
-)
-headers = {"Content-Type": "application/json"}
-if HOSTED:
-    headers["Authorization"] = f"Bearer {os.environ['NGC_API_KEY']}"
+## Examples
 
-payload = {
-    "input_pdb": pdb_content,
-    "num_seq_per_target": 10,
-    "sampling_temp": [0.1],
-    "use_soluble_model": False,
-    "ca_only": False,
-}
-response = requests.post(url, headers=headers, json=payload, timeout=300)
-response.raise_for_status()
-result = response.json()
+Run from this skill's directory, or use an absolute path to `scripts/design.py`.
+Substitute the user's input path and a new output directory:
+
+```bash
+python scripts/design.py --mode hosted \
+  --pdb /path/to/backbone.pdb --num-sequences 10 \
+  --temperature 0.1 --output-dir /path/to/new-design-run
 ```
 
-Common controls:
-
-- Redesign only chain A: `"input_pdb_chains": ["A"]`.
-- Exclude amino acids: `"omit_AAs": ["C"]` or `"omit_AAs": ["M"]`.
-- Diversity: `"sampling_temp": [0.1, 0.3, 0.5]` (always a list).
-- Solubility bias: `"use_soluble_model": True`.
-- Candidate count: `num_seq_per_target` is 1-100.
+For a running local NIM, use `--mode local`; the client honors
+`PROTEINMPNN_NIM_URL`. To design only chain A, exclude cysteine, or request the
+soluble model, add `--chains A`, `--omit-aas C`, or `--soluble` respectively.
+`--seed` sets `random_seed`; `--ca-only` selects the CA-only model. The helper
+uses one temperature per request; run separate output directories for a
+temperature sweep. For advanced JSONL controls or a custom batch request,
+use [`references/api.md`](references/api.md) and the post-response example in
+[`references/examples.md`](references/examples.md).
 
 ## Save And Report Output
 
-Save the returned `mfasta` and pair scores only with designed (non-native/WT)
-rows, using the snippet in [`references/examples.md`](references/examples.md)
-under **Save Multi-FASTA**. Validate promising designs by predicting structures
-with Boltz2 or OpenFold3 and comparing them to the target backbone. For
-FASTA/score sanity checks, read `references/validation.md`.
+The client writes `request.json`, `response.raw`, `response.json`,
+`designed_sequences.fa`, and `summary.json` into the requested output directory.
+The FASTA preserves the complete returned `mfasta`, including a native/WT entry
+when present. The summary contains only designed sequences, each paired with
+its actual score, and records whether scores came from the JSON array or FASTA
+headers. It is also printed after the artifacts are saved and checked.
+
+In the final response, report:
+
+- The number of **designed** sequences, excluding the native/WT reference.
+- Each design's identifier and actual returned score, plus its sequence (for
+  long sequences, give a clearly labelled preview and link to the full FASTA).
+- The saved FASTA and summary paths, and the raw response path for provenance.
+- That these are inverse-folding candidates, with no fold-back validation
+  performed unless it was actually requested and run.
+
+Do not treat a score as proof that a sequence folds or binds. Further validation
+with Boltz2 or OpenFold3 is an optional next step. For FASTA/score sanity checks,
+read [`references/validation.md`](references/validation.md).
 
 ## Limits And Troubleshooting
 

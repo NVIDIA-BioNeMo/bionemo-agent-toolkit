@@ -53,8 +53,16 @@ All fields are optional (minimum: provide `input_pdb`).
 | Field | Type | Description |
 |---|---|---|
 | `mfasta` | string | Multi-FASTA string with all designed sequences |
-| `scores` | array[float] | Log-probabilities per designed sequence (higher = more confident) |
+| `scores` | array[float] | Returned sequence scores; match to designed records and preserve the values |
 | `probs` | array | Per-position amino acid probabilities |
+
+The [NIM endpoint documentation](https://docs.nvidia.com/nim/bionemo/proteinmpnn/latest/endpoints.html)
+describes the JSON scores as log-probabilities. The original ProteinMPNN FASTA
+[`score` and `global_score` fields](https://github.com/dauparas/ProteinMPNN#readme)
+are negative log-probabilities (lower is better); `score` covers designed
+residues, while `global_score` covers all residues. Keep the score source explicit
+and verify the served version's convention before ranking across these fields.
+Scores are not calibrated folding or binding probabilities.
 
 ### Example mfasta output
 
