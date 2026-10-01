@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import csv
 import json
+import math
+import operator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -118,19 +120,25 @@ class Manifest:
 
     # ---- analysis --------------------------------------------------------
     def apply_filters(self) -> None:
+        """Pass only candidates with finite scores for every enabled filter."""
         f = self.data["filters"]
         for c in self.data["candidates"]:
             s = c.get("scores", {})
             checks = []
-            if f.get("iptm_min") is not None and s.get("iptm") is not None:
-                checks.append(s["iptm"] >= f["iptm_min"])
-            if f.get("binder_plddt_min") is not None and s.get("binder_plddt") is not None:
-                checks.append(s["binder_plddt"] >= f["binder_plddt_min"])
-            if (
-                f.get("self_consistency_rmsd_max") is not None
-                and s.get("self_consistency_rmsd") is not None
+            for threshold, metric, compare in (
+                ("iptm_min", "iptm", operator.ge),
+                ("binder_plddt_min", "binder_plddt", operator.ge),
+                ("self_consistency_rmsd_max", "self_consistency_rmsd", operator.le),
             ):
-                checks.append(s["self_consistency_rmsd"] <= f["self_consistency_rmsd_max"])
+                if f.get(threshold) is None:
+                    continue
+                score = s.get(metric)
+                checks.append(
+                    isinstance(score, (int, float))
+                    and not isinstance(score, bool)
+                    and math.isfinite(score)
+                    and compare(score, f[threshold])
+                )
             c["passed_filter"] = bool(checks) and all(checks)
         self.save()
 

@@ -7,7 +7,10 @@ skill. Deterministic glue (parsing, remapping, RMSD, manifest) uses the bundled
 
 ## 0. Setup
 
-- Decide hosted vs local **once** (ask the user) and reuse for every NIM call.
+- Reuse an existing hosted/local choice, or resolve it once if unspecified.
+- For hosted calls, read `NGC_API_KEY` or `NVIDIA_API_KEY` from the environment
+  and stop if neither is set. Do not substitute the agent's `OPENAI_API_KEY` or
+  print environment variables or authorization headers.
 - Create a run directory and manifest:
 
 ```python
@@ -41,8 +44,9 @@ seq_idx = remap_to_seq_index(target_pdb, chain="<C>", author_resnums=[<epitope a
   the target with evolutionary context.
 
 ### Human-in-the-loop gate
-Before generating backbones, confirm with the user: target chain, epitope/
-hotspot set, binder length range, number of backbones, sequences per backbone.
+Before generating backbones, resolve any missing target chain, epitope/hotspot
+set, binder length range, number of backbones, or sequences per backbone. Reuse
+the user's supplied choices without asking for them again.
 
 ## 2. Backbones — `rfdiffusion-nim`
 
@@ -95,7 +99,10 @@ Co-fold each designed binder **with the target** as a 2-chain complex. Use the
 binder sequence + target sequence (and target MSA if built).
 
 - `openfold3-nim` returns an explicit `iptm_score` (interface) and pLDDT.
-- `boltz2-nim` returns `confidence_scores`; use it as the complex confidence.
+- `boltz2-nim` returns `confidence_scores`; retain it as complex confidence.
+  It is not an ipTM substitute. Populate `iptm` only from an explicitly identified
+  interface metric; otherwise leave it missing and report that the default
+  ipTM filter cannot pass, or record a user-selected alternative filter.
 
 ```python
 # delegate to boltz2-nim / openfold3-nim

@@ -8,7 +8,8 @@ controls.
 
 | Metric | Source | Pass guide | Meaning |
 |---|---|---|---|
-| Interface confidence (ipTM) | OpenFold3 `iptm_score` · Boltz2 `confidence_scores` | ≥ 0.8 | predicted interface quality |
+| Interface confidence (ipTM) | Explicit ipTM output, e.g. OpenFold3 `iptm_score` | ≥ 0.8 | predicted interface quality |
+| Composite complex confidence | Boltz2 `confidence_scores` | report separately | not a substitute for ipTM |
 | Binder pLDDT | OpenFold3 / Boltz2 | ≥ 80 | binder fold confidence |
 | Self-consistency RMSD | `scripts/metrics.py` (Kabsch CA-RMSD) | ≤ 2.0 Å | designed backbone vs predicted |
 | Sequence quality (NLL) | ProteinMPNN `scores` | lower better | sequence–backbone compatibility |
@@ -44,8 +45,13 @@ The metric the field actually quotes — fraction of designs passing the filter:
 
 ```python
 s = m.summary()
-success_rate = s["n_passed"] / max(s["n_candidates"], 1)
+success_rate = s["n_passed"] / s["n_candidates"] if s["n_candidates"] else None
 ```
+
+Controls are excluded from both counts. A candidate needs finite values for
+every enabled filter to pass. Report the number still missing required scores;
+until scoring finishes, label the ratio as provisional. With no candidates,
+report the rate as unavailable, not zero percent.
 
 Use it to compare pipeline configs (diffusion steps, sampling temperature,
 sequences/backbone) rather than over-interpreting any single design.

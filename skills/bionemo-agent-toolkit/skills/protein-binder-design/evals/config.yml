@@ -1,0 +1,14 @@
+schema_version: 1
+
+harbor:
+  task_source: evals_json
+  agents:
+    claude-code:
+      model: aws/anthropic/bedrock-claude-opus-5
+  # Forward the NIM credential into both agent conditions. This does not supply
+  # the verified target and campaign artifacts required by evals.json.
+  runtime_env:
+    - NGC_API_KEY
+
+grading:
+  mode: aces_default
