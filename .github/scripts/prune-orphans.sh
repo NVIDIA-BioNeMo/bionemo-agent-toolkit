@@ -5,7 +5,7 @@
 # FORK of NVIDIA/skills' prune-orphans.sh, adapted for this repo's GROUPED,
 # multi-root layout. Differences from upstream:
 #   - Upstream scans a single flat `skills/*/` root. We scan the SOURCED group
-#     roots in PRUNE_ROOTS (the wholly-native roots nim-skills/ and workflows/
+#     roots in PRUNE_ROOTS (the wholly-native roots nim-skills/ and workflow-skills/
 #     are never scanned, so they can't be pruned).
 #   - catalog_dir values are full grouped paths (e.g. library-skills/nvmolkit-usage),
 #     kept at DEPTH 1 under their group root, so the scan and the expected-set

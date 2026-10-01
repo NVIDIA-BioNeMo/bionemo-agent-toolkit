@@ -34,7 +34,7 @@ This repo is an **aggregator**. Most skills are authored in *other* GitHub repos
 and **vendored** in by the nightly sync (`.github/workflows/sync-skills.yml`),
 which reads `components.d/*.yml`, clones each source repo at its declared `ref`,
 and `rsync`s the declared skill folders into this repo's grouped catalog dirs
-(`nim-skills/`, `library-skills/`, `open-models-skills/`, `workflows/`), then
+(`nim-skills/`, `library-skills/`, `open-models-skills/`, `workflow-skills/`), then
 opens a PR a maintainer reviews.
 
 A skill lives here in exactly one of two ways:
@@ -44,7 +44,7 @@ A skill lives here in exactly one of two ways:
   every run (`rsync --delete`), so **do not edit a sourced skill dir in this
   repo** — the change reverts on the next sync. Fix it upstream.
 - **Native** — authored directly here and listed in `catalog-exceptions.yml`
-  (e.g. the NIM skills and the `workflows/` meta-skills).
+  (e.g. the NIM skills and the `workflow-skills/` meta-skills).
 
 Every skill directory must be claimed by **exactly one** registry
 (`components.d` or `catalog-exceptions.yml`), or the orphan pruner
@@ -55,6 +55,11 @@ generated from those grouped source directories. Do not edit the aggregate
 copy directly; run `python scripts/plugin_sync.py --write` after changing a
 source skill. The root `plugins -> skills` symlink is a temporary compatibility
 path for existing plugin consumers.
+
+Workflow source skills use `workflow-skills/` because NVCarps treats the
+`workflows/` prefix as a whole-workflow validation target. This layout lets
+NVCarps validate the generated skills individually while the repository's
+plugin-sync and skill-security checks cover their source directories.
 
 ### Onboarding a source repo
 
