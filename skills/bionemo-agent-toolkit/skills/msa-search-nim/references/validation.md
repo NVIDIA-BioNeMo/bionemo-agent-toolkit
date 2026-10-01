@@ -7,10 +7,17 @@ passing them downstream.
 
 - `alignments` exists for standard search.
 - `alignments_by_chain` exists for paired search.
-- Each returned alignment has `alignment` text and a `format`.
-- A3M/FASTA text starts with FASTA-style headers.
+- Each returned alignment has `alignment` text and a matching `format` (`a3m`
+  for the hosted client's requested output).
+- Each A3M/FASTA record has a nonempty FASTA-style header followed by sequence
+  data. Reject missing records, empty records, and invalid sequence characters.
+- A3M records have equal numbers of match columns: uppercase residues and `-`
+  count toward the width; lowercase insertions do not. Wrapped sequence lines,
+  blank lines, and `#` comments are allowed.
 - Saved filenames include database and format so outputs do not overwrite each
   other.
+- The hosted client publishes the output directory after every file is written;
+  a write failure removes temporary files so the same output path can be retried.
 - Record database names and e-value used for the search.
 
 ## Template Checks

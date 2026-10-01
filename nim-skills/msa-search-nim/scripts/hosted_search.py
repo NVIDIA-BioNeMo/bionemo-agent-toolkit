@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import time
 
 import requests
@@ -93,11 +94,53 @@ def validate_alignments(result: object, databases: list[str]) -> None:
     for database in databases:
         formats = alignments.get(database)
         a3m = formats.get("a3m") if isinstance(formats, dict) else None
-        alignment = a3m.get("alignment") if isinstance(a3m, dict) else None
-        if not isinstance(alignment, str) or not alignment.lstrip().startswith(">"):
+        if not isinstance(a3m, dict) or a3m.get("format") != "a3m":
+            raise SearchError(f"Hosted MSA returned no A3M-formatted result for {database}.")
+        alignment = a3m.get("alignment")
+        if not isinstance(alignment, str):
             raise SearchError(f"Hosted MSA returned no A3M alignment for {database}.")
-        if not any(line.strip() and not line.startswith((">", "#")) for line in alignment.splitlines()):
-            raise SearchError(f"Hosted MSA returned an empty A3M alignment for {database}.")
+        validate_a3m(alignment, database)
+
+
+def validate_a3m(alignment: str, database: str) -> None:
+    """Require named, nonempty records with consistent A3M match columns.
+
+    Uppercase residues and '-' occupy match columns; lowercase insertions
+    do not. Wrapped sequences, blank lines and '#' comments are supported.
+    """
+    error = f"Hosted MSA returned a malformed A3M alignment for {database}."
+    lengths: list[int] = []
+    for line in alignment.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        if line.startswith(">"):
+            if not line[1:].strip():
+                raise SearchError(error)
+            lengths.append(0)
+        else:
+            if not lengths or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-" for c in line):
+                raise SearchError(error)
+            lengths[-1] += sum("A" <= c <= "Z" or c == "-" for c in line)
+    if not lengths or not lengths[0] or any(length != lengths[0] for length in lengths):
+        raise SearchError(error)
+
+
+def save_results(result: dict, databases: list[str], output_dir: Path) -> None:
+    """Publish the output directory only after all result files are written."""
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    # Stage on the same filesystem so the final directory rename is atomic.
+    # The temporary wrapper cleans up failed writes and failed publication.
+    with tempfile.TemporaryDirectory(prefix=f".{output_dir.name}-", dir=output_dir.parent) as staging:
+        staged_output = Path(staging) / "output"
+        staged_output.mkdir()
+        (staged_output / "response.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        for database in dict.fromkeys(databases):
+            alignment = result["alignments"][database]["a3m"]["alignment"]
+            (staged_output / f"{database}.a3m").write_text(alignment, encoding="utf-8")
+        # Recheck after the request and writes in case another run used this path.
+        if output_dir.exists() or output_dir.is_symlink():
+            raise FileExistsError("Output directory already exists.")
+        staged_output.rename(output_dir)
 
 
 def main() -> int:
@@ -106,20 +149,17 @@ def main() -> int:
     parser.add_argument("--databases", nargs="+", choices=DATABASES, default=list(DATABASES))
     parser.add_argument("--output-dir", type=Path, required=True, help="A new directory for this request")
     args = parser.parse_args()
-    if args.output_dir.exists():
+    if args.output_dir.exists() or args.output_dir.is_symlink():
         parser.error("--output-dir must not already exist; use a new path for each request")
     try:
         result = search(
             args.sequence, args.databases,
             os.environ.get("NGC_API_KEY") or os.environ.get("NVIDIA_API_KEY", ""),
         )
-        # Create output only after all requested alignments have been validated.
-        args.output_dir.mkdir(parents=True, exist_ok=False)
-        (args.output_dir / "response.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        save_results(result, args.databases, args.output_dir)
         for database in dict.fromkeys(args.databases):
             alignment = result["alignments"][database]["a3m"]["alignment"]
             path = args.output_dir / f"{database}.a3m"
-            path.write_text(alignment, encoding="utf-8")
             records = sum(line.startswith(">") for line in alignment.splitlines())
             print(f"{path}: {records} sequences")
     except SearchError as exc:

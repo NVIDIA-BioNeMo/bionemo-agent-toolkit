@@ -75,6 +75,63 @@ class HostedSearchTests(unittest.TestCase):
                 with self.assertRaises(client.SearchError):
                     client.search("ACDE", list(client.DATABASES), "test-credential")
 
+    def test_alignment_format_must_be_a3m(self):
+        for returned_format in [None, "fasta", "A3M", 1]:
+            result = alignments()
+            a3m = result["alignments"][client.DATABASES[0]]["a3m"]
+            if returned_format is None:
+                del a3m["format"]
+            else:
+                a3m["format"] = returned_format
+            with self.subTest(format=returned_format), \
+                    patch.object(client.requests, "post", return_value=response(data=result)) as post:
+                with self.assertRaises(client.SearchError):
+                    client.search("ACDE", list(client.DATABASES), "test-credential")
+                self.assertEqual(post.call_count, 1)
+
+    def test_malformed_a3m_is_not_success(self):
+        malformed = [
+            None,
+            "",
+            "ACDE\n",
+            "ACDE\n>query\nACDE\n",
+            ">query\n>hit\nACDE\n",
+            ">query\nACDE\n>hit\n",
+            ">query\nACDE\n>empty\n>hit\nACDE\n",
+            "> \nACDE\n",
+            " >query\nACDE\n",
+            ">query\nAC DE\n",
+            ">query\nACD1\n",
+            ">query\nACD*\n",
+            ">query\nACDÉ\n",
+            ">query\nACDE\n>hit\nACD\n",
+            ">query\nacde\n",
+            ">query\n# no sequence\n",
+        ]
+        for alignment in malformed:
+            result = alignments()
+            result["alignments"][client.DATABASES[1]]["a3m"]["alignment"] = alignment
+            reply = response(data=result)
+            with self.subTest(alignment=alignment), \
+                    patch.object(client.requests, "post", return_value=reply) as post:
+                with self.assertRaises(client.SearchError):
+                    client.search("ACDE", list(client.DATABASES), "test-credential")
+                self.assertEqual(post.call_count, 1)
+                reply.close.assert_called_once()
+
+    def test_valid_a3m_supports_wrapping_insertions_and_comments(self):
+        for alignment in [
+            ">query\nACDE",
+            ">query description\nAC\nDE\n>hit\nAcC-\nE\n",
+            "# comment\n\n>query\nACDE\n\n>hit\nacACd-Efg\n# comment\n",
+        ]:
+            expected = alignments()
+            for database in client.DATABASES:
+                expected["alignments"][database]["a3m"]["alignment"] = alignment
+            with self.subTest(alignment=alignment), \
+                    patch.object(client.requests, "post", return_value=response(data=expected)):
+                self.assertEqual(client.search("ACDE", list(client.DATABASES), "test-credential"), expected)
+
     def test_missing_key_and_unknown_database_fail_before_network(self):
         for databases, key in [(list(client.DATABASES), ""), (["../result"], "test-credential")]:
             with self.subTest(databases=databases), patch.object(client.requests, "post") as post:
@@ -103,6 +160,85 @@ class HostedSearchTests(unittest.TestCase):
                     patch.object(client.time, "sleep"), redirect_stderr(io.StringIO()):
                 self.assertEqual(client.main(), 1)
             self.assertFalse(output.exists())
+
+    def test_cli_write_failure_cleans_up_and_allows_retry(self):
+        write_text = Path.write_text
+        filenames = ["response.json", *(f"{database}.a3m" for database in client.DATABASES)]
+        for failing_file in filenames:
+            with self.subTest(file=failing_file), tempfile.TemporaryDirectory() as root:
+                output = Path(root) / "msa"
+                expected = alignments()
+                args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+
+                def fail_during_write(path, data, **kwargs):
+                    if path.name == failing_file:
+                        write_text(path, "partial", **kwargs)
+                        raise OSError("sensitive filesystem details")
+                    return write_text(path, data, **kwargs)
+
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with patch.object(client.sys, "argv", args), \
+                        patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                        patch.object(client.requests, "post", return_value=response(data=expected)):
+                    with patch.object(Path, "write_text", fail_during_write), \
+                            redirect_stdout(stdout), redirect_stderr(stderr):
+                        self.assertEqual(client.main(), 1)
+                    self.assertEqual(list(Path(root).iterdir()), [])
+                    self.assertEqual(stdout.getvalue(), "")
+                    self.assertNotIn("sensitive", stderr.getvalue())
+                    with redirect_stdout(io.StringIO()):
+                        self.assertEqual(client.main(), 0)
+                self.assertEqual(json.loads((output / "response.json").read_text()), expected)
+                for database in client.DATABASES:
+                    self.assertEqual((output / f"{database}.a3m").read_text(),
+                                     expected["alignments"][database]["a3m"]["alignment"])
+
+    def test_cli_publish_failure_leaves_no_artifacts(self):
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root) / "msa"
+            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+            with patch.object(client.sys, "argv", args), \
+                    patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                    patch.object(client.requests, "post", return_value=response(data=alignments())), \
+                    patch.object(Path, "rename", side_effect=OSError("cannot publish")), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
+                self.assertEqual(client.main(), 1)
+            self.assertEqual(list(Path(root).iterdir()), [])
+            self.assertEqual(stdout.getvalue(), "")
+
+    def test_cli_does_not_overwrite_output_created_during_search(self):
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root) / "msa"
+            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+
+            def concurrent_output(*args, **kwargs):
+                output.mkdir()
+                (output / "keep.txt").write_text("existing data")
+                return response(data=alignments())
+
+            with patch.object(client.sys, "argv", args), \
+                    patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                    patch.object(client.requests, "post", side_effect=concurrent_output), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
+                self.assertEqual(client.main(), 1)
+            self.assertEqual(list(Path(root).iterdir()), [output])
+            self.assertEqual(list(output.iterdir()), [output / "keep.txt"])
+            self.assertEqual((output / "keep.txt").read_text(), "existing data")
+            self.assertEqual(stdout.getvalue(), "")
+
+    def test_cli_malformed_response_leaves_no_output(self):
+        malformed = alignments()
+        malformed["alignments"][client.DATABASES[1]]["a3m"]["alignment"] = ">query\nACDE\n>hit\n"
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root) / "msa"
+            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+            with patch.object(client.sys, "argv", args), \
+                    patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                    patch.object(client.requests, "post", return_value=response(data=malformed)), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
+                self.assertEqual(client.main(), 1)
+            self.assertEqual(list(Path(root).iterdir()), [])
+            self.assertEqual(stdout.getvalue(), "")
 
 
 if __name__ == "__main__":

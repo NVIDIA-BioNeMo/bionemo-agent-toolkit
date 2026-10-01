@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 AND CC-BY-4.0 <br>
 ## Use Case: <br>
-Developers and engineers use this skill to generate multiple sequence alignments for protein sequences via GPU-accelerated MMSeqs2, supporting hosted NVIDIA API or local Docker NIM deployment for homolog search, paired MSA for complexes, and structural template retrieval. <br>
+Developers and engineers use this skill to generate multiple sequence alignments for protein sequences via GPU-accelerated MMSeqs2. Hosted NVIDIA API and local Docker NIM support homolog search and paired MSA for complexes; structural template retrieval requires a local Docker NIM. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
