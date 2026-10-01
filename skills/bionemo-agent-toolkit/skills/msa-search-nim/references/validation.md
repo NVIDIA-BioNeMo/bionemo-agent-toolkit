@@ -16,8 +16,14 @@ passing them downstream.
   blank lines, and `#` comments are allowed.
 - Saved filenames include database and format so outputs do not overwrite each
   other.
-- The hosted client publishes the output directory after every file is written;
-  a write failure removes temporary files so the same output path can be retried.
+- The hosted client finishes all writes in private staging, then exclusively
+  creates the output directory and moves the result files into it. An existing
+  output path, including an empty directory created by another run, is preserved.
+- On POSIX, the output directory uses owner-only permissions (`0700`), and result
+  files use `0600`, even with a permissive umask.
+- A failed write or move removes temporary files and any output directory created
+  by this run, so the same output path can be retried. Treat output as complete
+  only after the client exits successfully.
 - Record database names and e-value used for the search.
 
 ## Template Checks

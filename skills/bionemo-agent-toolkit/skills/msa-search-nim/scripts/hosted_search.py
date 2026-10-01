@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import time
@@ -126,21 +127,28 @@ def validate_a3m(alignment: str, database: str) -> None:
 
 
 def save_results(result: dict, databases: list[str], output_dir: Path) -> None:
-    """Publish the output directory only after all result files are written."""
+    """Save private results in a new directory, cleaning up failed publication."""
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    # Stage on the same filesystem so the final directory rename is atomic.
-    # The temporary wrapper cleans up failed writes and failed publication.
+    # Finish all writes inside private staging on the destination filesystem.
     with tempfile.TemporaryDirectory(prefix=f".{output_dir.name}-", dir=output_dir.parent) as staging:
-        staged_output = Path(staging) / "output"
-        staged_output.mkdir()
+        staged_output = Path(staging)
         (staged_output / "response.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         for database in dict.fromkeys(databases):
             alignment = result["alignments"][database]["a3m"]["alignment"]
             (staged_output / f"{database}.a3m").write_text(alignment, encoding="utf-8")
-        # Recheck after the request and writes in case another run used this path.
-        if output_dir.exists() or output_dir.is_symlink():
-            raise FileExistsError("Output directory already exists.")
-        staged_output.rename(output_dir)
+        files = list(staged_output.iterdir())
+        for path in files:
+            path.chmod(0o600)
+        # mkdir exclusively reserves the path, including against empty
+        # directories and dangling symlinks created by a concurrent run.
+        output_dir.mkdir(mode=0o700)
+        try:
+            for path in files:
+                path.rename(output_dir / path.name)
+        except BaseException:
+            # Only remove a directory that this run successfully reserved.
+            shutil.rmtree(output_dir)
+            raise
 
 
 def main() -> int:

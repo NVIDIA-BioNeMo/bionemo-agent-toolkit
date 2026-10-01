@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import stat
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -151,6 +152,62 @@ class HostedSearchTests(unittest.TestCase):
             for database in client.DATABASES:
                 self.assertEqual((output / f"{database}.a3m").read_text(), expected["alignments"][database]["a3m"]["alignment"])
 
+    @unittest.skipUnless(client.os.name == "posix", "Requires POSIX permissions")
+    def test_cli_output_is_private_with_permissive_umask(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root).chmod(0o755)
+            output = Path(root) / "msa"
+            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+            previous_umask = client.os.umask(0)
+            try:
+                with patch.object(client.sys, "argv", args), \
+                        patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                        patch.object(client.requests, "post", return_value=response(data=alignments())), \
+                        redirect_stdout(io.StringIO()):
+                    self.assertEqual(client.main(), 0)
+            finally:
+                client.os.umask(previous_umask)
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o700)
+            for path in output.iterdir():
+                self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600, path.name)
+
+    def test_cli_does_not_replace_concurrent_empty_output_directory(self):
+        mkdir, rename = Path.mkdir, Path.rename
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root) / "msa"
+            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+            competing_stat = None
+
+            def reserve_output():
+                nonlocal competing_stat
+                mkdir(output, mode=0o700)
+                competing_stat = output.stat()
+
+            # Simulate a competing reservation immediately before publication,
+            # after any existence check, with either directory operation.
+            def racing_mkdir(path, *args, **kwargs):
+                if path == output:
+                    reserve_output()
+                return mkdir(path, *args, **kwargs)
+
+            def racing_rename(path, target):
+                if Path(target) == output:
+                    reserve_output()
+                return rename(path, target)
+
+            with patch.object(client.sys, "argv", args), \
+                    patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                    patch.object(client.requests, "post", return_value=response(data=alignments())), \
+                    patch.object(Path, "mkdir", racing_mkdir), \
+                    patch.object(Path, "rename", racing_rename), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
+                self.assertEqual(client.main(), 1)
+            self.assertIsNotNone(competing_stat)
+            self.assertEqual(output.stat().st_ino, competing_stat.st_ino)
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(list(Path(root).iterdir()), [output])
+            self.assertEqual(stdout.getvalue(), "")
+
     def test_cli_failure_leaves_no_success_artifacts(self):
         with tempfile.TemporaryDirectory() as root:
             output = Path(root) / "msa"
@@ -194,17 +251,29 @@ class HostedSearchTests(unittest.TestCase):
                                      expected["alignments"][database]["a3m"]["alignment"])
 
     def test_cli_publish_failure_leaves_no_artifacts(self):
-        with tempfile.TemporaryDirectory() as root:
-            output = Path(root) / "msa"
-            args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
-            with patch.object(client.sys, "argv", args), \
-                    patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
-                    patch.object(client.requests, "post", return_value=response(data=alignments())), \
-                    patch.object(Path, "rename", side_effect=OSError("cannot publish")), \
-                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
-                self.assertEqual(client.main(), 1)
-            self.assertEqual(list(Path(root).iterdir()), [])
-            self.assertEqual(stdout.getvalue(), "")
+        rename = Path.rename
+        filenames = ["response.json", *(f"{database}.a3m" for database in client.DATABASES)]
+        for failing_file in filenames:
+            with self.subTest(file=failing_file), tempfile.TemporaryDirectory() as root:
+                output = Path(root) / "msa"
+                args = ["hosted_search.py", "--sequence", "ACDE", "--output-dir", str(output)]
+
+                def fail_during_publish(path, target):
+                    if path.name == failing_file:
+                        raise OSError("cannot publish")
+                    return rename(path, target)
+
+                with patch.object(client.sys, "argv", args), \
+                        patch.dict(client.os.environ, {"NGC_API_KEY": "test-credential"}), \
+                        patch.object(client.requests, "post", return_value=response(data=alignments())):
+                    with patch.object(Path, "rename", fail_during_publish), \
+                            redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()):
+                        self.assertEqual(client.main(), 1)
+                    self.assertEqual(list(Path(root).iterdir()), [])
+                    self.assertEqual(stdout.getvalue(), "")
+                    with redirect_stdout(io.StringIO()):
+                        self.assertEqual(client.main(), 0)
+                self.assertEqual({path.name for path in output.iterdir()}, set(filenames))
 
     def test_cli_does_not_overwrite_output_created_during_search(self):
         with tempfile.TemporaryDirectory() as root:
