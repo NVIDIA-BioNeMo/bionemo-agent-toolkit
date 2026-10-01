@@ -308,7 +308,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run-dir", required=True, type=Path)
-    ap.add_argument("--hotspots", type=Path, help="hotspots.json (omit => unconditioned)")
+    ap.add_argument("--hotspots", type=Path, help="hotspots.json (default: unconditioned)")
     ap.add_argument("--target-chain", default="A")
     ap.add_argument("--binder-chain", default="B")
     ap.add_argument("--endpoint", choices=["hosted", "local"], default="hosted")
