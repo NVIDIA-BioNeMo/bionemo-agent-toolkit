@@ -29,6 +29,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _finite_score(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 class Manifest:
     """Read/write wrapper around a campaign ``manifest.json``."""
 
@@ -56,7 +60,7 @@ class Manifest:
             "target": target,
             "mode": mode,
             "params": params or {},
-            "filters": dict(filters) if filters else dict(DEFAULT_FILTERS),
+            "filters": dict(filters) if filters is not None else dict(DEFAULT_FILTERS),
             "stages": [],
             "candidates": [],
         }
@@ -127,6 +131,7 @@ class Manifest:
             checks = []
             for threshold, metric, compare in (
                 ("iptm_min", "iptm", operator.ge),
+                ("boltz2_confidence_min", "boltz2_confidence", operator.ge),
                 ("binder_plddt_min", "binder_plddt", operator.ge),
                 ("self_consistency_rmsd_max", "self_consistency_rmsd", operator.le),
             ):
@@ -134,10 +139,7 @@ class Manifest:
                     continue
                 score = s.get(metric)
                 checks.append(
-                    isinstance(score, (int, float))
-                    and not isinstance(score, bool)
-                    and math.isfinite(score)
-                    and compare(score, f[threshold])
+                    _finite_score(score) and compare(score, f[threshold])
                 )
             c["passed_filter"] = bool(checks) and all(checks)
         self.save()
@@ -154,17 +156,24 @@ class Manifest:
             cands = [c for c in cands if not c.get("is_control")]
         if passed_only:
             cands = [c for c in cands if c.get("passed_filter")]
-        cands = [c for c in cands if c.get("scores", {}).get(by) is not None]
+        cands = [c for c in cands if _finite_score(c.get("scores", {}).get(by))]
         return sorted(cands, key=lambda c: c["scores"][by], reverse=descending)
 
-    def to_csv(self, path: str | Path | None = None) -> Path:
+    def to_csv(
+        self,
+        path: str | Path | None = None,
+        *,
+        candidates: list[dict[str, Any]] | None = None,
+    ) -> Path:
+        """Export all candidates, or a supplied ranked list in its given order."""
         path = Path(path) if path else Path(self.data["run_dir"]) / "candidates.csv"
+        candidates = self.data["candidates"] if candidates is None else candidates
         score_keys = sorted({k for c in self.data["candidates"] for k in c.get("scores", {})})
         cols = ["id", "backbone_id", "is_control", "control_type", "passed_filter"] + score_keys
         with open(path, "w", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(cols)
-            for c in self.data["candidates"]:
+            for c in candidates:
                 row = [
                     c.get("id"),
                     c.get("backbone_id"),

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
 """Offline bookkeeping tests; numeric fixtures are not scientific predictions."""
+import csv
 import importlib.util
 import tempfile
 import unittest
@@ -85,6 +86,48 @@ class ManifestFilterTests(unittest.TestCase):
         loaded.apply_filters()
         self.assertEqual(loaded.summary()["n_passed"], 2)
         self.assertEqual(loaded.data["candidates"][0], self.manifest.data["candidates"][0])
+
+    def test_boltz2_profile_survives_resume_and_exports_ranked_candidates(self):
+        self.manifest.data["filters"] = {
+            "iptm_min": None,
+            "boltz2_confidence_min": 0.8,
+            "binder_plddt_min": 80,
+            "self_consistency_rmsd_max": 2.0,
+        }
+        self.manifest.data["params"]["rank_by"] = "boltz2_confidence"
+        for cid, confidence in (("boundary", 0.8), ("low", 0.79), ("best", 0.9), ("control", 0.99)):
+            self.add(cid, boltz2_confidence=confidence, binder_plddt=85, self_consistency_rmsd=1.0)
+        self.add("incomplete", boltz2_confidence=0.95)
+        self.manifest.upsert_candidate("control", is_control=True, control_type="scrambled")
+        self.manifest.apply_filters()
+
+        loaded = Manifest.load(self.temp.name)
+        ranked = loaded.rank(by=loaded.data["params"]["rank_by"], passed_only=True)
+        self.assertEqual([c["id"] for c in ranked], ["best", "boundary"])
+        self.assertEqual(loaded.summary(), {"n_candidates": 4, "n_passed": 2, "n_controls": 1})
+        self.assertTrue(all("iptm" not in c["scores"] for c in loaded.data["candidates"]))
+        with loaded.to_csv(candidates=ranked).open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual([row["id"] for row in rows], ["best", "boundary"])
+        with loaded.to_csv(candidates=[]).open() as stream:
+            self.assertEqual(list(csv.DictReader(stream)), [])
+
+    def test_boltz2_missing_or_invalid_confidence_cannot_pass_or_rank(self):
+        self.manifest.data["filters"] = {"boltz2_confidence_min": 0.8}
+        for value in (None, float("inf"), float("-inf"), float("nan"), True, "0.9"):
+            with self.subTest(value=value):
+                candidate = self.add("invalid")
+                candidate["scores"]["boltz2_confidence"] = value
+                self.manifest.apply_filters()
+                self.assertFalse(candidate["passed_filter"])
+                self.assertEqual(self.manifest.rank(by="boltz2_confidence"), [])
+
+    def test_create_respects_explicit_empty_filters(self):
+        manifest = Manifest.create(self.temp.name, {"name": "bookkeeping fixture"}, filters={})
+        candidate = manifest.set_scores("no_filters", iptm=0.9, binder_plddt=90, self_consistency_rmsd=1.0)
+        manifest.apply_filters()
+        self.assertEqual(manifest.data["filters"], {})
+        self.assertFalse(candidate["passed_filter"])
 
 
 if __name__ == "__main__":

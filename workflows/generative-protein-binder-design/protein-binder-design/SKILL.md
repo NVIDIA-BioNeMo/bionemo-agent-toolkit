@@ -49,7 +49,7 @@ scores, or an interrupted run. An empty CSV is not a completed campaign.
 3. **Sequences** (`proteinmpnn-nim`) — k sequences per backbone; drop the
    native/WT row from `mfasta`.
 4. **Co-fold + score** (`boltz2-nim` / `openfold3-nim`) — co-fold binder+target;
-   collect interface confidence (ipTM) and binder pLDDT.
+   collect explicit ipTM or Boltz2 composite confidence, plus binder pLDDT.
 5. **Self-consistency** — CA-RMSD between the RFdiffusion backbone and the
    predicted binder (`scripts/metrics.py`).
 6. **Filter + rank** — apply thresholds; rank survivors; write manifest + CSV.
@@ -79,6 +79,14 @@ final report. Schema and usage: `references/manifest.md`.
 - Override per campaign and record overrides in the manifest `filters`.
 - Every enabled metric needs a finite score to pass. Keep a composite confidence
   value in its own field; do not substitute it for an unavailable ipTM.
+- For Boltz2-only campaigns without explicit ipTM, resolve the composite
+  confidence cutoff before inference. Set `iptm_min: null`, enable
+  `boltz2_confidence_min` with that cutoff, retain the pLDDT/RMSD thresholds,
+  and save `params.rank_by: boltz2_confidence`. Filter with `apply_filters()`,
+  rank with `rank(by="boltz2_confidence", passed_only=True)`, and export that
+  list with `to_csv(candidates=ranked)`. Report this as composite-confidence
+  selection; it does not establish the default ipTM criterion. Complete example:
+  `references/manifest.md`.
 
 ## Validation
 
@@ -115,6 +123,13 @@ reuse it for every call:
   environment dumps, key values, or authorization headers. An `OPENAI_API_KEY`
   belongs to the agent runtime and must not be used as a NIM credential. If both
   NIM keys are absent, report missing access before sending authenticated calls.
+  Before **each delegated hosted command**, source `scripts/hosted_env.sh` in
+  the same shell: `source scripts/hosted_env.sh && python your_nim_request.py`.
+  Use the helper's absolute path when running outside the skill directory.
+  It exports the selected key as `NGC_API_KEY`, which the atomic NIM skills read,
+  preserves an existing nonempty `NGC_API_KEY`, and stops the command if neither
+  key exists. Repeat this prelude in each new tool shell; exports from a separate
+  shell do not persist. Keep shell tracing off so credentials are not logged.
 - **Local** (self-hosted NGC containers): point each NIM at its local URL
   (e.g. `http://localhost:8000/...`); local NIMs need no auth header. To **launch** the
   NIMs yourself (docker run per NIM, persistent caches, health checks, and the GPU
@@ -143,6 +158,7 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
 ## Scripts
 
 - `scripts/manifest.py` — campaign manifest (create / load / score / filter / rank / CSV).
+- `scripts/hosted_env.sh` — source before hosted commands to normalize the NIM key.
 - `scripts/pdb_utils.py` — PDB parse, chain extract, sequence, residue remap, CA coords.
 - `scripts/metrics.py` — Kabsch CA-RMSD for self-consistency.
 - `scripts/controls.py` — scrambled negative controls.

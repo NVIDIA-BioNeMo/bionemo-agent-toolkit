@@ -11,6 +11,12 @@ skill. Deterministic glue (parsing, remapping, RMSD, manifest) uses the bundled
 - For hosted calls, read `NGC_API_KEY` or `NVIDIA_API_KEY` from the environment
   and stop if neither is set. Do not substitute the agent's `OPENAI_API_KEY` or
   print environment variables or authorization headers.
+- Source the credential helper in the **same shell as every hosted command**:
+  `source scripts/hosted_env.sh && python your_nim_request.py` (use the helper's
+  absolute path outside the skill directory). This exports the chosen key as
+  `NGC_API_KEY` for RFdiffusion, ProteinMPNN, Boltz2, OpenFold3, and optional MSA
+  subprocesses. Repeat in each new tool shell; keep shell tracing off. Local
+  inference uses no authentication header and does not need this helper.
 - Create a run directory and manifest:
 
 ```python
@@ -20,9 +26,23 @@ m = Manifest.create(
     run_dir="runs/<target>_<date>",
     target={"name": "<target>", "pdb_id": "<PDBID>", "chain": "<C>"},
     mode="hosted",
-    params={"n_backbones": 100, "seqs_per_backbone": 8, "binder_len": "60-90"},
+    params={"n_backbones": 100, "seqs_per_backbone": 8, "binder_len": "60-90", "rank_by": "iptm"},
 )
 ```
+
+Before inference, select the scoring route. The defaults require explicit ipTM.
+For Boltz2-only output without ipTM, record the campaign's chosen composite
+confidence cutoff and ranking metric instead. For example, **0.8 below is an
+illustrative selected cutoff, not an ipTM-equivalent or a validated default**:
+
+```python
+m.data["filters"].update(iptm_min=None, boltz2_confidence_min=0.8)
+m.data["params"]["rank_by"] = "boltz2_confidence"
+m.save()
+```
+
+This retains the pLDDT/RMSD criteria. The complete Boltz2 manifest example is in
+`references/manifest.md`; reuse its saved filters and ranking metric on resume.
 
 ## 1. Target prep
 
@@ -101,8 +121,9 @@ binder sequence + target sequence (and target MSA if built).
 - `openfold3-nim` returns an explicit `iptm_score` (interface) and pLDDT.
 - `boltz2-nim` returns `confidence_scores`; retain it as complex confidence.
   It is not an ipTM substitute. Populate `iptm` only from an explicitly identified
-  interface metric; otherwise leave it missing and report that the default
-  ipTM filter cannot pass, or record a user-selected alternative filter.
+  interface metric; otherwise leave it missing and use the explicitly selected
+  `boltz2_confidence_min` filter and `boltz2_confidence` ranking route from setup.
+  Store the scalar confidence for the same returned sample as the saved complex.
 
 ```python
 # delegate to boltz2-nim / openfold3-nim
@@ -138,9 +159,11 @@ PDB ATOM records.)
 ## 6. Filter + rank + report
 
 ```python
-m.apply_filters()                       # uses manifest filters (ipTM/pLDDT/RMSD)
-top = m.rank(by="iptm", descending=True, passed_only=True)[:20]
-m.to_csv()                              # candidates.csv next to manifest.json
+m.apply_filters()                       # uses the saved campaign criteria
+rank_by = m.data["params"].get("rank_by", "iptm")
+ranked = m.rank(by=rank_by, descending=True, passed_only=True)
+top = ranked[:20]
+m.to_csv(candidates=ranked)              # ranked survivors; controls excluded
 print(m.summary())                      # {n_candidates, n_passed, n_controls}
 ```
 
@@ -153,6 +176,7 @@ designs with their scores and artifact paths, and how they compare to controls
 - **No target structure** → predict it first (`openfold2/3-nim` or `boltz2-nim`).
 - **Target needs evolutionary context** → `msa-search-nim` before co-folding.
 - **Interface metric** → prefer OpenFold3 `iptm_score`; Boltz2 `confidence_scores`
-  is the fallback complex-confidence signal.
+  uses its own explicit filter and ranking route. Label the selected metric and
+  cutoff in the report, and compare controls under that same route.
 - **Binder MSA** → keep single-sequence for de novo binders (standard); do not
   fabricate a binder MSA.

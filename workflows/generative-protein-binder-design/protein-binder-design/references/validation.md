@@ -9,13 +9,19 @@ controls.
 | Metric | Source | Pass guide | Meaning |
 |---|---|---|---|
 | Interface confidence (ipTM) | Explicit ipTM output, e.g. OpenFold3 `iptm_score` | ≥ 0.8 | predicted interface quality |
-| Composite complex confidence | Boltz2 `confidence_scores` | report separately | not a substitute for ipTM |
+| Composite complex confidence | Boltz2 `confidence_scores` | campaign-selected `boltz2_confidence_min` | separate filter/ranking route when ipTM is unavailable |
 | Binder pLDDT | OpenFold3 / Boltz2 | ≥ 80 | binder fold confidence |
 | Self-consistency RMSD | `scripts/metrics.py` (Kabsch CA-RMSD) | ≤ 2.0 Å | designed backbone vs predicted |
 | Sequence quality (NLL) | ProteinMPNN `scores` | lower better | sequence–backbone compatibility |
 
 There is no protein–protein affinity NIM, so ipTM + self-consistency RMSD are
 the binder proxy (the Bennett et al. 2023 filter pattern).
+
+For a Boltz2-only campaign without explicit ipTM, save `iptm_min: null`, a chosen
+`boltz2_confidence_min`, and `params.rank_by: boltz2_confidence` before inference.
+Keep pLDDT/RMSD requirements; rank with that saved metric. This profile has its
+own success rate and must be labeled as composite-confidence selection, not as
+passing the default ipTM filter. `references/manifest.md` has executable usage.
 
 ## Controls
 
@@ -37,7 +43,7 @@ m.upsert_candidate("ctrl_neg_01", is_control=True, control_type="scrambled", seq
   marked `control_type="published"`.
 
 A working pipeline separates designed/published positives from scrambled
-negatives in the ipTM and RMSD distributions.
+negatives in the selected confidence metric and RMSD distributions.
 
 ## Success rate
 
@@ -59,7 +65,7 @@ sequences/backbone) rather than over-interpreting any single design.
 ## Published comparison
 
 Re-score literature winners through your exact pipeline and check your top
-designs land in the same ipTM/RMSD regime. Absolute scores are not comparable
+designs land in the same confidence/RMSD regime. Absolute scores are not comparable
 across pipelines — only same-pipeline comparisons are meaningful.
 
 Benchmark targets come from the target registry (`assets/targets.json`) — add your own
