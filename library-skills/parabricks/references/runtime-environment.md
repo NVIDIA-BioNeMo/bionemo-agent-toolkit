@@ -11,36 +11,59 @@ user will run on a remote Linux server, cloud instance, scheduler node, or
 container platform, ask for facts from that target environment instead of
 assuming local results apply.
 
-When the current machine is the execution host, prefer the repository diagnostic
-script and use its report as the basis for recommendations:
+When the current machine is the execution host, prefer the bundled diagnostic
+script and use its report as the basis for recommendations. Run these examples
+from the skill directory containing `SKILL.md`; the helper is at
+`scripts/check_parabricks_runtime.py` relative to that directory:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py
+python3 scripts/check_parabricks_runtime.py
 ```
 
 When input, output, or temporary directories are known, include them in the
 storage check:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py \
+python3 scripts/check_parabricks_runtime.py \
   --path <input-dir> \
   --path <output-dir> \
   --path <tmp-dir>
 ```
 
-Only run container probes when the user agrees to network/image-access side
-effects. These checks may pull images or require NGC authentication:
+Wait for the helper's report before choosing additional commands. It already
+collects OS, CPU/RAM, GPU/driver, Docker version/daemon access, and any requested
+storage facts. Use the discovery commands below only if the helper cannot run
+or a specific fact remains unresolved. If workload paths are unknown, report
+that limitation; a filesystem check does not establish where inputs or scratch
+space will reside.
+
+If Docker is missing or daemon access fails, report the observed error and stop
+Docker diagnostics. Readiness does not require inspecting, connecting to,
+mounting, or changing permissions on the host Docker socket. Do not dump
+environment variables, including NVIDIA/CUDA-prefixed variables, or read
+credential/configuration files to discover authentication or host access.
+Use the helper's GPU and runtime results and request administrator-supplied
+diagnostics when the target environment is inaccessible.
+
+The default check does not launch containers. Either `--run-container-check`
+or `--parabricks-version` launches a container independently; the latter is not
+just version metadata. Only pass these flags when the user has authorized the
+network/image-access side effects. These checks may pull images or require NGC
+authentication. Select a CUDA probe image compatible with the target release
+and driver using `--cuda-test-image`; `--parabricks-version` selects only the
+Parabricks image and does not change the CUDA probe image:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py \
+python3 scripts/check_parabricks_runtime.py \
   --run-container-check \
+  --cuda-test-image nvidia/cuda:<release-compatible-tag> \
   --parabricks-version <version>
 ```
 
 For machine-readable output, use:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py --format json
+python3 scripts/check_parabricks_runtime.py --format json
 ```
 
 Do not install, upgrade, or modify packages. If prerequisites are missing,
@@ -52,7 +75,7 @@ policy, and Parabricks version.
 
 | Script | Purpose | Arguments |
 |--------|---------|-----------|
-| `scripts/check_parabricks_runtime.py` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
+| `scripts/check_parabricks_runtime.py` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--cuda-test-image <image:tag>`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
 
 ## Discovery Commands
 
@@ -71,9 +94,14 @@ For NVIDIA GPU and driver details:
 
 ```bash
 nvidia-smi
-nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version,cuda_version,compute_cap --format=csv
+nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version,compute_cap --format=csv
 nvidia-smi -L
 ```
+
+Read the driver-supported CUDA version from the plain `nvidia-smi` banner;
+`cuda_version` is not a supported `--query-gpu` field. This is the driver's
+CUDA capability, not evidence of an installed host CUDA toolkit. The helper's
+JSON `cuda_version` field has this meaning and is `null` when unavailable.
 
 For CPU and memory on Linux:
 
@@ -90,12 +118,20 @@ df -h
 df -h <input-dir> <output-dir> <tmp-dir>
 ```
 
-For Docker and NVIDIA Container Toolkit:
+For Docker, use the CLI checks below. Run `docker info` only if `docker --version`
+succeeds; a missing CLI or failed daemon-access check is a readiness blocker.
 
 ```bash
 docker --version
 docker info
-docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu22.04 nvidia-smi
+```
+
+When Docker is available and daemon access succeeds, an authorized container
+probe can test NVIDIA Container Toolkit. Select a CUDA image appropriate to the
+target release:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:<release-compatible-tag> nvidia-smi
 ```
 
 For Python:
@@ -111,18 +147,43 @@ docker pull nvcr.io/nvidia/clara/clara-parabricks:<version>
 docker run --rm --gpus all nvcr.io/nvidia/clara/clara-parabricks:<version> pbrun --help
 ```
 
-## Current Requirements To Check
+## Requirements For The Selected Release
 
-For the latest NVIDIA Parabricks documentation, check:
+Start with the exact image tag and its archived manual. The helper reports host
+facts and general resource warnings; it does not certify compatibility with
+every Parabricks release. Its 100 GB free-space warning is a heuristic, not a
+documented WGS storage requirement. Size scratch/output space for the dataset
+and planned concurrency.
+
+For **4.2 (`4.2-1`)**, the
+[archived requirements](https://archive.docs.nvidia.com/clara/parabricks/4.2.0/GettingStarted.html)
+specify driver **525.60.13 or newer**, Docker **20.10 or newer**, and supported
+NVIDIA GPUs with at least 16 GB each. `fq2bam` needs 24 GB by default, or 16 GB
+with `--low-memory`. For eight GPUs, the documented host baseline is 392 GB
+RAM and 48 CPU threads. The manual's container probe uses CUDA 12.0.0; do not
+test a 4.2 host against the helper's default CUDA 12.9.1 image.
+
+For authorized container probes on a Parabricks 4.2 host, explicitly select the
+CUDA image from that manual:
+
+```bash
+python3 scripts/check_parabricks_runtime.py \
+  --run-container-check \
+  --cuda-test-image nvidia/cuda:12.0.0-base-ubuntu20.04 \
+  --parabricks-version 4.2-1
+```
+
+If a CUDA probe fails, inspect the reported image and error before treating
+`runtime-incomplete` as evidence of a Container Toolkit problem. An incompatible
+probe image can fail on a host that supports the selected Parabricks release;
+rerun with a compatible image before recommending runtime changes.
+
+For any selected release, check its manual for:
 
 - A Linux operating system that supports the NVIDIA Container Toolkit.
 - Docker version 20.10 or higher.
-- An NVIDIA driver compatible with the Parabricks container CUDA version. The
-  current installation requirements mention CUDA 12.9.1-compatible drivers
-  such as 535, 550, 570, 575, or similar.
-- NVIDIA GPU support and memory. Current docs state at least 16 GB GPU memory
-  per GPU for all tools, with some tools requiring more by default and offering
-  lower-memory options.
+- An NVIDIA driver compatible with that Parabricks container's CUDA version.
+- NVIDIA GPU support and per-device memory for the selected tool and options.
 - CPU RAM and CPU thread recommendations for multi-GPU systems.
 - Python 3 availability.
 - No unsupported GPU mode for the target Parabricks version. Verify whether
@@ -136,7 +197,8 @@ Use the diagnostic script output to report:
 - OS/distribution and whether it looks like a supported Linux runtime.
 - GPU count, model names, compute capability if available, memory per GPU, and
   whether GPUs are visible through `nvidia-smi`.
-- Driver version and CUDA version reported by the driver.
+- Driver version and driver-supported CUDA version, distinguished from host
+  toolkit installation and the CUDA runtime bundled inside the selected image.
 - Whether Docker is installed and new enough.
 - Whether Docker can access GPUs through NVIDIA Container Toolkit.
 - Whether Python 3 is available.
@@ -232,10 +294,12 @@ Open questions:
 
 ## Key References
 
-- Parabricks installation requirements:
-  <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted/installationrequirements.html>
-- Parabricks getting started:
-  <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html>
+- Release notes and archived manuals:
+  <https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes>
+- Parabricks 4.2 requirements:
+  <https://archive.docs.nvidia.com/clara/parabricks/4.2.0/GettingStarted.html>
+- Current installation requirements (use only for that release):
+  <https://docs.nvidia.com/clara/parabricks/get-started/installation-requirements>
 - NVIDIA Container Toolkit installation:
   <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>
 - Docker Engine installation:
