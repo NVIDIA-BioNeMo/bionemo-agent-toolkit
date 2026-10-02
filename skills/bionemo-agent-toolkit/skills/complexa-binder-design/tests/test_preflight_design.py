@@ -235,6 +235,49 @@ class TestPreflightDesign(unittest.TestCase):
         self.assertFalse([e.message for e in events if e.status == "error"])
         self.assertEqual(self.registered_target()["hotspot_residues"], ["B10", "B20"])
 
+    def test_sparse_author_numbering_crops_observed_residues_and_keeps_hotspots(self):
+        # Two nearby observed residues straddle a large author-numbering gap.
+        # The interval B240-B1010 contains only 21 observed residues, not 771.
+        numbers = list(range(1, 251)) + list(range(1001, 1251))
+        lines = [f"ATOM  {i:5d}  CA  ALA B{number:4d}    "
+                 f"{float(i):8.3f}{0.0:8.3f}{0.0:8.3f}  1.00 20.00           C  "
+                 for i, number in enumerate(numbers, 1)]
+        self.target.write_text("\n".join([*lines, "TER", "END", ""]))
+        hs = Path(self.tmp.name) / "sparse-hotspots.json"
+        hs.write_text(json.dumps([{"chain": "B", "position": p} for p in (240, 1010)]))
+        report = PREFLIGHT.plan(str(self.target), hotspots=hs,
+                                out_dir=Path(self.tmp.name) / "sparse-preflight")
+        self.assertTrue(all(ok for ok, _ in report["checks"].values()), report)
+        self.assertEqual(report["conditioned_length"], 345)
+        self.assertEqual(report["final_hotspots"], ["B240(ALA)", "B1010(ALA)"])
+        actual = PREFLIGHT.P._read_first_model(Path(report["prepared_target"]))
+        self.assertIn(240, actual.res_id)
+        self.assertIn(1010, actual.res_id)
+        self.assertEqual(struc.get_residue_count(actual), 345)
+        events, submit = self.full_run(Path(self.tmp.name) / "sparse-run", target_file=str(self.target),
+                                       hotspots=str(hs))
+        self.assertFalse([e.message for e in events if e.status == "error"])
+        submit.assert_called_once()
+        entry = self.registered_target()
+        self.assertEqual(entry["hotspot_residues"], ["B240", "B1010"])
+        self.assertEqual(Path(entry["target_path"]).read_bytes(), Path(report["prepared_target"]).read_bytes())
+
+    def test_crop_checks_fail_when_observed_hotspot_span_really_exceeds_budget(self):
+        # Geometry is compact, but retaining the observed sequence between the
+        # anchors would need 400 residues, more than the 345-residue budget.
+        lines = [f"ATOM  {i:5d}  CA  ALA B{i:4d}    "
+                 f"{float(i % 10):8.3f}{0.0:8.3f}{0.0:8.3f}  1.00 20.00           C  "
+                 for i in range(1, 501)]
+        self.target.write_text("\n".join([*lines, "TER", "END", ""]))
+        hs = Path(self.tmp.name) / "too-wide-hotspots.json"
+        hs.write_text(json.dumps([{"chain": "B", "position": p} for p in (50, 449)]))
+        report = PREFLIGHT.plan(str(self.target), hotspots=hs)
+        self.assertFalse(report["checks"]["crop_preserves_hotspots"][0])
+        events, submit = self.full_run(Path(self.tmp.name) / "too-wide-run", target_file=str(self.target),
+                                       hotspots=str(hs))
+        self.assertTrue(any("preflight failed" in e.message for e in events if e.status == "error"))
+        submit.assert_not_called()
+
     def test_msa_and_validation_handoff_use_the_prepared_target_and_chain(self):
         run_dir = Path(self.tmp.name) / "handoff"
 

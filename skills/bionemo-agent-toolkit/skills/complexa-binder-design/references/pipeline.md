@@ -89,6 +89,11 @@ Input stems must be unique and become stable result IDs. Each raw JSON includes
 `_refold` provenance, chain IDs, and hotspots remapped from input author numbering
 to prediction sequence indices. Failed inputs/calls also produce raw JSON with
 `failure_reason`; they survive into the score/ranking tables with `pass: false`.
+`validation/refold_batch.json` identifies the current invocation and shortlist.
+Only matching responses enter the ranking; missing or interrupted candidates get
+failed rows. Starting another batch invalidates previous ranking tables until
+rescoring, while retaining older raw files for inspection. Keep separate round
+directories to retain complete campaign history.
 Legacy raw responses without `_refold` use the validator's explicit chain flags
 (A/B only when those are verified), and supplied hotspots must already use the
 prediction's sequence positions. Policy + metrics: `validation.md`.
@@ -137,7 +142,8 @@ outputs/<target>_<run_id>/          # run_id = UTC %Y-%m-%d_%H%M%S
 ├── hotspots.json                   # [{chain,residue,position}, ...]
 ├── design/                         # Stage 3: Complexa complex PDBs + the exact command + run config
 ├── sequences/                      # binder sequences extracted from the complexes
-├── validation/holo/ , validation/apo/ , validation/validation_scores.json(.csv)
+├── validation/raw/ , validation/apo/ , validation/validation_scores.json(.csv)
+├── validation/refold_batch.json   # current shortlist + invocation ID
 ├── ranked_binders.json / .csv      # every design (pass+fail), all metrics, pass, failure_reason
 ├── REPORT_<target>_<run_id>.md
 └── manifest.json                   # target, Complexa run config + seeds, params, versions, paths

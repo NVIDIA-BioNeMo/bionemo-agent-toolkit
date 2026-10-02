@@ -161,6 +161,8 @@ which runs apo + computes the metrics + applies the gate + ranks. Per-chain
 conditioning + metric definitions: `references/validation.md`.
 Pass verified `--target-chain` and `--binder-chain` IDs from the generated PDBs;
 the refold command requires them and retains them as prediction polymer IDs.
+Each invocation records its shortlist and batch ID in `validation/refold_batch.json`;
+scoring includes only matching responses, with failed rows for missing results.
 It records each input PDB and remaps supplied author-numbered hotspots into the
 prediction's sequence positions. Missing chains and endpoint errors produce raw
 failure records and nonzero exit status; the validator retains those rows in JSON

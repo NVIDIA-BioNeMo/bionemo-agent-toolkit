@@ -10,6 +10,8 @@ produce the holo responses. This script makes the holo Boltz2 calls — with
 retry/backoff + throttling so a batch doesn't trip the hosted endpoint's rate limit
 (HTTP 429) — writes them in the shape `validate_binders.py` expects, then (optionally)
 chains `validate_binders.py` for apo + ipSAE + apo/holo RMSD + gate + rank.
+Each invocation records its exact shortlist in validation/refold_batch.json;
+older responses cannot contribute to the new batch's ranking.
 
 Reads the API key from $NVIDIA_API_KEY / $NGC_API_KEY (hosted only; local needs none).
 
@@ -24,6 +26,7 @@ import argparse, json, os, subprocess, sys, time, urllib.error, urllib.parse, ur
 from pathlib import Path
 
 from boltz2_endpoint import HOSTED_URL, LOCAL_URL
+from refold_batch import start_batch, write_json
 THREE_TO_ONE = {
     "ALA":"A","ARG":"R","ASN":"N","ASP":"D","CYS":"C","GLN":"Q","GLU":"E","GLY":"G",
     "HIS":"H","ILE":"I","LEU":"L","LYS":"K","MET":"M","PHE":"F","PRO":"P","SER":"S",
@@ -154,13 +157,15 @@ def main() -> int:
                                               or os.getenv("NGC_API_KEY"))
     raw_dir = a.run_dir / "validation" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
+    batch = start_batch(a.run_dir, names)
 
     n_ok = 0
     pdbs = list(a.pdbs)
     for i, pdb in enumerate(pdbs):
         name = names[i]
         metadata = {"source_pdb": str(Path(pdb).resolve()),
-                    "target_chain": a.target_chain, "binder_chain": a.binder_chain}
+                    "target_chain": a.target_chain, "binder_chain": a.binder_chain,
+                    "batch_id": batch["batch_id"]}
         try:
             residues = chain_residues(pdb)
             tgt = "".join(aa for _, aa in residues.get(a.target_chain, []))
@@ -181,7 +186,7 @@ def main() -> int:
             resp = {"pass": False, "failure_reason": f"holo prediction failed: {type(e).__name__}: {e}"}
         resp["_refold"] = metadata
         # Record failures too, replacing stale responses for the same design.
-        (raw_dir / f"{name}.json").write_text(json.dumps(resp))
+        write_json(raw_dir / f"{name}.json", resp)
         if a.throttle and i < len(pdbs) - 1:
             time.sleep(a.throttle)
     print(f"=== {n_ok} holo refold(s) written ===")

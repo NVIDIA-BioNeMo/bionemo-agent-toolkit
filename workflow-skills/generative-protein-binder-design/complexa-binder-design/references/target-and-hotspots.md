@@ -85,8 +85,10 @@ If a target has two distal patches, design a **separate binder per patch**.
 
 Complexa builds an O(n²) pair-feature map over the whole complex, and the AF2-Multimer
 reward (JAX) preallocates a large GPU slice. `_crop_target_to_epitope()` crops an
-oversized target to a contiguous window centered on the epitope, **preserving original
-residue numbering** so hotspot ids and downstream Boltz2/OpenFold3 numbering stay valid.
+oversized target to a contiguous window in **observed residue order**, centered on
+the epitope and **preserving original residue numbering**. Gaps in author numbers
+do not consume the residue budget. The crop retains all anchors when their
+observed sequence span fits; a genuinely larger span fails the retention check.
 With the default binder range (64–155), the target must be ≤ 345 residues. Preparation
 first extracts only the selected target protein chain and applies any accessible
 segments, so partner size never changes the crop or target registration. It measures

@@ -81,7 +81,7 @@ scripts/validate_binders.py`, with explicit `--target-chain` and `--binder-chain
 from the input complexes and a ranked shortlist within `--max-designs` (default
 20 for N=10). Never infer chain identity from A/B defaults. Prediction polymer
 IDs retain these chain IDs; the validator uses mmCIF label IDs to match them.
-The holo helper records source PDBs and remapped hotspots under `_refold` in each
+The holo helper records source PDBs, the current batch ID, and remapped hotspots under `_refold` in each
 raw JSON. Supply input-PDB author-numbered hotspots to the helper; it maps them
 to prediction sequence positions. Missing residues/chains are explicit failures.
 
@@ -90,9 +90,20 @@ Failed holo calls and malformed inputs also have raw JSON records with
 the ipSAE dependency is absent. No apo call is made for a failed holo. A refold
 batch with any failed input returns nonzero after recording results. For legacy
 raw JSON without `_refold`, pass verified chain IDs to the validator and use
-prediction-numbered hotspots. Use a separate run/round directory when changing
-the candidate batch; resume the same directory only for the same inputs.
+prediction-numbered hotspots. Each helper invocation writes
+`validation/refold_batch.json` **before predictions start**, listing the current
+candidate names and a new batch ID. The validator scores only those candidates
+and requires each raw response to match that ID. Missing/interrupted responses
+produce failed rows; old candidate files cannot inflate the current pass count.
+Starting a batch invalidates the previous JSON/CSV ranking tables until scoring
+rebuilds them. Old raw files remain on disk for inspection. Use separate run/round
+directories when preserving multiple batches as campaign evidence. Legacy raw
+files without batch metadata retain their directory-based scoring behavior;
+never mix legacy batches in one directory. A malformed batch record is an error,
+and tagged responses without their batch record cannot be scored as current.
 
 Ranking is passers first, then descending ipTM and ipSAE_min. Missing or non-finite
 gate metrics never pass, and unequal apo/holo binder lengths cannot produce a
-truncated RMSD. The report keeps failed and unmeasured designs visible with NO-GO.
+truncated RMSD. A cached apo with a different sequence also fails; regenerate it
+for the current binder. The report keeps failed and unmeasured designs visible
+with NO-GO.

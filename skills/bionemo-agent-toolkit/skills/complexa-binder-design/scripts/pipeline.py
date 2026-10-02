@@ -633,7 +633,7 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
     """Enforce the target-size budget so (target + binder) <= MAX_COMPLEX_RESIDUES.
     ``max_residues`` defaults to ``_max_target_residues()`` (= 500 - longest binder
     = 345). If the target is within budget, return it unchanged with no messages.
-    Otherwise crop to a contiguous window centered on the epitope (hotspot residues),
+    Otherwise crop to a window of observed residues centered on the epitope,
     preserving ORIGINAL residue numbering so hotspot ids and downstream
     (Boltz2/OpenFold3) numbering stay valid, write it to ``run_dir/target_cropped.pdb``,
     and return that path plus human-readable messages describing the crop.
@@ -662,25 +662,29 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
         except (KeyError, TypeError, ValueError):
             continue
 
-    half = max_residues // 2
     dropped_hot: list[int] = []
     kept_windows: list[str] = []
     keep_mask = np.zeros(arr.array_length(), dtype=bool)
     for chain in dict.fromkeys(struc.get_chains(arr)):
         cmask = arr.chain_id == chain
+        chain_arr = arr[cmask]
+        order = [int(chain_arr.res_id[s]) for s in struc.get_residue_starts(chain_arr)]
         if hot_by_chain:
             if chain not in hot_by_chain:
                 continue  # no epitope on this chain — drop it
             hs = sorted(hot_by_chain[chain])
-            center = (hs[0] + hs[-1]) // 2
-            lo = center - half
-            hi = lo + max_residues - 1
-            sel = cmask & (arr.res_id >= lo) & (arr.res_id <= hi)
-            dropped_hot += [p for p in hs if not (lo <= p <= hi)]
+            # The budget counts observed residues, not author-number labels.
+            # A gap such as 250 -> 1001 must not consume 750 places in the crop.
+            hot_indices = [i for i, residue in enumerate(order) if residue in hs]
+            if not hot_indices:
+                raise ValueError(f"no hotspot residues are present in target chain {chain}")
+            start = (hot_indices[0] + hot_indices[-1] - max_residues + 1) // 2
+            start = max(0, min(start, len(order) - max_residues))
+            keep_ids = set(order[start:start + max_residues])
+            dropped_hot += [p for p in hs if p not in keep_ids]
         else:  # no hotspots: keep the first max_residues residues, in order
-            order = [int(arr.res_id[s]) for s in struc.get_residue_starts(arr[cmask])]
             keep_ids = set(order[:max_residues])
-            sel = cmask & np.isin(arr.res_id, list(keep_ids))
+        sel = cmask & np.isin(arr.res_id, list(keep_ids))
         if sel.any():
             keep_mask |= sel
             nums = arr.res_id[sel]
@@ -697,12 +701,13 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
     if hot_by_chain:
         msgs.append(
             f"target has {total} residues (> {budget}); cropped to the "
-            f"epitope window {', '.join(kept_windows)} ({kept_n} residues, original numbering kept)")
+            f"observed-residue epitope window {', '.join(kept_windows)} "
+            f"({kept_n} residues, original numbering kept)")
         if dropped_hot:
             msgs.append(
                 f"WARNING: {len(dropped_hot)} hotspot(s) lay outside the {max_residues}-residue "
-                f"window and were dropped: {sorted(set(dropped_hot))} — they are too far from the "
-                "main epitope to share one binder; design a separate binder for them if needed")
+                f"observed-residue window and were dropped: {sorted(set(dropped_hot))}; "
+                "the sequence span between these anchors exceeds the crop budget")
     else:
         msgs.append(
             f"WARNING: target has {total} residues (> {budget}) and NO "

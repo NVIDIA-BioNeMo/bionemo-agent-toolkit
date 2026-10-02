@@ -22,6 +22,8 @@ complex_plddt>=0.70 AND apo_binder_plddt>=0.70 AND binder_rmsd<=2.5 AND
 Every design — pass AND fail — is written to validation_scores.json/.csv and
 ranked_binders.json/.csv, each with a ``pass`` flag and a ``failure_reason``
 listing *all* gates missed (or the verbatim error if a design could not be scored).
+When validation/refold_batch.json exists, only its current candidates are scored;
+missing or stale responses remain failed rows rather than disappearing.
 
 Validation is always UNCONDITIONED: the refold sees only sequences, never the
 hotspot list; the hotspot check is an independent geometric test on the result.
@@ -60,6 +62,7 @@ GATE = {
 }
 
 from boltz2_endpoint import HOSTED_URL, LOCAL_URL
+from refold_batch import load_batch
 
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
@@ -334,7 +337,15 @@ def main() -> int:
     run_dir = args.run_dir
     raw_dir = run_dir / "validation" / "raw"
     cif_dir = run_dir / "validation" / "cif"
-    raws = sorted(raw_dir.glob("*.json"))
+    try:
+        batch = load_batch(run_dir)
+    except (OSError, ValueError) as error:
+        print(f"ERROR: cannot read current refold batch: {error}", file=sys.stderr)
+        return 2
+    # A current batch is authoritative, including candidates whose calls were
+    # interrupted before writing a response. Older files are retained as evidence.
+    raws = ([raw_dir / f"{name}.json" for name in batch["candidates"]]
+            if batch is not None else sorted(raw_dir.glob("*.json")))
     if not raws:
         print(f"ERROR: no holo Boltz2 raw JSONs under {raw_dir}", file=sys.stderr)
         return 2
@@ -362,10 +373,17 @@ def main() -> int:
     rows = []
     for raw_path in raws:
         name = raw_path.name[:-5]  # strip .json
-        rec: dict = {**dict.fromkeys(GATE), "name": name, "failure_reason": None}
+        rec: dict = {**dict.fromkeys(GATE), "name": name, "failure_reason": None,
+                     "batch_id": batch["batch_id"] if batch else None}
         try:
+            if batch is not None and not raw_path.exists():
+                raise ValueError("holo response missing for current refold batch")
             raw = json.loads(raw_path.read_text())
             metadata = raw.get("_refold", {})
+            if batch is not None and metadata.get("batch_id") != batch["batch_id"]:
+                raise ValueError("holo response does not belong to current refold batch")
+            if batch is None and metadata.get("batch_id"):
+                raise ValueError("refold batch record is missing; cannot identify current candidates")
             rec["source_pdb"] = metadata.get("source_pdb")
             if raw.get("failure_reason"):
                 rec.update({"pass": False, "failure_reason": raw["failure_reason"]})
@@ -436,6 +454,8 @@ def main() -> int:
             if apo_cif is not None:
                 apo_atoms = parse_cif_atoms(apo_cif)
                 apo_chain = sorted({a["chain"] for a in apo_atoms})[0]
+                if chain_sequence(apo_atoms, apo_chain) != binder_seq:
+                    raise ValueError("apo sequence differs from current holo binder; regenerate the apo refold")
                 rec["apo_binder_plddt"] = apo_plddt if apo_plddt is not None \
                     else chain_mean_ca_plddt(apo_atoms, apo_chain)
                 holo_ca = np.array([a["xyz"] for a in chain_ca(atoms, binder_chain)])
@@ -469,7 +489,7 @@ def main() -> int:
     (val_dir / "validation_scores.json").write_text(json.dumps(rows, indent=2))
     (run_dir / "ranked_binders.json").write_text(json.dumps(rows, indent=2))
 
-    csv_cols = ["rank", "name", "pass", "ipsae_min", "ipsae_max", "iptm",
+    csv_cols = ["rank", "name", "batch_id", "pass", "ipsae_min", "ipsae_max", "iptm",
                 "binder_plddt", "complex_plddt", "apo_binder_plddt", "binder_rmsd",
                 "hotspot_contact_frac", "binder_len", "apo_status", "failure_reason"]
     for path in (val_dir / "validation_scores.csv", run_dir / "ranked_binders.csv"):

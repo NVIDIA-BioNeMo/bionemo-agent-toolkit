@@ -130,6 +130,98 @@ class RefoldAuditTests(unittest.TestCase):
         self.assertIn("failure_reason", raw)
         self.assertNotIn("structures", raw)
 
+    def test_changed_shortlist_excludes_old_passing_candidates_from_json_and_csv(self):
+        response = {"structures": [{"structure": "holo"}], "pae": [[[0.0, 1.0], [1.0, 0.0]]],
+                    "iptm_scores": [0.9], "complex_plddt_scores": [0.95]}
+        with patch.object(REFOLD, "boltz2_holo", return_value=response):
+            self.assertEqual(self.run_refold([self.good]), 0)
+        apo = self.run_dir / "validation/apo"
+        apo.mkdir(parents=True)
+        (apo / "good.apo.cif").write_text("apo")
+
+        def atoms(text):
+            chains = ("A",) if text == "apo" else ("X", "Y")
+            return [{"chain": chain, "resnum": 1, "resname": "ALA", "atom": "CA",
+                     "bfac": 95.0, "xyz": np.zeros(3)} for chain in chains]
+
+        with patch.object(VALIDATOR, "parse_cif_atoms", side_effect=atoms), \
+             patch.object(VALIDATOR, "run_ipsae", return_value={"ipsae_min": 0.8, "ipsae_max": 0.9, "ipsae_asym": {}}):
+            self.assertEqual(self.run_validator(), 0)
+        self.assertTrue(json.loads((self.run_dir / "ranked_binders.json").read_text())[0]["pass"])
+
+        new = self.root / "new_candidate.pdb"
+        new.write_text(pdb_text())
+        with patch.object(REFOLD, "boltz2_holo", side_effect=TimeoutError("current batch failed")):
+            self.assertEqual(self.run_refold([new]), 1)
+        for directory, stem in ((self.run_dir, "ranked_binders"), (self.run_dir / "validation", "validation_scores")):
+            for suffix in (".json", ".csv"):
+                self.assertFalse((directory / (stem + suffix)).exists())
+        # Previous raw evidence is retained, but cannot join the new batch.
+        self.assertTrue((self.run_dir / "validation/raw/good.json").exists())
+        with patch.object(VALIDATOR, "parse_cif_atoms", side_effect=atoms), \
+             patch.object(VALIDATOR, "run_ipsae", return_value={"ipsae_min": 0.8, "ipsae_max": 0.9, "ipsae_asym": {}}):
+            self.assertEqual(self.run_validator(), 0)
+        for path in (self.run_dir / "ranked_binders.json", self.run_dir / "validation/validation_scores.json"):
+            rows = json.loads(path.read_text())
+            self.assertEqual([r["name"] for r in rows], ["new_candidate"])
+            self.assertFalse(rows[0]["pass"])
+        for path in (self.run_dir / "ranked_binders.csv", self.run_dir / "validation/validation_scores.csv"):
+            with path.open() as stream:
+                self.assertEqual([r["name"] for r in csv.DictReader(stream)], ["new_candidate"])
+
+    def test_interrupted_refold_cannot_reuse_an_old_response_for_the_same_name(self):
+        response = {"structures": [{"structure": "old success"}]}
+        with patch.object(REFOLD, "boltz2_holo", return_value=response):
+            self.assertEqual(self.run_refold([self.good]), 0)
+        with patch.object(REFOLD, "boltz2_holo", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            self.run_refold([self.good])
+        with patch.object(VALIDATOR, "parse_cif_atoms") as parse:
+            self.assertEqual(self.run_validator(), 0)
+        parse.assert_not_called()
+        row = json.loads((self.run_dir / "ranked_binders.json").read_text())[0]
+        self.assertFalse(row["pass"])
+        self.assertIn("current refold batch", row["failure_reason"])
+
+    def test_missing_response_in_an_interrupted_batch_is_still_a_failed_row(self):
+        pending = self.root / "pending.pdb"
+        pending.write_text(pdb_text())
+        with patch.object(REFOLD, "boltz2_holo", side_effect=[TimeoutError("first failed"), KeyboardInterrupt]), \
+             self.assertRaises(KeyboardInterrupt):
+            self.run_refold([self.good, pending])
+        self.assertEqual(self.run_validator(), 0)
+        rows = {r["name"]: r for r in json.loads((self.run_dir / "ranked_binders.json").read_text())}
+        self.assertEqual(set(rows), {"good", "pending"})
+        self.assertTrue(all(not row["pass"] for row in rows.values()))
+        self.assertIn("missing for current refold batch", rows["pending"]["failure_reason"])
+
+    def test_invalid_batch_record_cannot_fall_back_to_all_raw_files(self):
+        self.assertEqual(self.run_refold([self.bad]), 1)
+        (self.run_dir / "validation/refold_batch.json").write_text("{invalid json")
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(self.run_validator(), 2)
+        self.assertFalse((self.run_dir / "ranked_binders.json").exists())
+
+    def test_cached_apo_for_another_sequence_cannot_pass_the_current_binder(self):
+        response = {"structures": [{"structure": "holo"}], "pae": [[[0.0, 1.0], [1.0, 0.0]]],
+                    "iptm_scores": [0.9], "complex_plddt_scores": [0.95]}
+        with patch.object(REFOLD, "boltz2_holo", return_value=response):
+            self.assertEqual(self.run_refold([self.good]), 0)
+        apo = self.run_dir / "validation/apo"
+        apo.mkdir(parents=True)
+        (apo / "good.apo.cif").write_text("old apo")
+
+        def atoms(text):
+            chains = ("A",) if text == "old apo" else ("X", "Y")
+            return [{"chain": chain, "resnum": 1, "resname": "GLY" if text == "old apo" else "ALA",
+                     "atom": "CA", "bfac": 95.0, "xyz": np.zeros(3)} for chain in chains]
+
+        with patch.object(VALIDATOR, "parse_cif_atoms", side_effect=atoms), \
+             patch.object(VALIDATOR, "run_ipsae", return_value={"ipsae_min": 0.8, "ipsae_max": 0.9, "ipsae_asym": {}}):
+            self.assertEqual(self.run_validator(), 0)
+        row = json.loads((self.run_dir / "ranked_binders.json").read_text())[0]
+        self.assertFalse(row["pass"])
+        self.assertIn("apo sequence differs", row["failure_reason"])
+
     def test_shortlist_caps_actual_csv_extraction_independently_of_gpu_count(self):
         results = self.root / "results.csv"
         with results.open("w", newline="") as stream:
