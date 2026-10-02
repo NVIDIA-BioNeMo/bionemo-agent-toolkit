@@ -43,13 +43,16 @@ resolves them in this order, every candidate restricted to the accessible surfac
 3. **Paperclip literature** — full-text mining (alanine scans, ΔΔG, co-crystal
    contacts) when 1–2 are empty; see `prompts/hotspot_paperclip.md`. The structure is
    the ground-truth filter (auto-corrects literature↔structure numbering offsets).
-4. **Unconditioned** (`[]`) — documented last resort.
+4. **No supported epitope** — stop and obtain evidence-based hotspots before a
+   conditioned campaign. Unconditioned exploration does not receive READY status.
 
 This order is for automatic name/accession resolution. A supplied co-complex with
 an explicitly requested partner interface uses that structure directly after
 reviewing its contacts; honor user-specified epitopes rather than replacing them
 with functional annotations from another source. This matches `SKILL.md` and the
-PDB-input branch in `preflight_design.py`.
+shared `prepare_design_target()` in `pipeline.py`. With multiple protein partners,
+choose exactly one with `--partner-chain`; pooling contacts across partners is not
+allowed. Explicit `--hotspots` bypasses automatic interface selection.
 
 ## 3. Align to the structure (the ordering guarantee)
 
@@ -71,10 +74,10 @@ Hotspot format consumed by Stage 2:
 
 `_prune_hotspots()` enforces (a binder grips one local patch):
 
-- **Compactness ≤ 30 Å** — drop hotspots whose Cβ is > 30 Å from the densest cluster
-  centroid (removes distal outliers on other domains).
+- **Pairwise compactness ≤ 30 Å** — grow a patch from the densest hotspot
+  neighbourhood; each Cβ (Cα fallback) must be within 30 Å of every other member.
 - **Count ≤ 15** — keep the 15 closest to the centroid.
-- **Count ≥ 2** — a single residue is too weak to define an epitope.
+- **Count ≥ 1** — one anchor is accepted; prefer at least two supported hotspots.
 
 If a target has two distal patches, design a **separate binder per patch**.
 
@@ -84,19 +87,27 @@ Complexa builds an O(n²) pair-feature map over the whole complex, and the AF2-M
 reward (JAX) preallocates a large GPU slice. `_crop_target_to_epitope()` crops an
 oversized target to a contiguous window centered on the epitope, **preserving original
 residue numbering** so hotspot ids and downstream Boltz2/OpenFold3 numbering stay valid.
-With the default binder range (64–155), the target must be ≤ ~345 residues. With no
-hotspots there is no epitope to center on (it falls back to the first N residues with a
-warning) — supply hotspots.
+With the default binder range (64–155), the target must be ≤ 345 residues. Preparation
+first extracts only the selected target protein chain and applies any accessible
+segments, so partner size never changes the crop or target registration. It measures
+the actual cropped file and checks that every selected hotspot survives. A failed
+budget/retention check or an empty hotspot set blocks full-mode generation.
 
 ## 6. Preflight (no GPU)
 
 ```bash
 python scripts/preflight_design.py <name|accession> [<name> ...]
+python scripts/preflight_design.py complex.pdb --chain B --partner-chain A --out prepared
 ```
 
 Per target it reports the conditioned length, re-aligned hotspots + their source,
 compactness (Å), the ≤ 500 size budget, the count, and a **READY / NEEDS ATTENTION**
-verdict. Review here before launching generation.
+verdict. `--out` takes exactly one target and preserves the files after preflight
+exits. Without it the command is a preview. Review here before launching generation.
 
-**Stage 1 output:** `target.pdb` (single structure, possibly `target_cropped.pdb`) +
-`hotspots.json` (the residue list). For an unconditioned design, pass `[]`.
+**Stage 1 output:** `target_prepared.pdb` (selected target chain, actual crop),
+`hotspots.json` (final residues + partner/evidence metadata), and `preflight.json`
+(checks + absolute artifact paths). The same preparation runs in `pipeline.run()`;
+from an original co-complex, pass the same `chain` and `partner_chain`, or pass the
+saved target file and hotspot JSON together. Registration and MSA/validation
+handoffs use the prepared geometry. See `pipeline.md` for the generation handoff.

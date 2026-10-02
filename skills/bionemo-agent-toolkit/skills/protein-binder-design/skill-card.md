@@ -1,7 +1,7 @@
 ## Description: <br>
 Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. <br>
 
-This skill is ready for commercial/non-commercial use. <br>
+The published evaluation of revision `1213167` has a **NEUTRAL** verdict; readiness for deployment has not been established. The [benchmark](BENCHMARK.md) covers one offline bookkeeping task, not a live binder-design campaign. Gather further evidence or improve and re-evaluate the skill before a publication or deployment decision. License terms below describe permitted use, not validation readiness. <br>
 
 ## Owner
 NVIDIA <br>

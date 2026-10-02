@@ -84,7 +84,8 @@ surface-exposed, binder-accessible epitope. Resolve in evidence order
    review partner contacts for biological relevance before accepting them.
 3. **Literature (Paperclip)** — full-text mining when 1–2 are empty
    (`prompts/hotspot_paperclip.md`); structure-confirmed to auto-correct numbering.
-4. **Unconditioned** (`[]`) only as a documented last resort.
+4. **No supported epitope** — stop and obtain evidence-based hotspots. An
+   unconditioned exploratory experiment is separate from a READY binder campaign.
 
 This automatic evidence order applies to name/accession resolution. For a supplied
 PDB/co-complex and an explicit interface request, use that structure's reviewed
@@ -94,8 +95,8 @@ Then enforce, deterministically:
 - **Structure alignment** (`align_hotspots_to_structure`) — drop residues absent from
   the coordinate file; read back the real 3-letter identity (catches UniProt↔PDB
   numbering offsets — never assume equal indices or chain `A`).
-- **Epitope sanity** (`_prune_hotspots`) — one compact patch: drop outliers > 30 Å
-  from the cluster centroid, cap at 15 residues, prefer ≥ 2.
+- **Epitope sanity** (`_prune_hotspots`) — one patch with pairwise Cβ/Cα distance
+  ≤ 30 Å, cap at 15 residues, require ≥ 1 and prefer ≥ 2.
 - **Size budget ≤ 500 residues** (`_crop_target_to_epitope`) — Complexa builds an
   O(n²) pair-feature map over the whole complex, so crop large targets to an epitope
   window (original numbering preserved).
@@ -103,11 +104,15 @@ Then enforce, deterministically:
 **Preflight (no GPU):** `python3 scripts/preflight_design.py <name|accession|PDB|structure-path> …`
 reports the conditioned length, re-aligned hotspots + source, compactness, the ≤500
 budget, and a READY / NEEDS-ATTENTION verdict. Review before spending GPU.
-For PDB inputs, specify the author chain, for example
-`python3 scripts/preflight_design.py 1BRS --chain A`. Interface contacts use the
-supplied co-complex and preserve its residue numbering. A structure with no
-protein partner needs a separately justified surface patch; preflight reports
-NEEDS ATTENTION and exits nonzero when its checks fail. READY describes target
+For multichain PDB inputs, specify `--chain <target>` and choose
+`--partner-chain <partner>` when more than one protein partner is present.
+Contacts are derived from that one interface; partner chains are excluded from
+the conditioned target. Use `--hotspots <file.json>` for an explicit surface patch.
+Add `--out <prepared-dir>` to save `target_prepared.pdb`, the final `hotspots.json`,
+and `preflight.json`; pass these prepared artifacts to registration/generation
+as described in `references/pipeline.md`. Preflight and `pipeline.run()` share
+the same preparation, including actual cropping and hotspot retention checks.
+Failed checks stop full-mode generation before GPU work. READY describes target
 geometry only; check the generation and validation runtime with `check_setup.sh`.
 
 ## Stage 2 — generate (Proteina-Complexa, open CLI)

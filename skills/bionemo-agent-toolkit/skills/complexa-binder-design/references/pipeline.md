@@ -9,6 +9,19 @@ build a target MSA, and crop to the **binder + target ≤ ~500-residue** budget.
 crop): `target-and-hotspots.md`. Driven by `scripts/pipeline.py` +
 `scripts/preflight_design.py`.
 
+Save and review the actual prepared geometry before generation (chain IDs below
+are examples; verify them in the supplied structure):
+
+```bash
+python scripts/preflight_design.py complex.pdb --chain B --partner-chain A --out prepared
+```
+
+`prepared/` contains `target_prepared.pdb`, `hotspots.json`, and `preflight.json`.
+With more than one possible protein partner, `--partner-chain` is required unless
+an explicit `--hotspots` file defines the epitope. Only the selected target chain
+is conditioned on; contacts to other partners are not pooled. Preflight and full
+runs call the same preparation function, and failed checks block generation.
+
 ## Stage 2 — register + generate (open `complexa` CLI)
 
 Register the target in Complexa's target dict (hotspots + binder-length range are
@@ -17,8 +30,16 @@ reward-guided `best-of-n` (NOT the full `complexa design`):
 
 ```bash
 export COMPLEXA_REPO=/path/to/Proteina-Complexa
-complexa target add my_target --pdb target.pdb --chain A --span 1-115 \
-    --hotspots A54,A56 --binder-length 60-90      # or reuse an example (assets/targets.json)
+PYTHONPATH=scripts python - <<'PY'
+import json
+from pathlib import Path
+from pipeline import register_complexa_target
+plan = json.loads(Path("prepared/preflight.json").read_text())
+if not all(passed for passed, _ in plan["checks"].values()):
+    raise SystemExit("Resolve preflight findings before generation")
+register_complexa_target("my_target", Path(plan["prepared_target"]),
+                         plan["hotspot_residues"], chain=plan["chain"])
+PY
 python scripts/complexa_design.py run --task-name my_target --run-name run1 \
     --algorithm best-of-n --num-samples 8 --seed 0 --out outputs/run1
 ```
@@ -31,6 +52,15 @@ python scripts/complexa_design.py run --task-name my_target --run-name run1 \
 > during generation, so the full pipeline's `evaluate` (re-folds every design with
 > AF2/RF3/ESMFold) is redundant and its `analyze` needs `foldseek`/`sc`. Generation
 > alone emits the co-designed seq+structure; validate independently in Stage 3.
+
+For compatibility, the legacy `pipeline.py --mode full` still drives
+`complexa design`. Its equivalent saved-preflight handoff is
+`--target-file prepared/target_prepared.pdb --hotspots prepared/hotspots.json
+--run-dir outputs/run1`. From the original co-complex, supply the same `--chain`
+and `--partner-chain`; full mode derives and persists the interface without a
+separate hotspot file. A user-managed `target_key` must match the prepared
+geometry, hotspot set, and binder lengths. Reusing binders with a changed or
+unverified target/epitope fails; use a fresh run directory for another interface.
 
 **AF2 quality gate.** With the AF2 reward configured, `best-of-n` keeps the
 AF2-confident designs during search (i_pTM/pLDDT-guided); a persistent empty result is

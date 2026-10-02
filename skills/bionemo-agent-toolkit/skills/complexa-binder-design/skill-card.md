@@ -1,7 +1,7 @@
 ## Description: <br>
 Run a complete protein binder design campaign with NVIDIA Proteina-Complexa: resolve a target structure and hotspots, co-design binder sequence and structure with reward-guided test-time search, gate with AF2 reward, then independently validate each binder by refolding with Boltz2 and rank on interface confidence, pLDDT, ipSAE, apo/holo stability, and hotspot contact. <br>
 
-This skill is ready for commercial/non-commercial use. <br>
+The published evaluation of revision `1213167` has a **NEUTRAL** verdict; readiness for deployment has not been established. The [benchmark](BENCHMARK.md) reports a 25.0% Codex security score and incomplete Claude Code results. Review those limitations and gather further evidence or improve and re-evaluate the skill before a publication or deployment decision. License terms below describe permitted use, not validation readiness. <br>
 
 ## Owner
 NVIDIA <br>

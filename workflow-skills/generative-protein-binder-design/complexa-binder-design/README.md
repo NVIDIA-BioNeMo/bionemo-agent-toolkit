@@ -66,7 +66,12 @@ Then plan a target with **no GPU**:
 
 ```bash
 python scripts/preflight_design.py <target>  # name, UniProt accession, or PDB; READY / NEEDS-ATTENTION verdict
+python scripts/preflight_design.py complex.pdb --chain B --partner-chain A --out prepared
 ```
+
+Verify the chain IDs for your structure. Choose one partner when several are
+present; `--out` saves the prepared target, final hotspots, and report for the
+generation handoff in `references/pipeline.md`.
 
 ## Run (from an agent)
 

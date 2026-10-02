@@ -120,4 +120,4 @@ the structure. State residue count and overall confidence.
 - **Never fabricate** residue numbers, PMIDs/PMC IDs, or PDB entries. If you
   cannot find specific numbers, say so, set confidence `low`, and hand back to
   the caller (options: structural surface-patch heuristic, ask the user, or
-  proceed **unconditioned** with `[]` and document it) — do not invent hotspots.
+  stop the conditioned campaign and report the missing evidence) — do not invent hotspots.

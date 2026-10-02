@@ -26,6 +26,7 @@ Slurm/sbatch or private-NIM dependency.
 from __future__ import annotations
 
 import json
+import math
 import re
 import subprocess
 import sys
@@ -288,9 +289,9 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
     except Exception:
         yield Event("stage1", "info", "could not parse UniProt entry; hotspots empty")
         return
-    # Evidence-based strategy (hotspot_strategy.resolve_hotspots): the
-    # PROTEIN-PROTEIN INTERFACE residues from a co-complex PDB (gold standard) ->
-    # UniProt functional residues (mutagenesis + accessible sites), all restricted
+    # Evidence-based strategy (hotspot_strategy.resolve_hotspots):
+    # UniProt functional residues first, then a reviewed PDB-interface fallback,
+    # all restricted
     # to the EXTRACELLULAR/accessible range. Replaces 'Active/Binding site first',
     # which annotates catalytic/intracellular pockets — the wrong surface for a
     # binder epitope (verified: IL1R1 470 = cytoplasmic TIR; HER2 = kinase ATP site).
@@ -318,7 +319,7 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
         yield Event("stage1", "info",
                     f"no PDB-interface or UniProt functional hotspots for {acc} — fall back to the "
                     "Paperclip literature search (prompts/hotspot_paperclip.md), then re-run with "
-                    "--hotspots. Proceeding as-is would design UNCONDITIONED.",
+                    "--hotspots. Target preflight blocks generation while the epitope is missing.",
                     {"needs_paperclip": True, "hotspots": []})
 
 
@@ -437,7 +438,7 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
     if not _paperclip_available():
         yield Event("stage1", "info",
                     "paperclip CLI not found in PATH — cannot run literature fallback; "
-                    "proceeding UNCONDITIONED.")
+                    "supply supported hotspots before generation.")
         return
     names = _uniprot_name(acc)
     # Prefer a clean, searchable designation (strip isoform '.0101' / verbose
@@ -461,7 +462,7 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
             sid = m.group(1)
             break
     if not sid:
-        yield Event("stage1", "info", f"Paperclip found no papers for '{name}' — UNCONDITIONED.")
+        yield Event("stage1", "info", f"Paperclip found no papers for '{name}' — hotspots still missing.")
         return
     yield Event("stage1", "info", f"Paperclip result set {sid}; extracting residue numbers")
     mp = _run(["paperclip", "map", "--from", sid,
@@ -478,7 +479,7 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
     cand = sorted(mentions)
     if not cand:
         yield Event("stage1", "info",
-                    f"Paperclip returned no parseable residue numbers for '{name}' — UNCONDITIONED.")
+                    f"Paperclip returned no parseable residue numbers for '{name}' — hotspots still missing.")
         return
     try:
         idx = _structure_residue_index(Path(structure_path))
@@ -493,8 +494,8 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
     if best_n < 3:
         yield Event("stage1", "info",
                     f"Paperclip proposed {len(cand)} residue(s) but only {best_n} match the "
-                    f"structure ({structure_path.name}) — numbering mismatch, proceeding "
-                    "UNCONDITIONED (verify manually).")
+                    f"structure ({structure_path.name}) — numbering mismatch; "
+                    "verify hotspots manually before generation.")
         return
     # Rank by how often each residue is discussed (proxy for importance) and keep a
     # focused epitope — conditioning Complexa on dozens of scattered residues is bad.
@@ -570,22 +571,16 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
                     max_dist: float = HOTSPOT_MAX_SPREAD_A) -> tuple[list[dict], list[dict], list[str]]:
     """Enforce epitope sanity (bindclaw convention): a binder grips ONE local patch.
 
-    1. **Compactness** — drop hotspots whose Cβ (Cα fallback) is > ``max_dist`` Å from
-       the densest hotspot cluster's centroid (removes distal outliers on other
-       domains, e.g. CD45 A1169 sitting ~270 residues from the A821-A897 cluster).
+    1. **Compactness** — keep a patch with pairwise Cβ (Cα fallback) distances
+       <= ``max_dist`` Å, starting from the densest hotspot neighbourhood.
     2. **Count cap** — keep at most ``max_residues`` (the ones closest to the centroid).
 
-    Returns (kept, dropped, messages). Reads coords from ``structure_path``; if they
-    can't be read, or there are <=1 hotspots, returns the input unchanged (fail open).
-    Hotspots whose residue isn't found in the structure are kept (not penalised)."""
-    import math
+    Returns (kept, dropped, messages). Unreadable structures raise; hotspots with
+    no Cα/Cβ coordinate cannot satisfy the geometry check and are dropped."""
     hs = list(hotspots or [])
-    if len(hs) <= 1:
+    if not hs:
         return hs, [], []
-    try:
-        arr = _read_first_model(structure_path)
-    except Exception:  # noqa: BLE001 — never let a coord read break the run
-        return hs, [], []
+    arr = _read_first_model(structure_path)
 
     # Cβ (Cα fallback) coordinate per (chain, res_id): insert Cα first, then let Cβ
     # overwrite so Cβ wins when both are present.
@@ -605,20 +600,22 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
         except (KeyError, TypeError, ValueError):
             coords.append(None)
     idx = [i for i, c in enumerate(coords) if c is not None]
-    if len(idx) <= 1:
-        return hs, [], []
-
     def d(a, b):
         return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
 
-    # densest anchor → cluster centroid
-    anchor = max(idx, key=lambda i: sum(1 for j in idx if d(coords[i], coords[j]) <= max_dist))
-    cluster = [j for j in idx if d(coords[anchor], coords[j]) <= max_dist]
-    cx = tuple(sum(coords[j][k] for j in cluster) / len(cluster) for k in range(3))
-    within = sorted((j for j in idx if d(coords[j], cx) <= max_dist),
-                    key=lambda j: d(coords[j], cx))
-    capped = within[:max_residues]
-    keep = set(capped) | {i for i in range(len(hs)) if coords[i] is None}  # fail-open on no-coord
+    cluster = []
+    if idx:
+        anchor = max(idx, key=lambda i: sum(d(coords[i], coords[j]) <= max_dist for j in idx))
+        cluster = [anchor]
+        while True:
+            choices = [i for i in idx if i not in cluster
+                       and all(d(coords[i], coords[j]) <= max_dist for j in cluster)]
+            if not choices:
+                break
+            cluster.append(min(choices, key=lambda i: min(d(coords[i], coords[j]) for j in cluster)))
+        cx = tuple(sum(coords[j][k] for j in cluster) / len(cluster) for k in range(3))
+        cluster = sorted(cluster, key=lambda j: d(coords[j], cx))[:max_residues]
+    keep = set(cluster)
     kept = [hs[i] for i in range(len(hs)) if i in keep]
     dropped = [hs[i] for i in range(len(hs)) if i not in keep]
     msgs: list[str] = []
@@ -626,8 +623,8 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
         dd = sorted({f"{x.get('chain', 'A')}{x.get('position')}" for x in dropped})
         msgs.append(
             f"hotspot sanity: kept {len(kept)}, dropped {len(dropped)} residue(s) outside the "
-            f"epitope (> {max_dist:.0f} Å from the cluster centroid, or beyond the "
-            f"{max_residues}-residue cap): {dd} — a binder targets one local patch")
+            f"epitope (pairwise distance > {max_dist:.0f} Å, missing coordinates, or beyond "
+            f"the {max_residues}-residue cap): {dd}")
     return kept, dropped, msgs
 
 
@@ -676,7 +673,8 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
                 continue  # no epitope on this chain — drop it
             hs = sorted(hot_by_chain[chain])
             center = (hs[0] + hs[-1]) // 2
-            lo, hi = center - half, center + half
+            lo = center - half
+            hi = lo + max_residues - 1
             sel = cmask & (arr.res_id >= lo) & (arr.res_id <= hi)
             dropped_hot += [p for p in hs if not (lo <= p <= hi)]
         else:  # no hotspots: keep the first max_residues residues, in order
@@ -711,6 +709,133 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
             f"hotspots to center on; truncated to the first {kept_n} residues. Provide hotspots so "
             "the crop covers the real epitope")
     return out, msgs
+
+
+def prepare_design_target(structure_path: Path, run_dir: Path, *,
+                          chain: str | None = None, partner_chain: str | None = None,
+                          hotspot_data: dict | list | None = None,
+                          binder_max: int = BINDER_LENGTH[1]) -> dict:
+    """Prepare the exact target and hotspots used by both preflight and generation.
+
+    With no supplied hotspots, derive contacts to ONE protein partner. Multiple
+    possible partners require an explicit choice before any epitope compaction.
+    Partner chains never become part of the conditioned target. Persist the final
+    geometry and hotspot set so a reviewed preflight can be passed to generation.
+    """
+    import numpy as np
+    import biotite.structure as struc
+    import biotite.structure.io.pdb as pdb
+
+    if not 0 < binder_max < MAX_COMPLEX_RESIDUES:
+        raise ValueError(f"binder_max must be between 1 and {MAX_COMPLEX_RESIDUES - 1}")
+    model = _read_first_model(structure_path)
+    protein = model[struc.filter_amino_acids(model)]
+    chains = list(dict.fromkeys(str(c) for c in protein.chain_id))
+    if chain is None:
+        if len(chains) != 1:
+            raise ValueError(f"select a target with --chain; protein chains: {', '.join(chains) or 'none'}")
+        chain = chains[0]
+    if chain not in chains:
+        raise ValueError(f"protein chain {chain!r} absent; available: {', '.join(chains) or 'none'}")
+    target = protein[protein.chain_id == chain]
+    if any(str(code).strip() for code in target.ins_code):
+        raise ValueError("target chain has insertion codes; prepare unambiguous integer residue numbering first")
+    partners = [c for c in chains if c != chain]
+    if partner_chain is not None and partner_chain not in partners:
+        raise ValueError(f"partner chain {partner_chain!r} must differ from target {chain!r} "
+                         f"and be a protein chain; available: {', '.join(partners) or 'none'}")
+
+    data = dict(hotspot_data) if isinstance(hotspot_data, dict) else {}
+    segs = data.get("accessible_segments")
+    if hotspot_data is None:
+        if partner_chain is None and len(partners) > 1:
+            raise ValueError("select one interface with --partner-chain; protein partners: "
+                             + ", ".join(partners))
+        partner_chain = partner_chain or (partners[0] if partners else None)
+        hs = []
+        if partner_chain is not None:
+            heavy = protein[~np.isin(protein.element, ["H", "D"])]
+            target_heavy = heavy[heavy.chain_id == chain]
+            partner = heavy[heavy.chain_id == partner_chain]
+            if partner.array_length() and target_heavy.array_length():
+                hits = struc.CellList(partner, cell_size=5.0).get_atoms(target_heavy.coord, radius=5.0)
+                positions = sorted(set(int(r) for r in target_heavy.res_id[(hits != -1).any(axis=1)]))
+                hs = [{"chain": chain, "position": p, "source": "pdb_interface",
+                       "partner_chain": partner_chain} for p in positions]
+        data["source"] = "pdb_interface" if hs else "none"
+    else:
+        hs = data.get("hotspot_residues", []) if isinstance(hotspot_data, dict) else hotspot_data
+        if not isinstance(hs, list):
+            raise ValueError("hotspots must be a list or a mapping with hotspot_residues")
+    hs = [{**h, "chain": str(h.get("chain", chain)), "position": int(h["position"])} for h in hs]
+    full_length = int(struc.get_residue_count(target))
+    if segs is not None:
+        accessible = np.zeros(target.array_length(), dtype=bool)
+        for lo, hi in segs:
+            accessible |= (target.res_id >= int(lo)) & (target.res_id <= int(hi))
+        target = target[accessible]
+    if not target.array_length():
+        raise ValueError("selected target has no accessible protein residues")
+
+    run_dir = Path(run_dir).resolve()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    selected_path = run_dir / "target_selected.pdb"
+    pf = pdb.PDBFile()
+    pf.set_structure(target)
+    pf.write(selected_path)
+    aligned, off_structure = align_hotspots_to_structure(hs, selected_path)
+
+    def diameter(hotspots, arr):
+        coords = {}
+        for name in ("CA", "CB"):
+            mask = arr.atom_name == name
+            for c, r, xyz in zip(arr.chain_id[mask], arr.res_id[mask], arr.coord[mask]):
+                coords[(str(c), int(r))] = tuple(float(v) for v in xyz)
+        points = [coords[(h["chain"], h["position"])] for h in hotspots
+                  if (h["chain"], h["position"]) in coords]
+        return max((math.dist(a, b) for i, a in enumerate(points) for b in points[i + 1:]), default=0.0)
+
+    raw_diameter = diameter(aligned, target)
+    pruned, compact_dropped, messages = _prune_hotspots(aligned, selected_path)
+    prepared, crop_messages = _crop_target_to_epitope(
+        selected_path, pruned, run_dir, max_residues=MAX_COMPLEX_RESIDUES - binder_max)
+    final, crop_dropped = align_hotspots_to_structure(pruned, prepared)
+    prepared_path = run_dir / "target_prepared.pdb"
+    prepared_path.write_bytes(prepared.read_bytes())
+    prepared_model = _read_first_model(prepared_path)
+    conditioned_length = int(struc.get_residue_count(prepared_model))
+    final_diameter = diameter(final, prepared_model)
+    n = len(final)
+    checks = {
+        "size<=500": (conditioned_length + binder_max <= MAX_COMPLEX_RESIDUES,
+                      f"{conditioned_length}+{binder_max}={conditioned_length + binder_max}"),
+        "compact<=30A": (final_diameter <= HOTSPOT_MAX_SPREAD_A, f"{final_diameter:.1f} Å"),
+        f">={HOTSPOT_MIN_RESIDUES}_hotspots": (n >= HOTSPOT_MIN_RESIDUES, str(n)),
+        "<=15_hotspots": (n <= HOTSPOT_MAX_RESIDUES, str(n)),
+        "crop_preserves_hotspots": (not crop_dropped, f"{len(crop_dropped)} lost during crop"),
+    }
+    data.update({"hotspot_residues": final, "target_chain": chain,
+                 "partner_chain": partner_chain or data.get("partner_chain"),
+                 "numbering": "author numbering in target_prepared.pdb",
+                 "dropped_hotspots": off_structure + compact_dropped + crop_dropped})
+    hotspots_path = run_dir / "hotspots.json"
+    hotspots_path.write_text(json.dumps(data, indent=2) + "\n")
+    labels = lambda items: [f"{h['chain']}{h['position']}({h.get('residue', h.get('source', '?'))})" for h in items]
+    report = {
+        "chain": chain, "partner_chain": data["partner_chain"],
+        "source": data.get("source", "provided" if final else "none"),
+        "full_length": full_length,
+        "accessible_residues": int(struc.get_residue_count(target)),
+        "conditioned_length": conditioned_length,
+        "conditioning": "; ".join(crop_messages) or (f"accessible segments {segs}" if segs is not None else "whole chain"),
+        "raw_hotspots": labels(hs), "aligned_hotspots": labels(aligned),
+        "final_hotspots": labels(final), "hotspot_residues": final, "n_hotspots": n,
+        "diameter_A_raw": round(raw_diameter, 1), "diameter_A_final": round(final_diameter, 1),
+        "checks": checks, "prepared_target": str(prepared_path), "hotspots_path": str(hotspots_path),
+    }
+    if messages:
+        report["compaction"] = "; ".join(messages)
+    return report
 
 
 def register_complexa_target(task_name: str, structure_path: Path, hotspots: list[dict],
@@ -1037,16 +1162,20 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
                 {"n_designs": len(usable)})
 
 
-def fetch_target_msa(run_dir: Path) -> Iterator[Event]:
+def fetch_target_msa(run_dir: Path, structure_path: Path | None = None,
+                     chain: str = "A") -> Iterator[Event]:
     yield Event("stage3", "start", "building target MSA (ColabFold)")
     out = run_dir / "target.a3m"
-    p = _run([sys.executable, FETCH_MSA, "--seq-from-pdb", run_dir / "target.pdb", "-o", out], timeout=1200)
+    structure_path = structure_path if structure_path is not None else run_dir / "target.pdb"
+    p = _run([sys.executable, FETCH_MSA, "--seq-from-pdb", structure_path,
+              "--chain", chain, "-o", out], timeout=1200)
     if p.returncode != 0:
         raise RuntimeError(f"MSA fetch failed: {p.stderr[-400:]}")
     yield Event("stage3", "ok", f"target MSA written ({out.name})")
 
 
-def validation_handoff(run_dir: Path, conditioning: str) -> Iterator[Event]:
+def validation_handoff(run_dir: Path, conditioning: str,
+                       structure_path: Path | None = None, chain: str = "A") -> Iterator[Event]:
     """Stage-3 is an INDEPENDENT refold via the Boltz2/OpenFold3 NIM (a different
     model family than Complexa's AF2/RF3 reward+evaluate). Generation is automated
     above; the NIM calls are driven by the agent (boltz2-nim / openfold3-nim skill).
@@ -1059,12 +1188,13 @@ def validation_handoff(run_dir: Path, conditioning: str) -> Iterator[Event]:
       * APO:  binder alone         → validation/apo/<name>.apo.cif
     """
     binders = run_dir / "sequences" / "binders_complexa_native.fasta"
+    structure_path = structure_path if structure_path is not None else run_dir / "target.pdb"
     yield Event("stage3", "start",
                 f"independent validation handoff ({conditioning}) — drive Boltz2/OF3 via the NIM skill")
     yield Event("stage3", "info",
-                f"binders: {binders}; target: {run_dir / 'target.pdb'}; "
+                f"binders: {binders}; target: {structure_path} (chain {chain}); "
                 f"target conditioning: {conditioning} "
-                f"({'target.a3m' if conditioning == 'msa' else 'target.cif template'}). "
+                f"({'target.a3m' if conditioning == 'msa' else 'template converted from the prepared target'}). "
                 "Write holo Boltz2 responses to validation/raw/*.json and apo cifs to "
                 "validation/apo/*.apo.cif, then run validate_binders.py (or score()).")
 
@@ -1093,7 +1223,8 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
         target_file: str | None = None, target_key: str | None = None,
         conditioning: str = "msa", n_validated: int = 0, n_requested: int = DEFAULT_REQUESTED,
         n_devices: int = N_DEVICES_DEFAULT,
-        hotspots: str | None = None, apo_dir: str | None = None) -> Iterator[Event]:
+        hotspots: str | None = None, apo_dir: str | None = None,
+        chain: str | None = None, partner_chain: str | None = None) -> Iterator[Event]:
     """Stream the pipeline. See module docstring for modes.
 
     A zero ``n_validated`` uses 2 x ``n_requested`` (default 20); a positive
@@ -1118,7 +1249,7 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
             # PDB), or an explicit spec dict.
             if target_file:
                 ext = Path(target_file).suffix.lower()
-                spec = {"cif_path": target_file} if ext == ".cif" else {"pdb_path": target_file}
+                spec = {"cif_path": target_file} if ext in (".cif", ".mmcif") else {"pdb_path": target_file}
                 label = Path(target_file).stem
             elif target_text:
                 spec = resolve_target_spec(target_text)
@@ -1128,77 +1259,58 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                 label = target.get("uniprot") or target.get("pdb") or "target"
             else:
                 raise ValueError("full mode needs target_text, target_file, or target spec")
-            rd = OUTPUTS / f"{label}_app"
+            rd = Path(run_dir).expanduser() if run_dir else OUTPUTS / f"{label}_app"
             yield Event("init", "start",
                         f"full run → {rd.name} (N={n_validated}, {conditioning})")
             if spec.get("resolved_from"):
                 yield Event("init", "info", f"resolved target: {spec['resolved_from']}")
             yield from resolve_target(spec, rd)
-            # Resolve final hotspots: an explicitly provided file (e.g. the
-            # Paperclip fallback output) wins over the UniProt-derived set. Either
-            # way, align to the resolved structure so Stage 2 never conditions on a
-            # residue absent from the coordinates (the 'ordering' guarantee).
-            structure = rd / "target.cif" if (rd / "target.cif").exists() else rd / "target.pdb"
-            if hotspots and Path(hotspots).exists():
+            structure = rd / ("target.cif" if spec.get("uniprot") or spec.get("cif_path") else "target.pdb")
+            # None requests PDB-interface discovery; an explicit [] must never
+            # silently become a different interface. Old PDB hotspots in a reused
+            # run directory are not evidence for the currently selected partner.
+            hsrc = None
+            if hotspots:
                 yield Event("stage1", "info", f"using provided hotspots file: {Path(hotspots).name}")
                 hsrc = json.loads(Path(hotspots).read_text())
-            elif (rd / "hotspots.json").exists():
-                hsrc = json.loads((rd / "hotspots.json").read_text())
-            else:
+            elif spec.get("uniprot"):
                 hsrc = []
-            hs_in = hsrc.get("hotspot_residues", []) if isinstance(hsrc, dict) else hsrc
-            # UniProt gave nothing → run the Paperclip literature fallback automatically.
-            if not hs_in and structure.exists() and spec.get("uniprot"):
-                yield from paperclip_hotspots(spec["uniprot"], structure, rd)
                 if (rd / "hotspots.json").exists():
-                    hj = json.loads((rd / "hotspots.json").read_text())
-                    hs_in = hj.get("hotspot_residues", []) if isinstance(hj, dict) else hj
-            if hs_in and structure.exists():
-                kept, dropped = align_hotspots_to_structure(hs_in, structure)
-                if dropped:
-                    yield Event("stage1", "info",
-                                f"aligned hotspots to {structure.name}: dropped {len(dropped)} "
-                                "off-structure residue(s) — "
-                                + "; ".join(d.get("drop_reason", "") for d in dropped[:6]))
-                wrapper = hsrc if isinstance(hsrc, dict) else {}
-                wrapper["hotspot_residues"] = kept
-                wrapper["numbering"] = f"aligned to {structure.name} coordinates"
-                (rd / "hotspots.json").write_text(json.dumps(wrapper, indent=2))
-                yield Event("stage1", "ok", f"{len(kept)} structure-aligned hotspot(s) ready",
-                            {"hotspots": kept[:20]})
-            elif not hs_in:
-                yield Event("stage1", "info",
-                            "no hotspots (UniProt empty and none provided) — run the Paperclip "
-                            "fallback (prompts/hotspot_paperclip.md) and re-run with --hotspots, "
-                            "or proceed UNCONDITIONED.")
+                    hsrc = json.loads((rd / "hotspots.json").read_text())
+                hs_in = hsrc.get("hotspot_residues", []) if isinstance(hsrc, dict) else hsrc
+                if not hs_in:
+                    yield from paperclip_hotspots(spec["uniprot"], structure, rd)
+                    if (rd / "hotspots.json").exists():
+                        hsrc = json.loads((rd / "hotspots.json").read_text())
+            prepared_path = rd / "target_prepared.pdb"
+            previous_geometry = prepared_path.read_bytes() if prepared_path.exists() else None
+            previous_hotspots = (rd / "prepared_hotspots.json").read_text() if (rd / "prepared_hotspots.json").exists() else None
+            report = prepare_design_target(structure, rd, chain=chain or spec.get("chain"),
+                                           partner_chain=partner_chain or spec.get("partner_chain"),
+                                           hotspot_data=hsrc)
+            (rd / "preflight.json").write_text(json.dumps(report, indent=2) + "\n")
+            failed_checks = [name for name, (passed, _) in report["checks"].items() if not passed]
+            if failed_checks:
+                raise ValueError("target preflight failed: " + ", ".join(failed_checks)
+                                 + "; review preflight.json and supply a valid epitope before generation")
+            pdb_for_complexa = Path(report["prepared_target"])
+            final_hs = report["hotspot_residues"]
+            hotspot_record = json.dumps(final_hs, sort_keys=True)
+            yield Event("stage1", "ok", f"prepared chain {report['chain']}: "
+                        f"{report['conditioned_length']} residues, {len(final_hs)} hotspot(s)", report)
             # Stage 2 — register the target + run the FULL Complexa pipeline, then
             # extract real (inverse-folded) binder sequences. A pre-staged FASTA or
             # an explicit target_key short-circuits parts of this.
             binders = rd / "sequences" / "binders_complexa_native.fasta"
             if binders.exists():
+                if previous_geometry != pdb_for_complexa.read_bytes() or previous_hotspots != hotspot_record:
+                    raise ValueError("pre-staged binders have different or unverified target/hotspot provenance; "
+                                     "use a new --run-dir for this target/interface")
                 yield Event("stage2", "info", f"reusing pre-staged {binders}")
             else:
-                pdb_for_complexa = _ensure_pdb(structure, rd)
                 task = target_key or ("app_" + re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_"))
-                final_hs: list = []
-                if (rd / "hotspots.json").exists():
-                    hj = json.loads((rd / "hotspots.json").read_text())
-                    final_hs = hj.get("hotspot_residues", hj) if isinstance(hj, dict) else hj
-                # Hotspot sanity: a binder targets ONE compact epitope. Drop distal
-                # outliers (> HOTSPOT_MAX_SPREAD_A from the cluster) and cap at
-                # HOTSPOT_MAX_RESIDUES, so generation + the crop center on a real patch.
-                if final_hs and not target_key:
-                    final_hs, _dropped_hs, _hs_msgs = _prune_hotspots(final_hs, pdb_for_complexa)
-                    for m in _hs_msgs:
-                        yield Event("stage1", "info", m)
-                    # A binder needs >=2 hotspots to define an epitope; 1 is too weak.
-                    if 0 < len(final_hs) < HOTSPOT_MIN_RESIDUES:
-                        yield Event("stage1", "info",
-                                    f"WARNING: only {len(final_hs)} hotspot residue after sanity "
-                                    f"pruning (need >= {HOTSPOT_MIN_RESIDUES}). A single residue is "
-                                    "too weak to define an epitope — add hotspots (Paperclip/"
-                                    "literature) or this design is effectively unconditioned.")
                 already_registered = False
+                td = {}
                 _td_path = _targets_dict()
                 if _td_path.exists():
                     try:
@@ -1208,17 +1320,20 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                     except Exception:  # noqa: BLE001
                         pass
                 if target_key:
-                    # User-managed, pre-registered target — trust it as-is.
+                    entry = td.get("target_dict_cfg", {}).get(task, {})
+                    registered_path = Path(entry.get("target_path", ""))
+                    if not registered_path.is_absolute():
+                        registered_path = _complexa_repo() / registered_path
+                    if (not registered_path.is_file()
+                            or registered_path.read_bytes() != pdb_for_complexa.read_bytes()
+                            or entry.get("target_input") != _target_input_segments(pdb_for_complexa)
+                            or entry.get("hotspot_residues") != [f"{h['chain']}{h['position']}" for h in final_hs]
+                            or entry.get("binder_length") != list(BINDER_LENGTH)):
+                        raise ValueError(f"registered target {task!r} differs from the prepared geometry, "
+                                         "hotspots, or binder lengths; omit target_key to register this plan")
                     yield Event("stage2", "info",
-                                f"target '{task}' supplied explicitly — reusing existing entry "
-                                "(not overwriting)")
+                                f"target '{task}' matches the prepared plan — reusing existing entry")
                 else:
-                    # Enforce the target-size cap; crop oversized targets to the
-                    # epitope so Complexa's O(n^2) pair features don't OOM.
-                    pdb_for_complexa, crop_msgs = _crop_target_to_epitope(
-                        pdb_for_complexa, final_hs, rd)
-                    for m in crop_msgs:
-                        yield Event("stage1", "info", m)
                     # A full run just freshly resolved the structure + hotspots, so
                     # ALWAYS (re)register with the current result rather than reusing a
                     # possibly-stale entry (e.g. an earlier unconditioned 0-hotspot run).
@@ -1232,6 +1347,7 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                                 f"(target_input={entry['target_input']}, "
                                 f"{len(entry['hotspot_residues'])} hotspot(s), "
                                 f"binder_length={entry['binder_length']})")
+                (rd / "prepared_hotspots.json").write_text(hotspot_record)
                 run_name = f"{task}_{time.strftime('%Y%m%d_%H%M%S')}"
                 yield from submit_complexa(task, run_name, n_devices=n_devices)
                 # Apply the AF2-reward gate + complexity filter; forward passers to
@@ -1241,9 +1357,9 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                 if not binders.exists():
                     return  # extract_complexa_designs already emitted a specific error
             if conditioning == "msa":
-                yield from fetch_target_msa(rd)
+                yield from fetch_target_msa(rd, pdb_for_complexa, report["chain"])
             # Stage 3 is an independent NIM refold driven by the agent; emit the handoff.
-            yield from validation_handoff(rd, conditioning)
+            yield from validation_handoff(rd, conditioning, pdb_for_complexa, report["chain"])
             # If holo/apo refolds already exist (agent produced them, or a prior run),
             # score immediately; otherwise stop after the handoff.
             if (rd / "validation" / "raw").is_dir():
@@ -1257,17 +1373,30 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
         yield Event("error", "error", f"{type(e).__name__}: {e}")
 
 
-if __name__ == "__main__":
-    # tiny CLI for testing without the UI: score an existing run
+def main(argv=None):
+    """Score an existing run or generate from an explicitly prepared target."""
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", default="score_existing")
+    ap.add_argument("--mode", choices=("score_existing", "full"), default="score_existing")
     ap.add_argument("--run-dir")
     ap.add_argument("--apo-dir")
-    a = ap.parse_args()
-    for ev in run(mode=a.mode, run_dir=a.run_dir, apo_dir=a.apo_dir):
+    ap.add_argument("--target", dest="target_text", help="protein name, UniProt accession or PDB ID")
+    ap.add_argument("--target-file", help="local PDB/mmCIF, including a preflight target_prepared.pdb")
+    ap.add_argument("--chain", help="target author chain (required for multichain structures)")
+    ap.add_argument("--partner-chain", help="one protein partner defining the interface")
+    ap.add_argument("--hotspots", help="explicit hotspot JSON, including a preflight hotspots.json")
+    a = ap.parse_args(argv)
+    status = 0
+    for ev in run(**vars(a)):
         print(ev.line())
+        if ev.status == "error":
+            status = 1
         if ev.stage == "gate" and ev.status == "ok":
             for r in ev.data.get("ranked", [])[:10]:
                 print(f"    #{r.get('rank')} {r.get('name','')[:46]:46} pass={r.get('pass')} "
                       f"ipSAEmin={r.get('ipsae_min')} rmsd={r.get('binder_rmsd')}")
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
