@@ -3,57 +3,100 @@
   "evals": [
     {
       "id": "parabricks-001",
-      "prompt": "I want to use the parabricks skill to check if my system is ready to run pbrun fq2bam. Can you verify my GPU and runtime environment?",
-      "expected_output": "The agent used the parabricks skill to assess GPU and runtime readiness, executed the runtime check script, and reported whether the system meets requirements for running pbrun fq2bam.",
+      "prompt": "Can this machine run NVIDIA Parabricks for paired-end WGS alignment? Check the current environment and explain any blockers. Do not install software or launch containers.",
+      "expected_output": "The agent assesses this machine for Parabricks WGS alignment using observed GPU, driver, container-runtime, CPU/RAM, and storage facts. It distinguishes detected blockers from unverified requirements and gives actionable next steps without installing software or launching containers.",
       "assertions": [
-        "The agent read the parabricks SKILL.md to understand the workflow for runtime readiness checks",
-        "The agent executed check_parabricks_runtime.py to assess GPU, driver, and container readiness",
-        "The agent reported the results of the runtime check including GPU availability and driver status",
-        "The agent referenced runtime-environment.md or provided guidance on resolving any detected issues",
-        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+        "The agent obtains and reports actual GPU visibility, GPU model/memory when available, and driver status from this machine; equivalent diagnostic methods are accepted.",
+        "The agent reports Docker availability and daemon access, and labels container GPU access or Parabricks image execution as unverified when no container was launched.",
+        "The agent reports CPU/RAM and available storage facts, or explicitly identifies unavailable facts and unknown workload paths.",
+        "The agent gives a readiness assessment grounded in the observations and actionable next steps, without claiming release-specific compatibility when the image version is unknown.",
+        "The agent honors the request not to install software or launch containers."
       ],
       "expected_skill": "parabricks",
       "expected_script": "check_parabricks_runtime.py"
     },
     {
       "id": "parabricks-002",
-      "prompt": "I have paired-end RNA-seq FASTQ files from an Illumina NovaSeq run and I need to align them with STAR on GPU. What's the fastest way to get a sorted BAM with splice-aware alignment using NVIDIA tools?",
-      "expected_output": "The agent identified pbrun rna_fq2bam as the appropriate tool for GPU-accelerated RNA-seq STAR alignment, checked runtime readiness, and provided version-aware command guidance with Docker mounts and required flags.",
+      "prompt": "I have paired-end Illumina RNA-seq FASTQs and access to a remote NVIDIA GPU server. I need splice-aware alignments in a coordinate-sorted BAM. Recommend a tool and give me a Docker command template, identifying any missing inputs. Do not probe this workstation or execute the workload.",
+      "expected_output": "The agent recommends pbrun rna_fq2bam for GPU STAR alignment and provides a version-aware Docker template with explicit mounts, paired FASTQs, matching reference/STAR index, and sorted BAM output. Unknown values are requested or clearly marked as placeholders; no local readiness check or workload execution is needed.",
       "assertions": [
-        "The agent identified rna_fq2bam as the correct pbrun tool for RNA-seq splice-aware alignment",
-        "The agent executed check_parabricks_runtime.py to verify the environment supports Parabricks",
-        "The agent asked for or confirmed missing context such as reference genome build, Parabricks version, and output path",
-        "The agent generated a Docker command with explicit mounts and placeholders for the rna_fq2bam workflow",
-        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+        "The agent identifies pbrun rna_fq2bam for splice-aware GPU STAR alignment and coordinate-sorted BAM output.",
+        "The Docker template has an explicit Parabricks image tag or version placeholder, GPU access, working directory, and mounts covering input FASTQs, reference/index, and output paths.",
+        "The pbrun command supplies paired inputs via --in-fq, --ref, --genome-lib-dir, --output-dir, and --out-bam using paths consistent with the mounts.",
+        "The agent asks for or clearly labels unresolved reference build, compatible STAR index, image version, and output location; it does not present guesses as confirmed values.",
+        "The agent does not probe this workstation or execute the alignment, and does not promise a fastest runtime without comparable benchmark evidence."
       ],
       "expected_skill": "parabricks",
-      "expected_script": "check_parabricks_runtime.py"
+      "expected_script": null
     },
     {
       "id": "parabricks-003",
-      "prompt": "We're setting up a new DGX A100 node for our clinical genomics lab. Before we start processing 30x WGS samples through germline variant calling, I need to confirm the node has the right NVIDIA drivers, CUDA version, and enough local NVMe storage for Parabricks 4.2. Can you run a readiness check?",
-      "expected_output": "The agent performed a runtime environment readiness assessment for the DGX A100 node, executed the check script, and provided actionable guidance on driver compatibility, CUDA version, storage requirements, and container setup for Parabricks 4.2 germline workflows.",
+      "prompt": "Assess readiness of a remote DGX A100 for 30x human WGS germline processing with nvcr.io/nvidia/clara/clara-parabricks:4.2-1. Use these administrator-supplied diagnostics: Ubuntu 22.04; 8 physical A100 80 GB GPUs with MIG disabled; driver 470.182.03; nvidia-smi reports CUDA Version 11.4; 128 CPU threads; 1 TB system RAM; Docker 24.0.7 and docker info succeeds. NVIDIA Container Toolkit and GPU access inside containers have not been tested. /raid has 40 GB free, and the plan is to stage 120 GB of FASTQs there before writing temporary files and output. Your terminal is on a separate login machine: do not probe it, install software, or launch containers. Explain blockers, unknowns, and next steps for the remote node, using requirements for the selected release.",
+      "expected_output": "The agent evaluates the supplied remote-host facts against Parabricks 4.2 requirements. It identifies the driver below 525.60.13 and insufficient staging space, distinguishes driver CUDA capability from a host toolkit, recognizes sufficient stated GPU/CPU/RAM resources, and leaves container GPU access and image execution unverified. It provides target-specific remediation without probing the login host.",
       "assertions": [
-        "The agent executed check_parabricks_runtime.py to assess GPU drivers, CUDA, and storage readiness",
-        "The agent referenced runtime-environment.md for Parabricks 4.2 system requirements",
-        "The agent reported findings on driver version, CUDA compatibility, and storage adequacy",
-        "The agent provided recommendations or next steps for any gaps identified in the readiness check",
-        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+        "The agent uses the supplied remote DGX facts and does not probe the separate login machine or claim to have tested the DGX.",
+        "The agent checks the Parabricks 4.2 requirements and identifies driver 470.182.03 as below the documented minimum 525.60.13; it does not substitute requirements from a newer release.",
+        "The agent explains that nvidia-smi CUDA Version is driver-supported CUDA capability, not proof of an installed host CUDA toolkit, and that the selected container supplies its own runtime.",
+        "The agent recognizes 40 GB free cannot stage 120 GB of FASTQs and additional working files; it does not invent a universal fixed disk requirement for 30x WGS.",
+        "The agent distinguishes the adequate supplied GPU/CPU/RAM and Docker version facts from unverified Toolkit/container GPU/image access, and recommends driver remediation, more staging/scratch space, and subsequent authorized target-host verification."
       ],
       "expected_skill": "parabricks",
-      "expected_script": "check_parabricks_runtime.py"
+      "expected_script": null
     },
     {
       "id": "parabricks-004",
-      "prompt": "Can you help me set up a Nextflow pipeline that chains together multiple tools including alignment, variant calling, and annotation with automatic retry logic and cloud executor configuration?",
-      "expected_output": "The agent recognized this as a whole-pipeline orchestration and workflow engineering question rather than a single Parabricks tool command, and routed the user to appropriate workflow or pipeline skills instead of using parabricks.",
+      "prompt": "My existing Nextflow genomics pipeline needs retries for failed tasks and an AWS Batch executor configuration. The alignment and variant-calling commands are already settled. Explain where these settings belong and show a minimal configuration example.",
+      "expected_output": "The agent treats this as Nextflow configuration and provides useful general workflow guidance with a minimal retry and AWS Batch configuration. It does not activate Parabricks or run its helper. A named alternative skill is optional and is not required when none is installed.",
       "assertions": [
-        "The agent did not invoke the parabricks skill or execute check_parabricks_runtime.py",
-        "The agent recognized the request involves pipeline-level orchestration rather than a single pbrun command",
-        "The agent suggested an alternative skill or approach such as genomics-workflow-acceleration or general Nextflow guidance",
-        "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
+        "The agent does not invoke the parabricks skill or execute check_parabricks_runtime.py.",
+        "The agent addresses Nextflow workflow configuration without replacing the settled alignment or variant-calling commands.",
+        "The agent shows a minimal configuration with process retry handling and a bounded retry count, plus AWS Batch executor, queue, region, and an S3 work directory or clearly labeled placeholders.",
+        "The agent explains where the configuration or profile is selected and identifies cloud prerequisites without claiming deployment or execution.",
+        "General Nextflow guidance satisfies the routing requirement; naming another installed skill is optional, and the agent does not claim that an unavailable skill was used."
       ],
       "expected_skill": null,
+      "expected_script": null
+    },
+    {
+      "id": "parabricks-005",
+      "prompt": "Translate these CPU STAR options to a Parabricks 4.7.0 rna_fq2bam command template: --genomeDir /refs/star, --readFilesIn R1.fastq.gz R2.fastq.gz, --readFilesCommand zcat, --outSAMtype BAM SortedByCoordinate, --outFilterMismatchNmax 5, --twopassMode Basic, and --runThreadN 16. Explain any mapping that is not one-to-one. Reference FASTA and output paths can be placeholders. Do not run the command or inspect local hardware.",
+      "expected_output": "The agent translates STAR options to the documented Parabricks 4.7.0 interface, preserving paired compressed input, mismatch limit, two-pass mode, and sorted BAM output. It explains that --num-threads means workers per GPU stream rather than STAR total threads, so --runThreadN 16 cannot be copied as an equivalent resource setting.",
+      "assertions": [
+        "The command uses --genome-lib-dir /refs/star, --in-fq R1.fastq.gz R2.fastq.gz, and --read-files-command zcat, with a reference FASTA and explicit output placeholders.",
+        "The agent maps --outFilterMismatchNmax 5 to --max-out-filter-mismatch 5 and --twopassMode Basic to --two-pass-mode Basic.",
+        "The agent explains sorted BAM output via --out-bam and does not pass generic STAR --outSAMtype directly to pbrun.",
+        "The agent explains that Parabricks --num-threads controls workers per GPU stream, so STAR --runThreadN 16 is not a one-to-one mapping; it leaves auto/default or labels tuning as a separate choice.",
+        "The agent uses version-specific guidance and does not run the command or probe local hardware."
+      ],
+      "expected_skill": "parabricks",
+      "expected_script": null
+    },
+    {
+      "id": "parabricks-006",
+      "prompt": "I am preparing pbrun rna_fq2bam with Parabricks 4.7.0. My reference FASTA is GRCh37, but the STAR genome library was built from GRCh38. Can I use these together if I rename the contigs? Explain what needs to match and how to prepare a valid command. This is a planning question; do not run anything.",
+      "expected_output": "The agent rejects mixing a GRCh37 FASTA with a GRCh38 STAR genome library. Renaming contigs cannot reconcile different assemblies. It advises choosing one reference and rebuilding or obtaining a compatible STAR index from that reference, checking annotation/build consistency and the STAR version supported by Parabricks 4.7.0, then substituting those matching assets into a template.",
+      "assertions": [
+        "The agent identifies GRCh37 and GRCh38 as different assemblies and states that contig renaming cannot make the supplied FASTA and STAR index compatible.",
+        "The agent recommends a STAR genome library built from the same reference sequence/build used by --ref, with consistent contig names and annotation where used.",
+        "The agent identifies the documented STAR 2.7.2a compatibility baseline for Parabricks 4.7.0 or verifies the supported STAR/index version from that release manual instead of recommending an arbitrary latest index.",
+        "The proposed command uses matching --ref and --genome-lib-dir placeholders and does not present the original mismatched assets as runnable.",
+        "The agent provides planning guidance without executing commands or modifying reference assets."
+      ],
+      "expected_skill": "parabricks",
+      "expected_script": null
+    },
+    {
+      "id": "parabricks-007",
+      "prompt": "With Parabricks 4.7.0, I need to index /data/sample.g.vcf.gz using pbrun indexgvcf. In Docker, /data is mounted read-only, and /results is writable. Can I use --out /results/sample.g.vcf.gz.tbi? Explain the actual output naming and give me a safe command plan that preserves the original GVCF. Do not execute it.",
+      "expected_output": "The agent explains that indexgvcf uses --input and derives the .tbi path by appending .tbi to the input filename, with no documented --out override. It proposes a writable copy of the GVCF in /results and indexing that copy, giving /results/sample.g.vcf.gz.tbi while preserving /data and checking existing destination files before copying.",
+      "assertions": [
+        "The agent states that pbrun indexgvcf does not document an --out option and does not invent an output-path override.",
+        "The agent explains that the index is named by appending .tbi to the full input filename, giving sample.g.vcf.gz.tbi beside the indexed GVCF.",
+        "The agent identifies that indexing the read-only /data input cannot create the adjacent index and proposes indexing a writable copy under /results.",
+        "The proposed command uses --input /results/sample.g.vcf.gz and preserves the original; it accounts for existing destination GVCF/index files before copying or overwriting.",
+        "The agent distinguishes the command plan from executed work and does not modify files or launch a workload."
+      ],
+      "expected_skill": "parabricks",
       "expected_script": null
     }
   ]

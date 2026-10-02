@@ -5,6 +5,10 @@ output location and naming, and any required read groups. Clarify compression
 and read-file handling. Validate the STAR library against the RNA workflow;
 the FASTA alone does not establish library compatibility. Check pairing,
 read-group errors, and the requested BAM, STAR, metrics, and log outputs.
+Use a STAR library built from the same reference sequence/build as `--ref`,
+with consistent annotation and contig naming. Renaming contigs cannot reconcile
+different assemblies such as GRCh37 and GRCh38; obtain or rebuild a matching
+library using the STAR version compatible with the selected Parabricks release.
 See [RNA validation notes](parabricks-rna-validate.md) for 4.7.0 versus 4.6.0
 observations. DNA reads use [fq2bam](pbrun-fq2bam.md); fusion calling uses
 [starfusion](pbrun-starfusion.md) after compatible junction input is produced.
@@ -120,3 +124,4 @@ exposed by `rna_fq2bam`.
 ## Key References
 
 - <https://raw.githubusercontent.com/alexdobin/STAR/2.7.2a/source/parametersDefault>
+- Parabricks 4.7.0 manual: <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_rna_fq2bam.html>

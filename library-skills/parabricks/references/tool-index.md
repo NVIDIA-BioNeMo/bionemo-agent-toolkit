@@ -35,8 +35,9 @@ routing rather than restating that table.
 
 ## Key References
 
-- Tool index: <https://docs.nvidia.com/clara/parabricks/latest/toolreference.html>
-- About and performance notes:
-  <https://docs.nvidia.com/clara/parabricks/latest/overview.html>
-- Getting started and deployment:
-  <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html>
+- Tool index (4.7.0 baseline): <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/ToolReference.html>
+- Performance notes (4.7.0):
+  <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/GettingStarted/BestPerformance.html>
+- Getting started and deployment (4.7.0):
+  <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/GettingStarted.html>
+- Other releases: <https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes>

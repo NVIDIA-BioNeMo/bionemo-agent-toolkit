@@ -32,7 +32,7 @@ LOW_STORAGE_WARNING_GB = int("100")
 SUMMARY_MAX_CHARS = int("300")
 DEFAULT_TIMEOUT_SECONDS = int("30")
 SCHEMA_VERSION = int("1")
-GPU_QUERY_FIELD_COUNT = int("6")
+GPU_QUERY_FIELD_COUNT = int("5")
 GPU_DISPLAY_START_INDEX = int("1")
 VERSION_TOKEN_INDEX = 0
 KEY_VALUE_SPLIT_MAX = 1
@@ -43,8 +43,7 @@ GPU_NAME_INDEX = 0
 GPU_TOTAL_MB_INDEX = 1
 GPU_FREE_MB_INDEX = 2
 GPU_DRIVER_INDEX = int("3")
-GPU_CUDA_INDEX = int("4")
-GPU_COMPUTE_CAP_INDEX = int("5")
+GPU_COMPUTE_CAP_INDEX = int("4")
 GB_DECIMAL_PLACES = 2
 MIN_DOCKER_VERSION_TEXT = ".".join(str(part) for part in MIN_DOCKER_VERSION)
 EXAMPLE_PARABRICKS_VERSION = "4.7.0-1"
@@ -206,13 +205,19 @@ def check_nvidia_smi(runner: Runner, timeout: int) -> dict[str, Any]:
     query = runner(
         [
             "nvidia-smi",
-            "--query-gpu=name,memory.total,memory.free,driver_version,cuda_version,compute_cap",
+            "--query-gpu=name,memory.total,memory.free,driver_version,compute_cap",
             "--format=csv,noheader,nounits",
         ],
         timeout,
     )
     if query.returncode != ZERO_EXIT_CODE:
         return command_failure("nvidia-smi", query)
+
+    # CUDA is a driver-level capability, not a supported --query-gpu field.
+    # Keep GPU discovery usable even when the optional banner probe fails.
+    banner = runner(["nvidia-smi"], timeout)
+    cuda_match = re.search(r"CUDA Version:\s*([0-9]+(?:\.[0-9]+)+)", banner.stdout)
+    driver_cuda = cuda_match.group(1) if banner.returncode == ZERO_EXIT_CODE and cuda_match else None
 
     gpus = []
     for line in query.stdout.splitlines():
@@ -227,7 +232,7 @@ def check_nvidia_smi(runner: Runner, timeout: int) -> dict[str, Any]:
                 "memory_total_gb": round(total_mb / MIB_PER_GIB, GB_DECIMAL_PLACES) if total_mb is not None else None,
                 "memory_free_gb": round(free_mb / MIB_PER_GIB, GB_DECIMAL_PLACES) if free_mb is not None else None,
                 "driver_version": fields[GPU_DRIVER_INDEX],
-                "cuda_version": fields[GPU_CUDA_INDEX],
+                "cuda_version": driver_cuda,
                 "compute_capability": fields[GPU_COMPUTE_CAP_INDEX],
             }
         )
@@ -236,6 +241,8 @@ def check_nvidia_smi(runner: Runner, timeout: int) -> dict[str, Any]:
     result: dict[str, Any] = {"status": status, "gpus": gpus}
     if not gpus:
         result["detail"] = "nvidia-smi ran, but no GPU rows were parsed."
+    elif driver_cuda is None:
+        result["detail"] = "GPU details are available; the driver-supported CUDA version could not be read."
     return result
 
 
@@ -442,7 +449,8 @@ def render_text(report: dict[str, Any]) -> str:
         for index, item in enumerate(gpu["gpus"], start=GPU_DISPLAY_START_INDEX):
             lines.append(
                 f"  - GPU {index}: {item['name']}, {format_gb(item.get('memory_total_gb'))} total, "
-                f"driver {item['driver_version']}, CUDA {item['cuda_version']}, CC {item['compute_capability']}"
+                f"driver {item['driver_version']}, driver-supported CUDA {item['cuda_version'] or 'unknown'}, "
+                f"CC {item['compute_capability']}"
             )
     else:
         lines.append(f"- GPUs: {gpu['status']} ({gpu.get('detail', 'not available')})")

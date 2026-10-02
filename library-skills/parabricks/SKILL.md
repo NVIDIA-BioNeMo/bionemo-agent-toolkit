@@ -1,15 +1,15 @@
 ---
 name: parabricks
 description: >-
-  Route NVIDIA Parabricks pbrun tools, assess GPU/runtime readiness, and provide
-  version-aware command guidance for FASTQ/BAM processing, RNA-seq, variant
-  calling, BAM QC, and GVCF workflows. Do NOT use for inspecting or accelerating
-  whole pipelines — use genomics-workflow-acceleration.
+  Select NVIDIA Parabricks pbrun tools, assess GPU/runtime readiness, and provide
+  version-aware commands for FASTQ/BAM processing, RNA-seq, variant calling,
+  BAM QC, and GVCF workflows. Use for individual pbrun commands, including
+  packaged germline/somatic pipelines; not Nextflow/Snakemake orchestration.
 license: CC-BY-4.0 AND Apache-2.0
 allowed-tools: Bash, Read, WebFetch, AskUserQuestion
 metadata:
   author: Ohad Mosafi (@ohadmo)
-  version: "1.1.0"
+  version: "1.2.0"
   tags:
     - parabricks
     - genomics
@@ -22,11 +22,13 @@ metadata:
 
 Use this skill to discover the right NVIDIA Parabricks `pbrun` command, assess
 runtime readiness, and generate version-aware command guidance for individual
-tools and pipelines.
+tools and packaged `pbrun` pipelines.
 
 Do **not** use this skill for whole-workflow inspection, acceleration planning,
-or wiring optional GPU branches. For pipeline-level work, use
-`genomics-workflow-acceleration`.
+or wiring optional GPU branches. For pipeline-level work, use an available
+workflow skill such as `genomics-workflow-acceleration`, or provide ordinary
+Nextflow/Snakemake guidance when no suitable skill is installed. Do not load
+Parabricks references or run its helper solely for orchestration settings.
 
 ## When to Use This Skill
 
@@ -48,9 +50,10 @@ or wiring optional GPU branches. For pipeline-level work, use
   See [runtime-environment.md](references/runtime-environment.md) for
   version-specific requirements and checks.
 
-Ask for input data type, sequencing technology, reference build, sample
-structure, desired output, target Parabricks version/container tag, and runtime
-target before recommending commands.
+For command guidance, identify the assay, inputs, reference build, desired
+output, and target version. Ask only for missing facts that affect the answer;
+an explicitly labeled template can use placeholders while those facts are
+unresolved. Runtime-only questions do not need sample metadata.
 
 If the user is unsure which tool applies, read
 [tool-index.md](references/tool-index.md) first, then load the matching
@@ -72,55 +75,60 @@ Limit `Bash` to the bundled readiness helper and the diagnostic commands in
 
 ## Instructions
 
-1. Confirm the Parabricks version or container tag. Verify the current NVIDIA
-   docs when the user asks for the latest tool list or version-sensitive flags.
-2. Classify the request:
+1. Classify the request and load only the reference needed:
    - **Runtime** → [runtime-environment.md](references/runtime-environment.md)
    - **Tool discovery** → [tool-index.md](references/tool-index.md)
    - **Specific command** → matching `references/pbrun-<tool>.md`
-3. For command guidance, read [command-conventions.md](references/command-conventions.md)
-   once for shared input checks and output validation, then load the selected
-   tool reference. Combine its option table with the rows naming that tool in
-   [shared-options.md](references/shared-options.md); other tools' rows do not apply.
-4. Collect missing context and generate a Docker command with explicit mounts,
-   workdir, and placeholders. Include the shared and tool-specific validation
-   checks; distinguish proposed checks from observations of a completed run.
+2. Establish the target version before making version-specific claims. Local
+   option mappings use **4.7.0**. For another release, follow its manual from
+   the [documentation archive](https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes).
+   Verify requested flags against that release; do not substitute the latest
+   requirements for an older image. Reuse sources already verified for this task.
+3. For a command template, load [command-conventions.md](references/command-conventions.md)
+   once. Consult [shared-options.md](references/shared-options.md) only for
+   options not covered by the selected tool reference, using rows naming that
+   tool. A simple tool-selection answer does not need every command reference.
+4. Generate a Docker command with explicit input/index/output mounts, workdir,
+   and placeholders for unresolved values. Explain relevant validation checks
+   and distinguish proposed checks from observations of a completed run.
+   Command guidance for a remote host does not require probing this workstation.
 
 ## Tool Reference Index
 
-Load only the reference file for the selected tool.
+Load only the reference file for the selected tool. Manual links below are for
+the 4.7.0 reference baseline; select another release when requested.
 
 | Tool / NVIDIA manual | Reference | Use when |
 |------|-----------|----------|
-| [`applybqsr`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_applybqsr.html) | [pbrun-applybqsr.md](references/pbrun-applybqsr.md) | Apply BQSR table to aligned BAM |
-| [`bam2fq`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bam2fq.html) | [pbrun-bam2fq.md](references/pbrun-bam2fq.md) | BAM → FASTQ conversion |
-| [`bamsort`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bamsort.html) | [pbrun-bamsort.md](references/pbrun-bamsort.md) | Standalone BAM sort |
-| [`bqsr`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bqsr.html) | [pbrun-bqsr.md](references/pbrun-bqsr.md) | Generate BQSR recalibration table |
-| [`fq2bam`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_fq2bam.html) | [pbrun-fq2bam.md](references/pbrun-fq2bam.md) | Short-read DNA paired FASTQ → BAM/CRAM |
-| [`fq2bam_meth`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_fq2bam_meth.html) | [pbrun-fq2bam_meth.md](references/pbrun-fq2bam_meth.md) | Bisulfite/methylation FASTQ → BAM/CRAM |
-| [`giraffe`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_giraffe.html) | [pbrun-giraffe.md](references/pbrun-giraffe.md) | Pangenome graph alignment |
-| [`markdup`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_markdup.html) | [pbrun-markdup.md](references/pbrun-markdup.md) | Standalone duplicate marking |
-| [`minimap2`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_minimap2.html) | [pbrun-minimap2.md](references/pbrun-minimap2.md) | Long-read FASTQ alignment |
-| [`rna_fq2bam`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_rna_fq2bam.html) | [pbrun-rna_fq2bam.md](references/pbrun-rna_fq2bam.md) | RNA-seq FASTQ(s) → splice-aware BAM (STAR alignment) |
-| [`starfusion`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_starfusion.html) | [pbrun-starfusion.md](references/pbrun-starfusion.md) | Fusion detection from chimeric junction input + STAR-Fusion genome library |
-| [`germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_germline.html) | [pbrun-germline.md](references/pbrun-germline.md) | GATK-style germline pipeline from FASTQ |
-| [`deepvariant_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepvariant_germline.html) | [pbrun-deepvariant_germline.md](references/pbrun-deepvariant_germline.md) | DeepVariant germline pipeline from FASTQ |
-| [`haplotypecaller`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_haplotypecaller.html) | [pbrun-haplotypecaller.md](references/pbrun-haplotypecaller.md) | Standalone HaplotypeCaller from BAM/CRAM |
-| [`deepvariant`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepvariant.html) | [pbrun-deepvariant.md](references/pbrun-deepvariant.md) | Standalone DeepVariant from BAM/CRAM |
-| [`somatic`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_somatic.html) | [pbrun-somatic.md](references/pbrun-somatic.md) | Tumor-normal somatic pipeline |
-| [`mutectcaller`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_mutectcaller.html) | [pbrun-mutectcaller.md](references/pbrun-mutectcaller.md) | Mutect2-compatible somatic calling |
-| [`deepsomatic`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepsomatic.html) | [pbrun-deepsomatic.md](references/pbrun-deepsomatic.md) | DeepSomatic-based somatic calling |
-| [`pacbio_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pacbio_germline.html) | [pbrun-pacbio_germline.md](references/pbrun-pacbio_germline.md) | PacBio long-read germline |
-| [`ont_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_ont_germline.html) | [pbrun-ont_germline.md](references/pbrun-ont_germline.md) | Oxford Nanopore long-read germline |
-| [`pangenome_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pangenome_germline.html) | [pbrun-pangenome_germline.md](references/pbrun-pangenome_germline.md) | Pangenome-aware germline |
-| [`pangenome_aware_deepvariant`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pangenome_aware_deepvariant.html) | [pbrun-pangenome_aware_deepvariant.md](references/pbrun-pangenome_aware_deepvariant.md) | Pangenome-aware DeepVariant |
-| [`prepon`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_prepon.html) | [pbrun-prepon.md](references/pbrun-prepon.md) | Prepare a panel-of-normals index for Mutect |
-| [`postpon`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_postpon.html) | [pbrun-postpon.md](references/pbrun-postpon.md) | Annotate Mutect variants using a panel of normals |
-| [`bammetrics`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bammetrics.html) | [pbrun-bammetrics.md](references/pbrun-bammetrics.md) | Whole-genome coverage/depth metrics |
-| [`collectmultiplemetrics`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_collectmultiplemetrics.html) | [pbrun-collectmultiplemetrics.md](references/pbrun-collectmultiplemetrics.md) | Multiple Picard/GATK-style alignment metrics |
-| [`genotypegvcf`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_genotypegvcf.html) | [pbrun-genotypegvcf.md](references/pbrun-genotypegvcf.md) | Joint-genotype GVCF input(s) into VCF |
-| [`indexgvcf`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_indexgvcf.html) | [pbrun-indexgvcf.md](references/pbrun-indexgvcf.md) | Index GVCF input |
-| [`dbsnp`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_dbsnp.html) | [pbrun-dbsnp.md](references/pbrun-dbsnp.md) | dbSNP annotation on variant files |
+| [`applybqsr`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_applybqsr.html) | [pbrun-applybqsr.md](references/pbrun-applybqsr.md) | Apply BQSR table to aligned BAM |
+| [`bam2fq`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_bam2fq.html) | [pbrun-bam2fq.md](references/pbrun-bam2fq.md) | BAM → FASTQ conversion |
+| [`bamsort`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_bamsort.html) | [pbrun-bamsort.md](references/pbrun-bamsort.md) | Standalone BAM sort |
+| [`bqsr`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_bqsr.html) | [pbrun-bqsr.md](references/pbrun-bqsr.md) | Generate BQSR recalibration table |
+| [`fq2bam`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_fq2bam.html) | [pbrun-fq2bam.md](references/pbrun-fq2bam.md) | Short-read DNA paired FASTQ → BAM/CRAM |
+| [`fq2bam_meth`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_fq2bam_meth.html) | [pbrun-fq2bam_meth.md](references/pbrun-fq2bam_meth.md) | Bisulfite/methylation FASTQ → BAM/CRAM |
+| [`giraffe`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_giraffe.html) | [pbrun-giraffe.md](references/pbrun-giraffe.md) | Pangenome graph alignment |
+| [`markdup`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_markdup.html) | [pbrun-markdup.md](references/pbrun-markdup.md) | Standalone duplicate marking |
+| [`minimap2`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_minimap2.html) | [pbrun-minimap2.md](references/pbrun-minimap2.md) | Long-read FASTQ alignment |
+| [`rna_fq2bam`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_rna_fq2bam.html) | [pbrun-rna_fq2bam.md](references/pbrun-rna_fq2bam.md) | RNA-seq FASTQ(s) → splice-aware BAM (STAR alignment) |
+| [`starfusion`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_starfusion.html) | [pbrun-starfusion.md](references/pbrun-starfusion.md) | Fusion detection from chimeric junction input + STAR-Fusion genome library |
+| [`germline`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_germline.html) | [pbrun-germline.md](references/pbrun-germline.md) | GATK-style germline pipeline from FASTQ |
+| [`deepvariant_germline`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_deepvariant_germline.html) | [pbrun-deepvariant_germline.md](references/pbrun-deepvariant_germline.md) | DeepVariant germline pipeline from FASTQ |
+| [`haplotypecaller`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_haplotypecaller.html) | [pbrun-haplotypecaller.md](references/pbrun-haplotypecaller.md) | Standalone HaplotypeCaller from BAM/CRAM |
+| [`deepvariant`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_deepvariant.html) | [pbrun-deepvariant.md](references/pbrun-deepvariant.md) | Standalone DeepVariant from BAM/CRAM |
+| [`somatic`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_somatic.html) | [pbrun-somatic.md](references/pbrun-somatic.md) | Tumor-normal somatic pipeline |
+| [`mutectcaller`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_mutectcaller.html) | [pbrun-mutectcaller.md](references/pbrun-mutectcaller.md) | Mutect2-compatible somatic calling |
+| [`deepsomatic`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_deepsomatic.html) | [pbrun-deepsomatic.md](references/pbrun-deepsomatic.md) | DeepSomatic-based somatic calling |
+| [`pacbio_germline`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_pacbio_germline.html) | [pbrun-pacbio_germline.md](references/pbrun-pacbio_germline.md) | PacBio long-read germline |
+| [`ont_germline`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_ont_germline.html) | [pbrun-ont_germline.md](references/pbrun-ont_germline.md) | Oxford Nanopore long-read germline |
+| [`pangenome_germline`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_pangenome_germline.html) | [pbrun-pangenome_germline.md](references/pbrun-pangenome_germline.md) | Pangenome-aware germline |
+| [`pangenome_aware_deepvariant`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_pangenome_aware_deepvariant.html) | [pbrun-pangenome_aware_deepvariant.md](references/pbrun-pangenome_aware_deepvariant.md) | Pangenome-aware DeepVariant |
+| [`prepon`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_prepon.html) | [pbrun-prepon.md](references/pbrun-prepon.md) | Prepare a panel-of-normals index for Mutect |
+| [`postpon`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_postpon.html) | [pbrun-postpon.md](references/pbrun-postpon.md) | Annotate Mutect variants using a panel of normals |
+| [`bammetrics`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_bammetrics.html) | [pbrun-bammetrics.md](references/pbrun-bammetrics.md) | Whole-genome coverage/depth metrics |
+| [`collectmultiplemetrics`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_collectmultiplemetrics.html) | [pbrun-collectmultiplemetrics.md](references/pbrun-collectmultiplemetrics.md) | Multiple Picard/GATK-style alignment metrics |
+| [`genotypegvcf`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_genotypegvcf.html) | [pbrun-genotypegvcf.md](references/pbrun-genotypegvcf.md) | Joint-genotype GVCF input(s) into VCF |
+| [`indexgvcf`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_indexgvcf.html) | [pbrun-indexgvcf.md](references/pbrun-indexgvcf.md) | Index GVCF input |
+| [`dbsnp`](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_dbsnp.html) | [pbrun-dbsnp.md](references/pbrun-dbsnp.md) | dbSNP annotation on variant files |
 
 For routing heuristics when multiple tools could apply, see
 [tool-index.md](references/tool-index.md).
@@ -136,6 +144,11 @@ directory as the working directory:
 ```bash
 python3 scripts/check_parabricks_runtime.py
 ```
+
+Run it once and use the report. Additional probes should resolve a specific
+gap, not repeat facts already collected. For a remote target, assess supplied
+diagnostics or request target-host output; local results cannot establish its
+readiness. The helper collects facts, not a release-specific certification.
 
 Add `--path <dir>` for known input/output/tmp paths. The default check does not
 launch containers. Both `--run-container-check` and `--parabricks-version`
@@ -185,11 +198,9 @@ Check the version-specific tool reference before finalizing flags.
 
 ## Key References
 
-- Parabricks tool index:
-  <https://docs.nvidia.com/clara/parabricks/latest/toolreference.html>
-- Output accuracy and compatible CPU software versions:
-  <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/outputaccuracyandcompatiblecpusoftwareversions.html>
-- Getting started:
-  <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html>
-- Overview:
-  <https://docs.nvidia.com/clara/parabricks/latest/overview.html>
+- Parabricks 4.7.0 tool index:
+  <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/ToolReference.html>
+- Parabricks 4.7.0 getting started:
+  <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/GettingStarted.html>
+- Release notes and archived manuals:
+  <https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes>
