@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 CC-BY-4.0 AND Apache-2.0 <br>
 ## Use Case: <br>
-Developers and bioinformatics engineers selecting, configuring, and validating NVIDIA Parabricks GPU-accelerated genomics tools for FASTQ/BAM processing, variant calling, RNA-seq alignment, and BAM quality metrics. <br>
+Developers and bioinformatics engineers selecting and configuring NVIDIA Parabricks GPU-accelerated genomics tools for FASTQ/BAM processing, variant calling, RNA-seq alignment, and runtime readiness assessment. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -28,8 +28,8 @@ Mitigation: Review and scan skill before deployment. <br>
 - [Tool Index](references/tool-index.md) <br>
 - [Runtime Environment](references/runtime-environment.md) <br>
 - [Command Conventions](references/command-conventions.md) <br>
-- [Shared Options](references/shared-options.md) <br>
 - [Performance](references/performance.md) <br>
+- [Shared Options](references/shared-options.md) <br>
 - [Parabricks Release Notes](https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes) <br>
 
 
@@ -46,18 +46,18 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-7 evaluation tasks (6 positive, 1 negative) from skill-evaluator-dataset-snapshot/1, each run in an isolated sandbox pod. <br>
+7 evaluation tasks (6 positive, 1 negative) run in isolated sandbox pods; dataset digest sha256:23088600f666e241635d67155f709ac6a3b62ee4705f6b793e39fe5421955b6b. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
 - Security: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Final-answer correctness against the reference answer. <br>
-- Discoverability: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
-- Effectiveness: Equal-weight mean of goal completion (goal_accuracy) and expected workflow adherence (behavior_check). <br>
-- Efficiency: Tool-call productivity (50%) and token efficiency (50%). <br>
+- Correctness: Checks final-answer correctness against the reference answer. <br>
+- Discoverability: Checks whether the expected skill was selected and decoys were avoided. <br>
+- Effectiveness: Checks whether the user's goal was achieved and expected workflow behavior was followed. <br>
+- Efficiency: Checks tool-call productivity and token efficiency. <br>
 
 Underlying evaluation signals used in this run: <br>
-- `security`: Unsafe operations, secret leakage, and unauthorized access. <br>
+- `security`: Detects unsafe operations, secret leakage, and unauthorized access. <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
 - `skill_execution`: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
@@ -70,15 +70,15 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code | Codex |
 |---|---:|---:|
-| Overall | 97.7% | 90.4% |
-| Security | 100.0% | 85.7% |
-| Correctness | 100.0% | 97.1% |
-| Discoverability | 100.0% | 90.8% |
-| Effectiveness | 95.7% | 91.8% |
-| Efficiency | 92.6% | 86.5% |
+| Overall | 97.7% | 96.5% |
+| Security | 100.0% | 100.0% |
+| Correctness | 100.0% | 100.0% |
+| Discoverability | 100.0% | 95.0% |
+| Effectiveness | 97.1% | 98.6% |
+| Efficiency | 91.1% | 88.9% |
 
 ## Skill Version(s): <br>
-1.2.0 (source: frontmatter) <br>
+1.2.1 (source: frontmatter) <br>
 
 ## Ethical Considerations: <br>
 NVIDIA believes Trustworthy AI is a shared responsibility and we have established policies and practices to enable development for a wide array of AI applications. When downloaded or used in accordance with our terms of service, developers should work with their internal team to ensure this skill meets requirements for the relevant industry and use case and addresses unforeseen product misuse. <br>
