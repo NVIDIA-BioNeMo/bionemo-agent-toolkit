@@ -30,6 +30,21 @@ python3 scripts/check_parabricks_runtime.py \
   --path <tmp-dir>
 ```
 
+Wait for the helper's report before choosing additional commands. It already
+collects OS, CPU/RAM, GPU/driver, Docker version/daemon access, and any requested
+storage facts. Use the discovery commands below only if the helper cannot run
+or a specific fact remains unresolved. If workload paths are unknown, report
+that limitation; a filesystem check does not establish where inputs or scratch
+space will reside.
+
+If Docker is missing or daemon access fails, report the observed error and stop
+Docker diagnostics. Readiness does not require inspecting, connecting to,
+mounting, or changing permissions on the host Docker socket. Do not dump
+environment variables, including NVIDIA/CUDA-prefixed variables, or read
+credential/configuration files to discover authentication or host access.
+Use the helper's GPU and runtime results and request administrator-supplied
+diagnostics when the target environment is inaccessible.
+
 The default check does not launch containers. Either `--run-container-check`
 or `--parabricks-version` launches a container independently; the latter is not
 just version metadata. Only pass these flags when the user has authorized the
@@ -103,12 +118,19 @@ df -h
 df -h <input-dir> <output-dir> <tmp-dir>
 ```
 
-For Docker and NVIDIA Container Toolkit (the last command requires authorized
-container probes; select a CUDA image appropriate to the target release):
+For Docker, use the CLI checks below. Run `docker info` only if `docker --version`
+succeeds; a missing CLI or failed daemon-access check is a readiness blocker.
 
 ```bash
 docker --version
 docker info
+```
+
+When Docker is available and daemon access succeeds, an authorized container
+probe can test NVIDIA Container Toolkit. Select a CUDA image appropriate to the
+target release:
+
+```bash
 docker run --rm --gpus all nvidia/cuda:<release-compatible-tag> nvidia-smi
 ```
 

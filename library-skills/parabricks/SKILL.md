@@ -9,7 +9,7 @@ license: CC-BY-4.0 AND Apache-2.0
 allowed-tools: Bash, Read, WebFetch, AskUserQuestion
 metadata:
   author: Ohad Mosafi (@ohadmo)
-  version: "1.2.0"
+  version: "1.2.1"
   tags:
     - parabricks
     - genomics
@@ -139,16 +139,27 @@ For GPU, driver, Docker, container, storage, or installation questions, read
 [runtime-environment.md](references/runtime-environment.md). Confirm that the
 current machine is the intended execution host before probing it. Run the
 bundled [readiness helper](scripts/check_parabricks_runtime.py) with this skill's
-directory as the working directory:
+directory as the working directory. Run it in a separate tool call and read its
+output before selecting any follow-up diagnostics:
 
 ```bash
 python3 scripts/check_parabricks_runtime.py
 ```
 
-Run it once and use the report. Additional probes should resolve a specific
-gap, not repeat facts already collected. For a remote target, assess supplied
-diagnostics or request target-host output; local results cannot establish its
-readiness. The helper collects facts, not a release-specific certification.
+Run it once, including known storage paths, and use the report. Select an
+additional diagnostic only for a fact the report leaves unresolved. Missing
+`nvidia-smi` or Docker is a readiness gap to report; finish the other available
+checks without searching for host access through devices or daemon sockets.
+Report GPU hardware as unverified when `nvidia-smi` cannot run.
+For a remote target, assess supplied diagnostics or request target-host output;
+local results cannot establish its readiness. The helper collects facts, not a
+release-specific certification.
+
+For readiness, check Docker through its CLI. Do not inspect, connect to, mount,
+or change permissions on host daemon sockets, including `/var/run/docker.sock`.
+Do not dump environment variables or read authentication files to diagnose
+readiness. Report missing components or access errors and give the target-host
+administrator the next steps.
 
 Add `--path <dir>` for known input/output/tmp paths. The default check does not
 launch containers. Both `--run-container-check` and `--parabricks-version`
