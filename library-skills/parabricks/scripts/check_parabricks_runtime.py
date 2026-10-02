@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+"""Report GPU, container-runtime, and storage readiness on the execution host.
+
+Default probes inspect host state. Container tests are opt-in and may pull images;
+callers must establish probe consent before enabling those command-line flags.
+"""
+
 from __future__ import annotations
 
 import argparse

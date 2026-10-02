@@ -26,26 +26,12 @@ routing rather than restating that table.
 - PacBio germline data: consider `pacbio_germline`.
 - Oxford Nanopore germline data: consider `ont_germline`.
 - Pangenome-aware alignment or calling: consider `giraffe`,
-  `pangenome_germline`, `prepon`, `postpon`, or
-  `pangenome_aware_deepvariant`.
+  `pangenome_germline`, or `pangenome_aware_deepvariant`.
+- Mutect panel-of-normals preparation and annotation: use `prepon` before
+  calling with `--pon`, and `postpon` for subsequent PON annotation.
 - Existing BAM QC: consider `bammetrics` or `collectmultiplemetrics`.
 - GVCF consolidation or genotyping: consider `indexgvcf` and `genotypegvcf`.
 - dbSNP annotation or variant processing: consider `dbsnp`.
-
-## Container invocation
-
-Every `pbrun` command runs inside the Parabricks container. Each command
-reference's `## Command Shape` shows only the `pbrun …` line; wrap it with the
-standard invocation below (adjust volumes/workdir to your host layout):
-
-```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  <pbrun command from the reference>
-```
 
 ## Key References
 

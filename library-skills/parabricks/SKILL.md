@@ -8,6 +8,7 @@ description: >-
 license: CC-BY-4.0 AND Apache-2.0
 allowed-tools: Bash, Read, WebFetch, AskUserQuestion
 metadata:
+  author: Ohad Mosafi (@ohadmo)
   version: "1.1.0"
   tags:
     - parabricks
@@ -58,7 +59,7 @@ Limit `Bash` to the bundled readiness helper and the diagnostic commands in
 [runtime-environment.md](references/runtime-environment.md). Generating a
 `pbrun` command does not authorize running a genomics workload.
 
-## Workflow
+## Instructions
 
 1. Confirm the Parabricks version or container tag. Verify the current NVIDIA
    docs when the user asks for the latest tool list or version-sensitive flags.
@@ -66,45 +67,49 @@ Limit `Bash` to the bundled readiness helper and the diagnostic commands in
    - **Runtime** → [runtime-environment.md](references/runtime-environment.md)
    - **Tool discovery** → [tool-index.md](references/tool-index.md)
    - **Specific command** → matching `references/pbrun-<tool>.md`
-3. Collect missing biological and filesystem context before generating commands.
-4. Generate conservative Docker commands with explicit mounts, workdir, and
-   placeholders. Validate paths, indexes, and outputs after command generation.
+3. For command guidance, read [command-conventions.md](references/command-conventions.md)
+   once for shared input checks and output validation, then load the selected
+   tool reference. Combine its option table with the rows naming that tool in
+   [shared-options.md](references/shared-options.md); other tools' rows do not apply.
+4. Collect missing context and generate a Docker command with explicit mounts,
+   workdir, and placeholders. Include the shared and tool-specific validation
+   checks; distinguish proposed checks from observations of a completed run.
 
 ## Tool Reference Index
 
 Load only the reference file for the selected tool.
 
-| Tool | Reference | Use when |
+| Tool / NVIDIA manual | Reference | Use when |
 |------|-----------|----------|
-| `applybqsr` | [pbrun-applybqsr.md](references/pbrun-applybqsr.md) | Apply BQSR table to aligned BAM |
-| `bam2fq` | [pbrun-bam2fq.md](references/pbrun-bam2fq.md) | BAM → FASTQ conversion |
-| `bamsort` | [pbrun-bamsort.md](references/pbrun-bamsort.md) | Standalone BAM sort |
-| `bqsr` | [pbrun-bqsr.md](references/pbrun-bqsr.md) | Generate BQSR recalibration table |
-| `fq2bam` | [pbrun-fq2bam.md](references/pbrun-fq2bam.md) | Short-read DNA paired FASTQ → BAM/CRAM |
-| `fq2bam_meth` | [pbrun-fq2bam_meth.md](references/pbrun-fq2bam_meth.md) | Bisulfite/methylation FASTQ → BAM/CRAM |
-| `giraffe` | [pbrun-giraffe.md](references/pbrun-giraffe.md) | Pangenome graph alignment |
-| `markdup` | [pbrun-markdup.md](references/pbrun-markdup.md) | Standalone duplicate marking |
-| `minimap2` | [pbrun-minimap2.md](references/pbrun-minimap2.md) | Long-read FASTQ alignment |
-| `rna_fq2bam` | [pbrun-rna_fq2bam.md](references/pbrun-rna_fq2bam.md) | RNA-seq FASTQ(s) → splice-aware BAM (STAR alignment) |
-| `starfusion` | [pbrun-starfusion.md](references/pbrun-starfusion.md) | Fusion detection from chimeric junction input + STAR-Fusion genome library |
-| `germline` | [pbrun-germline.md](references/pbrun-germline.md) | GATK-style germline pipeline from FASTQ |
-| `deepvariant_germline` | [pbrun-deepvariant_germline.md](references/pbrun-deepvariant_germline.md) | DeepVariant germline pipeline from FASTQ |
-| `haplotypecaller` | [pbrun-haplotypecaller.md](references/pbrun-haplotypecaller.md) | Standalone HaplotypeCaller from BAM/CRAM |
-| `deepvariant` | [pbrun-deepvariant.md](references/pbrun-deepvariant.md) | Standalone DeepVariant from BAM/CRAM |
-| `somatic` | [pbrun-somatic.md](references/pbrun-somatic.md) | Tumor-normal somatic pipeline |
-| `mutectcaller` | [pbrun-mutectcaller.md](references/pbrun-mutectcaller.md) | Mutect2-compatible somatic calling |
-| `deepsomatic` | [pbrun-deepsomatic.md](references/pbrun-deepsomatic.md) | DeepSomatic-based somatic calling |
-| `pacbio_germline` | [pbrun-pacbio_germline.md](references/pbrun-pacbio_germline.md) | PacBio long-read germline |
-| `ont_germline` | [pbrun-ont_germline.md](references/pbrun-ont_germline.md) | Oxford Nanopore long-read germline |
-| `pangenome_germline` | [pbrun-pangenome_germline.md](references/pbrun-pangenome_germline.md) | Pangenome-aware germline |
-| `pangenome_aware_deepvariant` | [pbrun-pangenome_aware_deepvariant.md](references/pbrun-pangenome_aware_deepvariant.md) | Pangenome-aware DeepVariant |
-| `prepon` | [pbrun-prepon.md](references/pbrun-prepon.md) | Pangenome-aware preprocessing |
-| `postpon` | [pbrun-postpon.md](references/pbrun-postpon.md) | Pangenome-aware post-processing |
-| `bammetrics` | [pbrun-bammetrics.md](references/pbrun-bammetrics.md) | Whole-genome coverage/depth metrics |
-| `collectmultiplemetrics` | [pbrun-collectmultiplemetrics.md](references/pbrun-collectmultiplemetrics.md) | Multiple Picard/GATK-style alignment metrics |
-| `genotypegvcf` | [pbrun-genotypegvcf.md](references/pbrun-genotypegvcf.md) | Joint-genotype GVCF input(s) into VCF |
-| `indexgvcf` | [pbrun-indexgvcf.md](references/pbrun-indexgvcf.md) | Index GVCF input |
-| `dbsnp` | [pbrun-dbsnp.md](references/pbrun-dbsnp.md) | dbSNP annotation on variant files |
+| [`applybqsr`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_applybqsr.html) | [pbrun-applybqsr.md](references/pbrun-applybqsr.md) | Apply BQSR table to aligned BAM |
+| [`bam2fq`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bam2fq.html) | [pbrun-bam2fq.md](references/pbrun-bam2fq.md) | BAM → FASTQ conversion |
+| [`bamsort`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bamsort.html) | [pbrun-bamsort.md](references/pbrun-bamsort.md) | Standalone BAM sort |
+| [`bqsr`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bqsr.html) | [pbrun-bqsr.md](references/pbrun-bqsr.md) | Generate BQSR recalibration table |
+| [`fq2bam`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_fq2bam.html) | [pbrun-fq2bam.md](references/pbrun-fq2bam.md) | Short-read DNA paired FASTQ → BAM/CRAM |
+| [`fq2bam_meth`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_fq2bam_meth.html) | [pbrun-fq2bam_meth.md](references/pbrun-fq2bam_meth.md) | Bisulfite/methylation FASTQ → BAM/CRAM |
+| [`giraffe`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_giraffe.html) | [pbrun-giraffe.md](references/pbrun-giraffe.md) | Pangenome graph alignment |
+| [`markdup`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_markdup.html) | [pbrun-markdup.md](references/pbrun-markdup.md) | Standalone duplicate marking |
+| [`minimap2`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_minimap2.html) | [pbrun-minimap2.md](references/pbrun-minimap2.md) | Long-read FASTQ alignment |
+| [`rna_fq2bam`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_rna_fq2bam.html) | [pbrun-rna_fq2bam.md](references/pbrun-rna_fq2bam.md) | RNA-seq FASTQ(s) → splice-aware BAM (STAR alignment) |
+| [`starfusion`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_starfusion.html) | [pbrun-starfusion.md](references/pbrun-starfusion.md) | Fusion detection from chimeric junction input + STAR-Fusion genome library |
+| [`germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_germline.html) | [pbrun-germline.md](references/pbrun-germline.md) | GATK-style germline pipeline from FASTQ |
+| [`deepvariant_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepvariant_germline.html) | [pbrun-deepvariant_germline.md](references/pbrun-deepvariant_germline.md) | DeepVariant germline pipeline from FASTQ |
+| [`haplotypecaller`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_haplotypecaller.html) | [pbrun-haplotypecaller.md](references/pbrun-haplotypecaller.md) | Standalone HaplotypeCaller from BAM/CRAM |
+| [`deepvariant`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepvariant.html) | [pbrun-deepvariant.md](references/pbrun-deepvariant.md) | Standalone DeepVariant from BAM/CRAM |
+| [`somatic`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_somatic.html) | [pbrun-somatic.md](references/pbrun-somatic.md) | Tumor-normal somatic pipeline |
+| [`mutectcaller`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_mutectcaller.html) | [pbrun-mutectcaller.md](references/pbrun-mutectcaller.md) | Mutect2-compatible somatic calling |
+| [`deepsomatic`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_deepsomatic.html) | [pbrun-deepsomatic.md](references/pbrun-deepsomatic.md) | DeepSomatic-based somatic calling |
+| [`pacbio_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pacbio_germline.html) | [pbrun-pacbio_germline.md](references/pbrun-pacbio_germline.md) | PacBio long-read germline |
+| [`ont_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_ont_germline.html) | [pbrun-ont_germline.md](references/pbrun-ont_germline.md) | Oxford Nanopore long-read germline |
+| [`pangenome_germline`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pangenome_germline.html) | [pbrun-pangenome_germline.md](references/pbrun-pangenome_germline.md) | Pangenome-aware germline |
+| [`pangenome_aware_deepvariant`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_pangenome_aware_deepvariant.html) | [pbrun-pangenome_aware_deepvariant.md](references/pbrun-pangenome_aware_deepvariant.md) | Pangenome-aware DeepVariant |
+| [`prepon`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_prepon.html) | [pbrun-prepon.md](references/pbrun-prepon.md) | Prepare a panel-of-normals index for Mutect |
+| [`postpon`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_postpon.html) | [pbrun-postpon.md](references/pbrun-postpon.md) | Annotate Mutect variants using a panel of normals |
+| [`bammetrics`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bammetrics.html) | [pbrun-bammetrics.md](references/pbrun-bammetrics.md) | Whole-genome coverage/depth metrics |
+| [`collectmultiplemetrics`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_collectmultiplemetrics.html) | [pbrun-collectmultiplemetrics.md](references/pbrun-collectmultiplemetrics.md) | Multiple Picard/GATK-style alignment metrics |
+| [`genotypegvcf`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_genotypegvcf.html) | [pbrun-genotypegvcf.md](references/pbrun-genotypegvcf.md) | Joint-genotype GVCF input(s) into VCF |
+| [`indexgvcf`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_indexgvcf.html) | [pbrun-indexgvcf.md](references/pbrun-indexgvcf.md) | Index GVCF input |
+| [`dbsnp`](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_dbsnp.html) | [pbrun-dbsnp.md](references/pbrun-dbsnp.md) | dbSNP annotation on variant files |
 
 For routing heuristics when multiple tools could apply, see
 [tool-index.md](references/tool-index.md).
@@ -114,8 +119,8 @@ For routing heuristics when multiple tools could apply, see
 For GPU, driver, Docker, container, storage, or installation questions, read
 [runtime-environment.md](references/runtime-environment.md). Confirm that the
 current machine is the intended execution host before probing it. Run the
-bundled [readiness helper](scripts/check_parabricks_runtime.py) from the
-directory containing this `SKILL.md`:
+bundled [readiness helper](scripts/check_parabricks_runtime.py) with this skill's
+directory as the working directory:
 
 ```bash
 python3 scripts/check_parabricks_runtime.py
@@ -127,7 +132,10 @@ launch containers and may pull images; use either only when the user has
 authorized container probes. A version supplied for command guidance alone is
 not permission to launch that image.
 
-## Command Shape
+## Examples
+
+For a selected tool, wrap its `pbrun` command in this container invocation.
+Replace every placeholder with confirmed values before execution:
 
 ```bash
 docker run --rm --gpus all \

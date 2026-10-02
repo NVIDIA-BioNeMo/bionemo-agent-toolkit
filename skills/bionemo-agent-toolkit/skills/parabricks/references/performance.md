@@ -15,3 +15,6 @@ Use integer `--bwa-nstreams` values only for benchmark-driven tuning or
 memory-pressure troubleshooting after confirming the selected Parabricks
 version's docs. More streams increase device memory use, so fixed stream counts
 should not be part of conservative default command templates.
+
+Official performance guidance:
+<https://docs.nvidia.com/clara/parabricks/latest/gettingstarted/bestperformance.html>
