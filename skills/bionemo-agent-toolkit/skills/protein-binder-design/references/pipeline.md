@@ -11,11 +11,12 @@ skill. Deterministic glue (parsing, remapping, RMSD, manifest) uses the bundled
 - For hosted calls, read `NGC_API_KEY` or `NVIDIA_API_KEY` from the environment
   and stop if neither is set. Do not substitute the agent's `OPENAI_API_KEY` or
   print environment variables or authorization headers.
-- Source the credential helper in the **same shell as every hosted command**:
-  `source scripts/hosted_env.sh && python your_nim_request.py` (use the helper's
+- Wrap every hosted command:
+  `bash scripts/hosted_env.sh python your_nim_request.py` (use the helper's
   absolute path outside the skill directory). This exports the chosen key as
   `NGC_API_KEY` for RFdiffusion, ProteinMPNN, Boltz2, OpenFold3, and optional MSA
-  subprocesses. Repeat in each new tool shell; keep shell tracing off. Local
+  subprocesses. The wrapper selects credentials and launches the command together;
+  it works in a fresh tool shell and disables tracing. Local
   inference uses no authentication header and does not need this helper.
 - Create a run directory and manifest:
 
@@ -30,19 +31,40 @@ m = Manifest.create(
 )
 ```
 
-Before inference, select the scoring route. The defaults require explicit ipTM.
-For Boltz2-only output without ipTM, record the campaign's chosen composite
-confidence cutoff and ranking metric instead. For example, **0.8 below is an
-illustrative selected cutoff, not an ipTM-equivalent or a validated default**:
+Before inference, select the scoring route. The default is a refolder returning
+explicit ipTM (OpenFold3) with the manifest's default filters. For Boltz2-only
+output without ipTM, require a user-selected or separately calibrated confidence
+cutoff and its rationale first (`references/validation.md`). Save that decision:
 
 ```python
-m.data["filters"].update(iptm_min=None, boltz2_confidence_min=0.8)
+m.data["filters"].update(iptm_min=None, boltz2_confidence_min=campaign_cutoff)
 m.data["params"]["rank_by"] = "boltz2_confidence"
+m.data["params"]["confidence_selection"] = {"source": cutoff_source, "rationale": cutoff_rationale}
 m.save()
 ```
 
 This retains the pLDDT/RMSD criteria. The complete Boltz2 manifest example is in
 `references/manifest.md`; reuse its saved filters and ranking metric on resume.
+If no justified cutoff or explicit-ipTM refolder is available, stop before design
+inference with `selection_policy_unresolved`. Never use the synthetic example's
+cutoff as an implicit scientific default.
+
+### Request failures and partial batches
+
+Use the atomic skill's request client with an explicit per-request timeout (up
+to 1200 seconds for inference), at most three retries for HTTP 429/5xx, and bounded
+backoff (10, 20, 40 seconds; honor Retry-After up to 120 seconds). Count retries
+against the campaign's call/time budget and stop when it is exhausted. A timed-out
+generation POST may have run remotely: query its returned job ID if available;
+otherwise record `outcome_unknown` and require an explicit retry decision to avoid
+duplicate generation charges. Do not retry HTTP 400/401/403 unchanged.
+
+Save each successful response and update its candidate before the next request.
+On exhausted errors, set `failure_reason`, log the failed stage and attempt count
+with `m.log_stage()`, and continue independent candidates within the budget. Never
+fill missing scores with zeros or drop failed candidates from the denominator.
+Abort the batch on missing/invalid credentials. Reuse successful artifacts on
+resume; retry failed calls only after the cause or retry decision is recorded.
 
 ## 1. Target prep
 
@@ -147,14 +169,22 @@ co-folded complex). Low RMSD = the sequence is predicted to fold back into the
 designed backbone.
 
 ```python
-from metrics import ca_rmsd_from_pdb
-# extract the binder chain from the predicted complex, then:
-rmsd = ca_rmsd_from_pdb(predicted_binder_pdb, backbone_pdb)
+from metrics import ca_rmsd_from_structures
+rmsd = ca_rmsd_from_structures(
+    backbone_pdb, predicted_complex_cif,
+    backbone_chain=backbone_binder_chain,  # verified from the RFdiffusion PDB
+    predicted_chain="A",                 # binder polymer ID in the request above
+    predicted_format="cif",
+)
 m.set_scores("bb003_seq02", self_consistency_rmsd=rmsd)
 ```
 
-(Convert mmCIF→PDB or parse CA atoms from the binder chain; `pdb_utils` reads
-PDB ATOM records.)
+`pdb_utils.structure_ca_coords()` reads mmCIF with biotite using label chain IDs
+(the request polymer IDs). It also accepts PDB. Missing chains or unequal CA
+counts fail explicitly; do not truncate structures to force an RMSD. The CLI is
+`python scripts/metrics.py backbone.pdb complex.cif --backbone-chain <C> --predicted-chain <ID>`.
+For sequence-only controls without a designed backbone, RMSD is not applicable;
+`Manifest.apply_filters()` records the exemption and still tests confidence/pLDDT.
 
 ## 6. Filter + rank + report
 

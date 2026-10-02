@@ -46,43 +46,58 @@ Complexa's AF2/RF3 reward+evaluate, so the check is independent. Turnkey:
 
 ```bash
 python scripts/boltz2_refold.py --run-dir <run> --pdbs <inference>/*.pdb \
+    --target-chain <verified-target-chain> --binder-chain <verified-binder-chain> \
+    --max-designs <2-times-requested-N> \
     --endpoint hosted --validate scripts/validate_binders.py [--hotspots <run>/hotspots.json]
 ```
 
 `boltz2_refold.py` makes the **holo** Boltz2 calls (retry/backoff + `--throttle` to
 avoid HTTP 429), writes `validation/raw/*.json`, then chains `validate_binders.py`
-(apo + ipSAE + apo↔holo RMSD + gate + rank). Policy + metrics: `validation.md`.
+(apo + ipSAE + apo↔holo RMSD + gate + rank). The glob above must contain only the
+ranked shortlist, at most 2×N per round (default 20); the CLI refuses larger batches.
+Input stems must be unique and become stable result IDs. Each raw JSON includes
+`_refold` provenance, chain IDs, and hotspots remapped from input author numbering
+to prediction sequence indices. Failed inputs/calls also produce raw JSON with
+`failure_reason`; they survive into the score/ranking tables with `pass: false`.
+Legacy raw responses without `_refold` use the validator's explicit chain flags
+(A/B only when those are verified), and supplied hotspots must already use the
+prediction's sequence positions. Policy + metrics: `validation.md`.
 
 ## Stage 4 — gate + rank + report
 
 `scripts/validate_binders.py` applies the gate (`validation.md`), ranks survivors, and
 writes `ranked_binders.json`/`.csv`; then write the report.
 
-## Run-until-N-validated loop
+## Bounded campaign loop
 
-The deliverable is **N designs that pass the full gate**, not N raw designs. Only a
-fraction pass, so loop Stages 3–5 and accumulate passers:
+Aim for N gate-passing designs, with **at most two generation rounds**. Keep all
+scored rows, including failures; report fewer passers without claiming failures
+were validated. This is the agent's campaign loop; a `pipeline.run()` call itself
+performs at most one generation round and emits the independent-refold handoff.
 
 ```
-N         = user-requested count (default 10)
-validated = []                      # deduped by binder sequence
-round     = 0
-while len(validated) < N and not stop_cap():
-    round  += 1
-    batch   = complexa_generate(target, nsamples=k, seed=base+round)
-    scored  = validate(batch)       # holo+apo, full gate
-    passers = [d for d in scored if d.pass and d.seq not in seqs(validated)]
-    validated += passers
-return rank(validated)[:N]
+N = user-requested count (default 10)
+all_scored = []; seen_sequences = set()
+for round in [1, 2]:
+    if count_passers(all_scored) >= N or budget_exhausted(): break
+    batch = complexa_generate(target, nsamples=agreed_batch_size, seed=base+round)
+    shortlist = rank_generation_quality(batch excluding seen_sequences)[:2*N]
+    scored = validate(shortlist)    # record successes AND failures; holo+apo gate
+    all_scored += scored
+    seen_sequences.update(sequences(shortlist))
+    if count_passers(scored) == 0: break
+return rank(all_scored, passers_first=True, by=[ipTM, ipSAE_min])[:N]
 ```
 
-Size each round from the measured pass rate `p = passers/generated`:
-`k = ceil((N - len(validated)) / max(p, p_floor)) * safety`.
-
-**Stop caps** (state which fired): reached N; `round ≥ max_rounds` (default 8);
-sample/GPU budget exhausted; or ≥3 consecutive zero-passer rounds. A persistent 0%
-pass rate is a scientific signal (bad hotspots/length/algorithm) — surface it and
-propose changes instead of burning GPU.
+**Stop conditions** (record the first that fires): reached N passers; completed
+two rounds; exhausted the agreed sample/call/GPU/time budget; or any zero-passer
+round (including an empty shortlist). Persist round count and cumulative budget
+use in the manifest so resume cannot reset these limits. Do not automatically
+increase the generation batch, validation cap, or round count to chase N passers.
+The default permits at most 4×N holo and 4×N apo predictions across two rounds,
+before bounded retry attempts; retries also consume the recorded call/time budget.
+Return at most N ranked candidates with explicit pass/failure flags, requested vs
+delivered/pass counts, and NO-GO when the requested passing count was not achieved.
 
 ## Output layout
 

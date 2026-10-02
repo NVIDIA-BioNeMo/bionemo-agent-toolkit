@@ -24,6 +24,13 @@ DEFAULT_FILTERS = {
     "self_consistency_rmsd_max": 2.0,
 }
 
+FILTER_METRICS = (
+    ("iptm_min", "iptm", operator.ge),
+    ("boltz2_confidence_min", "boltz2_confidence", operator.ge),
+    ("binder_plddt_min", "binder_plddt", operator.ge),
+    ("self_consistency_rmsd_max", "self_consistency_rmsd", operator.le),
+)
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -123,19 +130,40 @@ class Manifest:
         return c
 
     # ---- analysis --------------------------------------------------------
+    def required_metrics(self, cid: str) -> list[str]:
+        """Enabled metrics applicable to a candidate, including on resume.
+
+        Sequence-only controls have no designed backbone to compare against.
+        Their interface confidence and pLDDT still use the campaign thresholds.
+        """
+        candidate = self._find(cid)
+        if candidate is None:
+            raise KeyError(cid)
+        sequence_control = candidate.get("is_control") and not candidate.get("artifacts", {}).get("backbone_pdb")
+        return [metric for threshold, metric, _ in FILTER_METRICS
+                if self.data["filters"].get(threshold) is not None
+                and not (sequence_control and metric == "self_consistency_rmsd")]
+
+    def missing_scores(self, cid: str) -> list[str]:
+        """Return absent or invalid required scores; low finite scores are complete."""
+        required = self.required_metrics(cid)
+        scores = self._find(cid).get("scores", {})
+        return [metric for metric in required if not _finite_score(scores.get(metric))]
+
     def apply_filters(self) -> None:
-        """Pass only candidates with finite scores for every enabled filter."""
+        """Require all applicable metrics; record control-only RMSD exemptions."""
         f = self.data["filters"]
         for c in self.data["candidates"]:
             s = c.get("scores", {})
             checks = []
-            for threshold, metric, compare in (
-                ("iptm_min", "iptm", operator.ge),
-                ("boltz2_confidence_min", "boltz2_confidence", operator.ge),
-                ("binder_plddt_min", "binder_plddt", operator.ge),
-                ("self_consistency_rmsd_max", "self_consistency_rmsd", operator.le),
-            ):
+            required = self.required_metrics(c["id"])
+            c["filter_metrics"] = required
+            c["filter_exemptions"] = {}
+            for threshold, metric, compare in FILTER_METRICS:
                 if f.get(threshold) is None:
+                    continue
+                if metric not in required:
+                    c["filter_exemptions"][metric] = "sequence-only control: no designed backbone"
                     continue
                 score = s.get(metric)
                 checks.append(

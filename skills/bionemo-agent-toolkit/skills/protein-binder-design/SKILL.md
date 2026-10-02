@@ -3,7 +3,7 @@ name: protein-binder-design
 description: >
   Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. Use for binder design, minibinder design, de novo binders, RFdiffusion + ProteinMPNN + Boltz2/OpenFold3 pipelines, epitope/hotspot-targeted design, in-silico binder validation, and ranking designs by interface confidence.
 license: Apache-2.0
-compatibility: "numpy>=1.24; requests>=2.28"
+compatibility: "numpy>=1.24; requests>=2.28; biotite (mmCIF chain extraction)"
 allowed-tools: Bash, Read, Write, AskUserQuestion
 permissions:
   - env      # reads NVIDIA_API_KEY/NGC_API_KEY and configured NIM endpoints
@@ -77,7 +77,9 @@ final report. Schema and usage: `references/manifest.md`.
 
 - ipTM ≥ 0.8, binder pLDDT ≥ 80, self-consistency RMSD ≤ 2.0 Å.
 - Override per campaign and record overrides in the manifest `filters`.
-- Every enabled metric needs a finite score to pass. Keep a composite confidence
+- Every applicable enabled metric needs a finite score to pass. Sequence-only
+  controls have no designed backbone: their RMSD is not applicable and the manifest
+  records that exemption; design candidates still require RMSD. Keep a composite confidence
   value in its own field; do not substitute it for an unavailable ipTM.
 - For Boltz2-only campaigns without explicit ipTM, resolve the composite
   confidence cutoff before inference. Set `iptm_min: null`, enable
@@ -86,14 +88,28 @@ final report. Schema and usage: `references/manifest.md`.
   rank with `rank(by="boltz2_confidence", passed_only=True)`, and export that
   list with `to_csv(candidates=ranked)`. Report this as composite-confidence
   selection; it does not establish the default ipTM criterion. Complete example:
-  `references/manifest.md`.
+  `references/manifest.md`. **Default decision when no cutoff was supplied:** use
+  a refolder that returns explicit ipTM (OpenFold3) and the default ipTM profile.
+  If only composite-confidence Boltz2 is available, obtain a campaign cutoff and
+  its rationale from the user or a separate same-target calibration before design
+  inference. Save it in `params.confidence_selection`. Without either, stop at
+  input preparation and report `selection_policy_unresolved`; do not guess 0.8
+  or present unfiltered rankings as validated binders. Calibration procedure:
+  `references/validation.md`.
 
 ## Validation
 
-Always run controls and report a **success rate**, not just top scores.
+Run scrambled controls and report a **success rate**, not just top scores.
 Negative controls via `scripts/controls.py` (scrambled sequences); positive
-controls = published binders re-scored through the same pipeline. Benchmark
-targets live in `assets/targets.json` (`scripts/registry.py`). Methodology and
+controls = sourced published binders re-scored through the same pipeline. The
+bundled `assets/targets.json` is an empty control template, not a positive-control
+dataset. Use user-provided sequences with citations, or retrieve and verify an
+exact sequence from a primary publication or structure before registering it.
+If none is available, record `positive_controls_unavailable`, complete the
+computational screen with negatives, and label it **uncalibrated screening**;
+do not claim positive-control benchmarking or calibrated binder success. A
+request requiring a benchmark remains incomplete until a positive is supplied.
+Methodology and
 metric definitions: `references/validation.md`.
 
 ## Human-in-the-loop + cost
@@ -123,13 +139,14 @@ reuse it for every call:
   environment dumps, key values, or authorization headers. An `OPENAI_API_KEY`
   belongs to the agent runtime and must not be used as a NIM credential. If both
   NIM keys are absent, report missing access before sending authenticated calls.
-  Before **each delegated hosted command**, source `scripts/hosted_env.sh` in
-  the same shell: `source scripts/hosted_env.sh && python your_nim_request.py`.
+  Run **each delegated hosted command** through the credential wrapper:
+  `bash scripts/hosted_env.sh python your_nim_request.py`.
   Use the helper's absolute path when running outside the skill directory.
   It exports the selected key as `NGC_API_KEY`, which the atomic NIM skills read,
-  preserves an existing nonempty `NGC_API_KEY`, and stops the command if neither
-  key exists. Repeat this prelude in each new tool shell; exports from a separate
-  shell do not persist. Keep shell tracing off so credentials are not logged.
+  preserves an existing nonempty `NGC_API_KEY`, and stops before launching the
+  child if neither key exists. The wrapper loads the key and executes the command
+  in one invocation, so no exported state from a previous tool shell is needed.
+  It disables shell tracing and preserves arguments and the child's exit code.
 - **Local** (self-hosted NGC containers): point each NIM at its local URL
   (e.g. `http://localhost:8000/...`); local NIMs need no auth header. To **launch** the
   NIMs yourself (docker run per NIM, persistent caches, health checks, and the GPU
@@ -151,16 +168,18 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
   `is_control=True`, co-fold with the same settings, then report
   `n_passed / n_candidates` from `summary()` with controls excluded. With no
   candidates the rate is unavailable; disclose incomplete scoring.
-- **Resume:** call `Manifest.load("runs/<campaign>")`, inspect required scores
-  and saved artifacts, and execute only missing stages. Reuse saved predictions
-  when only metric extraction is missing; preserve completed candidates.
+- **Resume:** call `Manifest.load("runs/<campaign>")` and
+  `missing_scores(candidate_id)`; use the artifact checklist in
+  `references/manifest.md` to execute only missing stages. A finite below-threshold
+  score is complete, not a reason to repeat inference. Reuse saved predictions
+  for missing metrics; preserve completed candidates and explicit failure records.
 
 ## Scripts
 
 - `scripts/manifest.py` — campaign manifest (create / load / score / filter / rank / CSV).
-- `scripts/hosted_env.sh` — source before hosted commands to normalize the NIM key.
+- `scripts/hosted_env.sh` — wrap hosted commands to normalize and pass the NIM key.
 - `scripts/pdb_utils.py` — PDB parse, chain extract, sequence, residue remap, CA coords.
-- `scripts/metrics.py` — Kabsch CA-RMSD for self-consistency.
+- `scripts/metrics.py` — Kabsch CA-RMSD from explicit PDB/mmCIF binder chains.
 - `scripts/controls.py` — scrambled negative controls.
 - `scripts/registry.py` + `assets/targets.json` — **example** benchmark target
   registry (illustrative epitopes — verify against the cited structure before a

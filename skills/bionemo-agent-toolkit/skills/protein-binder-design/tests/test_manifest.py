@@ -129,6 +129,40 @@ class ManifestFilterTests(unittest.TestCase):
         self.assertEqual(manifest.data["filters"], {})
         self.assertFalse(candidate["passed_filter"])
 
+    def test_sequence_controls_skip_only_inapplicable_rmsd(self):
+        control = self.manifest.upsert_candidate("control", is_control=True, control_type="published")
+        self.add("control", iptm=0.85, binder_plddt=85)
+        design = self.add("design", iptm=0.85, binder_plddt=85)
+        self.manifest.apply_filters()
+        self.assertTrue(control["passed_filter"])
+        self.assertFalse(design["passed_filter"])
+        self.assertIn("self_consistency_rmsd", control["filter_exemptions"])
+        self.assertEqual(self.manifest.missing_scores("design"), ["self_consistency_rmsd"])
+        self.assertEqual(self.manifest.missing_scores("control"), [])
+        self.add("control", iptm=0.2)
+        self.manifest.apply_filters()
+        self.assertFalse(control["passed_filter"])
+
+    def test_control_with_reference_backbone_requires_rmsd(self):
+        control = self.manifest.upsert_candidate("control", is_control=True)
+        self.manifest.add_artifact("control", "backbone_pdb", "reference.pdb")
+        self.add("control", iptm=0.85, binder_plddt=85)
+        self.manifest.apply_filters()
+        self.assertFalse(control["passed_filter"])
+        self.assertEqual(control["filter_exemptions"], {})
+        self.add("control", self_consistency_rmsd=1.0)
+        self.manifest.apply_filters()
+        self.assertTrue(control["passed_filter"])
+
+    def test_resume_distinguishes_missing_metrics_from_completed_low_scores(self):
+        self.add("low", iptm=0.1, binder_plddt=85, self_consistency_rmsd=1.0)
+        self.add("incomplete", iptm=0.9, binder_plddt=float("nan"))
+        loaded = Manifest.load(self.temp.name)
+        self.assertEqual(loaded.missing_scores("low"), [])
+        self.assertEqual(loaded.missing_scores("incomplete"), ["binder_plddt", "self_consistency_rmsd"])
+        with self.assertRaises(KeyError):
+            loaded.missing_scores("unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

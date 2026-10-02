@@ -105,7 +105,7 @@ def parse_cif_atoms(cif_text: str) -> list[dict]:
             if len(f) < len(cols):
                 continue
             idx = {c: i for i, c in enumerate(cols)}
-            chain = f[idx.get("auth_asym_id", idx["label_asym_id"])]
+            chain = f[idx["label_asym_id"]]
             resnum = f[idx["label_seq_id"]]
             if resnum == ".":
                 continue  # ligand
@@ -209,6 +209,8 @@ def run_ipsae(ipsae_py: Path, cif_text: str, pae: np.ndarray,
               pair_chains_iptm: dict | None, workdir: Path,
               pae_cutoff: int = 10, dist_cutoff: int = 10) -> dict:
     """Run canonical ipsae.py in Boltz mode; return ipsae_min/max + iptm_af."""
+    if not ipsae_py.is_file():
+        raise FileNotFoundError("ipSAE script missing; run bash scripts/fetch_ipsae.sh before scoring")
     stem = "model"
     cif_path = workdir / f"{stem}.cif"
     cif_path.write_text(cif_text)
@@ -293,7 +295,7 @@ def evaluate_gate(metrics: dict, hotspot_conditioned: bool) -> tuple[bool, str |
         if key == "hotspot_contact_frac" and not hotspot_conditioned:
             continue
         val = metrics.get(key)
-        if val is None or (isinstance(val, float) and np.isnan(val)):
+        if isinstance(val, (bool, np.bool_)) or not isinstance(val, (int, float, np.integer, np.floating)) or not np.isfinite(val):
             reasons.append(f"{key}=NA (not measured)")
             continue
         if mode == "min" and val < thr:
@@ -312,6 +314,7 @@ def main() -> int:
     ap.add_argument("--target-chain", default="A")
     ap.add_argument("--binder-chain", default="B")
     ap.add_argument("--endpoint", choices=["hosted", "local"], default="hosted")
+    ap.add_argument("--url", default=None, help="override the Boltz2 URL for apo predictions")
     ap.add_argument("--env-file", default=None,
                     help="optional dotenv file to read NVIDIA_API_KEY/NGC_API_KEY from "
                          "(shell env always takes precedence)")
@@ -327,12 +330,6 @@ def main() -> int:
 
     skill_root = Path(__file__).resolve().parents[1]
     ipsae_py = skill_root / "vendor" / "ipsae" / "ipsae.py"
-    if not ipsae_py.exists():
-        print(f"ERROR: ipSAE script not found at {ipsae_py}.\n"
-              f"       Fetch it once: bash {skill_root}/scripts/fetch_ipsae.sh\n"
-              f"       (see {skill_root}/vendor/ipsae/README.md for source + license)",
-              file=sys.stderr)
-        return 2
 
     run_dir = args.run_dir
     raw_dir = run_dir / "validation" / "raw"
@@ -346,10 +343,10 @@ def main() -> int:
     hotspot_conditioned = False
     if args.hotspots and args.hotspots.exists():
         hdata = json.loads(args.hotspots.read_text())
-        hotspots = hdata.get("hotspot_residues", hdata if isinstance(hdata, list) else [])
+        hotspots = hdata if isinstance(hdata, list) else hdata.get("hotspot_residues", [])
         hotspot_conditioned = len(hotspots) > 0
 
-    url = HOSTED_URL if args.endpoint == "hosted" else LOCAL_URL
+    url = args.url or (HOSTED_URL if args.endpoint == "hosted" else LOCAL_URL)
     env_files: list[Path] = []
     if args.env_file:
         env_files.append(Path(args.env_file))
@@ -365,19 +362,32 @@ def main() -> int:
     rows = []
     for raw_path in raws:
         name = raw_path.name[:-5]  # strip .json
-        rec: dict = {"name": name, "failure_reason": None}
+        rec: dict = {**dict.fromkeys(GATE), "name": name, "failure_reason": None}
         try:
             raw = json.loads(raw_path.read_text())
+            metadata = raw.get("_refold", {})
+            rec["source_pdb"] = metadata.get("source_pdb")
+            if raw.get("failure_reason"):
+                rec.update({"pass": False, "failure_reason": raw["failure_reason"]})
+                rows.append(rec)
+                continue
+            target_chain = metadata.get("target_chain", args.target_chain)
+            binder_chain = metadata.get("binder_chain", args.binder_chain)
+            candidate_hotspots = metadata.get("hotspots", hotspots)
+            conditioned = bool(candidate_hotspots)
+            hotspot_conditioned = hotspot_conditioned or conditioned
             holo_cif = raw["structures"][0]["structure"]
             atoms = parse_cif_atoms(holo_cif)
+            if target_chain == binder_chain or not chain_ca(atoms, target_chain) or not chain_ca(atoms, binder_chain):
+                raise ValueError(f"prediction is missing distinct target/binder chains {target_chain}/{binder_chain}")
             pae = np.array(raw["pae"][0])
             pair_iptm = raw.get("pair_chains_iptm_scores", [None])[0]
 
             rec["iptm"] = float(raw["iptm_scores"][0])
             rec["complex_plddt"] = float(raw["complex_plddt_scores"][0])
-            rec["binder_plddt"] = chain_mean_ca_plddt(atoms, args.binder_chain)
-            rec["binder_len"] = len(chain_ca(atoms, args.binder_chain))
-            binder_seq = chain_sequence(atoms, args.binder_chain)
+            rec["binder_plddt"] = chain_mean_ca_plddt(atoms, binder_chain)
+            rec["binder_len"] = len(chain_ca(atoms, binder_chain))
+            binder_seq = chain_sequence(atoms, binder_chain)
             rec["binder_seq"] = binder_seq
 
             with tempfile.TemporaryDirectory() as td:
@@ -386,9 +396,9 @@ def main() -> int:
             rec.update({"ipsae_min": ips["ipsae_min"], "ipsae_max": ips["ipsae_max"],
                         "ipsae_asym": ips["ipsae_asym"]})
 
-            if hotspot_conditioned:
-                hc = hotspot_contacts(atoms, args.target_chain, args.binder_chain,
-                                      hotspots, args.contact_cutoff)
+            if conditioned:
+                hc = hotspot_contacts(atoms, target_chain, binder_chain,
+                                      candidate_hotspots, args.contact_cutoff)
                 rec["hotspot_contact_frac"] = hc["contact_frac"]
                 rec["hotspot_detail"] = hc
             else:
@@ -428,24 +438,29 @@ def main() -> int:
                 apo_chain = sorted({a["chain"] for a in apo_atoms})[0]
                 rec["apo_binder_plddt"] = apo_plddt if apo_plddt is not None \
                     else chain_mean_ca_plddt(apo_atoms, apo_chain)
-                holo_ca = np.array([a["xyz"] for a in chain_ca(atoms, args.binder_chain)])
+                holo_ca = np.array([a["xyz"] for a in chain_ca(atoms, binder_chain)])
                 apo_ca = np.array([a["xyz"] for a in chain_ca(apo_atoms, apo_chain)])
-                n = min(len(holo_ca), len(apo_ca))
-                rec["binder_rmsd"] = kabsch_rmsd(holo_ca[:n], apo_ca[:n])
+                if holo_ca.shape != apo_ca.shape or len(holo_ca) == 0:
+                    raise ValueError("apo/holo binder CA counts differ; full-chain RMSD is unavailable")
+                rec["binder_rmsd"] = kabsch_rmsd(holo_ca, apo_ca)
 
-            passed, reason = evaluate_gate(rec, hotspot_conditioned)
+            passed, reason = evaluate_gate(rec, conditioned)
             rec["pass"] = passed
+            if rec.get("apo_status", "").startswith("apo prediction failed:"):
+                reason = "; ".join(filter(None, [reason, rec["apo_status"]]))
             rec["failure_reason"] = reason
         except Exception as e:  # noqa: BLE001
             rec["pass"] = False
             rec["failure_reason"] = f"scoring error: {e}"
         rows.append(rec)
 
-    # ---- rank: passers first, then by ipsae_min desc (None last) ----
+    # ---- rank: passers first, then ipTM and ipSAE_min (missing values last) ----
     def sort_key(r):
+        def descending(key):
+            value = r.get(key)
+            return -value if isinstance(value, (int, float)) and np.isfinite(value) else float("inf")
         return (not r.get("pass", False),
-                -(r.get("ipsae_min") or -1.0),
-                -(r.get("iptm") or -1.0))
+                descending("iptm"), descending("ipsae_min"))
     rows.sort(key=sort_key)
     for i, r in enumerate(rows, 1):
         r["rank"] = i

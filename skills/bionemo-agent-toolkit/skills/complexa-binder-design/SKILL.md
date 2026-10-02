@@ -32,7 +32,12 @@ confidence is an independent check, not the generator grading its own homework.
 > NIM**: install Proteina-Complexa + download weights, Python deps (`numpy biotite
 > pyyaml`), AF2 **configure-vs-bypass**, optional analyze tools (`foldseek`/`sc`/`dssp`),
 > the Boltz2/OF3 validation endpoint, and every env var. Then run
-> `bash scripts/check_setup.sh` for a one-shot readiness checklist.
+> `bash scripts/check_setup.sh` for a one-shot readiness checklist. Before Stage 2,
+> require a GPU host, a local checkout at `$COMPLEXA_REPO`, the installed `complexa`
+> CLI, and both `complexa.ckpt` and `complexa_ae.ckpt` at the configured paths.
+> Configure AF2 parameters or explicitly select the documented bypass. Before
+> Stage 3, require the validation endpoint/auth and fetched ipSAE script. Missing
+> prerequisites stop the dependent stage; report what was not run.
 
 ```
 Stage 1: Resolve target + hotspots            → target.pdb + hotspots.json   (no GPU)
@@ -72,14 +77,18 @@ free text.
 surface-exposed, binder-accessible epitope. Resolve in evidence order
 (`scripts/hotspot_strategy.py`, `scripts/pdb_interface.py`):
 
-1. **PDB co-complex interface** (gold standard) — interface residues from a structure
-   where the target contacts a protein partner.
-2. **UniProt functional residues** — `Mutagenesis` + accessible `Active/Binding/Site`,
+1. **UniProt functional residues** — `Mutagenesis` + accessible `Active/Binding/Site`,
    **filtered to the extracellular/accessible range** (catalytic/cytoplasmic pockets
    are the wrong surface for a binder and are dropped).
+2. **PDB co-complex interface** — fallback when functional evidence is absent;
+   review partner contacts for biological relevance before accepting them.
 3. **Literature (Paperclip)** — full-text mining when 1–2 are empty
    (`prompts/hotspot_paperclip.md`); structure-confirmed to auto-correct numbering.
 4. **Unconditioned** (`[]`) only as a documented last resort.
+
+This automatic evidence order applies to name/accession resolution. For a supplied
+PDB/co-complex and an explicit interface request, use that structure's reviewed
+partner contacts directly; do not replace the user's epitope with another source.
 
 Then enforce, deterministically:
 - **Structure alignment** (`align_hotspots_to_structure`) — drop residues absent from
@@ -131,9 +140,13 @@ MPNN-redesign it**. Search algorithms: `best-of-n` (default) · `beam-search` ·
 ## Stage 3 — validate (independent refold) + gate
 
 **Validate a capped shortlist, not the whole pool.** Best-of-n produces many
-candidates; fold only ~**2× the requested N** (the top ones by the generation/AF2
+candidates; fold at most **2× the requested N per round** (the top ones by the generation/AF2
 reward) — validating the entire pool wastes GPU/time and (on hosted Boltz2) trips rate
 limits. Point at a local Boltz2 NIM via `$BOLTZ2_URL` (`--endpoint local`) when available.
+The default is 20 designs for N=10. `pipeline.validation_count()` enforces that
+default independently of GPU count; a positive `n_validated` is an explicit budget
+override. For the direct refold CLI, pass only the ranked shortlist and set
+`--max-designs` to the agreed limit; oversized batches fail before network calls.
 
 Per binder run **two** predictions with one refolder (Boltz2 default): **holo**
 (binder + target; target MSA, binder single-sequence, `write_full_pae`) and **apo**
@@ -141,6 +154,12 @@ Per binder run **two** predictions with one refolder (Boltz2 default): **holo**
 calls (with retry/backoff for rate limits) and chains **`scripts/validate_binders.py`**,
 which runs apo + computes the metrics + applies the gate + ranks. Per-chain
 conditioning + metric definitions: `references/validation.md`.
+Pass verified `--target-chain` and `--binder-chain` IDs from the generated PDBs;
+the refold command requires them and retains them as prediction polymer IDs.
+It records each input PDB and remaps supplied author-numbered hotspots into the
+prediction's sequence positions. Missing chains and endpoint errors produce raw
+failure records and nonzero exit status; the validator retains those rows in JSON
+and CSV. The same endpoint override is used for holo and apo calls.
 
 **Gate (defaults — every gate must hold):** ipTM ≥ 0.65, complex pLDDT ≥ 0.70, binder
 pLDDT ≥ 0.70, apo binder pLDDT ≥ 0.70, **ipSAE_min ≥ 0.45**, apo↔holo binder RMSD
@@ -177,11 +196,12 @@ condition fired. Layout, loop, and report sections: `references/pipeline.md`.
 
 - `references/setup.md` + `scripts/check_setup.sh` — standalone (no-NIM) install guide
   and a one-shot environment readiness check.
-- `scripts/pipeline.py` — orchestrator (Stage-1 resolution + open-CLI generation +
-  AF2 gate + scoring); `score_existing` and `full` modes.
+- `scripts/pipeline.py` — target-resolution helpers, bounded CSV shortlisting, and
+  `score_existing`. Its legacy `full` mode runs the complete upstream design/evaluate
+  CLI; use `complexa_design.py run` for the lean Stage-2 path documented here.
 - `scripts/preflight_design.py` — no-GPU target/hotspot/size planner.
 - `scripts/hotspot_strategy.py`, `scripts/pdb_interface.py` — evidence-based hotspots.
-- `scripts/complexa_design.py` — thin `complexa design` driver + output extraction.
+- `scripts/complexa_design.py` — `complexa generate` driver + output extraction.
 - `scripts/setup_af2_params.sh` — download AF2-Multimer params (public, no auth) +
   create the `params/` layout, for reward-guided search (`best-of-n`, etc.).
 - `scripts/boltz2_refold.py` — Stage-3 **holo** Boltz2 refolds (retry/backoff + throttle)

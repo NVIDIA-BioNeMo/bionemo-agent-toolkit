@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-"""Deterministic structural metrics for binder design (numpy only)."""
+"""Deterministic RMSD metrics (numpy; biotite for mmCIF input)."""
 from __future__ import annotations
 
 import numpy as np
@@ -25,7 +25,7 @@ def kabsch_rmsd(p, q):
 
 
 def ca_rmsd_from_pdb(pdb_a, pdb_b, chain_a=None, chain_b=None):
-    """CA-RMSD between two structures (by chain). Truncates to common length."""
+    """CA-RMSD between equal-length PDB chains; missing residues are an error."""
     import os
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +33,40 @@ def ca_rmsd_from_pdb(pdb_a, pdb_b, chain_a=None, chain_b=None):
 
     a = ca_coords(pdb_a, chain_a)
     b = ca_coords(pdb_b, chain_b)
-    n = min(len(a), len(b))
-    if n == 0:
+    if not a or not b:
         raise ValueError("no CA atoms found for RMSD")
-    return kabsch_rmsd(a[:n], b[:n])
+    return kabsch_rmsd(a, b)
+
+
+def ca_rmsd_from_structures(backbone_pdb, predicted_text, *, backbone_chain,
+                            predicted_chain, predicted_format="cif"):
+    """Compare explicit binder chains, using mmCIF label IDs for predictions.
+
+    Both chains must contain the full binder in residue order. Do not silently
+    truncate missing residues or compare against the target chain.
+    """
+    from pdb_utils import structure_ca_coords
+
+    designed = structure_ca_coords(backbone_pdb, backbone_chain, format="pdb")
+    predicted = structure_ca_coords(predicted_text, predicted_chain, format=predicted_format)
+    return kabsch_rmsd(designed, predicted)
+
+
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description="Binder CA-RMSD from a PDB backbone and PDB/mmCIF prediction.")
+    parser.add_argument("backbone", type=Path)
+    parser.add_argument("prediction", type=Path)
+    parser.add_argument("--backbone-chain", required=True)
+    parser.add_argument("--predicted-chain", required=True)
+    args = parser.parse_args()
+    try:
+        print(ca_rmsd_from_structures(
+            args.backbone.read_text(), args.prediction.read_text(),
+            backbone_chain=args.backbone_chain, predicted_chain=args.predicted_chain,
+            predicted_format=args.prediction.suffix.lstrip("."),
+        ))
+    except (ValueError, OSError, ImportError) as exc:
+        parser.exit(1, f"RMSD unavailable: {exc}\n")

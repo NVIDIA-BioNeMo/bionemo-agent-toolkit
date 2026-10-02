@@ -159,9 +159,12 @@ python scripts/complexa_design.py run --task-name <task-name> --run-name <run> \
 #   ...or AF2-free quick path:  add --af2-bypass --algorithm single-pass
 
 # Stage 3 — independent Boltz2 HOLO refold (+ apo + ipSAE + gate + rank) in one step.
-# Point --pdbs at the generated complexes (under $COMPLEXA_REPO/inference/...):
+# Select at most 2*N complexes by generation reward; verify their chain IDs.
+# For default N=10 the cap is 20; use a fresh run/round directory for a new batch.
 python scripts/boltz2_refold.py --run-dir outputs/<run> \
     --pdbs outputs/<run>/inference/*.pdb \
+    --target-chain <verified-target-chain> --binder-chain <verified-binder-chain> \
+    --max-designs 20 --hotspots outputs/<run>/hotspots.json \
     --endpoint hosted --validate scripts/validate_binders.py
 # -> outputs/<run>/ranked_binders.json (+ .csv): every design with pass/fail + metrics
 ```

@@ -15,7 +15,7 @@ complexa-binder-design/
 ├── references/
 │   ├── target-and-hotspots.md  # Stage 1: structure resolution + evidence-based hotspots + crop
 │   ├── complexa-cli.md         # how to drive the open `complexa` CLI (overrides, search, outputs)
-│   ├── pipeline.md             # stage-by-stage orchestration + run-until-N-validated loop
+│   ├── pipeline.md             # stage-by-stage orchestration + bounded two-round loop
 │   └── validation.md           # independent holo/apo refold, metrics, gate
 ├── scripts/
 │   ├── pipeline.py          # Stage-1 resolution + Stage-2 generation (open CLI) + scoring

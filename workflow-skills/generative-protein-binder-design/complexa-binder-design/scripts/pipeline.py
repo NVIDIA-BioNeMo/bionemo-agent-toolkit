@@ -94,10 +94,9 @@ MAX_COMPLEX_RESIDUES = 500       # hard cap on target + binder residues, total
 # self_complex_i_pTM / self_complex_pLDDT. Public default is 1 GPU; raise to your
 # GPU count for more parallelism/diversity.
 N_DEVICES_DEFAULT = 1            # gen/eval njobs — set to your available GPU count
-# No per-device cap: the AF2 gate is the SOLE selector — EVERY AF2-passing design
-# is Boltz2-validated. MAX_VALIDATE_CEILING is only a runaway guard (a single
-# freak run can't submit tens of thousands of Boltz2 folds). Set high enough to
-# never bite in practice (the largest observed AF2-pass pool was PIN1 at 381).
+# The default independent-validation shortlist is 2 x the requested count.
+# GPU count changes generation parallelism, never the validation budget.
+DEFAULT_REQUESTED = 10
 MAX_VALIDATE_CEILING = 2000
 
 # AF2 quality gate (PRIMARY selector). Rather than blindly Boltz2-validating a
@@ -110,14 +109,13 @@ AF2_IPTM_MIN = 0.70              # self_complex_i_pTM must exceed this
 AF2_PLDDT_MIN = 0.70             # self_complex_pLDDT must exceed this
 
 
-def validation_count(n_devices: int, n_validated: int = 0) -> int:
-    """How many AF2-passing designs go to Boltz2. The AF2 gate (``AF2_IPTM_MIN`` /
-    ``AF2_PLDDT_MIN``) is the SOLE selector — EVERY design that clears it is
-    validated (no per-device cap). ``n_validated <= 0`` => MAX_VALIDATE_CEILING
-    (effectively unlimited, runaway guard only); a positive value is an explicit
-    user cap. NOTE: validation refolds the whole set, so a very large AF2-pass pool
-    can be slow; cap it with an explicit n_validated if needed."""
-    return int(n_validated) if int(n_validated) > 0 else MAX_VALIDATE_CEILING
+def validation_count(n_devices: int, n_validated: int = 0,
+                     n_requested: int = DEFAULT_REQUESTED) -> int:
+    """Cap AF2-ranked validation at 2 x requested N, unless explicitly budgeted."""
+    if n_devices < 1 or n_requested < 1 or n_validated < 0:
+        raise ValueError("device/requested counts must be positive; validation cap must be nonnegative")
+    cap = int(n_validated) if n_validated else 2 * int(n_requested)
+    return min(cap, MAX_VALIDATE_CEILING)
 
 
 def _max_target_residues(binder_max: int = BINDER_LENGTH[1]) -> int:
@@ -859,7 +857,7 @@ def _find_combined_csvs(task_name: str, run_name: str) -> list[Path]:
 
 
 def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
-                             n_top: int = 50) -> Iterator[Event]:
+                             n_top: int = 2 * DEFAULT_REQUESTED) -> Iterator[Event]:
     """Pull REAL (inverse-folded) binder sequences + refolded PDBs from the
     Complexa results CSV into design/ + sequences/binders_complexa_native.fasta.
 
@@ -955,8 +953,8 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         return
     # AF2 QUALITY GATE (primary selector). Forward to Boltz2 only the designs the
     # generator's own AF2-Multimer is already confident in: self_complex_i_pTM AND
-    # self_complex_pLDDT both > 0.70. We validate ALL designs that pass (not a fixed
-    # top-N); n_top is only a safety cap. This avoids Boltz2-re-predicting collapsed
+    # self_complex_pLDDT both > 0.70. Rank passers, then enforce the n_top budget.
+    # This avoids Boltz2-re-predicting collapsed
     # / low-confidence backbones (which scored i_pTM~0.08, pLDDT~0.56).
     n_pre_gate = len(usable)
     if iptm_col or plddt_col:
@@ -971,7 +969,7 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         gate_desc = " & ".join(_gate_parts)
         yield Event("stage2", "info",
                     f"AF2 gate ({gate_desc}): {len(passed)}/{n_pre_gate} design(s) pass "
-                    "→ Boltz2-validating all of them")
+                    f"→ shortlist at most {max(1, n_top)} for Boltz2")
         if not passed:
             best_iptm = max((_num(r, iptm_col) for r in usable), default=0.0) if iptm_col else None
             best_plddt = max((_num(r, plddt_col) for r in usable), default=0.0) if plddt_col else None
@@ -988,16 +986,15 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
                     "no AF2 i_pTM/pLDDT column found in results CSV — skipping AF2 gate, "
                     f"falling back to top-{max(1, n_top)} by available score")
     usable.sort(key=_score, reverse=True)
-    # No per-target cap: validate EVERY AF2-passing design. n_top is only the
-    # runaway ceiling (MAX_VALIDATE_CEILING) unless the user set an explicit cap.
+    # The independent-validation budget applies after generation-quality ranking.
     if len(usable) > max(1, n_top):
         yield Event("stage2", "info",
-                    f"AF2-passing pool ({len(usable)}) exceeds the runaway ceiling {max(1, n_top)}; "
+                    f"AF2-passing pool ({len(usable)}) exceeds the validation budget {max(1, n_top)}; "
                     f"keeping the top {max(1, n_top)} by AF2 i_pTM for Boltz2")
         usable = usable[:max(1, n_top)]
     else:
         yield Event("stage2", "info",
-                    f"validating ALL {len(usable)} AF2-passing design(s) with Boltz2 (no cap)")
+                    f"validating {len(usable)} AF2-passing design(s) within the cap of {max(1, n_top)}")
     design = run_dir / "design"
     seqs = run_dir / "sequences"
     design.mkdir(parents=True, exist_ok=True)
@@ -1094,14 +1091,15 @@ def score(run_dir: Path, hotspots: Path | None, apo_dir: Path | None = None) -> 
 def run(mode: str = "score_existing", *, run_dir: str | None = None,
         target: dict | None = None, target_text: str | None = None,
         target_file: str | None = None, target_key: str | None = None,
-        conditioning: str = "msa", n_validated: int = 0,
+        conditioning: str = "msa", n_validated: int = 0, n_requested: int = DEFAULT_REQUESTED,
         n_devices: int = N_DEVICES_DEFAULT,
         hotspots: str | None = None, apo_dir: str | None = None) -> Iterator[Event]:
     """Stream the pipeline. See module docstring for modes.
 
-    ``n_validated <= 0`` auto-couples to ``n_devices x VALIDATED_PER_DEVICE`` (the
-    number of AF2-ranked designs forwarded to Boltz2): 16 GPUs -> 64 validated."""
-    n_validated = validation_count(n_devices, n_validated)
+    A zero ``n_validated`` uses 2 x ``n_requested`` (default 20); a positive
+    value is an explicit validation budget. One call generates at most one round;
+    the campaign agent applies the documented two-round stop policy."""
+    n_validated = validation_count(n_devices, n_validated, n_requested)
     try:
         if mode == "score_existing":
             if not run_dir:

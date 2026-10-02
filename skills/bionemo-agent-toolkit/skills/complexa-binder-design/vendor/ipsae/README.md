@@ -9,6 +9,9 @@ bash ../../scripts/fetch_ipsae.sh      # writes ipsae.py into this directory
 ```
 
 This downloads `ipsae.py` to `vendor/ipsae/ipsae.py`, where the validator expects it.
+The download is pinned to a commit and SHA-256 digest (see `VENDOR.md`) and is
+verified before replacing an existing copy. Updating the pin requires reviewing
+the upstream code and updating the revision and digest together.
 
 ## Attribution
 

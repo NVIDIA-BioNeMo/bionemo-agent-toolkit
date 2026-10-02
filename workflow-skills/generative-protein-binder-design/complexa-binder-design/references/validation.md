@@ -68,7 +68,7 @@ row per design** — pass and fail — each with all measured metrics, the boole
 
 - `null`/empty for passers.
 - For a failing design list **every** missed gate as `metric: measured vs
-  threshold`, e.g. `"ipTM=0.62 < 0.70; apo_binder_plddt=0.55 < 0.70; binder_rmsd=3.1 > 2.5"`.
+  threshold`, e.g. `"ipTM=0.62 < 0.65; apo_binder_plddt=0.55 < 0.70; binder_rmsd=3.1 > 2.5"`.
 - If a design could not be scored (refold/apo errored, PAE missing), record the
   verbatim error as `failure_reason` and leave unmeasured metrics `null` — never
   drop silently, never invent a value.
@@ -77,4 +77,22 @@ row per design** — pass and fail — each with all measured metrics, the boole
 and writes `validation/raw/*.json`; `scripts/validate_binders.py` then runs the **apo**
 call and implements ipSAE, apo↔holo RMSD, hotspot contact, and gating into
 `ranked_binders.json`. Run them together via `boltz2_refold.py --validate
-scripts/validate_binders.py`.
+scripts/validate_binders.py`, with explicit `--target-chain` and `--binder-chain`
+from the input complexes and a ranked shortlist within `--max-designs` (default
+20 for N=10). Never infer chain identity from A/B defaults. Prediction polymer
+IDs retain these chain IDs; the validator uses mmCIF label IDs to match them.
+The holo helper records source PDBs and remapped hotspots under `_refold` in each
+raw JSON. Supply input-PDB author-numbered hotspots to the helper; it maps them
+to prediction sequence positions. Missing residues/chains are explicit failures.
+
+Failed holo calls and malformed inputs also have raw JSON records with
+`failure_reason`; the validator exports them even when every holo call failed or
+the ipSAE dependency is absent. No apo call is made for a failed holo. A refold
+batch with any failed input returns nonzero after recording results. For legacy
+raw JSON without `_refold`, pass verified chain IDs to the validator and use
+prediction-numbered hotspots. Use a separate run/round directory when changing
+the candidate batch; resume the same directory only for the same inputs.
+
+Ranking is passers first, then descending ipTM and ipSAE_min. Missing or non-finite
+gate metrics never pass, and unequal apo/holo binder lengths cannot produce a
+truncated RMSD. The report keeps failed and unmeasured designs visible with NO-GO.

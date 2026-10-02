@@ -35,7 +35,7 @@ resolves them in this order, every candidate restricted to the accessible surfac
    protein, so candidates are filtered to it and the target is cropped to that region.
    Catalytic/intracellular pockets (e.g. HER2 kinase ATP site, IL1R1 cytoplasmic TIR)
    are dropped — they are the wrong surface for a binder.
-2. **PDB co-complex interface (gold standard, fallback + review)** —
+2. **PDB co-complex interface (fallback + review)** —
    `pdb_interface.interface_hotspots`: from the target's PDB cross-references, find a
    structure where the target chain contacts a protein partner, compute interface
    residues (≤ 5 Å heavy-atom), map PDB→UniProt by alignment. Review for crystal/
@@ -44,6 +44,12 @@ resolves them in this order, every candidate restricted to the accessible surfac
    contacts) when 1–2 are empty; see `prompts/hotspot_paperclip.md`. The structure is
    the ground-truth filter (auto-corrects literature↔structure numbering offsets).
 4. **Unconditioned** (`[]`) — documented last resort.
+
+This order is for automatic name/accession resolution. A supplied co-complex with
+an explicitly requested partner interface uses that structure directly after
+reviewing its contacts; honor user-specified epitopes rather than replacing them
+with functional annotations from another source. This matches `SKILL.md` and the
+PDB-input branch in `preflight_design.py`.
 
 ## 3. Align to the structure (the ordering guarantee)
 

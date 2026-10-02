@@ -14,16 +14,14 @@ SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$SKILL_DIR/vendor/ipsae/ipsae.py"
 mkdir -p "$(dirname "$DEST")"
 
-for ref in main master; do
-  URL="https://raw.githubusercontent.com/dunbracklab/IPSAE/${ref}/ipsae.py"
-  echo "Trying $URL ..."
-  if curl -fsSL "$URL" -o "$DEST"; then
-    echo "Saved ipSAE -> $DEST"
-    echo "Remember: ipSAE is MIT-licensed; keep vendor/ipsae/README.md attribution."
-    exit 0
-  fi
-done
-
-echo "ERROR: could not download ipsae.py. Download it manually from" >&2
-echo "       https://github.com/dunbracklab/IPSAE and place it at $DEST" >&2
-exit 1
+# Update revision and digest together after reviewing the upstream change.
+IPSAE_REVISION=6174cf9e71cb1bd660cc805856a18c4871a6dec3
+IPSAE_SHA256=10cf9b08c68c91e06cb28526cf2026f47a3980c9048fd3226d13e3304eaf1c27
+URL="https://raw.githubusercontent.com/dunbracklab/IPSAE/${IPSAE_REVISION}/ipsae.py"
+DOWNLOAD="$(mktemp "${DEST}.XXXXXX")"
+trap 'rm -f "$DOWNLOAD"' EXIT
+curl -fsSL --connect-timeout 15 --max-time 120 "$URL" -o "$DOWNLOAD"
+printf '%s  %s\n' "$IPSAE_SHA256" "$DOWNLOAD" | sha256sum --check --status
+mv "$DOWNLOAD" "$DEST"
+echo "Saved verified ipSAE ($IPSAE_REVISION) -> $DEST"
+echo "ipSAE is MIT-licensed; keep vendor/ipsae/README.md attribution."

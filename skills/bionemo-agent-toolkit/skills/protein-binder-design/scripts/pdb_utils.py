@@ -89,3 +89,28 @@ def remap_to_seq_index(pdb_text, chain, author_resnums):
 def ca_coords(pdb_text, chain=None):
     """List of (x, y, z) for CA atoms in chain order."""
     return [r[3] for r in ca_residues(pdb_text, chain)]
+
+
+def structure_ca_coords(structure_text, chain, *, format="pdb"):
+    """Extract one chain's C-alpha coordinates from model 1 of PDB or mmCIF.
+
+    mmCIF uses label chain IDs (the polymer IDs in the prediction request) and
+    requires biotite. PDB-only callers retain the dependency-free parser.
+    """
+    if format.lower() == "pdb":
+        # Only the first model: concatenating models corrupts RMSD matching.
+        coords = ca_coords(structure_text.split("ENDMDL", 1)[0], chain)
+    elif format.lower() in {"cif", "mmcif"}:
+        from io import StringIO
+        from biotite.structure.io import pdbx
+
+        atoms = pdbx.get_structure(
+            pdbx.CIFFile.read(StringIO(structure_text)), model=1,
+            use_author_fields=False,
+        )
+        coords = atoms.coord[(atoms.chain_id == chain) & (atoms.atom_name == "CA")].tolist()
+    else:
+        raise ValueError(f"unsupported structure format: {format}")
+    if not coords:
+        raise ValueError(f"no CA atoms found for chain {chain!r}")
+    return coords
