@@ -15,8 +15,11 @@ Developers and bioinformatics engineers use this skill to identify the right NVI
 Global <br>
 
 ## Requirements / Dependencies: <br>
-**Requires API Key or External Credential:** [Not Specified] <br>
-**Credential Type(s):** [None identified] <br>
+**Requires API Key or External Credential:** No for command guidance; conditional for Parabricks container image access. <br>
+**Credential Type(s):** An NGC API key may be required to authenticate Docker to `nvcr.io` when pulling the selected image; see the [NGC authentication documentation](https://docs.nvidia.com/ngc/latest/ngc-user-guide.html#ngc-api-keys). <br>
+**Command Guidance Dependencies:** Reading references and generating commands does not require a local GPU or container runtime. <br>
+**Readiness Helper Dependencies:** Python 3 on the host being inspected; missing runtime components are reported as readiness gaps. <br>
+**Execution Dependencies:** The documented Docker commands require a supported Linux host, an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker, NVIDIA Container Toolkit, and access to the selected Parabricks image. Verify the requirements for the selected version using [Runtime Environment](references/runtime-environment.md) and the [NVIDIA installation requirements](https://docs.nvidia.com/clara/parabricks/latest/gettingstarted/installationrequirements.html). <br>
 
 Do not include secrets in prompts/logs/output; use least-privilege credentials; rotate keys as appropriate. <br>
 

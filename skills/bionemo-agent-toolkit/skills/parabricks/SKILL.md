@@ -37,6 +37,17 @@ or wiring optional GPU branches. For pipeline-level work, use
 
 ## Prerequisites
 
+- **Command guidance:** No Parabricks/NGC credential or local GPU/container
+  runtime is required to read references or generate commands.
+- **Readiness helper:** Python 3 is required on the host being inspected;
+  missing runtime components are reported as readiness gaps.
+- **Execution:** The documented Docker commands require a supported Linux host,
+  an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker,
+  NVIDIA Container Toolkit, and access to the selected Parabricks image.
+  Pulling the image may require an NGC API key for authentication to `nvcr.io`.
+  See [runtime-environment.md](references/runtime-environment.md) for
+  version-specific requirements and checks.
+
 Ask for input data type, sequencing technology, reference build, sample
 structure, desired output, target Parabricks version/container tag, and runtime
 target before recommending commands.
