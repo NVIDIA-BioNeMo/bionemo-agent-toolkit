@@ -14,6 +14,8 @@ def kabsch_rmsd(p, q):
         raise ValueError(f"coordinate shape mismatch: {p.shape} vs {q.shape}")
     if p.shape[0] == 0:
         raise ValueError("no coordinates provided")
+    if not np.isfinite(p).all() or not np.isfinite(q).all():
+        raise ValueError("non-finite coordinates cannot be aligned")
     pc = p - p.mean(axis=0)
     qc = q - q.mean(axis=0)
     h = pc.T @ qc

@@ -5,8 +5,8 @@ harbor:
   agents:
     claude-code:
       model: aws/anthropic/bedrock-claude-opus-5
-  # The active dataset uses staged synthetic bookkeeping inputs only.
+  # The active dataset uses staged synthetic bookkeeping and workflow inputs only.
   # Deferred live campaigns must supply fixtures before they are re-enabled.
 
 grading:
-  mode: aces_default
+  mode: aces_plus_custom

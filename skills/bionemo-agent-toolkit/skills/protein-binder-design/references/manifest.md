@@ -135,3 +135,10 @@ do not require a designed backbone or its RMSD. An explicit `failure_reason` fro
 a failed request remains visible; retry only after the cause or retry decision is
 recorded. Checkpoint every successful or failed expensive stage with the mutation
 helpers. Preserve all candidates, including incomplete and failed ones.
+
+## Synthetic offline imports and cache recovery
+
+For supplied score profiles or saved synthetic responses, see
+[offline contracts](offline.md). The bundled commands preserve inputs, reload
+saved manifests, export both CSVs, and disclose incomplete scoring. They do not
+submit live inference or establish biological validity.

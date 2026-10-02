@@ -12,7 +12,7 @@ skill. Deterministic glue (parsing, remapping, RMSD, manifest) uses the bundled
   and stop if neither is set. Do not substitute the agent's `OPENAI_API_KEY` or
   print environment variables or authorization headers.
 - Wrap every hosted command:
-  `bash scripts/hosted_env.sh python your_nim_request.py` (use the helper's
+  `bash scripts/hosted_env.sh python3 your_nim_request.py` (use the helper's
   absolute path outside the skill directory). This exports the chosen key as
   `NGC_API_KEY` for RFdiffusion, ProteinMPNN, Boltz2, OpenFold3, and optional MSA
   subprocesses. The wrapper selects credentials and launches the command together;
@@ -82,6 +82,10 @@ seq_idx = remap_to_seq_index(target_pdb, chain="<C>", author_resnums=[<epitope a
 
 - RFdiffusion `hotspot_res` instead uses chain+author strings, e.g.
   `["E453", "E455", "E456", "E486"]` (no remap needed there).
+- Preserve insertion codes and sparse author numbering: `501` and `501A` are
+  distinct residues. Missing author IDs block the handoff. Verify endpoint
+  support before requesting an insertion-coded hotspot. Select the target
+  chain, one model and one alternate CA location per residue.
 - Optional: build a target MSA with `msa-search-nim` if you will fold/co-fold
   the target with evolutionary context.
 
@@ -147,6 +151,14 @@ binder sequence + target sequence (and target MSA if built).
   `boltz2_confidence_min` filter and `boltz2_confidence` ranking route from setup.
   Store the scalar confidence for the same returned sample as the saved complex.
 
+Record the sample index, chain roles, candidate/sequence identity, and digests of
+its target, response and selected complex when saving the response. Verify those
+bindings before importing missing metrics on resume. A complete low score does
+not need recomputation. Derive binder pLDDT only from explicitly identified
+per-residue binder confidence with its scale established; a whole-complex mean
+cannot substitute. Keep it missing when the response lacks that evidence.
+The synthetic cache format and recovery command are in `references/offline.md`.
+
 ```python
 # delegate to boltz2-nim / openfold3-nim
 polymers = [
@@ -182,7 +194,7 @@ m.set_scores("bb003_seq02", self_consistency_rmsd=rmsd)
 `pdb_utils.structure_ca_coords()` reads mmCIF with biotite using label chain IDs
 (the request polymer IDs). It also accepts PDB. Missing chains or unequal CA
 counts fail explicitly; do not truncate structures to force an RMSD. The CLI is
-`python scripts/metrics.py backbone.pdb complex.cif --backbone-chain <C> --predicted-chain <ID>`.
+`python3 scripts/metrics.py backbone.pdb complex.cif --backbone-chain <C> --predicted-chain <ID>`.
 For sequence-only controls without a designed backbone, RMSD is not applicable;
 `Manifest.apply_filters()` records the exemption and still tests confidence/pLDDT.
 

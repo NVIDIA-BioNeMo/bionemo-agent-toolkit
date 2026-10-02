@@ -18,8 +18,15 @@ THREE_TO_ONE = {
 }
 
 
-def _iter_atom_lines(pdb_text, chain=None):
+def _first_model_lines(pdb_text):
     for line in pdb_text.splitlines():
+        if line.startswith("ENDMDL"):
+            break
+        yield line
+
+
+def _iter_atom_lines(pdb_text, chain=None):
+    for line in _first_model_lines(pdb_text):
         if not line.startswith("ATOM"):
             continue
         if len(line) < 54:
@@ -30,20 +37,42 @@ def _iter_atom_lines(pdb_text, chain=None):
 
 
 def extract_chain(pdb_text, chain):
-    """Return PDB text containing only records for ``chain``."""
+    """First model and chosen CA conformer; retain chain and author numbering."""
     keep = []
-    for line in pdb_text.splitlines():
+    selected = {line[22:27]: line for line in _selected_ca_lines(pdb_text, chain)}
+    for line in _first_model_lines(pdb_text):
         if line.startswith(("ATOM", "HETATM", "TER")) and len(line) > 21 and line[21] == chain:
+            choice = selected.get(line[22:27])
+            if line.startswith("ATOM") and choice:
+                if line[12:16].strip() == "CA" and line != choice:
+                    continue
+                if choice[16].strip() and line[16] not in (" ", choice[16]):
+                    continue
             keep.append(line)
     return "\n".join(keep)
 
 
-def ca_residues(pdb_text, chain=None):
-    """Ordered list of (resName, resSeq, iCode, (x, y, z)) for CA atoms."""
-    out = []
+def _selected_ca_lines(pdb_text, chain=None):
+    chosen = {}
     for line in _iter_atom_lines(pdb_text, chain):
         if line[12:16].strip() != "CA":
             continue
+        key = (line[21], line[22:27])
+        occupancy = float(line[54:60].strip() or 0) if len(line) >= 60 else 0
+        priority = (bool(line[16].strip()), -occupancy, line[16])
+        if key not in chosen or priority < chosen[key][0]:
+            chosen[key] = (priority, line)
+    return [line for _, line in chosen.values()]
+
+
+def ca_residues(pdb_text, chain=None):
+    """First model, one CA per author residue, preserving insertion codes.
+
+    Prefer a blank alternate location, otherwise highest occupancy, then the
+    lexicographically first altloc on a tie. Residue order is file order.
+    """
+    out = []
+    for line in _selected_ca_lines(pdb_text, chain):
         res_name = line[17:20].strip()
         res_seq = int(line[22:26])
         icode = line[26].strip()
@@ -60,14 +89,16 @@ def sequence(pdb_text, chain=None):
 def residue_index_map(pdb_text, chain=None):
     """Map PDB author residue id -> 1-based sequence index (CA order).
 
-    Keys are stored both as the bare author number ('501') and, when an
-    insertion code is present, as number+icode ('501A').
+    '501' and '501A' are distinct keys. Never alias an insertion residue to a
+    bare number: that silently moves a hotspot. Specify a chain when numbering
+    overlaps across chains.
     """
     mapping = {}
     for i, (_, res_seq, icode, _) in enumerate(ca_residues(pdb_text, chain), start=1):
-        mapping[str(res_seq)] = i
-        if icode:
-            mapping[f"{res_seq}{icode}"] = i
+        key = f"{res_seq}{icode}"
+        if key in mapping:
+            raise ValueError(f"ambiguous author residue {key!r}; specify one chain")
+        mapping[key] = i
     return mapping
 
 

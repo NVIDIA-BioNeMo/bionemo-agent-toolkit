@@ -10,7 +10,7 @@ import biotite.structure.io.pdb as pdb
 import biotite.structure.io.pdbx as pdbx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from metrics import ca_rmsd_from_pdb, ca_rmsd_from_structures
+from metrics import ca_rmsd_from_pdb, ca_rmsd_from_structures, kabsch_rmsd
 
 
 def pdb_text(chains):
@@ -50,6 +50,11 @@ class StructureMetricTests(unittest.TestCase):
     def test_pdb_length_mismatch_is_not_silently_truncated(self):
         with self.assertRaisesRegex(ValueError, "shape mismatch"):
             ca_rmsd_from_pdb(self.backbone, pdb_text([("B", self.coords[:2])]), "D", "B")
+
+    def test_nonfinite_coordinates_fail_before_alignment(self):
+        for value in (float("nan"), float("inf")):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "non-finite"):
+                kabsch_rmsd(self.coords, [(value, 0, 0), *self.coords[1:]])
 
 
 if __name__ == "__main__":

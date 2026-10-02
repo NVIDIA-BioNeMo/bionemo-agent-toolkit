@@ -1,7 +1,7 @@
 ---
 name: protein-binder-design
 description: >
-  Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. Use for binder design, minibinder design, de novo binders, RFdiffusion + ProteinMPNN + Boltz2/OpenFold3 pipelines, epitope/hotspot-targeted design, in-silico binder validation, and ranking designs by interface confidence.
+  Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. Use for binder design, minibinder design, de novo binders, RFdiffusion + ProteinMPNN + Boltz2/OpenFold3 pipelines, epitope/hotspot-targeted design, in-silico binder validation, ranking designs by interface confidence, and offline binder campaign manifests or cached refold bookkeeping.
 license: Apache-2.0
 compatibility: "numpy>=1.24; requests>=2.28; biotite (mmCIF chain extraction)"
 allowed-tools: Bash, Read, Write, AskUserQuestion
@@ -40,6 +40,20 @@ Check the supplied paths first. If an input or NIM credential is missing, record
 the blocker and the unexecuted stages. Do not invent registry entries, measured
 scores, or an interrupted run. An empty CSV alone does not establish a completed
 campaign; report which stages ran and their saved artifacts.
+
+### Offline inputs
+
+For a synthetic fixture with `target` and `profiles`, run
+`python3 scripts/offline_bookkeeping.py /path/to/bookkeeping.json --output-dir /path/to/output`.
+This saves and reloads each manifest, writes both CSVs and `summary.json`, and
+reports missing scores and provisional counts in one call. For an interrupted
+synthetic run with saved responses, use
+`python3 scripts/refold_cache.py /path/to/manifest.json --output-dir /path/to/new-run`.
+Read [offline contracts](references/offline.md) for cache bindings, sample
+selection, chain confidence and blocked work. These helpers need no credentials
+and make no model calls. Inspect exit status and saved artifacts before claiming
+completion; a failed command followed by a successful retry is recovered
+execution, with both attempts retained as evidence.
 
 ### Pipeline
 
@@ -92,7 +106,12 @@ missing scores and label the passing fraction provisional when scoring is incomp
 - Epitope author residue numbers → 1-based sequence indices: remap with
   `scripts/pdb_utils.py:remap_to_seq_index`. RFdiffusion `hotspot_res` uses
   chain+author strings like `"A50"`; Boltz2 pocket/contacts use 1-based indices.
+  Keep insertion IDs distinct (`50` versus `50A`), select the target chain/model,
+  and block absent hotspots instead of substituting nearby residues. Verify
+  downstream support before requesting an insertion-coded hotspot.
 - Boltz2 complex `.cif` → binder chain → self-consistency RMSD vs the backbone.
+  Use the same saved sample for confidence and coordinates; mmCIF request polymer
+  IDs are label chain IDs. Whole-complex pLDDT does not supply binder-only pLDDT.
 
 ## Run manifest (reproducibility backbone)
 
@@ -168,7 +187,7 @@ reuse it for every call:
   belongs to the agent runtime and must not be used as a NIM credential. If both
   NIM keys are absent, report missing access before sending authenticated calls.
   Run **each delegated hosted command** through the credential wrapper:
-  `bash scripts/hosted_env.sh python your_nim_request.py`.
+  `bash scripts/hosted_env.sh python3 your_nim_request.py`.
   Use the helper's absolute path when running outside the skill directory.
   It exports the selected key as `NGC_API_KEY`, which the atomic NIM skills read,
   preserves an existing nonempty `NGC_API_KEY`, and stops before launching the
@@ -205,6 +224,8 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
 ## Scripts
 
 - `scripts/manifest.py` — campaign manifest (create / load / score / filter / rank / CSV).
+- `scripts/offline_bookkeeping.py` — import synthetic profiles and export saved state.
+- `scripts/refold_cache.py` — recover synthetic cached metrics with identity/digest checks.
 - `scripts/hosted_env.sh` — wrap hosted commands to normalize and pass the NIM key.
 - `scripts/pdb_utils.py` — PDB parse, chain extract, sequence, residue remap, CA coords.
 - `scripts/metrics.py` — Kabsch CA-RMSD from explicit PDB/mmCIF binder chains.

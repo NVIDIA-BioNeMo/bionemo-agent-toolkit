@@ -1,0 +1,12 @@
+MODEL        1
+ATOM      1  CA  ALA A  42      99.000  99.000  99.000  1.00 80.00           C  
+ATOM      2  CA  ALA E  10       0.000   0.000   0.000  1.00 80.00           C  
+ATOM      3  CA AGLY E  42       9.000   9.000   9.000  0.20 80.00           C  
+ATOM      4  CA BGLY E  42       4.000   0.000   0.000  0.80 80.00           C  
+ATOM      5  CA  SER E  42A      4.000   3.000   0.000  1.00 80.00           C  
+ATOM      6  CA  THR E  77       8.000   3.000   0.000  1.00 80.00           C  
+ENDMDL
+MODEL        2
+ATOM      7  CA  VAL E  10      50.000  50.000  50.000  1.00 80.00           C  
+ENDMDL
+END

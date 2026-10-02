@@ -64,6 +64,73 @@
         "[preserves-policy] Keeps all supplied scores, flags and thresholds; does not relax criteria to obtain a nonempty shortlist.",
         "[honest-coverage] Discloses pending's missing pLDDT and RMSD, a provisional 0/4 fraction, and synthetic offline coverage; no live inference or scientific validation claim."
       ]
+    },
+    {
+      "id": "offline-target-preparation",
+      "prompt": "Prepare the supplied target for a binder workflow from /workspace/input/target_prep/request.json. Follow /workspace/input/target_prep/CONTRACT.md and write the preparation artifacts under /workspace/output/target-prep. Resolve each requested hotspot handoff independently and report which can proceed. Work offline using these synthetic inputs; do not run inference.",
+      "files": [
+        "evals/files/target_prep/"
+      ],
+      "expected_output": "Target chain E from model 1 gives AGST, author map 10:1,42:2,42A:3,77:4. Present hotspots produce E42,E77 and sequence indices 2,4. Missing author 43 blocks that request without a nearest-residue guess. Target PDB retains chain E and author numbering.",
+      "assertions": [
+        "[structure-selection] Uses chain E, first model and one alternate CA per residue.",
+        "[author-map] Preserves 42 versus 42A and sparse numbering in the map and saved PDB.",
+        "[handoff] Saves present hotspots as E42/E77 and sequence indices 2/4.",
+        "[blocked-input] Missing 43 blocks only its request; no inferred replacement or partial payload.",
+        "[artifacts] Writes target.pdb and preparation.json with the specified fields.",
+        "[coverage] Discloses synthetic offline coverage and makes no inference claim."
+      ]
+    },
+    {
+      "id": "offline-refold-extraction",
+      "prompt": "Reconcile the saved refold results under /workspace/input/raw_refolds/ into two output runs /workspace/output/raw-refolds/boltz2 and /workspace/output/raw-refolds/openfold3. Follow /workspace/input/cache_contract.md, preserve the campaign policies, and report the resulting rankings and any blocked candidates. The responses are synthetic offline fixtures; make no model calls.",
+      "files": [
+        "evals/files/raw_refolds/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "Both rankings contain selected only. Boltz2 selected uses sample 1 confidence 0.81 and binder pLDDT 82; ipTM absent. OpenFold3 selected uses sample 1 ipTM 0.83 and binder pLDDT 86. poor_binder fails pLDDT 60 in both. Boltz2 incomplete is blocked for length mismatch; OpenFold3 composite_only is blocked for missing explicit ipTM. Counts 3/1/1 and 3/1/0, respectively; both fractions provisional.",
+      "assertions": [
+        "[sample-binding] Scores and saved complex use the recorded sample, not the highest confidence sample.",
+        "[chain-confidence] Uses binder CA confidence with explicit scale and mmCIF label IDs, not target or whole-complex means.",
+        "[metric-separation] Does not turn a Boltz2 composite or OpenFold3 confidence_score into ipTM.",
+        "[partial-response] Blocks incomplete chains and absent required metrics without partial score imports.",
+        "[saved-results] Writes both reloaded manifests, audit/ranked CSVs and summaries with correct counts and provenance.",
+        "[coverage] Reports simulated offline results, unresolved candidates and provisional fractions without model calls."
+      ]
+    },
+    {
+      "id": "offline-cache-resume",
+      "prompt": "Finish the recoverable offline work in /workspace/input/resume_cache/manifest.json and write the resumed run under /workspace/output/resumed. Use /workspace/input/cache_contract.md. Preserve the original run and its completed results and failure history, reconcile available cached responses, and replace stale exports. Report what remains blocked. All inputs are synthetic; do not submit inference or retries.",
+      "files": [
+        "evals/files/resume_cache/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "done and below are complete and unchanged; a finite low score is not pending. recoverable retains ipTM 0.86, gains binder pLDDT 84 and aligned RMSD approximately zero from cache. missing and failed stay blocked without invented metrics. Failure history and existing artifacts remain unchanged. Counts 5/2/1; ranked IDs done then recoverable; stale control/missing rows removed; 2/5 provisional.",
+      "assertions": [
+        "[resume-preservation] Keeps complete passing and failing scores, artifact bytes and historical failed stages.",
+        "[cache-recovery] Recovers only missing metrics; existing ipTM 0.86 is not replaced by raw 0.98.",
+        "[geometry] Aligns explicit full binder chains to obtain RMSD near zero.",
+        "[blocked-work] Records missing_artifact and missing_prediction without retries or fabricated scores.",
+        "[exports] Replaces stale ranking with done/recoverable; counts 5/2/1 and full audit retained.",
+        "[coverage] Reports pending work and provisional simulated 2/5 with no live inference coverage."
+      ]
+    },
+    {
+      "id": "offline-provenance-rejection",
+      "prompt": "Audit and reconcile /workspace/input/provenance_cache/manifest.json under /workspace/output/provenance. Follow /workspace/input/cache_contract.md. Decide which saved responses can supply scores to their candidates and produce the manifest, exports, summary and rejection reasons. Preserve the supplied evidence. These are synthetic offline fixtures; do not call models or repair provenance by guessing.",
+      "files": [
+        "evals/files/provenance_cache/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "Only valid is recovered and ranked, with boltz2_confidence 0.9 and binder_plddt 84. Reject candidate_swap, target_swap, sequence_swap, sample_swap and response_tampered for their respective candidate/target/sequence/selected-sample/file hash mismatch; leave all their scores empty and retain original evidence. Counts 6/1/0; 1/6 provisional; no ipTM invented.",
+      "assertions": [
+        "[identity] Checks candidate and sequence identity before accepting scores.",
+        "[target] Rejects a response binding to another target digest.",
+        "[artifact-integrity] Checks response bytes and selected-complex digest; does not rewrite bindings to fit cached data.",
+        "[fail-closed] Leaves rejected candidates unscored and present in the audit with specific reasons.",
+        "[exports] Ranks only valid and records counts 6/1/0 with source hashes/sample provenance.",
+        "[coverage] Reports provisional synthetic results and no live inference coverage."
+      ]
     }
   ]
 }
