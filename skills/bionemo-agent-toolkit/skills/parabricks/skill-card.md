@@ -45,7 +45,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-7 evaluation tasks (6 positive, 1 negative) run in isolated sandbox pods; dataset digest sha256:23088600f666e241. <br>
+7 evaluation tasks (6 positive, 1 negative) run in isolated sandbox pods; dataset digest `sha256:23088600f666e241635d67155f709ac6a3b62ee4705f6b793e39fe5421955b6b`. See [BENCHMARK.md](BENCHMARK.md) for evaluation details. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
