@@ -3,6 +3,7 @@
 """Offline bookkeeping tests; numeric fixtures are not scientific predictions."""
 import csv
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,6 +163,63 @@ class ManifestFilterTests(unittest.TestCase):
         self.assertEqual(loaded.missing_scores("incomplete"), ["binder_plddt", "self_consistency_rmsd"])
         with self.assertRaises(KeyError):
             loaded.missing_scores("unknown")
+
+    def test_evaluation_fixtures_export_only_ranked_survivors_after_resume(self):
+        fixtures = Path(__file__).resolve().parents[1] / "evals" / "files"
+        expectations = {
+            "bookkeeping.json": (["best", "boundary"], 4, 2),
+            "boltz2_only.json": (["binder_a", "binder_b"], 4, 2),
+            "mixed_thresholds.json": (["binder_a", "binder_b"], 6, 2),
+            "no_survivors.json": ([], 4, 0),
+        }
+        for filename, (expected_ids, n_candidates, n_passed) in expectations.items():
+            fixture = json.loads((fixtures / filename).read_text())
+            for profile in fixture["profiles"]:
+                with self.subTest(fixture=filename, profile=profile["name"]):
+                    run_dir = Path(self.temp.name) / Path(filename).stem / profile["name"]
+                    manifest = Manifest.create(
+                        run_dir, fixture["target"],
+                        filters=profile["filters"], params={"rank_by": profile["rank_by"]},
+                    )
+                    for entry in profile["candidates"]:
+                        manifest.upsert_candidate(
+                            entry["id"], is_control=entry.get("is_control", False),
+                            control_type=entry.get("control_type"),
+                        )
+                        manifest.set_scores(entry["id"], **entry["scores"])
+
+                    loaded = Manifest.load(run_dir)
+                    loaded.apply_filters()
+                    ranked = loaded.rank(
+                        by=loaded.data["params"]["rank_by"], descending=True,
+                        passed_only=True, include_controls=False,
+                    )
+                    loaded.to_csv(run_dir / "all_candidates.csv")
+                    loaded.to_csv(run_dir / "candidates.csv", candidates=ranked)
+
+                    with (run_dir / "candidates.csv").open() as stream:
+                        reader = csv.DictReader(stream)
+                        self.assertIn("id", reader.fieldnames)
+                        rows = list(reader)
+                    self.assertEqual([row["id"] for row in rows], expected_ids)
+                    self.assertTrue(all(row["is_control"] == "False" for row in rows))
+                    self.assertTrue(all(row["passed_filter"] == "True" for row in rows))
+                    with (run_dir / "all_candidates.csv").open() as stream:
+                        audit_rows = list(csv.DictReader(stream))
+                    self.assertEqual(
+                        [row["id"] for row in audit_rows],
+                        [entry["id"] for entry in profile["candidates"]],
+                    )
+                    saved = Manifest.load(run_dir)
+                    self.assertEqual(saved.summary(), {
+                        "n_candidates": n_candidates, "n_passed": n_passed, "n_controls": 1,
+                    })
+                    self.assertEqual(saved.data["filters"], profile["filters"])
+                    self.assertEqual(saved.data["params"]["rank_by"], profile["rank_by"])
+                    for entry, candidate in zip(profile["candidates"], saved.data["candidates"]):
+                        self.assertEqual(candidate["id"], entry["id"])
+                        self.assertEqual(candidate["scores"], entry["scores"])
+                        self.assertEqual(candidate["is_control"], entry.get("is_control", False))
 
 
 if __name__ == "__main__":

@@ -38,7 +38,8 @@ structure, chain, and epitope; controls need existing candidate sequences and
 sourced positive controls; resuming needs the original manifest and artifacts.
 Check the supplied paths first. If an input or NIM credential is missing, record
 the blocker and the unexecuted stages. Do not invent registry entries, measured
-scores, or an interrupted run. An empty CSV is not a completed campaign.
+scores, or an interrupted run. An empty CSV alone does not establish a completed
+campaign; report which stages ran and their saved artifacts.
 
 ### Pipeline
 
@@ -52,9 +53,36 @@ scores, or an interrupted run. An empty CSV is not a completed campaign.
    collect explicit ipTM or Boltz2 composite confidence, plus binder pLDDT.
 5. **Self-consistency** — CA-RMSD between the RFdiffusion backbone and the
    predicted binder (`scripts/metrics.py`).
-6. **Filter + rank** — apply thresholds; rank survivors; write manifest + CSV.
+6. **Filter + rank** — apply the saved campaign thresholds, exclude controls,
+   sort surviving designs, and export that exact list (see below).
 
 Full handoff contracts, branching, and the cost funnel: `references/pipeline.md`.
+
+### Filter, rank, and export
+
+For `m` returned by `Manifest.create()` or `Manifest.load()`, use this sequence
+after scoring. Keep the supplied filters, ranking metric, scores, and control
+flags unchanged:
+
+```python
+from pathlib import Path
+
+m.apply_filters()
+rank_by = m.data["params"].get("rank_by", "iptm")
+ranked = m.rank(by=rank_by, descending=True, passed_only=True, include_controls=False)
+run_dir = Path(m.data["run_dir"])
+m.to_csv(run_dir / "all_candidates.csv")       # complete audit, including controls
+m.to_csv(run_dir / "candidates.csv", candidates=ranked)
+print(m.summary())                           # controls excluded from candidate/pass counts
+print([candidate["id"] for candidate in ranked])
+```
+
+`rank()` returns a new list; it does not reorder or shrink the manifest.
+`to_csv()` without `candidates=ranked` writes **all** entries in insertion order.
+Pass an empty ranked list through unchanged: zero survivors means a header-only
+`candidates.csv`, while the audit CSV and manifest retain every entry. A high
+ranking score cannot override a failed or missing enabled filter metric. Report
+missing scores and label the passing fraction provisional when scoring is incomplete.
 
 ## Handoff contracts (the fragile glue)
 

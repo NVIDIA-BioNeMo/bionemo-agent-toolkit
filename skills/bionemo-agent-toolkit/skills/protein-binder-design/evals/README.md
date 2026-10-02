@@ -2,14 +2,31 @@
 
 ## Active coverage: offline bookkeeping
 
-`evals.json` runs one offline software exercise using
-`files/bookkeeping.json`, explicitly staged at `/workspace/input/bookkeeping.json`
-for both agent conditions. It covers manifest persistence, finite-score
-filtering, control exclusion, and ranked CSV export for separate ipTM and
-Boltz2 profiles. All numeric inputs and control labels are synthetic.
-The active `config.yml` forwards no NIM credentials and the case makes no NIM
-calls. Passing it establishes **bookkeeping coverage only**, not live model
+`evals.json` runs four offline software exercises. The original
+`offline-manifest` case and `files/bookkeeping.json` are unchanged so its
+per-agent result remains comparable to earlier runs. Three focused cases cover
+control exclusion, combined filters, and empty rankings:
+
+| Case | Input under `/workspace/input/` | Required result |
+| --- | --- | --- |
+| `offline-manifest` | `bookkeeping.json` | Persistence and ranked exports for ipTM and Boltz2 profiles. |
+| `offline-boltz2-ranking` | `boltz2_only.json` | Composite confidence stays separate from ipTM; passing controls do not enter the ranked CSV. |
+| `offline-mixed-threshold-ranking` | `mixed_thresholds.json` | All filters apply before sorting; a high ipTM cannot rescue another failing or invalid metric. |
+| `offline-empty-ranking` | `no_survivors.json` | A header-only ranked CSV and a complete audit when no designs pass. |
+
+Every case stages identical inputs for the with/without-skill conditions.
+The added prompts request campaign outputs without giving the expected order;
+the assertions check saved artifacts, not use of a particular helper.
+All numeric inputs and control labels are synthetic.
+The active `config.yml` forwards no NIM credentials and the cases make no NIM
+calls. Passing them establishes **bookkeeping coverage only**, not live model
 execution, biological validity, or end-to-end campaign coverage.
+
+Compare agents separately when rerunning: a passing best-agent summary can hide
+another agent's regression. Compare the original case against its own previous
+result; the expanded suite's aggregate is not directly comparable to the old
+one-case score. Positive lift is an observation, not a target for the grader:
+keep the baseline inputs and success criteria identical.
 
 Run the bundled regression tests without model access:
 

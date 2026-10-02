@@ -167,7 +167,7 @@ class TestPreflightDesign(unittest.TestCase):
         self.assertFalse([e.message for e in events if e.status == "error"])
         self.assertEqual(self.registered_target()["hotspot_residues"], ["B30"])
 
-    def test_partner_geometry_never_changes_the_registered_target_or_crop(self):
+    def test_partner_geometry_preserves_registered_target_and_crop_window(self):
         for size in (1, 400):
             with self.subTest(partner_residues=size):
                 self.target.write_text(structure_text(partner_size=size))

@@ -21,7 +21,7 @@ URL="https://raw.githubusercontent.com/dunbracklab/IPSAE/${IPSAE_REVISION}/ipsae
 DOWNLOAD="$(mktemp "${DEST}.XXXXXX")"
 trap 'rm -f "$DOWNLOAD"' EXIT
 curl -fsSL --connect-timeout 15 --max-time 120 "$URL" -o "$DOWNLOAD"
-printf '%s  %s\n' "$IPSAE_SHA256" "$DOWNLOAD" | sha256sum --check --status
+sha256sum --check --status <<< "$IPSAE_SHA256  $DOWNLOAD"
 mv "$DOWNLOAD" "$DEST"
 echo "Saved verified ipSAE ($IPSAE_REVISION) -> $DEST"
 echo "ipSAE is MIT-licensed; keep vendor/ipsae/README.md attribution."

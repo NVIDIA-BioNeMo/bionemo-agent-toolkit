@@ -189,13 +189,23 @@ For sequence-only controls without a designed backbone, RMSD is not applicable;
 ## 6. Filter + rank + report
 
 ```python
+from pathlib import Path
+
 m.apply_filters()                       # uses the saved campaign criteria
 rank_by = m.data["params"].get("rank_by", "iptm")
-ranked = m.rank(by=rank_by, descending=True, passed_only=True)
+ranked = m.rank(by=rank_by, descending=True, passed_only=True, include_controls=False)
 top = ranked[:20]
+run_dir = Path(m.data["run_dir"])
+m.to_csv(run_dir / "all_candidates.csv") # full audit, including controls and failures
 m.to_csv(candidates=ranked)              # ranked survivors; controls excluded
 print(m.summary())                      # {n_candidates, n_passed, n_controls}
 ```
+
+`rank()` does not modify the manifest. Always pass its returned list to the
+ranked export, including when empty; `to_csv()` alone exports every entry in
+insertion order. The complete audit is a separate file. All applicable enabled
+filters must pass before ranking, even for a design with the highest interface
+score. Disclose missing scores and a provisional passing fraction.
 
 Produce a short report: target + epitope, params, success rate, the top
 designs with their scores and artifact paths, and how they compare to controls

@@ -107,7 +107,11 @@ Label the metric and cutoff in the report, and apply the same profile to control
 
 `to_csv()` with no candidate list exports the full audit table in insertion
 order. Pass the list returned by `rank()` to export ranked survivors, including
-an empty list when none pass. The manifest always retains all candidates and
+an empty list when none pass. `rank()` does not mutate the manifest; calling
+`to_csv()` without that list afterward still writes all entries. Keep the audit
+in `all_candidates.csv` and the selected list in `candidates.csv`. An empty
+selected list produces only the CSV header; never replace it with all candidates.
+The manifest always retains all candidates and
 controls. `rank()` excludes missing, nonnumeric, boolean, and non-finite scores.
 
 ## Resumability

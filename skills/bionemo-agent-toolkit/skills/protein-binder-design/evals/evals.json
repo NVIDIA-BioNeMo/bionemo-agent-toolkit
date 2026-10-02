@@ -16,6 +16,54 @@
         "[separates-metrics] Boltz2 is filtered and ranked by boltz2_confidence, with iptm_min disabled and no invented ipTM score.",
         "[states-coverage] Labels every result as simulated offline bookkeeping, discloses the incomplete candidate and provisional 2/4 ratio, and makes no live inference or scientific validation claim."
       ]
+    },
+    {
+      "id": "offline-boltz2-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/boltz2_only.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/boltz2-only. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "The supplied composite-confidence cutoff is 0.73; ipTM remains disabled and absent. Ranked IDs are binder_a then binder_b. Counts are n_candidates=4, n_passed=2, n_controls=1; the audit retains all five entries. The sequence-only control is exempt only from RMSD. Pending lacks RMSD and low_confidence fails. The 2/4 fraction is provisional and synthetic.",
+      "files": [
+        "evals/files/boltz2_only.json"
+      ],
+      "assertions": [
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/boltz2-only; a plan alone does not pass.",
+        "[separate-metrics] Keeps the supplied 0.73 confidence cutoff, disabled ipTM and enabled pLDDT/RMSD filters; does not invent ipTM or rename confidence to ipTM.",
+        "[ranked-artifact] candidates.csv contains exactly binder_a then binder_b, excluding the higher-scoring control and pending.",
+        "[complete-audit] The manifest and all_candidates.csv retain all five entries; reports n_candidates=4, n_passed=2, n_controls=1.",
+        "[control-applicability] The sequence-only control has no invented RMSD or backbone and is exempt only from RMSD; its confidence and pLDDT still pass the supplied filters.",
+        "[honest-coverage] Discloses pending's missing RMSD and a provisional 2/4 fraction, labels scores synthetic, and makes no live inference or scientific validation claim."
+      ]
+    },
+    {
+      "id": "offline-mixed-threshold-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/mixed_thresholds.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/mixed-thresholds. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "All supplied thresholds are enforced. Ranked IDs are binder_a then binder_b, despite higher ipTM on the control and designs failing other criteria. Counts are n_candidates=6, n_passed=2, n_controls=1; all seven entries remain in the audit. The string-valued interface score stays invalid rather than being coerced; pending lacks RMSD. Results are synthetic and 2/6 is provisional.",
+      "files": [
+        "evals/files/mixed_thresholds.json"
+      ],
+      "assertions": [
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/mixed-thresholds; a plan alone does not pass.",
+        "[all-thresholds] Keeps every supplied filter; high_confidence_low_plddt and high_rmsd fail despite higher ipTM than selected designs.",
+        "[ranked-artifact] candidates.csv contains exactly binder_a then binder_b in descending numeric ipTM order and excludes controls, failures and incomplete designs.",
+        "[complete-audit] The manifest and all_candidates.csv retain all seven entries; reports n_candidates=6, n_passed=2, n_controls=1.",
+        "[invalid-and-missing] Preserves the string score as supplied and rejects it as invalid; pending is incomplete. Does not invent, coerce, or repair scores.",
+        "[honest-coverage] Reports a provisional 2/6 fraction because scoring is incomplete and labels the outputs synthetic offline bookkeeping, with no live inference claim."
+      ]
+    },
+    {
+      "id": "offline-empty-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/no_survivors.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/no-survivors. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "No design passes every applicable filter. candidates.csv has a header and zero data rows even though the synthetic control passes. Counts are n_candidates=4, n_passed=0, n_controls=1; all five entries remain in the audit and manifest. Pending lacks pLDDT and RMSD. The 0/4 fraction is provisional; thresholds are not relaxed to manufacture a shortlist.",
+      "files": [
+        "evals/files/no_survivors.json"
+      ],
+      "assertions": [
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/no-survivors; a plan alone does not pass.",
+        "[empty-ranked-artifact] candidates.csv is header-only with zero data rows; the file is not omitted and there is no fallback to all candidates.",
+        "[control-exclusion] Excludes the passing control from the ranked design shortlist and design/pass counts.",
+        "[complete-audit] The manifest and all_candidates.csv retain all five entries; reports n_candidates=4, n_passed=0, n_controls=1.",
+        "[preserves-policy] Keeps all supplied scores, flags and thresholds; does not relax criteria to obtain a nonempty shortlist.",
+        "[honest-coverage] Discloses pending's missing pLDDT and RMSD, a provisional 0/4 fraction, and synthetic offline coverage; no live inference or scientific validation claim."
+      ]
     }
   ]
 }
