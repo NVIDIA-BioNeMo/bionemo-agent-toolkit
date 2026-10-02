@@ -20,25 +20,41 @@ They do not create trainable framework parameters or select a GPU kernel.
 - For dictionaries keyed by irrep, read [the ir_dict workflow](references/ir-dict.md).
   It includes a CPU example and the boundary with JAX execution.
 
-## Check the installed API
+For explanations or requests to show runnable code, adapt the closest example;
+installing packages is not a prerequisite to answering. Read the reference for
+the selected workflow. Execute code when the user requests a run or when an
+integration or correctness question needs a runtime check. Inspect upstream
+source when the installed API differs or a numerical check fails.
 
-These examples were checked with **cuEquivariance 0.12.0**. Check the user's
-environment before using version-sensitive APIs, especially `IrDictPolynomial`
-and the `_ir_dict` descriptors:
+## Check the execution environment
+
+These examples were checked with **cuEquivariance 0.12.0**. When executing,
+check the selected interpreter and the APIs needed for that workflow together:
 
 ```python
-from importlib.metadata import version
-import cuequivariance as cue
+from importlib.metadata import PackageNotFoundError, version
+import sys
 
-print(version("cuequivariance"))
-print("IrDictPolynomial available:", hasattr(cue, "IrDictPolynomial"))
+print("Python:", sys.executable)
+try:
+    installed = version("cuequivariance")
+except PackageNotFoundError:
+    print("cuequivariance is not installed in this interpreter")
+else:
+    import cuequivariance as cue
+
+    print("cuEquivariance:", installed)
+    print("IrDictPolynomial available:", hasattr(cue, "IrDictPolynomial"))
 ```
 
-If the package is absent, install it in the project's environment, preserving
-existing dependency constraints. A standalone CPU example environment can use
-`python -m pip install "cuequivariance==0.12.0"`. Core examples need NumPy but
-neither CUDA nor JAX/PyTorch. If an API is unavailable, use the supported dense
-descriptor or agree on a compatible upgrade; do not invent a substitute method.
+Reuse a compatible project environment and its dependency constraints. If
+execution needs missing packages, use [isolated example execution](references/environment.md).
+Preserve existing virtual environments and the system/user Python installation;
+do not delete environments or bypass package-manager protections to repair setup.
+When installation is unavailable or disallowed, provide the runnable code and
+state which checks were not executed. Core examples need NumPy but neither CUDA
+nor JAX/PyTorch. If an API is unavailable, use a supported dense descriptor when
+it satisfies the task; do not invent a method or force an environment upgrade.
 
 For a framework task, inspect the installed `cuequivariance_jax` or
 `cuequivariance_torch` signature and its version's backend requirements.
