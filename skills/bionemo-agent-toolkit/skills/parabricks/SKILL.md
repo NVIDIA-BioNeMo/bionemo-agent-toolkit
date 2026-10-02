@@ -6,6 +6,7 @@ description: >-
   calling, BAM QC, and GVCF workflows. Do NOT use for inspecting or accelerating
   whole pipelines — use genomics-workflow-acceleration.
 license: CC-BY-4.0 AND Apache-2.0
+allowed-tools: Bash, Read, WebFetch, AskUserQuestion
 metadata:
   version: "1.1.0"
   tags:
@@ -48,6 +49,14 @@ If the user is unsure which tool applies, read
 This skill routes and guides Parabricks commands. It does not install
 Parabricks, infer missing sample metadata, guarantee output parity, provide
 clinical interpretation, or promise exact runtime without benchmark data.
+
+## Tool Scope
+
+Use `Read` for the selected skill references, `WebFetch` for official NVIDIA
+documentation, and `AskUserQuestion` for missing inputs or probe consent.
+Limit `Bash` to the bundled readiness helper and the diagnostic commands in
+[runtime-environment.md](references/runtime-environment.md). Generating a
+`pbrun` command does not authorize running a genomics workload.
 
 ## Workflow
 
@@ -103,14 +112,20 @@ For routing heuristics when multiple tools could apply, see
 ## Runtime Readiness
 
 For GPU, driver, Docker, container, storage, or installation questions, read
-[runtime-environment.md](references/runtime-environment.md) and prefer:
+[runtime-environment.md](references/runtime-environment.md). Confirm that the
+current machine is the intended execution host before probing it. Run the
+bundled [readiness helper](scripts/check_parabricks_runtime.py) from the
+directory containing this `SKILL.md`:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py
+python3 scripts/check_parabricks_runtime.py
 ```
 
-Add `--path <dir>` for known input/output/tmp paths. Run container probes only
-with user consent.
+Add `--path <dir>` for known input/output/tmp paths. The default check does not
+launch containers. Both `--run-container-check` and `--parabricks-version`
+launch containers and may pull images; use either only when the user has
+authorized container probes. A version supplied for command guidance alone is
+not permission to launch that image.
 
 ## Command Shape
 

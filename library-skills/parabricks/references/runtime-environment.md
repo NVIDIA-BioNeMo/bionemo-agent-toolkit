@@ -11,28 +11,33 @@ user will run on a remote Linux server, cloud instance, scheduler node, or
 container platform, ask for facts from that target environment instead of
 assuming local results apply.
 
-When the current machine is the execution host, prefer the repository diagnostic
-script and use its report as the basis for recommendations:
+When the current machine is the execution host, prefer the bundled diagnostic
+script and use its report as the basis for recommendations. Run these examples
+from the skill directory containing `SKILL.md`; the helper is at
+`scripts/check_parabricks_runtime.py` relative to that directory:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py
+python3 scripts/check_parabricks_runtime.py
 ```
 
 When input, output, or temporary directories are known, include them in the
 storage check:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py \
+python3 scripts/check_parabricks_runtime.py \
   --path <input-dir> \
   --path <output-dir> \
   --path <tmp-dir>
 ```
 
-Only run container probes when the user agrees to network/image-access side
-effects. These checks may pull images or require NGC authentication:
+The default check does not launch containers. Either `--run-container-check`
+or `--parabricks-version` launches a container independently; the latter is not
+just version metadata. Only pass these flags when the user has authorized the
+network/image-access side effects. These checks may pull images or require NGC
+authentication:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py \
+python3 scripts/check_parabricks_runtime.py \
   --run-container-check \
   --parabricks-version <version>
 ```
@@ -40,7 +45,7 @@ python3 skills/parabricks/scripts/check_parabricks_runtime.py \
 For machine-readable output, use:
 
 ```bash
-python3 skills/parabricks/scripts/check_parabricks_runtime.py --format json
+python3 scripts/check_parabricks_runtime.py --format json
 ```
 
 Do not install, upgrade, or modify packages. If prerequisites are missing,
