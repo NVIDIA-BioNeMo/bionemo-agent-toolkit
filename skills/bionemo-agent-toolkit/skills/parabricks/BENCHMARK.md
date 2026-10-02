@@ -1,10 +1,8 @@
 # Skill Benchmark: parabricks
 
-> ✅ **Overall verdict: PASS — Recommended for publication**
+> **Overall verdict: NEUTRAL — One or more dimensions remain below PASS**
 
-## Publication Recommendation
-
-Recommended for publication based on the completed evaluation evidence in this report.
+Live evaluation did not show a material gain or regression. Collect more evidence or improve the skill before making a publication decision.
 
 ## Evaluation Metadata
 
@@ -35,12 +33,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 97.5% — baseline ran, but no comparable score was available; uplift unavailable | 92.1% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Correctness | 97.1% → 100.0% (+2.9 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 82.5% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 86.8% → 95.7% (+8.9 points) | 90.0% → 93.9% (+3.9 points) |
-| Efficiency | 91.9% — baseline ran, but no comparable score was available; uplift unavailable | 84.2% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 97.7% — baseline ran, but no comparable score was available; uplift unavailable | 90.4% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 92.9% → 100.0% (+7.1 points) | 100.0% → 85.7% (-14.3 points) |
+| Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 97.1% (-2.9 points) |
+| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 90.8% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 90.7% → 95.7% (+5.0 points) | 92.5% → 91.8% (-0.7 points) |
+| Efficiency | 92.6% — baseline ran, but no comparable score was available; uplift unavailable | 86.5% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -54,23 +52,23 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 901,674 | 457,228 | +444,446 | +97.20% | skill 7/7; base 7/7 |
-| claude-code | parabricks-001 | 147,576 | 165,887 | -18,311 | -11.04% | skill 1/1; base 1/1 |
-| claude-code | parabricks-002 | 108,530 | 32,270 | +76,260 | +236.32% | skill 1/1; base 1/1 |
-| claude-code | parabricks-003 | 152,794 | 36,382 | +116,412 | +319.97% | skill 1/1; base 1/1 |
-| claude-code | parabricks-004 | 89,616 | 88,911 | +705 | +0.79% | skill 1/1; base 1/1 |
-| claude-code | parabricks-005 | 109,503 | 33,880 | +75,623 | +223.21% | skill 1/1; base 1/1 |
-| claude-code | parabricks-006 | 153,772 | 32,885 | +120,887 | +367.61% | skill 1/1; base 1/1 |
-| claude-code | parabricks-007 | 139,883 | 67,013 | +72,870 | +108.74% | skill 1/1; base 1/1 |
-| codex | All cases | 417,884 | 436,055 | -18,171 | -4.17% | skill 7/7; base 7/7 |
-| codex | parabricks-001 | 95,609 | 218,063 | -122,454 | -56.16% | skill 1/1; base 1/1 |
-| codex | parabricks-002 | 73,412 | 25,418 | +47,994 | +188.82% | skill 1/1; base 1/1 |
-| codex | parabricks-003 | 50,587 | 51,362 | -775 | -1.51% | skill 1/1; base 1/1 |
-| codex | parabricks-004 | 29,832 | 31,402 | -1,570 | -5.00% | skill 1/1; base 1/1 |
-| codex | parabricks-005 | 92,578 | 46,987 | +45,591 | +97.03% | skill 1/1; base 1/1 |
-| codex | parabricks-006 | 26,754 | 42,274 | -15,520 | -36.71% | skill 1/1; base 1/1 |
-| codex | parabricks-007 | 49,112 | 20,549 | +28,563 | +139.00% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 1,319,558 | 893,283 | +426,275 | +47.72% | skill 14/14; base 14/14 |
+| claude-code | All cases | 899,318 | 797,018 | +102,300 | +12.84% | skill 7/7; base 7/7 |
+| claude-code | parabricks-001 | 189,916 | 94,442 | +95,474 | +101.09% | skill 1/1; base 1/1 |
+| claude-code | parabricks-002 | 108,275 | 32,520 | +75,755 | +232.95% | skill 1/1; base 1/1 |
+| claude-code | parabricks-003 | 110,319 | 35,593 | +74,726 | +209.95% | skill 1/1; base 1/1 |
+| claude-code | parabricks-004 | 89,508 | 89,759 | -251 | -0.28% | skill 1/1; base 1/1 |
+| claude-code | parabricks-005 | 109,141 | 475,722 | -366,581 | -77.06% | skill 1/1; base 1/1 |
+| claude-code | parabricks-006 | 150,542 | 33,876 | +116,666 | +344.39% | skill 1/1; base 1/1 |
+| claude-code | parabricks-007 | 141,617 | 35,106 | +106,511 | +303.40% | skill 1/1; base 1/1 |
+| codex | All cases | 497,020 | 404,474 | +92,546 | +22.88% | skill 7/7; base 7/7 |
+| codex | parabricks-001 | 72,578 | 180,556 | -107,978 | -59.80% | skill 1/1; base 1/1 |
+| codex | parabricks-002 | 94,556 | 26,238 | +68,318 | +260.38% | skill 1/1; base 1/1 |
+| codex | parabricks-003 | 94,784 | 65,847 | +28,937 | +43.95% | skill 1/1; base 1/1 |
+| codex | parabricks-004 | 35,579 | 32,844 | +2,735 | +8.33% | skill 1/1; base 1/1 |
+| codex | parabricks-005 | 92,357 | 38,840 | +53,517 | +137.79% | skill 1/1; base 1/1 |
+| codex | parabricks-006 | 51,100 | 39,778 | +11,322 | +28.46% | skill 1/1; base 1/1 |
+| codex | parabricks-007 | 56,066 | 20,371 | +35,695 | +175.22% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 1,396,338 | 1,201,492 | +194,846 | +16.22% | skill 14/14; base 14/14 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -78,9 +76,9 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 21 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 23 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
-| Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 7 task(s) |
+| Tier 3 | Live agent evaluation | **NEUTRAL** | 2 agent(s); 7 task(s) |
 
 ## Findings and Observations
 
@@ -91,8 +89,8 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in command-conventions.md (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/parabricks`)
-- **MEDIUM** SECURITY/Skill Enumeration (AS3): Agent Snooping: skills/parabricks/SKILL.md (`BENCHMARK.md:85`)
-- 16 additional finding(s) are available in the full evaluation artifacts.
+- **MEDIUM** SECURITY/Skill Enumeration (AS3): Agent Snooping: skills/parabricks/SKILL.md (`BENCHMARK.md:90`)
+- 18 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 

@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 CC-BY-4.0 AND Apache-2.0 <br>
 ## Use Case: <br>
-Developers and bioinformatics engineers use this skill to discover NVIDIA Parabricks pbrun tools, assess GPU and runtime readiness, and generate version-aware commands for genomics data processing workflows. <br>
+Developers and bioinformatics engineers selecting, configuring, and validating NVIDIA Parabricks GPU-accelerated genomics tools for FASTQ/BAM processing, variant calling, RNA-seq alignment, and BAM quality metrics. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -25,9 +25,10 @@ Risk: Review before execution as proposals could introduce incorrect or misleadi
 Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
-- [Parabricks Tool Index](references/tool-index.md) <br>
+- [Tool Index](references/tool-index.md) <br>
 - [Runtime Environment](references/runtime-environment.md) <br>
 - [Command Conventions](references/command-conventions.md) <br>
+- [Shared Options](references/shared-options.md) <br>
 - [Performance](references/performance.md) <br>
 - [Parabricks Release Notes](https://docs.nvidia.com/clara/parabricks/about-parabricks/release-notes) <br>
 
@@ -45,36 +46,36 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-7 evaluation tasks (6 positive, 1 negative) run in isolated sandbox pods; dataset digest `sha256:23088600f666e241635d67155f709ac6a3b62ee4705f6b793e39fe5421955b6b`. See [BENCHMARK.md](BENCHMARK.md) for evaluation details. <br>
+7 evaluation tasks (6 positive, 1 negative) from skill-evaluator-dataset-snapshot/1, each run in an isolated sandbox pod. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
 - Security: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Verifies final-answer correctness against the reference answer. <br>
-- Discoverability: Whether the expected skill was selected and the workflow executed. <br>
-- Effectiveness: Equal-weight mean of goal completion and expected workflow adherence. <br>
+- Correctness: Final-answer correctness against the reference answer. <br>
+- Discoverability: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
+- Effectiveness: Equal-weight mean of goal completion (goal_accuracy) and expected workflow adherence (behavior_check). <br>
 - Efficiency: Tool-call productivity (50%) and token efficiency (50%). <br>
 
 Underlying evaluation signals used in this run: <br>
 - `security`: Unsafe operations, secret leakage, and unauthorized access. <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
-- `skill_execution`: Whether the expected skill was selected, decoys avoided, and workflow executed. <br>
+- `skill_execution`: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
 - `skill_efficiency`: Tool-call productivity. <br>
-- `token_efficiency`: Actual uncached prompt plus completion token usage. <br>
+- `token_efficiency`: Actual uncached prompt plus completion usage. <br>
 
 
 
 ## Evaluation Results: <br>
 | Measure | Claude Code | Codex |
 |---|---:|---:|
-| Overall | 97.5% | 92.1% |
-| Security | 100.0% | 100.0% |
-| Correctness | 100.0% | 100.0% |
-| Discoverability | 100.0% | 82.5% |
-| Effectiveness | 95.7% | 93.9% |
-| Efficiency | 91.9% | 84.2% |
+| Overall | 97.7% | 90.4% |
+| Security | 100.0% | 85.7% |
+| Correctness | 100.0% | 97.1% |
+| Discoverability | 100.0% | 90.8% |
+| Effectiveness | 95.7% | 91.8% |
+| Efficiency | 92.6% | 86.5% |
 
 ## Skill Version(s): <br>
 1.2.0 (source: frontmatter) <br>
