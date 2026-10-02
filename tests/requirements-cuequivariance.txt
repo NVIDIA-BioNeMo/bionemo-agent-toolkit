@@ -1,0 +1,2 @@
+# Match the version advertised by the cuEquivariance skill examples.
+cuequivariance==0.12.0

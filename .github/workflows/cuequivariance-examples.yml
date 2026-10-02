@@ -1,0 +1,32 @@
+name: cuequivariance-examples
+
+on:
+  pull_request:
+    paths:
+      - "library-skills/cuequivariance/**"
+      - "skills/bionemo-agent-toolkit/skills/cuequivariance/**"
+      - "tests/test_cuequivariance_examples.py"
+      - "tests/requirements-cuequivariance.txt"
+      - "scripts/plugin_sync.py"
+      - ".github/workflows/cuequivariance-examples.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/requirements-cuequivariance.txt
+      - name: Install the documented cuEquivariance version
+        run: python -m pip install -r tests/requirements-cuequivariance.txt
+      - name: Test source and aggregate dictionary examples on CPU
+        run: python -m unittest discover -s tests -p test_cuequivariance_examples.py -v

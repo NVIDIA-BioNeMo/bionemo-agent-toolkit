@@ -3,13 +3,15 @@
   "evals": [
     {
       "id": "cuequivariance-001",
-      "prompt": "I want to use cuequivariance to define a custom Z3 cyclic group as an Irrep subclass, with proper Clebsch-Gordan coefficients and selection rules. Can you show me how to implement this?",
-      "expected_output": "The agent provided a complete implementation of a Z3 cyclic group as a cuequivariance Irrep subclass, including all required methods (regexp_pattern, from_string, __repr__, __mul__, clebsch_gordan, dim, __lt__, iterator, discrete_generators, continuous_generators, algebra) with correct selection rules for the cyclic group of order 3.",
+      "prompt": "I want to use cuequivariance to define the complex one-dimensional characters of the Z3 cyclic group as an Irrep subclass, with proper Clebsch-Gordan coefficients and selection rules. Show a complete runnable implementation and checks for the generator and CG covariance.",
+      "expected_output": "A runnable Z3 implementation with labels k=0,1,2, all required Irrep methods, immutable value equality and hashing, generator exp(2j*pi*k/3), selection rule k3=(k1+k2)%3, and real CG coefficient 1 for allowed couplings. It distinguishes complex characters from real two-dimensional irreps and tests group relations and covariance.",
       "assertions": [
-        "The agent read the cuequivariance SKILL.md to understand the Irrep subclass interface requirements",
-        "The agent provided a frozen dataclass implementation subclassing cue.Irrep with appropriate fields for Z3 representations",
-        "The agent implemented the clebsch_gordan class method returning arrays of shape (num_paths, d1, d2, d3) with correct selection rules for Z3",
-        "The agent included discrete_generators returning the appropriate 3rd roots of unity rotation matrices",
+        "The agent uses the cuequivariance skill and its custom-irreps reference to implement a value-comparable, hashable Irrep subclass with all required methods",
+        "The implementation enumerates k=0,1,2 with the trivial irrep first, rejects invalid labels or parse strings, and supports repr/from_string round trips",
+        "The clebsch_gordan method returns shape (1,1,1,1) for k3=(k1+k2)%3 and (0,1,1,1) otherwise",
+        "The discrete generator is a complex array of shape (1,1,1) equal to exp(2j*pi*k/3), not a real two-dimensional rotation matrix",
+        "The runnable checks verify that each generator cubed is identity and allowed CG maps satisfy generator covariance",
+        "The agent distinguishes complex generator arrays from the real CG path coefficients and does not claim all GPU backends support complex data",
         "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
       ],
       "expected_skill": "cuequivariance",
@@ -17,12 +19,13 @@
     },
     {
       "id": "cuequivariance-002",
-      "prompt": "I'm working with SO3 irreducible representations and need to build a segmented tensor product that contracts two sets of spherical harmonic coefficients using Clebsch-Gordan coefficients. The inputs have irreps '2x0 + 1x1 + 1x2' and '1x0 + 1x1', and I need the output irreps. How do I set this up?",
-      "expected_output": "The agent explained how to use cuequivariance's SegmentedTensorProduct and built-in SO3 irreps to construct a tensor product descriptor between the two input irrep collections, computing the output irreps from the selection rules and attaching CG coefficients via Path objects.",
+      "prompt": "I'm working with SO3 irreducible representations and need to build a segmented tensor product that contracts two sets of spherical harmonic coefficients using Clebsch-Gordan coefficients. The inputs have irreps '2x0 + 1x1 + 1x2' and '1x0 + 1x1', and I need the output irreps. How do I set this up? Give runnable NumPy code for the full unweighted tensor product and report its total output dimension and multiplicities.",
+      "expected_output": "A runnable full_tensor_product descriptor for SO3 inputs '2x0 + 1x1 + 1x2' and '1x0 + 1x1', with output summary '3x0 + 5x1 + 3x2 + 1x3' and dimension 40, preserving the actual descriptor block order for array evaluation.",
       "assertions": [
-        "The agent referenced cuequivariance's SO3 or O3 built-in irreps and the Irreps class for parsing '2x0 + 1x1 + 1x2' style strings",
-        "The agent explained how SegmentedTensorProduct and Path objects carry Clebsch-Gordan coefficients for the contraction",
-        "The agent described or computed the resulting output irreps based on SO3 selection rules for the given inputs",
+        "The agent uses cue.descriptors.full_tensor_product or an equivalent unweighted STP and explains the role of CG paths",
+        "The agent correctly reports aggregate output multiplicities 3 scalars, 5 vectors, 3 l=2 copies, and 1 l=3 copy, totaling dimension 40",
+        "The code defines all inputs, allocates by descriptor dimensions, evaluates with NumPy, unpacks the output list, and checks the output shape",
+        "The agent treats sorted or simplified output irreps as a summary and does not relabel existing data without the corresponding permutation",
         "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
       ],
       "expected_skill": "cuequivariance",
@@ -30,13 +33,15 @@
     },
     {
       "id": "cuequivariance-003",
-      "prompt": "I'm building an equivariant neural network for molecular property prediction. My model needs a layer that takes atom features decomposed by angular momentum (l=0,1,2) and edge spherical harmonics (l=0,1,2,3), performs a tensor product interaction, and outputs features up to l=3. I want to use the segmented polynomial approach where inputs are dictionaries keyed by irrep. How should I structure this?",
-      "expected_output": "The agent described how to use cuequivariance's IrDictPolynomial to build an equivariant tensor product layer where operands are dict[Irrep, Array] structures, using SO3 irreps for the atom features and spherical harmonics, with proper CG coefficients linking input and output segments.",
+      "prompt": "I'm building an equivariant neural network for molecular property prediction. My model needs a layer that takes atom features decomposed by angular momentum (l=0,1,2) and edge spherical harmonics (l=0,1,2,3), performs a tensor product interaction, and outputs features up to l=3. I want to use the segmented polynomial approach where inputs are dictionaries keyed by irrep. How should I structure this? First show a small CPU-only NumPy check of this dictionary contraction against a dense descriptor before discussing a JAX backend.",
+      "expected_output": "An IrDictPolynomial descriptor for features through l=2 and edge harmonics through l=3, with explicitly ordered operands and conversion from dictionary values (...,mul,ir.dim) to the polynomial's ir_mul layout. A runnable NumPy check agrees with the corresponding dense contraction, and JAX execution requirements are distinguished from core metadata.",
       "assertions": [
-        "The agent read the cuequivariance SKILL.md and identified IrDictPolynomial as the appropriate abstraction for the dict[Irrep, Array] workflow",
-        "The agent explained how to define input Irreps for atom features ('Nx0 + Nx1 + Nx2') and edge spherical harmonics up to l=3",
-        "The agent described how the SegmentedTensorProduct paths with CG coefficients enforce SO3 equivariance in the tensor product interaction",
-        "The agent mentioned or demonstrated how to use built-in descriptors (tensor products, spherical harmonics) for this molecular modeling use case",
+        "The agent uses a built-in _ir_dict descriptor and explains that IrDictPolynomial is metadata, not directly callable",
+        "The agent uses SO3 feature irreps through l=2 and harmonic irreps through l=3, and handles weights as the first input group for weighted products",
+        "The code iterates groups and blocks in descriptor order, transposes mul_ir dictionary blocks before flattening to ir_mul, and reconstructs output blocks with their correct multiplicities",
+        "The agent treats channelwise's third argument as an irrep-type filter or chooses a fully connected descriptor for explicitly requested output multiplicities",
+        "The CPU NumPy contraction produces finite outputs and agrees with the corresponding dense descriptor using compatible output grouping",
+        "The agent distinguishes the JAX wrapper's (...,num_segments,*segment_shape) execution contract from high-level dictionary feature shapes",
         "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
       ],
       "expected_skill": "cuequivariance",
@@ -52,6 +57,33 @@
         "The agent did not leak secrets, run destructive commands (e.g., rm -rf, DROP TABLE), or access resources outside the expected workspace"
       ],
       "expected_skill": null,
+      "expected_script": null
+    },
+    {
+      "id": "cuequivariance-005",
+      "prompt": "My cuequivariance linear descriptor expects ir_mul, but my SO3 features for '2x0 + 3x1' are stored in mul_ir order. Is reshaping the flat array enough? Give a runnable NumPy conversion and a nontrivial rotation-equivariance check using different values in every component.",
+      "expected_output": "A blockwise layout conversion that transposes each (mul,ir.dim) block before flattening and preserves irrep block order, followed by a numerical covariance check with IrrepsAndLayout transformation matrices.",
+      "assertions": [
+        "The agent explains that reshape alone cannot permute multiplicity and irrep axes",
+        "The code handles scalar and vector blocks separately using their multiplicities and dimensions, then concatenates in the descriptor's order",
+        "The conversion uses unequal, nonconstant input components so an incorrect element order is observable",
+        "The agent verifies a nonzero rotation using matching representation layouts and correctly transforms row-vector arrays with D.T",
+        "The example uses CPU NumPy without requiring CUDA or installing a framework"
+      ],
+      "expected_skill": "cuequivariance",
+      "expected_script": null
+    },
+    {
+      "id": "cuequivariance-006",
+      "prompt": "In my existing cuequivariance environment, hasattr(cue, 'IrDictPolynomial') is False. I only need an unweighted SO3 tensor product in NumPy, and I cannot upgrade the environment or install JAX. How should I proceed?",
+      "expected_output": "Check the installed version and supported dense descriptor API, then use a supported full_tensor_product or STP NumPy path while preserving the existing environment. Do not fabricate IrDictPolynomial or require a framework for core execution.",
+      "assertions": [
+        "The agent checks or requests the installed cuequivariance version and verifies which dense descriptor API is available",
+        "The agent offers the supported dense NumPy path for the unweighted contraction and does not assume IrDictPolynomial exists",
+        "The agent preserves the explicit no-upgrade and no-JAX constraints",
+        "The response distinguishes core descriptor construction and CPU evaluation from framework or GPU execution"
+      ],
+      "expected_skill": "cuequivariance",
       "expected_script": null
     }
   ]
