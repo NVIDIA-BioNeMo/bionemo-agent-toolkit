@@ -34,11 +34,14 @@ The default check does not launch containers. Either `--run-container-check`
 or `--parabricks-version` launches a container independently; the latter is not
 just version metadata. Only pass these flags when the user has authorized the
 network/image-access side effects. These checks may pull images or require NGC
-authentication:
+authentication. Select a CUDA probe image compatible with the target release
+and driver using `--cuda-test-image`; `--parabricks-version` selects only the
+Parabricks image and does not change the CUDA probe image:
 
 ```bash
 python3 scripts/check_parabricks_runtime.py \
   --run-container-check \
+  --cuda-test-image nvidia/cuda:<release-compatible-tag> \
   --parabricks-version <version>
 ```
 
@@ -57,7 +60,7 @@ policy, and Parabricks version.
 
 | Script | Purpose | Arguments |
 |--------|---------|-----------|
-| `scripts/check_parabricks_runtime.py` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
+| `scripts/check_parabricks_runtime.py` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--cuda-test-image <image:tag>`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
 
 ## Discovery Commands
 
@@ -137,6 +140,21 @@ NVIDIA GPUs with at least 16 GB each. `fq2bam` needs 24 GB by default, or 16 GB
 with `--low-memory`. For eight GPUs, the documented host baseline is 392 GB
 RAM and 48 CPU threads. The manual's container probe uses CUDA 12.0.0; do not
 test a 4.2 host against the helper's default CUDA 12.9.1 image.
+
+For authorized container probes on a Parabricks 4.2 host, explicitly select the
+CUDA image from that manual:
+
+```bash
+python3 scripts/check_parabricks_runtime.py \
+  --run-container-check \
+  --cuda-test-image nvidia/cuda:12.0.0-base-ubuntu20.04 \
+  --parabricks-version 4.2-1
+```
+
+If a CUDA probe fails, inspect the reported image and error before treating
+`runtime-incomplete` as evidence of a Container Toolkit problem. An incompatible
+probe image can fail on a host that supports the selected Parabricks release;
+rerun with a compatible image before recommending runtime changes.
 
 For any selected release, check its manual for:
 
