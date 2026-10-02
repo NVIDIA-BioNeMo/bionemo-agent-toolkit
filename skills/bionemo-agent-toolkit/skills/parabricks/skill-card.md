@@ -9,17 +9,14 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 CC-BY-4.0 AND Apache-2.0 <br>
 ## Use Case: <br>
-Developers and bioinformatics engineers use this skill to identify the right NVIDIA Parabricks pbrun command, check GPU/runtime readiness, and generate version-aware command guidance for genomics workloads including FASTQ/BAM processing, RNA-seq, variant calling, and GVCF workflows. <br>
+Developers and bioinformatics engineers use this skill to discover the right NVIDIA Parabricks pbrun command, assess GPU and runtime readiness, and generate version-aware Docker command guidance for genomics data processing workflows. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
 
 ## Requirements / Dependencies: <br>
-**Requires API Key or External Credential:** No for command guidance; conditional for Parabricks container image access. <br>
-**Credential Type(s):** An NGC API key may be required to authenticate Docker to `nvcr.io` when pulling the selected image; see the [NGC authentication documentation](https://docs.nvidia.com/ngc/latest/ngc-user-guide.html#ngc-api-keys). <br>
-**Command Guidance Dependencies:** Reading references and generating commands does not require a local GPU or container runtime. <br>
-**Readiness Helper Dependencies:** Python 3 on the host being inspected; missing runtime components are reported as readiness gaps. <br>
-**Execution Dependencies:** The documented Docker commands require a supported Linux host, an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker, NVIDIA Container Toolkit, and access to the selected Parabricks image. Verify the requirements for the selected version using [Runtime Environment](references/runtime-environment.md) and the [NVIDIA installation requirements](https://docs.nvidia.com/clara/parabricks/latest/gettingstarted/installationrequirements.html). <br>
+**Requires API Key or External Credential:** [Optional] <br>
+**Credential Type(s):** [API key] <br>
 
 Do not include secrets in prompts/logs/output; use least-privilege credentials; rotate keys as appropriate. <br>
 
@@ -28,14 +25,13 @@ Risk: Review before execution as proposals could introduce incorrect or misleadi
 Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
-- [Parabricks Tool Reference](https://docs.nvidia.com/clara/parabricks/latest/toolreference.html) <br>
+- [Parabricks Tool Reference Index](https://docs.nvidia.com/clara/parabricks/latest/toolreference.html) <br>
 - [Output Accuracy and Compatible CPU Software Versions](https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/outputaccuracyandcompatiblecpusoftwareversions.html) <br>
-- [Getting Started](https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html) <br>
+- [Parabricks Getting Started](https://docs.nvidia.com/clara/parabricks/latest/gettingstarted.html) <br>
 - [Parabricks Overview](https://docs.nvidia.com/clara/parabricks/latest/overview.html) <br>
 - [Tool Index](references/tool-index.md) <br>
 - [Runtime Environment](references/runtime-environment.md) <br>
 - [Command Conventions](references/command-conventions.md) <br>
-- [Shared Options](references/shared-options.md) <br>
 - [Performance](references/performance.md) <br>
 
 
@@ -52,15 +48,15 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-4 evaluation tasks (3 positive, 1 negative), each in an isolated k8s-sandbox pod. Evaluator version 1.5.6. <br>
+4 evaluation tasks (3 positive, 1 negative) from a versioned evaluation dataset, evaluated in isolated k8s-sandbox pods. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
-- Security: Is it safe to use? Checks for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Is the answer correct? Validates final-answer correctness against the reference answer. <br>
-- Discoverability: Was the right skill loaded when needed? Checks whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
-- Effectiveness: Did the skill help complete the task? Equal-weight mean of goal completion and expected workflow adherence. <br>
-- Efficiency: Did it avoid wasted tool calls and token usage? 50% tool-call productivity and 50% token efficiency. <br>
+- Security: Whether the skill is safe to use, checking for unsafe operations, secret leakage, and unauthorized access. <br>
+- Correctness: Whether the final answer is correct against the reference answer. <br>
+- Discoverability: Whether the right skill was selected and activated when needed. <br>
+- Effectiveness: Whether the skill helped complete the user's goal and expected workflow (50% goal completion + 50% behavior adherence). <br>
+- Efficiency: Whether the skill avoided wasted tool calls and token usage (50% tool productivity + 50% token efficiency). <br>
 
 Underlying evaluation signals used in this run: <br>
 - `security`: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
@@ -68,7 +64,7 @@ Underlying evaluation signals used in this run: <br>
 - `accuracy`: Final-answer correctness against the reference answer. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
-- `skill_efficiency`: Tool-call productivity (routing is scored under Discoverability). <br>
+- `skill_efficiency`: Tool-call productivity; routing is scored under Discoverability. <br>
 - `token_efficiency`: Actual uncached prompt plus completion token usage. <br>
 
 
@@ -76,12 +72,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 90.5% | 83.0% |
-| Security | 100.0% → 100.0% (±0.0 pts) | 50.0% → 100.0% (+50.0 pts) |
-| Correctness | 85.0% → 100.0% (+15.0 pts) | 100.0% → 90.0% (-10.0 pts) |
-| Discoverability | 93.3% | 88.3% |
-| Effectiveness | 58.8% → 75.6% (+16.8 pts) | 61.3% → 77.5% (+16.2 pts) |
-| Efficiency | 83.4% | 58.9% |
+| Overall | Not available | 81.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | Not available | 100.0% → 100.0% (±0.0 points) |
+| Correctness | Not available | 100.0% → 85.0% (-15.0 points) |
+| Discoverability | Not available | 88.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | Not available | 65.6% → 72.5% (+6.9 points) |
+| Efficiency | Not available | 60.4% — baseline ran, but no comparable score was available; uplift unavailable |
 
 ## Skill Version(s): <br>
 1.1.0 (source: frontmatter) <br>
