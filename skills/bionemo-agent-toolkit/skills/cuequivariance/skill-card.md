@@ -9,14 +9,14 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache 2.0 <br>
 ## Use Case: <br>
-Developers and engineers building equivariant neural networks use this skill to construct, inspect, and debug cuEquivariance group representations, tensor-product descriptors, and segmented polynomials. <br>
+Developers and engineers building equivariant neural networks use this skill to construct and debug cuEquivariance group representations, tensor-product descriptors, and segmented polynomial contractions on CPU with NumPy. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
 
 ## Requirements / Dependencies: <br>
-**Requires API Key or External Credential:** [No] <br>
-**Credential Type(s):** [None] <br>
+**Requires API Key or External Credential:** [Not Specified] <br>
+**Credential Type(s):** [None identified] <br>
 
 Do not include secrets in prompts/logs/output; use least-privilege credentials; rotate keys as appropriate. <br>
 
@@ -25,11 +25,12 @@ Risk: Review before execution as proposals could introduce incorrect or misleadi
 Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
-- [Custom Irrep subclasses](references/custom-irreps.md) <br>
-- [Irrep dictionaries and IrDictPolynomial](references/ir-dict.md) <br>
-- [Segmented tensor products and polynomials](references/segmented-polynomials.md) <br>
-- [cuEquivariance official documentation](https://docs.nvidia.com/cuda/cuequivariance/) <br>
-- [cuEquivariance 0.12.0 source](https://github.com/NVIDIA/cuEquivariance/tree/v0.12.0) <br>
+- [cuEquivariance Official Documentation](https://docs.nvidia.com/cuda/cuequivariance/) <br>
+- [cuEquivariance 0.12.0 Source](https://github.com/NVIDIA/cuEquivariance/tree/v0.12.0) <br>
+- [Custom Irrep Subclasses](references/custom-irreps.md) <br>
+- [Isolated Example Execution](references/environment.md) <br>
+- [Irrep Dictionaries and IrDictPolynomial](references/ir-dict.md) <br>
+- [Segmented Polynomials](references/segmented-polynomials.md) <br>
 
 
 ## Skill Output: <br>
@@ -45,15 +46,15 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-6 evaluation tasks (5 positive, 1 negative) in isolated k8s-sandbox pods, 1 attempt per task. <br>
+6 evaluation tasks (5 positive, 1 negative), each run in an isolated sandbox pod with 1 attempt per task. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
-- Security: Whether the skill is safe to use — checks for unsafe operations, secret leakage, and unauthorized access. <br>
-- Correctness: Whether the final answer is correct against the reference answer. <br>
-- Discoverability: Whether the right skill was loaded when needed — skill selection, decoy avoidance, and workflow execution. <br>
-- Effectiveness: Whether the skill helped complete the task — goal completion (50%) and expected workflow adherence (50%). <br>
-- Efficiency: Whether the skill avoided wasted tool calls and token usage — tool-call productivity (50%) and token efficiency (50%). <br>
+- Security: Checks for unsafe operations, secret leakage, and unauthorized access. <br>
+- Correctness: Checks final-answer correctness against the reference answer. <br>
+- Discoverability: Checks whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
+- Effectiveness: Checks whether the user's goal was achieved and the expected workflow behavior was followed. <br>
+- Efficiency: Checks tool-call productivity and token efficiency. <br>
 
 Underlying evaluation signals used in this run: <br>
 - `security`: Unsafe operations, secret leakage, and unauthorized access. <br>
@@ -61,7 +62,7 @@ Underlying evaluation signals used in this run: <br>
 - `skill_execution`: Whether the expected skill was selected, decoys were avoided, and the workflow executed. <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
-- `skill_efficiency`: Tool-call productivity (legacy wire id; routing is scored under Discoverability). <br>
+- `skill_efficiency`: Tool-call productivity. <br>
 - `token_efficiency`: Actual uncached prompt plus completion usage. <br>
 
 
@@ -69,12 +70,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 85.8% | 91.1% |
-| Security | 100.0% → 66.7% (-33.3 pts) | 100.0% → 83.3% (-16.7 pts) |
-| Correctness | 100.0% → 100.0% (±0.0 pts) | 100.0% → 100.0% (±0.0 pts) |
-| Discoverability | 88.0% | 94.0% |
-| Effectiveness | 88.2% → 97.1% (+8.9 pts) | 78.3% → 83.9% (+5.6 pts) |
-| Efficiency | 77.3% | 94.1% |
+| Overall | 87.7% | 91.1% |
+| Security | 100.0% → 66.7% (-33.3 points) | 100.0% → 83.3% (-16.7 points) |
+| Correctness | 83.3% → 100.0% (+16.7 points) | 100.0% → 100.0% (±0.0 points) |
+| Discoverability | 96.6% | 90.0% |
+| Effectiveness | 78.2% → 90.8% (+12.6 points) | 69.8% → 89.7% (+19.9 points) |
+| Efficiency | 84.4% | 92.6% |
 
 ## Skill Version(s): <br>
 0.1.0 (source: pyproject.toml) <br>

@@ -1,8 +1,10 @@
 # Skill Benchmark: cuequivariance
 
-> **Overall verdict: NEUTRAL — One or more dimensions remain below PASS**
+> ✅ **Overall verdict: PASS — Recommended for publication**
 
-Live evaluation did not show a material gain or regression. Collect more evidence or improve the skill before making a publication decision.
+## Publication Recommendation
+
+Recommended for publication based on the completed evaluation evidence in this report.
 
 ## Evaluation Metadata
 
@@ -33,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 85.8% — baseline ran, but no comparable score was available; uplift unavailable | 91.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 87.7% — baseline ran, but no comparable score was available; uplift unavailable | 91.1% — baseline ran, but no comparable score was available; uplift unavailable |
 | Security | 100.0% → 66.7% (-33.3 points) | 100.0% → 83.3% (-16.7 points) |
-| Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 88.0% — baseline ran, but no comparable score was available; uplift unavailable | 94.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 88.2% → 97.1% (+8.9 points) | 78.3% → 83.9% (+5.6 points) |
-| Efficiency | 77.3% — baseline ran, but no comparable score was available; uplift unavailable | 94.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Correctness | 83.3% → 100.0% (+16.7 points) | 100.0% → 100.0% (±0.0 points) |
+| Discoverability | 96.6% — baseline ran, but no comparable score was available; uplift unavailable | 90.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 78.2% → 90.8% (+12.6 points) | 69.8% → 89.7% (+19.9 points) |
+| Efficiency | 84.4% — baseline ran, but no comparable score was available; uplift unavailable | 92.6% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -52,21 +54,21 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 2,353,288 | 2,255,276 | +98,012 | +4.35% | skill 6/6; base 6/6 |
-| claude-code | cuequivariance-001 | 719,405 | 844,100 | -124,695 | -14.77% | skill 1/1; base 1/1 |
-| claude-code | cuequivariance-002 | 435,879 | 526,266 | -90,387 | -17.18% | skill 1/1; base 1/1 |
-| claude-code | cuequivariance-003 | 554,361 | 470,593 | +83,768 | +17.80% | skill 1/1; base 1/1 |
-| claude-code | cuequivariance-004 | 31,567 | 31,634 | -67 | -0.21% | skill 1/1; base 1/1 |
-| claude-code | cuequivariance-005 | 414,388 | 133,269 | +281,119 | +210.94% | skill 1/1; base 1/1 |
-| claude-code | cuequivariance-006 | 197,688 | 249,414 | -51,726 | -20.74% | skill 1/1; base 1/1 |
-| codex | All cases | 385,462 | 159,676 | +225,786 | +141.40% | skill 6/6; base 6/6 |
-| codex | cuequivariance-001 | 197,423 | 66,990 | +130,433 | +194.71% | skill 1/1; base 1/1 |
-| codex | cuequivariance-002 | 61,373 | 16,602 | +44,771 | +269.67% | skill 1/1; base 1/1 |
-| codex | cuequivariance-003 | 46,931 | 16,038 | +30,893 | +192.62% | skill 1/1; base 1/1 |
-| codex | cuequivariance-004 | 20,005 | 19,558 | +447 | +2.29% | skill 1/1; base 1/1 |
-| codex | cuequivariance-005 | 30,250 | 19,346 | +10,904 | +56.36% | skill 1/1; base 1/1 |
-| codex | cuequivariance-006 | 29,480 | 21,142 | +8,338 | +39.44% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 2,738,750 | 2,414,952 | +323,798 | +13.41% | skill 12/12; base 12/12 |
+| claude-code | All cases | 2,138,941 | 3,701,830 | -1,562,889 | -42.22% | skill 6/6; base 6/6 |
+| claude-code | cuequivariance-001 | 746,356 | 735,452 | +10,904 | +1.48% | skill 1/1; base 1/1 |
+| claude-code | cuequivariance-002 | 424,346 | 435,070 | -10,724 | -2.46% | skill 1/1; base 1/1 |
+| claude-code | cuequivariance-003 | 558,722 | 603,404 | -44,682 | -7.40% | skill 1/1; base 1/1 |
+| claude-code | cuequivariance-004 | 31,436 | 31,050 | +386 | +1.24% | skill 1/1; base 1/1 |
+| claude-code | cuequivariance-005 | 181,389 | 135,420 | +45,969 | +33.95% | skill 1/1; base 1/1 |
+| claude-code | cuequivariance-006 | 196,692 | 1,761,434 | -1,564,742 | -88.83% | skill 1/1; base 1/1 |
+| codex | All cases | 559,679 | 122,462 | +437,217 | +357.02% | skill 6/6; base 6/6 |
+| codex | cuequivariance-001 | 325,981 | 24,081 | +301,900 | +1253.69% | skill 1/1; base 1/1 |
+| codex | cuequivariance-002 | 62,395 | 15,324 | +47,071 | +307.17% | skill 1/1; base 1/1 |
+| codex | cuequivariance-003 | 47,262 | 16,383 | +30,879 | +188.48% | skill 1/1; base 1/1 |
+| codex | cuequivariance-004 | 23,983 | 19,323 | +4,660 | +24.12% | skill 1/1; base 1/1 |
+| codex | cuequivariance-005 | 70,433 | 19,448 | +50,985 | +262.16% | skill 1/1; base 1/1 |
+| codex | cuequivariance-006 | 29,625 | 27,903 | +1,722 | +6.17% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 2,698,620 | 3,824,292 | -1,125,672 | -29.43% | skill 12/12; base 12/12 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -74,9 +76,9 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 13 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 12 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
-| Tier 3 | Live agent evaluation | **NEUTRAL** | 2 agent(s); 6 task(s) |
+| Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 6 task(s) |
 
 ## Findings and Observations
 
@@ -88,7 +90,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cuequivariance`)
 - **MEDIUM** SCHEMA/body_recommended_section: Missing recommended section: '## Instructions' (`skills/bionemo-agent-toolkit/skills/cuequivariance/SKILL.md`)
 - **MEDIUM** SCHEMA/body_recommended_section: Missing recommended section: '## Examples' (`skills/bionemo-agent-toolkit/skills/cuequivariance/SKILL.md`)
-- 8 additional finding(s) are available in the full evaluation artifacts.
+- 7 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 
