@@ -156,7 +156,7 @@ local results cannot establish its readiness. The helper collects facts, not a
 release-specific certification.
 
 For readiness, check Docker through its CLI. Do not inspect, connect to, mount,
-or change permissions on host daemon sockets, including `/var/run/docker.sock`.
+or change permissions on host Docker daemon sockets.
 Do not dump environment variables or read authentication files to diagnose
 readiness. Report missing components or access errors and give the target-host
 administrator the next steps.
