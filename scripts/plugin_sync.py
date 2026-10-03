@@ -42,7 +42,7 @@ LEGACY_PLUGINS = REPO / "plugins"
 CONFIG = REPO / "skills.sh.json"
 
 # Source roots that hold distributable skills.
-SOURCE_ROOTS = ["nim-skills", "library-skills", "open-models-skills", "workflows"]
+SOURCE_ROOTS = ["nim-skills", "library-skills", "open-models-skills", "workflow-skills"]
 # Path segments that never contain a distributable skill.
 EXCLUDE_SEGMENTS = {"plugins", "vendor", "evals", "node_modules", ".git"}
 # Files/dirs ignored when copying/comparing (never part of the payload).
