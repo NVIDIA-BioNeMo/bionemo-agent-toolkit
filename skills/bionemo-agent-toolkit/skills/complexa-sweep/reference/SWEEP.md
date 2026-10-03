@@ -3,10 +3,10 @@
 How to run parameter sweeps and override experiment settings without modifying source code.
 
 > **Documentation Map**
-> - Running a design? See the Inference Guide.
-> - Tuning YAML configs? See the Configuration Guide.
-> - Understanding metrics? See the Evaluation Guide.
-> - Search metadata? See the Search Metadata notes.
+> - Running a design? See [Inference Guide](INFERENCE.md)
+> - Tuning YAML configs? See [Configuration Guide](CONFIGURATION_GUIDE.md)
+> - Understanding metrics? See [Evaluation Guide](EVALUATION_METRICS.md)
+> - Search metadata? See [Search Metadata](SEARCH_METADATA.md)
 
 ## Overview
 
@@ -276,7 +276,7 @@ orchestration. It does not change how individual modules consume configs.
 | `--infer_config_name search_binder`        | `--config_name search_binder_pipeline`           |
 | `generate_binder_inference_configs.py`     | `generate_inference_configs.py`                  |
 | Hardcoded `ALPHA_PROTEO_TARGETS` list      | Removed (use sweep or override)                  |
-| Manual removal of `configs/inference_configs`         | Automatic: temp dir + staging (concurrent-safe)  |
+| `rm -rf configs/inference_configs`         | Automatic: temp dir + staging (concurrent-safe)  |
 
 ## Tests
 
