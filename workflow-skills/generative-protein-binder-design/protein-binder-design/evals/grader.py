@@ -433,6 +433,41 @@ def verify_cache(name, workspace, check):
     )
 
 
+def target_atoms(text):
+    """Read structural fields without depending on PDB writer formatting."""
+    atoms = {}
+    explicit_model = False
+    in_model = False
+    ended = False
+    for line in text.splitlines():
+        record = line[:6].strip()
+        if record == "MODEL":
+            if explicit_model or atoms or ended or int(line[10:14]) != 1:
+                raise ValueError("target must contain only the first model")
+            explicit_model = in_model = True
+        elif record == "ENDMDL":
+            if not in_model:
+                raise ValueError("unexpected ENDMDL in target")
+            in_model = False
+        elif record == "END":
+            ended = True
+        elif record in {"ATOM", "HETATM"}:
+            if ended or (explicit_model and not in_model):
+                raise ValueError("target atom outside its model")
+            key = (line[21], int(line[22:26]), line[26].strip(), line[12:16].strip())
+            if key in atoms:
+                raise ValueError(f"duplicate target atom/conformer: {key}")
+            coordinates = tuple(
+                float(line[start : start + 8]) for start in (30, 38, 46)
+            )
+            if not all(math.isfinite(value) for value in coordinates):
+                raise ValueError("non-finite target coordinates")
+            atoms[key] = (line[17:20].strip(), line[16].strip(), coordinates)
+    if in_model:
+        raise ValueError("unclosed target model")
+    return atoms
+
+
 def verify_target(workspace, check):
     root = workspace / "output/target-prep"
     data = read_json(root / "preparation.json")
@@ -460,23 +495,26 @@ def verify_target(workspace, check):
         and not absent.get("sequence_indices"),
         "missing hotspot blocks its request",
     )
-    lines = (root / "target.pdb").read_text().splitlines()
-    atoms = [line for line in lines if line.startswith(("ATOM", "HETATM"))]
-    originals = (
-        (workspace / "input/target_prep/target.pdb")
-        .read_text()
-        .split("ENDMDL")[0]
-        .splitlines()
-    )
-    allowed = {
-        line for line in originals if line.startswith("ATOM") and line[21] == "E"
+    atoms = target_atoms((root / "target.pdb").read_text())
+    # Hand-checked first-model atoms from the digest-pinned synthetic input.
+    expected_atoms = {
+        ("E", 10, "", "CA"): ("ALA", "", (0.0, 0.0, 0.0)),
+        ("E", 42, "", "CA"): ("GLY", "B", (4.0, 0.0, 0.0)),
+        ("E", 42, "A", "CA"): ("SER", "", (4.0, 3.0, 0.0)),
+        ("E", 77, "", "CA"): ("THR", "", (8.0, 3.0, 0.0)),
     }
-    required = {line for line in allowed if line[16] != "A"}
     check(
-        bool(atoms)
-        and len(atoms) == len(set(atoms))
-        and required.issubset(atoms)
-        and set(atoms).issubset(allowed),
+        list(atoms) == list(expected_atoms)
+        and all(
+            atoms[key][0] == residue
+            # Writers may clear altLoc after selecting the required conformer.
+            and atoms[key][1] in {"", altloc}
+            and all(
+                math.isclose(actual, expected, rel_tol=0, abs_tol=0.0005)
+                for actual, expected in zip(atoms[key][2], coordinates)
+            )
+            for key, (residue, altloc, coordinates) in expected_atoms.items()
+        ),
         "extracted PDB chain/model/author numbering/selected coordinates",
     )
 

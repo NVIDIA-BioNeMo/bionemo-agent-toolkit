@@ -167,6 +167,73 @@ class OfflineWorkflowTests(unittest.TestCase):
         write_json(path, minimal)
         self.assert_grade(case, 1)
 
+    def test_target_verifier_accepts_equivalent_pdb_writers(self):
+        case = "offline-target-preparation"
+        self.stage(case)
+        self.execute(case)
+        path = self.workspace / "output/target-prep/target.pdb"
+        atoms = [
+            line for line in path.read_text().splitlines() if line.startswith("ATOM")
+        ]
+        rewritten = []
+        for serial, line in enumerate(atoms, 101):
+            # Change serials, atom-name alignment and numeric formatting; clear
+            # altLoc after choosing B, and omit unused trailing PDB fields.
+            xyz = "".join(
+                f"{float(line[start : start + 8]):8.2f}" for start in (30, 38, 46)
+            )
+            rewritten.append(f"ATOM  {serial:5d} CA   {line[17:30]}{xyz}")
+        for model_records in (False, True):
+            with self.subTest(model_records=model_records):
+                text = "\n".join(rewritten) + "\n"
+                if model_records:
+                    text = "MODEL        1\n" + text + "ENDMDL\n"
+                path.write_text(text + "END\n")
+                self.assert_grade(case, 1)
+
+    def test_target_verifier_rejects_duplicate_conformers_and_wrong_structure(self):
+        case = "offline-target-preparation"
+        self.stage(case)
+        self.execute(case)
+        path = self.workspace / "output/target-prep/target.pdb"
+        atoms = [
+            line for line in path.read_text().splitlines() if line.startswith("ATOM")
+        ]
+        source = (
+            (self.workspace / "input/target_prep/target.pdb").read_text().splitlines()
+        )
+        alternative = next(
+            line for line in source if line.startswith("ATOM") and line[16] == "A"
+        )
+        changed_serial = atoms[1][:6] + "  999" + atoms[1][11:]
+        mutations = {
+            "both conformers": atoms[:2] + [alternative] + atoms[2:],
+            "same atom, new serial": atoms + [changed_serial],
+            "wrong conformer": atoms[:1] + [alternative] + atoms[2:],
+            "missing atom": atoms[:-1],
+            "wrong chain": [atoms[0][:21] + "A" + atoms[0][22:]] + atoms[1:],
+            "lost insertion code": atoms[:2]
+            + [atoms[2][:26] + " " + atoms[2][27:]]
+            + atoms[3:],
+            "wrong residue": [atoms[0][:17] + "VAL" + atoms[0][20:]] + atoms[1:],
+            "wrong coordinates": [atoms[0][:30] + "   1.000" + atoms[0][38:]]
+            + atoms[1:],
+            "non-finite coordinates": [atoms[0][:30] + "     nan" + atoms[0][38:]]
+            + atoms[1:],
+            "wrong order": list(reversed(atoms)),
+            "second model": ["MODEL        2"] + atoms + ["ENDMDL"],
+            "two models": ["MODEL        1"]
+            + atoms
+            + ["ENDMDL", "MODEL        2"]
+            + atoms
+            + ["ENDMDL"],
+            "outside model": ["MODEL        1"] + atoms + ["ENDMDL", atoms[0]],
+        }
+        for name, lines in mutations.items():
+            with self.subTest(name=name):
+                path.write_text("\n".join(lines) + "\nEND\n")
+                self.assert_grade(case, 0)
+
     def test_csv_mutations_are_rejected_even_with_correct_manifest_and_summary(self):
         case = "offline-boltz2-ranking"
         self.stage(case)
