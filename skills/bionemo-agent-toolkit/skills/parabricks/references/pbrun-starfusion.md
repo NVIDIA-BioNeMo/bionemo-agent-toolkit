@@ -27,6 +27,14 @@ STAR-Fusion filtering, STAR-alignment, FusionInspector, shared-memory, and
 single-cell options are not exposed by `pbrun starfusion`; if the selected
 Parabricks version does not document a flag, do not pass it through.
 
+If a requested upstream filter or FusionInspector mode is mandatory, explain
+that the supported `pbrun starfusion` command is only a partial migration.
+Retain the upstream stage, or plan a separately validated downstream stage;
+do not claim that dropping an unsupported option preserves the analysis.
+Upstream FusionInspector also needs the read inputs, not just the junction
+file. The CTAT/STAR-Fusion resource library is distinct from a plain STAR
+alignment index, even when both come from the same reference build.
+
 | STAR-Fusion option | `pbrun starfusion` equivalent | Notes |
 | --- | --- | --- |
 | `--chimeric_junction`, `-J` | `--chimeric-junction` | Required path to `Chimeric.out.junction` from STAR. |
@@ -89,4 +97,5 @@ Parabricks version does not document a flag, do not pass it through.
 
 ## Key References
 
+- [Parabricks 4.7.0 STAR-Fusion manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_starfusion.html)
 - <https://raw.githubusercontent.com/STAR-Fusion/STAR-Fusion/master/STAR-Fusion>

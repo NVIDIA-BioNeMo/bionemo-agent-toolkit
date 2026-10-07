@@ -7,6 +7,12 @@ of normals, and intervals required by the chosen workflow; validate their
 reference builds and inspect sample-label or resource errors. Use a germline
 caller for inherited-variant analysis.
 
+For a panel of normals in **4.7.0**, follow
+[prepon](pbrun-prepon.md) for contig-header validation and the required `.pon`
+resource. Pass the prepared **VCF.GZ** to `--pon`, then use
+[postpon](pbrun-postpon.md) for PON INFO annotation of the caller's VCF.
+A `.tbi` alone does not replace the preprocessing resource.
+
 ## Mutect2 Option Mapping
 
 Parabricks v4.7.0 documents `mutectcaller` as the

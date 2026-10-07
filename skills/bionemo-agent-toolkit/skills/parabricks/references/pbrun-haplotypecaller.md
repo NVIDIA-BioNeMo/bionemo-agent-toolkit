@@ -16,6 +16,27 @@ pbrun haplotypecaller \
   --out-variants /outputdir/<sample.vcf.gz>
 ```
 
+## Recalibration and GATK Pass-Through
+
+A BQSR report records recalibration parameters; creating the report does not
+apply them to the existing BAM. When calling directly from the BAM and its
+matching report, pass `--in-recal-file` to HaplotypeCaller. It uses recalibrated
+qualities during calling without requiring a separate recalibrated BAM. If
+the BAM has already had that report applied, do not apply it a second time.
+
+For gVCF output, add `--gvcf`; a `.g.vcf.gz` filename alone does not select the
+emission mode. Keep caller settings separate from top-level Parabricks flags:
+in **4.7.0**, supported pass-through settings belong in one quoted
+`--haplotypecaller-options` value. Its documented options use **one leading
+hyphen**, except `--output-mode`, which uses two. For example:
+
+```bash
+  --haplotypecaller-options="-min-pruning <value> -pcr-indel-model <model>"
+```
+
+Use only the options and values documented for the selected release; this
+is not an unrestricted GATK argument pass-through.
+
 ## HaplotypeCaller Option Mapping
 
 Parabricks v4.7.0 documents this as a
@@ -49,3 +70,7 @@ HaplotypeCaller options must be passed through `--haplotypecaller-options`.
 | — | `--filter-reads-too-long`, `--no-alt-contigs` | Read/contig filtering conveniences. |
 | — | `--sample-sex`, `--range-male`, `--range-female`, `--use-GRCh37-regions` | Sex-chromosome handling controls. |
 | — | `--htvc-low-memory`, `--num-htvc-threads`, `--run-partition`, `--gpu-num-per-partition` | GPU/partition performance controls. |
+
+## Key References
+
+- [Parabricks 4.7.0 HaplotypeCaller manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_haplotypecaller.html)
