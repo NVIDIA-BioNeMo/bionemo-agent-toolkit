@@ -29,7 +29,7 @@ class HostedEnvironmentTests(unittest.TestCase):
             ]
         return subprocess.run(
             command,
-            env=env, text=True, capture_output=True,
+            env=env, shell=False, text=True, capture_output=True,
         )
 
     def test_selected_key_reaches_delegated_process_without_logging(self):
@@ -63,7 +63,7 @@ class HostedEnvironmentTests(unittest.TestCase):
             ["bash", "-x", str(HELPER), sys.executable, "-c",
              "import sys; assert sys.argv[1] == 'two words'; sys.exit(7)", "two words"],
             env={"PATH": os.defpath, "NVIDIA_API_KEY": "synthetic-secret"},
-            text=True, capture_output=True,
+            shell=False, text=True, capture_output=True,
         )
         self.assertEqual(result.returncode, 7)
         self.assertNotIn("synthetic-secret", result.stdout + result.stderr)

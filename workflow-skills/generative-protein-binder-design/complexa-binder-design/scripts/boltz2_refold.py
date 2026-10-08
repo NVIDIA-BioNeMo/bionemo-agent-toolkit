@@ -15,17 +15,23 @@ older responses cannot contribute to the new batch's ranking.
 
 Reads the API key from $NVIDIA_API_KEY / $NGC_API_KEY (hosted only; local needs none).
 
-Examples
+Usage:
   NVIDIA_API_KEY=nvapi-... python boltz2_refold.py \
       --run-dir outputs/pdl1 --pdbs inference/.../*.pdb --target-chain A --binder-chain B \
       --validate scripts/validate_binders.py --hotspots outputs/pdl1/hotspots.json
   python boltz2_refold.py --run-dir outputs/pdl1 --pdbs *.pdb --target-chain A --binder-chain B --endpoint local
+
+Arguments: run directory, shortlisted PDBs and distinct chain IDs are required;
+  endpoint, retry/throttle budgets, hotspots and the bundled validator are optional.
+Output: raw responses and refold_batch.json; logs deletion of stale score tables.
+Exit codes: 0 success, 1 prediction/validation failure, 2 invalid CLI arguments;
+  the chained validator's nonzero status is preserved.
 """
 from __future__ import annotations
-import argparse, json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
+import argparse, json, math, os, subprocess, sys, time, urllib.error, urllib.request
 from pathlib import Path
 
-from boltz2_endpoint import HOSTED_URL, LOCAL_URL
+from boltz2_endpoint import HOSTED_URL, LOCAL_URL, open_prediction, validate_endpoint
 from refold_batch import start_batch, write_json
 THREE_TO_ONE = {
     "ALA":"A","ARG":"R","ASN":"N","ASP":"D","CYS":"C","GLN":"Q","GLU":"E","GLY":"G",
@@ -67,9 +73,7 @@ def remap_hotspots(hotspots: list[dict], residues: list[tuple[str, str]], chain:
 def _validate_endpoint(url: str) -> str:
     """Allow only http(s) Boltz2 endpoints (hosted=https, local NIM=http localhost).
     Rejects any other scheme so a mis-set URL/env can't redirect the request."""
-    if urllib.parse.urlparse(url).scheme not in ("https", "http"):
-        raise ValueError(f"refusing non-http(s) Boltz2 endpoint: {url!r}")
-    return url
+    return validate_endpoint(url)
 
 
 def post_with_retry(url: str, body: dict, headers: dict, max_retries: int = 5,
@@ -82,7 +86,7 @@ def post_with_retry(url: str, body: dict, headers: dict, max_retries: int = 5,
     for attempt in range(max_retries + 1):
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 - scheme validated above
+            with open_prediction(req, timeout=timeout) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             last = e
@@ -138,21 +142,37 @@ def main() -> int:
     ap.add_argument("--hotspots", default=None, help="hotspots.json passed to validate_binders.py")
     a = ap.parse_args()
 
+    if (len(a.target_chain) != 1 or not a.target_chain.isalnum()
+            or len(a.binder_chain) != 1 or not a.binder_chain.isalnum()):
+        ap.error("PDB chain IDs must be single alphanumeric characters")
     if a.target_chain == a.binder_chain:
         ap.error("target and binder chains must be distinct")
-    if a.max_designs < 1 or len(a.pdbs) > a.max_designs:
+    if not 1 <= a.max_designs <= 2000 or len(a.pdbs) > a.max_designs:
         ap.error("supply a ranked shortlist within --max-designs before submitting predictions")
     names = [Path(pdb).stem for pdb in a.pdbs]
     if len(set(names)) != len(names):
         ap.error("input PDB filenames must have unique stems within a run")
-    if a.max_retries < 0 or a.throttle < 0:
-        ap.error("max-retries and throttle must be nonnegative")
+    if not 0 <= a.max_retries <= 10 or not math.isfinite(a.throttle) or not 0 <= a.throttle <= 120:
+        ap.error("max-retries must be 0..10 and throttle must be 0..120 seconds")
+    validator = Path(__file__).resolve().with_name("validate_binders.py")
+    if a.validate:
+        supplied = validator if a.validate == "validate_binders.py" else Path(a.validate).expanduser()
+        if validator.is_symlink() or supplied.resolve() != validator or not validator.is_file():
+            ap.error("--validate must name this skill's scripts/validate_binders.py")
+    a.run_dir = a.run_dir.expanduser().resolve()
+    a.pdbs = [str(Path(pdb).expanduser().resolve()) for pdb in a.pdbs]
+    if a.hotspots:
+        a.hotspots = str(Path(a.hotspots).expanduser().resolve())
     hotspots = []
     if a.hotspots:
         hdata = json.loads(Path(a.hotspots).read_text())
         hotspots = hdata if isinstance(hdata, list) else hdata["hotspot_residues"]
 
     url = a.url or (HOSTED_URL if a.endpoint == "hosted" else LOCAL_URL)
+    try:
+        validate_endpoint(url, hosted=a.endpoint == "hosted")
+    except ValueError as error:
+        ap.error(str(error))
     key = None if a.endpoint == "local" else (os.getenv("NVIDIA_API_KEY")
                                               or os.getenv("NGC_API_KEY"))
     raw_dir = a.run_dir / "validation" / "raw"
@@ -193,13 +213,17 @@ def main() -> int:
 
     validation_status = 0
     if a.validate:
-        cmd = [sys.executable, a.validate, "--run-dir", str(a.run_dir),
+        cmd = [sys.executable, str(validator), "--run-dir", str(a.run_dir),
                "--endpoint", a.endpoint, "--target-chain", a.target_chain,
                "--binder-chain", a.binder_chain, "--url", url]
         if a.hotspots:
             cmd += ["--hotspots", a.hotspots]
         print("=== running:", " ".join(cmd), "===", flush=True)
-        validation_status = subprocess.run(cmd).returncode
+        try:
+            validation_status = subprocess.run(cmd, shell=False, timeout=86400).returncode
+        except subprocess.TimeoutExpired:
+            print("validation exceeded the 24-hour batch timeout", file=sys.stderr)
+            validation_status = 1
     return validation_status or (1 if n_ok != len(pdbs) else 0)
 
 

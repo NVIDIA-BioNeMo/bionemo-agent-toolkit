@@ -5,21 +5,21 @@
 
 For each designed binder this computes, on an *independent* Boltz2 refold:
 
-  * ipTM                — from the holo Boltz2 response (``iptm_scores``)
-  * complex pLDDT       — holo ``complex_plddt_scores`` (0-1)
-  * binder pLDDT        — mean Cα pLDDT of the binder chain in the holo complex
-  * ipSAE (min)         — canonical Dunbrack ipsae.py on the holo PAE matrix,
+  * ipTM                - from the holo Boltz2 response (``iptm_scores``)
+  * complex pLDDT       - holo ``complex_plddt_scores`` (0-1)
+  * binder pLDDT        - mean CA pLDDT of the binder chain in the holo complex
+  * ipSAE (min)         - canonical Dunbrack ipsae.py on the holo PAE matrix,
                           min over the two asymmetric interface directions
-  * apo binder pLDDT    — a *new* Boltz2 prediction of the binder ALONE
-  * binder apo↔holo RMSD— Cα RMSD after Kabsch superposition (binder stability)
-  * hotspot contact %   — fraction of conditioned hotspots with a binder
-                          Cβ–Cβ contact < 13 Å (Cα for GLY)
+  * apo binder pLDDT    - a *new* Boltz2 prediction of the binder ALONE
+  * binder apo<->holo RMSD- CA RMSD after Kabsch superposition (binder stability)
+  * hotspot contact %   - fraction of conditioned hotspots with a binder
+                          CB-CB contact < 13 Angstrom (CA for GLY)
 
 Gate (all must hold): ipsae_min>=0.45 AND iptm>=0.65 AND binder_plddt>=0.70 AND
 complex_plddt>=0.70 AND apo_binder_plddt>=0.70 AND binder_rmsd<=2.5 AND
 (hotspot_contact_frac>=0.20 when the design was hotspot-conditioned).
 
-Every design — pass AND fail — is written to validation_scores.json/.csv and
+Every design - pass AND fail - is written to validation_scores.json/.csv and
 ranked_binders.json/.csv, each with a ``pass`` flag and a ``failure_reason``
 listing *all* gates missed (or the verbatim error if a design could not be scored).
 When validation/refold_batch.json exists, only its current candidates are scored;
@@ -32,11 +32,17 @@ Usage:
   python validate_binders.py --run-dir outputs/<target>_<run> --hotspots <hotspots.json>
   # recompute-only (no live apo predictions):
   python validate_binders.py --run-dir <dir> --hotspots <h.json> --no-apo
+
+Arguments: run directory; optional hotspots, endpoint, cached apo directory and
+  scoring cutoffs (see --help).
+Output: JSON/CSV ranked binders and validation scores, retaining failed rows.
+Exit codes: 0 tables written (including failed designs), 2 invalid/missing inputs.
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import subprocess
@@ -44,7 +50,6 @@ import sys
 import tempfile
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -61,8 +66,12 @@ GATE = {
     "hotspot_contact_frac": ("min", 0.20),
 }
 
-from boltz2_endpoint import HOSTED_URL, LOCAL_URL
+from boltz2_endpoint import HOSTED_URL, LOCAL_URL, open_prediction, validate_endpoint
+from execution import bounded_int
 from refold_batch import load_batch
+
+# Keep in sync with the reviewed download pin in fetch_ipsae.sh and VENDOR.md.
+IPSAE_SHA256 = "10cf9b08c68c91e06cb28526cf2026f47a3980c9048fd3226d13e3304eaf1c27"
 
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
@@ -138,13 +147,13 @@ def chain_sequence(atoms: list[dict], chain: str) -> str:
 
 
 def chain_mean_ca_plddt(atoms: list[dict], chain: str) -> float:
-    """Mean Cα B-factor (=pLDDT) of a chain, normalised to 0-1 (B-factor is 0-100)."""
+    """Mean CA B-factor (=pLDDT) of a chain, normalised to 0-1 (B-factor is 0-100)."""
     bf = [a["bfac"] for a in chain_ca(atoms, chain)]
     return float(np.mean(bf) / 100.0) if bf else float("nan")
 
 
 def residue_cb(atoms: list[dict], chain: str, resnum: int) -> np.ndarray | None:
-    """Cβ coord of a residue (Cα for glycine / missing Cβ)."""
+    """CB coord of a residue (CA for glycine / missing CB)."""
     res = [a for a in atoms if a["chain"] == chain and a["resnum"] == resnum]
     if not res:
         return None
@@ -172,7 +181,7 @@ def chain_cb_coords(atoms: list[dict], chain: str) -> np.ndarray:
 
 # ----------------------------------------------------------------------------- geometry
 def kabsch_rmsd(P: np.ndarray, Q: np.ndarray) -> float:
-    """Cα RMSD of P onto Q after optimal superposition. P,Q are (N,3), aligned 1:1."""
+    """CA RMSD of P onto Q after optimal superposition. P,Q are (N,3), aligned 1:1."""
     if P.shape != Q.shape or len(P) == 0:
         return float("nan")
     Pc = P - P.mean(axis=0)
@@ -188,7 +197,7 @@ def kabsch_rmsd(P: np.ndarray, Q: np.ndarray) -> float:
 
 def hotspot_contacts(atoms: list[dict], target_chain: str, binder_chain: str,
                      hotspots: list[dict], cutoff: float = 13.0) -> dict:
-    """Fraction of hotspots with a binder Cβ within `cutoff` Å of the hotspot Cβ."""
+    """Fraction of hotspots with a binder CB within `cutoff` Angstrom of the hotspot CB."""
     binder_cb = chain_cb_coords(atoms, binder_chain)
     details = []
     n_contact = 0
@@ -214,6 +223,12 @@ def run_ipsae(ipsae_py: Path, cif_text: str, pae: np.ndarray,
     """Run canonical ipsae.py in Boltz mode; return ipsae_min/max + iptm_af."""
     if not ipsae_py.is_file():
         raise FileNotFoundError("ipSAE script missing; run bash scripts/fetch_ipsae.sh before scoring")
+    expected = Path(__file__).resolve().parents[1] / "vendor" / "ipsae" / "ipsae.py"
+    if ipsae_py.resolve() != expected or hashlib.sha256(ipsae_py.read_bytes()).hexdigest() != IPSAE_SHA256:
+        raise ValueError("ipSAE must be the pinned script installed by scripts/fetch_ipsae.sh")
+    bounded_int(pae_cutoff, 1, 100, "pae_cutoff")
+    bounded_int(dist_cutoff, 1, 100, "dist_cutoff")
+    workdir = workdir.resolve()
     stem = "model"
     cif_path = workdir / f"{stem}.cif"
     cif_path.write_text(cif_text)
@@ -223,9 +238,9 @@ def run_ipsae(ipsae_py: Path, cif_text: str, pae: np.ndarray,
             json.dumps({"pair_chains_iptm": pair_chains_iptm}))
     cmd = [sys.executable, str(ipsae_py), str(workdir / f"pae_{stem}.npz"),
            str(cif_path), str(pae_cutoff), str(dist_cutoff)]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
     out_txt = workdir / f"{stem}_{pae_cutoff:02d}_{dist_cutoff:02d}.txt"
-    if not out_txt.exists():
+    if proc.returncode != 0 or not out_txt.exists():
         raise RuntimeError(f"ipsae.py produced no output: {proc.stdout}\n{proc.stderr}")
     asym = {}
     iptm_af = None
@@ -265,14 +280,13 @@ def boltz2_predict_apo(seq: str, url: str, api_key: str | None,
     headers = {"Content-Type": "application/json"}
     if api_key:  # hosted needs Bearer auth; local NIM needs none
         headers["Authorization"] = f"Bearer {api_key}"
-    if urllib.parse.urlparse(url).scheme not in ("https", "http"):
-        raise ValueError(f"refusing non-http(s) Boltz2 endpoint: {url!r}")
+    validate_endpoint(url, hosted=bool(api_key))
     data = json.dumps(body).encode()
     last = None
     for attempt in range(max_retries + 1):
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=900) as resp:  # nosec B310 - scheme validated above
+            with open_prediction(req, timeout=900) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
             last = e
@@ -330,13 +344,21 @@ def main() -> int:
     ap.add_argument("--dist-cutoff", type=int, default=10)
     ap.add_argument("--contact-cutoff", type=float, default=13.0)
     args = ap.parse_args()
+    try:
+        bounded_int(args.pae_cutoff, 1, 100, "pae-cutoff")
+        bounded_int(args.dist_cutoff, 1, 100, "dist-cutoff")
+        if not np.isfinite(args.contact_cutoff) or not 0 < args.contact_cutoff <= 100:
+            raise ValueError("contact-cutoff must be greater than 0 and at most 100 Angstrom")
+        url = validate_endpoint(args.url or (HOSTED_URL if args.endpoint == "hosted" else LOCAL_URL),
+                                hosted=args.endpoint == "hosted")
+    except ValueError as error:
+        ap.error(str(error))
 
     skill_root = Path(__file__).resolve().parents[1]
     ipsae_py = skill_root / "vendor" / "ipsae" / "ipsae.py"
 
     run_dir = args.run_dir
     raw_dir = run_dir / "validation" / "raw"
-    cif_dir = run_dir / "validation" / "cif"
     try:
         batch = load_batch(run_dir)
     except (OSError, ValueError) as error:
@@ -357,7 +379,6 @@ def main() -> int:
         hotspots = hdata if isinstance(hdata, list) else hdata.get("hotspot_residues", [])
         hotspot_conditioned = len(hotspots) > 0
 
-    url = args.url or (HOSTED_URL if args.endpoint == "hosted" else LOCAL_URL)
     env_files: list[Path] = []
     if args.env_file:
         env_files.append(Path(args.env_file))

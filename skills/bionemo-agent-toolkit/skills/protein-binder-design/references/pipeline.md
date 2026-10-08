@@ -91,8 +91,9 @@ seq_idx = remap_to_seq_index(target_pdb, chain="<C>", author_resnums=[<epitope a
 
 ### Human-in-the-loop gate
 Before generating backbones, resolve any missing target chain, epitope/hotspot
-set, binder length range, number of backbones, or sequences per backbone. Reuse
-the user's supplied choices without asking for them again.
+set, binder length range, number of backbones, or sequences per backbone. Treat
+the user's supplied choices as resolved; ask only for missing values or a
+proposed change in campaign scope or deployment.
 
 ## 2. Backbones — `rfdiffusion-nim`
 

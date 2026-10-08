@@ -6,13 +6,13 @@
 `run(...)` is a GENERATOR that yields `Event`s so a caller can stream stage-by-stage
 progress. Modes:
 
-  * mode="score_existing"  — score/explore an already-produced run directory: runs
+  * mode="score_existing"  - score/explore an already-produced run directory: runs
       validate_binders.py on existing holo + apo refolds and returns ranked binders.
       No GPU, fully self-contained.
 
-  * mode="full"            — live run from a target: resolve structure + hotspots
+  * mode="full"            - live run from a target: resolve structure + hotspots
       (Stage 1), register the target and run generation via the OPEN `complexa`
-      CLI in $COMPLEXA_REPO (Stage 2: generate→filter→evaluate→analyze, AF2-reward
+      CLI in $COMPLEXA_REPO (Stage 2: generate->filter->evaluate->analyze, AF2-reward
       gated), build the target MSA, then emit a Stage-3 handoff for the INDEPENDENT
       Boltz2/OpenFold3 NIM refold (driven by the agent / boltz2-nim skill); once the
       refolds exist it scores them. Requires a GPU host for Complexa + a Boltz2/OF3
@@ -22,6 +22,11 @@ This module shells out to separately-tested pieces rather than re-implementing t
 scripts/validate_binders.py, scripts/fetch_target_msa_colabfold.py,
 vendor/science-skills/.../fetch_structure.py, and the `complexa` CLI. There is no
 Slurm/sbatch or private-NIM dependency.
+
+Usage: python pipeline.py --mode score_existing --run-dir <run>
+Arguments: mode, run directory, target and chain/hotspot choices (see --help).
+Output: streamed Events; prepared structures, target registration and ranked files.
+Exit codes: 0 success, 1 pipeline failure, 2 invalid CLI arguments.
 """
 from __future__ import annotations
 
@@ -35,6 +40,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from execution import (MAX_TIMEOUT, algorithm as validate_algorithm, bounded_int,
+                       complexa_config, complexa_executable, complexa_repo,
+                       contained, identifier)
+
 # UniProt accession + PDB-ID shapes, for classifying a free-text target.
 _UNIPROT_RE = re.compile(
     r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$")
@@ -43,7 +52,7 @@ _PDB_RE = re.compile(r"^[0-9][A-Za-z0-9]{3}$")
 # ---------------------------------------------------------------------------
 # Public layout: this module lives in <skill>/scripts/. Stage-1 tooling is
 # vendored under <skill>/vendor/; Stage-2 drives the OPEN `complexa` CLI in the
-# user's Proteina-Complexa checkout ($COMPLEXA_REPO) — no Slurm, no demo NIM.
+# user's Proteina-Complexa checkout ($COMPLEXA_REPO) - no Slurm, no demo NIM.
 import os
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -65,21 +74,14 @@ COMPLEXA_CONFIG = os.environ.get("COMPLEXA_CONFIG", "configs/search_binder_local
 
 def _complexa_repo() -> Path:
     """Resolve $COMPLEXA_REPO lazily (only Stage 2 needs it; Stage 1 / scoring don't)."""
-    r = os.environ.get("COMPLEXA_REPO")
-    if not r:
-        raise RuntimeError(
-            "Set COMPLEXA_REPO to your Proteina-Complexa checkout "
-            "(https://github.com/NVIDIA-Digital-Bio/Proteina-Complexa) to run generation.")
-    p = Path(r).expanduser()
-    if not p.is_dir():
-        raise RuntimeError(f"COMPLEXA_REPO is not a directory: {p}")
-    return p
+    return complexa_repo()
 
 
 # Back-compat alias used by the extraction/discovery helpers below; resolves to the
 # user's open checkout instead of the old Slurm run-root.
 def _targets_dict() -> Path:
-    return _complexa_repo() / "configs" / "targets" / "targets_dict.yaml"
+    repo = _complexa_repo()
+    return contained(repo / "configs" / "targets" / "targets_dict.yaml", repo)
 
 # Complexa builds O(n^2) pairwise features over the FULL (target + binder) complex,
 # and the JAX AF2-Multimer reward model (beam search) preallocates a big slice of
@@ -94,7 +96,7 @@ MAX_COMPLEX_RESIDUES = 500       # hard cap on target + binder residues, total
 # candidates, AF2/RF3-reward-scored, written to the binder_results CSV with
 # self_complex_i_pTM / self_complex_pLDDT. Public default is 1 GPU; raise to your
 # GPU count for more parallelism/diversity.
-N_DEVICES_DEFAULT = 1            # gen/eval njobs — set to your available GPU count
+N_DEVICES_DEFAULT = 1            # gen/eval njobs - set to your available GPU count
 # The default independent-validation shortlist is 2 x the requested count.
 # GPU count changes generation parallelism, never the validation budget.
 DEFAULT_REQUESTED = 10
@@ -126,10 +128,10 @@ def _max_target_residues(binder_max: int = BINDER_LENGTH[1]) -> int:
 
 
 # Hotspot sanity (bindclaw convention): a binder grips ONE local epitope, so the
-# hotspot set must be small and spatially compact — not scattered across domains.
+# hotspot set must be small and spatially compact - not scattered across domains.
 HOTSPOT_MIN_RESIDUES = 1         # >=1 is acceptable (a single anchor hotspot is OK)
 HOTSPOT_MAX_RESIDUES = 15        # bindclaw DEFAULT_MAX_HOTSPOT_RESIDUES
-HOTSPOT_MAX_SPREAD_A = 30.0      # drop hotspots > this far (Å) from the epitope cluster
+HOTSPOT_MAX_SPREAD_A = 30.0      # drop hotspots > this far (Angstrom) from the epitope cluster
 
 
 @dataclass
@@ -141,14 +143,17 @@ class Event:
     data: dict = field(default_factory=dict)
 
     def line(self) -> str:
-        icon = {"start": "▶", "info": "·", "ok": "✓", "error": "✗"}.get(self.status, "·")
+        icon = {"start": ">", "info": ";", "ok": "OK", "error": "ERROR"}.get(self.status, ";")
         return f"{icon} [{self.stage}] {self.message}"
 
 
 # --------------------------------------------------------------------------- helpers
 def _run(cmd: list[str], cwd: Path | None = None, timeout: int = 1800) -> subprocess.CompletedProcess:
+    bounded_int(timeout, 1, MAX_TIMEOUT, "subprocess timeout")
+    if not isinstance(cmd, list) or not cmd:
+        raise ValueError("subprocess command must be a nonempty argument list")
     return subprocess.run([str(c) for c in cmd], cwd=(str(cwd) if cwd else None),
-                          capture_output=True, text=True, timeout=timeout)
+                          shell=False, capture_output=True, text=True, timeout=timeout)
 
 
 def list_run_dirs() -> list[str]:
@@ -160,13 +165,13 @@ def list_run_dirs() -> list[str]:
 
 # --------------------------------------------------------------------------- target resolution
 def resolve_target_spec(text: str, organism_id: str = "9606") -> dict:
-    """Turn a free-text target NAME into a structure spec — the only thing the user
+    """Turn a free-text target NAME into a structure spec - the only thing the user
     types. Resolves across ALL organisms (not just human) so allergens, viral, and
-    other non-human targets work (e.g. an allergen common name → its UniProt accession).
+    other non-human targets work (e.g. an allergen common name -> its UniProt accession).
 
     Strategy: human+reviewed first (so a common human protein name stays human),
     then any reviewed organism, then any entry; raw text first, then an auto-spaced
-    variant ('DerF21' → 'Der F 21') for allergen-style names. A UniProt accession or
+    variant ('DerF21' -> 'Der F 21') for allergen-style names. A UniProt accession or
     a 4-char PDB ID typed directly is still accepted, but the user need not know one."""
     t = text.strip()
     if _UNIPROT_RE.match(t.upper()):
@@ -175,10 +180,10 @@ def resolve_target_spec(text: str, organism_id: str = "9606") -> dict:
         return {"pdb": t.upper(), "resolved_from": f"{t} (PDB ID)"}
 
     # Match on protein NAME / gene exactly (not fuzzy full-text relevance, which
-    # confidently returns the WRONG protein — e.g. freeform 'DerF21' matched human
+    # confidently returns the WRONG protein - e.g. freeform 'DerF21' matched human
     # RhoA). Build name variants: raw, a generic case/digit-spaced form
-    # ('DerF21'→'Der F 21'), and an allergen-nomenclature form for 'Genus-species-num'
-    # names ('derf21'/'DerF21'→'der f 21', 'Blag2'→'Bla g 2').
+    # ('DerF21'->'Der F 21'), and an allergen-nomenclature form for 'Genus-species-num'
+    # names ('derf21'/'DerF21'->'der f 21', 'Blag2'->'Bla g 2').
     spaced = re.sub(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Za-z])(?=\d)", " ", t)
     m_all = re.match(r"^([A-Za-z]{3})([A-Za-z])(\d+)$", t)
     allergen = f"{m_all.group(1)} {m_all.group(2)} {m_all.group(3)}" if m_all else None
@@ -186,7 +191,7 @@ def resolve_target_spec(text: str, organism_id: str = "9606") -> dict:
     for f in (t, spaced, allergen):
         if f and f not in forms:
             forms.append(f)
-    # PREFER REVIEWED (Swiss-Prot) across ALL forms before any unreviewed entry —
+    # PREFER REVIEWED (Swiss-Prot) across ALL forms before any unreviewed entry -
     # reviewed entries are the ones with AFDB models; unreviewed TrEMBL hits (e.g.
     # A0A922HUI2) often have no AlphaFold structure. Within reviewed, human first.
     queries: list[str] = []
@@ -213,7 +218,7 @@ def resolve_target_spec(text: str, organism_id: str = "9606") -> dict:
             f"could not find a UniProt entry for '{text}'. Check the spelling, or try "
             "the protein's common gene/protein name or UniProt accession, or upload a structure.")
     org = (hit.get("organism", {}) or {}).get("scientificName", "")
-    return {"uniprot": acc, "resolved_from": f"{t} → UniProt {acc}" + (f" ({org})" if org else "")}
+    return {"uniprot": acc, "resolved_from": f"{t} -> UniProt {acc}" + (f" ({org})" if org else "")}
 
 
 # --------------------------------------------------------------------------- Stage 1
@@ -233,7 +238,7 @@ def resolve_target(spec: dict, run_dir: Path) -> Iterator[Event]:
             # STDOUT (returncode 0), so surface stdout+stderr, not just stderr.
             detail = " ".join((p.stdout + " " + p.stderr).split())[-400:]
             raise RuntimeError(
-                f"no AlphaFold model for UniProt {acc} — {detail or 'AFDB has no entry for this accession.'} "
+                f"no AlphaFold model for UniProt {acc} - {detail or 'AFDB has no entry for this accession.'} "
                 "(Unreviewed/TrEMBL entries often lack an AFDB model; try the reviewed "
                 "Swiss-Prot accession, a PDB ID, or upload a structure.)")
         (run_dir / "target.cif").write_text(cif.read_text())
@@ -265,7 +270,7 @@ def resolve_target(spec: dict, run_dir: Path) -> Iterator[Event]:
 def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
     """Best-effort hotspot candidates from UniProt Active/Binding-site features."""
     # Never clobber an existing richer hotspots.json (e.g. Paperclip-derived) on a
-    # re-run — preserve it so the run stays conditioned.
+    # re-run - preserve it so the run stays conditioned.
     existing = run_dir / "hotspots.json"
     if existing.exists():
         try:
@@ -273,7 +278,7 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
             prev_hs = prev.get("hotspot_residues") if isinstance(prev, dict) else prev
             if prev_hs:
                 yield Event("stage1", "ok",
-                            f"keeping existing hotspots.json ({len(prev_hs)} residues) — not overwriting",
+                            f"keeping existing hotspots.json ({len(prev_hs)} residues) - not overwriting",
                             {"hotspots": prev_hs[:20]})
                 return
         except Exception:  # noqa: BLE001
@@ -293,7 +298,7 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
     # UniProt functional residues first, then a reviewed PDB-interface fallback,
     # all restricted
     # to the EXTRACELLULAR/accessible range. Replaces 'Active/Binding site first',
-    # which annotates catalytic/intracellular pockets — the wrong surface for a
+    # which annotates catalytic/intracellular pockets - the wrong surface for a
     # binder epitope (verified: IL1R1 470 = cytoplasmic TIR; HER2 = kinase ATP site).
     try:
         import hotspot_strategy as _HS
@@ -314,10 +319,10 @@ def _uniprot_hotspots(acc: str, run_dir: Path) -> Iterator[Event]:
                     "(downstream pruning enforces compactness + count)",
                     {"hotspots": hs[:20]})
     else:
-        # Nothing from PDB interface or UniProt — escalate to the Paperclip
+        # Nothing from PDB interface or UniProt - escalate to the Paperclip
         # full-text literature fallback rather than silently going unconditioned.
         yield Event("stage1", "info",
-                    f"no PDB-interface or UniProt functional hotspots for {acc} — fall back to the "
+                    f"no PDB-interface or UniProt functional hotspots for {acc} - fall back to the "
                     "Paperclip literature search (prompts/hotspot_paperclip.md), then re-run with "
                     "--hotspots. Target preflight blocks generation while the epitope is missing.",
                     {"needs_paperclip": True, "hotspots": []})
@@ -362,7 +367,7 @@ def align_hotspots_to_structure(
     """
     try:
         idx = _structure_residue_index(Path(structure_path))
-    except Exception:  # noqa: BLE001 — never let alignment crash the run
+    except Exception:  # noqa: BLE001 - never let alignment crash the run
         return list(hotspots), []
     if not idx:
         return list(hotspots), []
@@ -398,7 +403,7 @@ def _paperclip_available() -> bool:
 
 
 def _uniprot_name(acc: str) -> list[str]:
-    """Common protein name(s) + gene for an accession — Paperclip search terms.
+    """Common protein name(s) + gene for an accession - Paperclip search terms.
 
     Includes UniProt SHORT names (the protein's common short name) which is what the
     binding/epitope literature actually uses; the verbose recommendedName is poor for search."""
@@ -430,14 +435,14 @@ def _uniprot_name(acc: str) -> list[str]:
 def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterator[Event]:
     """Agent-free Paperclip literature fallback (runs when UniProt has no hotspots).
 
-    Drives the `paperclip` CLI (search → map) to pull residue-level epitope/binding
+    Drives the `paperclip` CLI (search -> map) to pull residue-level epitope/binding
     evidence from full-text papers, then keeps ONLY residues whose 3-letter identity
-    matches the resolved structure — auto-correcting a literature↔structure numbering
+    matches the resolved structure - auto-correcting a literature<->structure numbering
     offset (e.g. mature vs full-length). The structure is the ground-truth filter, so
     fuzzy/wrong residue mentions are discarded. Writes hotspots.json on success."""
     if not _paperclip_available():
         yield Event("stage1", "info",
-                    "paperclip CLI not found in PATH — cannot run literature fallback; "
+                    "paperclip CLI not found in PATH - cannot run literature fallback; "
                     "supply supported hotspots before generation.")
         return
     names = _uniprot_name(acc)
@@ -462,7 +467,7 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
             sid = m.group(1)
             break
     if not sid:
-        yield Event("stage1", "info", f"Paperclip found no papers for '{name}' — hotspots still missing.")
+        yield Event("stage1", "info", f"Paperclip found no papers for '{name}' - hotspots still missing.")
         return
     yield Event("stage1", "info", f"Paperclip result set {sid}; extracting residue numbers")
     mp = _run(["paperclip", "map", "--from", sid,
@@ -479,13 +484,13 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
     cand = sorted(mentions)
     if not cand:
         yield Event("stage1", "info",
-                    f"Paperclip returned no parseable residue numbers for '{name}' — hotspots still missing.")
+                    f"Paperclip returned no parseable residue numbers for '{name}' - hotspots still missing.")
         return
     try:
         idx = _structure_residue_index(Path(structure_path))
     except Exception:  # noqa: BLE001
         idx = {}
-    # Find the literature→structure numbering offset that confirms the most residues.
+    # Find the literature->structure numbering offset that confirms the most residues.
     best_off, best_n = 0, 0
     for off in range(-30, 31):
         n = sum(1 for aa, pos in cand if idx.get(("A", pos + off)) == aa)
@@ -494,11 +499,11 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
     if best_n < 3:
         yield Event("stage1", "info",
                     f"Paperclip proposed {len(cand)} residue(s) but only {best_n} match the "
-                    f"structure ({structure_path.name}) — numbering mismatch; "
+                    f"structure ({structure_path.name}) - numbering mismatch; "
                     "verify hotspots manually before generation.")
         return
     # Rank by how often each residue is discussed (proxy for importance) and keep a
-    # focused epitope — conditioning Complexa on dozens of scattered residues is bad.
+    # focused epitope - conditioning Complexa on dozens of scattered residues is bad.
     _CAP = 10
     seen: set[int] = set()
     confirmed: list[dict] = []
@@ -517,7 +522,7 @@ def paperclip_hotspots(acc: str, structure_path: Path, run_dir: Path) -> Iterato
                "hotspot_residues": confirmed}
     (run_dir / "hotspots.json").write_text(json.dumps(wrapper, indent=2))
     (run_dir / "hotspots.txt").write_text(
-        f"{name} ({acc}) hot spots — derived from full-text literature via Paperclip.\n"
+        f"{name} ({acc}) hot spots - derived from full-text literature via Paperclip.\n"
         f"Numbering aligned to {structure_path.name} (literature offset {best_off:+d}).\n\n"
         + "\n".join(f"  {h['residue']}{h['position']} (chain A; lit {h['lit_position']})"
                     for h in confirmed) + "\n")
@@ -571,19 +576,19 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
                     max_dist: float = HOTSPOT_MAX_SPREAD_A) -> tuple[list[dict], list[dict], list[str]]:
     """Enforce epitope sanity (bindclaw convention): a binder grips ONE local patch.
 
-    1. **Compactness** — keep a patch with pairwise Cβ (Cα fallback) distances
-       <= ``max_dist`` Å, starting from the densest hotspot neighbourhood.
-    2. **Count cap** — keep at most ``max_residues`` (the ones closest to the centroid).
+    1. **Compactness** - keep a patch with pairwise CB (CA fallback) distances
+       <= ``max_dist`` Angstrom, starting from the densest hotspot neighbourhood.
+    2. **Count cap** - keep at most ``max_residues`` (the ones closest to the centroid).
 
     Returns (kept, dropped, messages). Unreadable structures raise; hotspots with
-    no Cα/Cβ coordinate cannot satisfy the geometry check and are dropped."""
+    no CA/CB coordinate cannot satisfy the geometry check and are dropped."""
     hs = list(hotspots or [])
     if not hs:
         return hs, [], []
     arr = _read_first_model(structure_path)
 
-    # Cβ (Cα fallback) coordinate per (chain, res_id): insert Cα first, then let Cβ
-    # overwrite so Cβ wins when both are present.
+    # CB (CA fallback) coordinate per (chain, res_id): insert CA first, then let CB
+    # overwrite so CB wins when both are present.
     cbca: dict[tuple[str, int], tuple[float, float, float]] = {}
     for atom_name in ("CA", "CB"):
         m = arr.atom_name == atom_name
@@ -623,7 +628,7 @@ def _prune_hotspots(hotspots: list[dict], structure_path: Path,
         dd = sorted({f"{x.get('chain', 'A')}{x.get('position')}" for x in dropped})
         msgs.append(
             f"hotspot sanity: kept {len(kept)}, dropped {len(dropped)} residue(s) outside the "
-            f"epitope (pairwise distance > {max_dist:.0f} Å, missing coordinates, or beyond "
+            f"epitope (pairwise distance > {max_dist:.0f} Angstrom, missing coordinates, or beyond "
             f"the {max_residues}-residue cap): {dd}")
     return kept, dropped, msgs
 
@@ -641,7 +646,7 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
     Chains with no hotspots are dropped when cropping. With no hotspots at all there
     is no epitope to center on, so the target is truncated to the first
     ``max_residues`` residues and a warning is emitted (an unconditioned design on a
-    truncated target is rarely what you want — supply hotspots)."""
+    truncated target is rarely what you want - supply hotspots)."""
     import numpy as np
     import biotite.structure as struc
     import biotite.structure.io.pdb as pdb
@@ -671,7 +676,7 @@ def _crop_target_to_epitope(structure_path: Path, hotspots: list[dict], run_dir:
         order = [int(chain_arr.res_id[s]) for s in struc.get_residue_starts(chain_arr)]
         if hot_by_chain:
             if chain not in hot_by_chain:
-                continue  # no epitope on this chain — drop it
+                continue  # no epitope on this chain - drop it
             hs = sorted(hot_by_chain[chain])
             # The budget counts observed residues, not author-number labels.
             # A gap such as 250 -> 1001 must not consume 750 places in the crop.
@@ -814,7 +819,7 @@ def prepare_design_target(structure_path: Path, run_dir: Path, *,
     checks = {
         "size<=500": (conditioned_length + binder_max <= MAX_COMPLEX_RESIDUES,
                       f"{conditioned_length}+{binder_max}={conditioned_length + binder_max}"),
-        "compact<=30A": (final_diameter <= HOTSPOT_MAX_SPREAD_A, f"{final_diameter:.1f} Å"),
+        "compact<=30A": (final_diameter <= HOTSPOT_MAX_SPREAD_A, f"{final_diameter:.1f} Angstrom"),
         f">={HOTSPOT_MIN_RESIDUES}_hotspots": (n >= HOTSPOT_MIN_RESIDUES, str(n)),
         "<=15_hotspots": (n <= HOTSPOT_MAX_RESIDUES, str(n)),
         "crop_preserves_hotspots": (not crop_dropped, f"{len(crop_dropped)} lost during crop"),
@@ -859,14 +864,16 @@ def register_complexa_target(task_name: str, structure_path: Path, hotspots: lis
     import shutil
     import tempfile
     import yaml
+    identifier(task_name)
+    repo = _complexa_repo()
     targets_dict = _targets_dict()
     targets_dict.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = targets_dict.with_suffix(targets_dict.suffix + ".lock")
+    lock_path = contained(targets_dict.with_suffix(targets_dict.suffix + ".lock"), repo)
     # Stage the target PDB inside the repo's asset tree so the CLI/container resolves
     # it regardless of cwd (no host/container path remapping needed on the open CLI).
-    tgt_dir = _complexa_repo() / "assets" / "target_data" / "binder_pipeline"
+    tgt_dir = contained(repo / "assets" / "target_data" / "binder_pipeline", repo)
     tgt_dir.mkdir(parents=True, exist_ok=True)
-    tgt_pdb = tgt_dir / f"{task_name}.pdb"  # name by task so targets never collide
+    tgt_pdb = contained(tgt_dir / f"{task_name}.pdb", tgt_dir)
     if Path(structure_path).resolve() != tgt_pdb.resolve():
         shutil.copy2(structure_path, tgt_pdb)
     entry = {
@@ -897,25 +904,32 @@ def submit_complexa(task_name: str, run_name: str, n_devices: int = 1,
                     num_samples: int | None = None) -> Iterator[Event]:
     """Run the FULL Complexa binder pipeline via the open `complexa design` CLI.
 
-    Runs generate→filter→evaluate→analyze in the user's checkout ($COMPLEXA_REPO),
+    Runs generate->filter->evaluate->analyze in the user's checkout ($COMPLEXA_REPO),
     so the co-designed `self` sequence + AF2 reward metrics (self_complex_i_pTM /
     pLDDT) land in the results CSVs. `n_devices` maps to gen/eval GPU parallelism
-    (one GPU per job). Synchronous — the CLI blocks until the run completes."""
+    (one GPU per job). Synchronous - the CLI blocks until the run completes."""
     repo = _complexa_repo()
-    cmd = [COMPLEXA_BIN, "design", COMPLEXA_CONFIG,
+    identifier(task_name)
+    identifier(run_name)
+    validate_algorithm(algorithm)
+    bounded_int(seed, 0, 2**32 - 1, "seed")
+    bounded_int(n_devices, 1, 128, "device count")
+    timeout = bounded_int(int(os.environ.get("COMPLEXA_TIMEOUT_S", "21600")), 1, MAX_TIMEOUT, "timeout")
+    cmd = [complexa_executable(COMPLEXA_BIN, repo), "design", complexa_config(COMPLEXA_CONFIG, repo),
            f"++run_name={run_name}",
            f"++generation.task_name={task_name}",
            f"++generation.search.algorithm={algorithm}",
            f"++seed={seed}",
            f"++gen_njobs={n_devices}", f"++eval_njobs={n_devices}"]
     if num_samples is not None:
+        bounded_int(num_samples, 1, 10000, "num_samples")
         cmd.append(f"++generation.dataloader.dataset.nres.nsamples={num_samples}")
     yield Event("stage2", "start",
                 f"running `complexa design` for {task_name} "
                 f"(algorithm={algorithm}, seed={seed}, gen/eval njobs={n_devices}); "
                 "AF2 reward gate selects which designs go to Boltz2")
     yield Event("stage2", "info", "cmd: " + " ".join(cmd) + f"  (cwd={repo})")
-    p = _run(cmd, cwd=repo, timeout=int(os.environ.get("COMPLEXA_TIMEOUT_S", "21600")))
+    p = _run(cmd, cwd=repo, timeout=timeout)
     if p.returncode != 0:
         raise RuntimeError(
             "`complexa design` failed (rc="
@@ -927,7 +941,7 @@ _AA20 = set("ACDEFGHIKLMNPQRSTVWY")
 
 
 def _looks_like_sequence(v: str) -> bool:
-    """A string that IS an amino-acid sequence: ≥20 standard residues, ≥2 types.
+    """A string that IS an amino-acid sequence: >=20 standard residues, >=2 types.
     (Quality/complexity is judged separately by _max_aa_fraction.)"""
     v = (v or "").strip().upper()
     return len(v) >= 20 and set(v) <= _AA20 and len(set(v)) >= 2
@@ -938,7 +952,7 @@ MAX_AA_FRACTION = 0.20   # reject a binder if any single amino acid exceeds this
 
 def _max_aa_fraction(v: str) -> float:
     """Largest single-amino-acid fraction in the sequence (0..1). Complexa's `self`
-    sequences are often degenerate poly-X (e.g. poly-Lys/Thr) that cannot fold — a
+    sequences are often degenerate poly-X (e.g. poly-Lys/Thr) that cannot fold - a
     high value flags those so we DON'T waste Boltz2 validation on them."""
     from collections import Counter
     s = (v or "").strip().upper()
@@ -964,7 +978,7 @@ def _find_combined_csvs(task_name: str, run_name: str) -> list[Path]:
     Complexa's evaluate writes many CSVs per run; only ``binder_results_*.csv``
     carries per-design sequences (``self_sequence``) + interface scores
     (``self_complex_i_pTM``). The RAW/transposed/aggregated/timing/all_successes
-    files have incompatible schemas or no sequences — globbing ``*.csv`` pulls
+    files have incompatible schemas or no sequences - globbing ``*.csv`` pulls
     those (and other runs of the same target), which breaks column detection.
     So: match only ``binder_results_*.csv`` and scope strictly to ``run_name``;
     only widen to ``task_name`` if the strict match finds nothing."""
@@ -1004,7 +1018,7 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         yield Event("stage2", "error",
                     "Complexa finished but no per-design results CSV was found under "
                     f"{_complexa_repo()}/(evaluation_results|inference|results) for run '{run_name}'. "
-                    "The pipeline may have stopped before evaluate/analyze — check the Slurm log.")
+                    "The pipeline may have stopped before evaluate/analyze - check the Slurm log.")
         return
     rows: list[dict] = []
     for cp in csv_paths:
@@ -1062,23 +1076,23 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
     if not usable:
         yield Event("stage2", "error",
                     f"{csv_path.name} had {len(rows)} rows but none carry a usable amino-acid "
-                    f"sequence in column '{seq_col}' — the evaluate step produced no sequences.")
+                    f"sequence in column '{seq_col}' - the evaluate step produced no sequences.")
         return
     # Complexity filter: DO NOT validate degenerate poly-X sequences (Complexa `self`
     # is often poly-Lys/Thr/Ile that cannot fold). Drop any design where a single
-    # amino acid exceeds MAX_AA_FRACTION (20%) — they only waste Boltz2 validation.
+    # amino acid exceeds MAX_AA_FRACTION (20%) - they only waste Boltz2 validation.
     n_before = len(usable)
     diverse = [r for r in usable if _max_aa_fraction(r.get(seq_col, "")) <= MAX_AA_FRACTION]
     n_dropped = n_before - len(diverse)
     if n_dropped:
         yield Event("stage2", "info",
                     f"complexity filter: dropped {n_dropped}/{n_before} low-complexity design(s) "
-                    f"(a single amino acid > {int(MAX_AA_FRACTION * 100)}%) — not validating those")
+                    f"(a single amino acid > {int(MAX_AA_FRACTION * 100)}%) - not validating those")
     usable = diverse
     if not usable:
         yield Event("stage2", "error",
                     f"all {n_before} designs are low-complexity (single AA > {int(MAX_AA_FRACTION * 100)}%) "
-                    "— nothing worth validating. Switch to MPNN sequences (cx_beam_search_mpnn) for "
+                    "- nothing worth validating. Switch to MPNN sequences (cx_beam_search_mpnn) for "
                     "foldable designs, then re-run.")
         return
     # AF2 QUALITY GATE (primary selector). Forward to Boltz2 only the designs the
@@ -1099,12 +1113,12 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         gate_desc = " & ".join(_gate_parts)
         yield Event("stage2", "info",
                     f"AF2 gate ({gate_desc}): {len(passed)}/{n_pre_gate} design(s) pass "
-                    f"→ shortlist at most {max(1, n_top)} for Boltz2")
+                    f"-> shortlist at most {max(1, n_top)} for Boltz2")
         if not passed:
             best_iptm = max((_num(r, iptm_col) for r in usable), default=0.0) if iptm_col else None
             best_plddt = max((_num(r, plddt_col) for r in usable), default=0.0) if plddt_col else None
             yield Event("stage2", "error",
-                        f"NO design cleared the AF2 gate ({gate_desc}) — best AF2 "
+                        f"NO design cleared the AF2 gate ({gate_desc}) - best AF2 "
                         f"i_pTM={best_iptm}, pLDDT={best_plddt}. The generator is not confident in "
                         "any binder, so nothing is worth an independent Boltz2 re-prediction. "
                         "Likely causes: collapsed/low-quality backbones, wrong hotspots, or use MPNN "
@@ -1113,7 +1127,7 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         usable = passed
     else:
         yield Event("stage2", "info",
-                    "no AF2 i_pTM/pLDDT column found in results CSV — skipping AF2 gate, "
+                    "no AF2 i_pTM/pLDDT column found in results CSV - skipping AF2 gate, "
                     f"falling back to top-{max(1, n_top)} by available score")
     usable.sort(key=_score, reverse=True)
     # The independent-validation budget applies after generation-quality ranking.
@@ -1149,7 +1163,7 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
         if pdb_col and r.get(pdb_col):
             raw = Path(r[pdb_col])
             # Complexa writes pdb_path RELATIVE TO THE REPO ROOT ($COMPLEXA_REPO),
-            # e.g. "./evaluation_results/.../job_.../*.pdb" — NOT relative to the CSV
+            # e.g. "./evaluation_results/.../job_.../*.pdb" - NOT relative to the CSV
             # file. Try the repo root first, then csv_path.parent.
             if raw.is_absolute():
                 src = raw
@@ -1161,7 +1175,7 @@ def extract_complexa_designs(run_dir: Path, task_name: str, run_name: str,
                 (design / f"{name}.pdb").write_text(src.read_text())
     (seqs / "binders_complexa_native.fasta").write_text("\n".join(fasta) + "\n")
     yield Event("stage2", "ok",
-                f"extracted {len(usable)} binder sequence(s) → sequences/binders_complexa_native.fasta "
+                f"extracted {len(usable)} binder sequence(s) -> sequences/binders_complexa_native.fasta "
                 f"(source {csv_path.name}, seq col '{seq_col}'"
                 + (f", ranked by '{score_col}'" if score_col else "") + ")",
                 {"n_designs": len(usable)})
@@ -1189,13 +1203,13 @@ def validation_handoff(run_dir: Path, conditioning: str,
 
     For each binder in sequences/binders_complexa_native.fasta, the agent runs:
       * HOLO: binder (single-seq) + target (MSA default / template optional),
-              write_full_pae=true  → validation/raw/<name>.json (+ cif)
-      * APO:  binder alone         → validation/apo/<name>.apo.cif
+              write_full_pae=true  -> validation/raw/<name>.json (+ cif)
+      * APO:  binder alone         -> validation/apo/<name>.apo.cif
     """
     binders = run_dir / "sequences" / "binders_complexa_native.fasta"
     structure_path = structure_path if structure_path is not None else run_dir / "target.pdb"
     yield Event("stage3", "start",
-                f"independent validation handoff ({conditioning}) — drive Boltz2/OF3 via the NIM skill")
+                f"independent validation handoff ({conditioning}) - drive Boltz2/OF3 via the NIM skill")
     yield Event("stage3", "info",
                 f"binders: {binders}; target: {structure_path} (chain {chain}); "
                 f"target conditioning: {conditioning} "
@@ -1266,7 +1280,7 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                 raise ValueError("full mode needs target_text, target_file, or target spec")
             rd = Path(run_dir).expanduser() if run_dir else OUTPUTS / f"{label}_app"
             yield Event("init", "start",
-                        f"full run → {rd.name} (N={n_validated}, {conditioning})")
+                        f"full run -> {rd.name} (N={n_validated}, {conditioning})")
             if spec.get("resolved_from"):
                 yield Event("init", "info", f"resolved target: {spec['resolved_from']}")
             yield from resolve_target(spec, rd)
@@ -1303,7 +1317,7 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
             hotspot_record = json.dumps(final_hs, sort_keys=True)
             yield Event("stage1", "ok", f"prepared chain {report['chain']}: "
                         f"{report['conditioned_length']} residues, {len(final_hs)} hotspot(s)", report)
-            # Stage 2 — register the target + run the FULL Complexa pipeline, then
+            # Stage 2 - register the target + run the FULL Complexa pipeline, then
             # extract real (inverse-folded) binder sequences. A pre-staged FASTA or
             # an explicit target_key short-circuits parts of this.
             binders = rd / "sequences" / "binders_complexa_native.fasta"
@@ -1337,7 +1351,7 @@ def run(mode: str = "score_existing", *, run_dir: str | None = None,
                         raise ValueError(f"registered target {task!r} differs from the prepared geometry, "
                                          "hotspots, or binder lengths; omit target_key to register this plan")
                     yield Event("stage2", "info",
-                                f"target '{task}' matches the prepared plan — reusing existing entry")
+                                f"target '{task}' matches the prepared plan - reusing existing entry")
                 else:
                     # A full run just freshly resolved the structure + hotspots, so
                     # ALWAYS (re)register with the current result rather than reusing a

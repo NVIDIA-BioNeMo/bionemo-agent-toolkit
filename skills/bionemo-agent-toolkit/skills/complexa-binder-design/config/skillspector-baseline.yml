@@ -1,0 +1,99 @@
+# Reviewed 2026-10-08 against the NVCARPS SkillSpector 2.11.2 scanner.
+# Exact fingerprints bind file contents, location, emitted evidence and scanner version.
+# Re-review these exceptions after changing the guarded call sites or execution.py.
+# No rule-wide suppressions; actual input/resource/supply-chain gaps are fixed in code.
+version: 2
+scanner_version: 2.11.2
+rules: []
+fingerprints:
+- hash: sha256:551b4fe6ad88369046dd4ebd868cd1f86f5117fb9598d8e07e0a57ba4dca2629
+  rule_id: AST4
+  file: scripts/boltz2_refold.py
+  reason: Executes only the bundled validate_binders.py with the running Python interpreter and a separated
+    argument list, shell=False, and a finite batch timeout. The validator path, endpoint and budgets are
+    checked before prediction or writes. Tests reject an arbitrary validator and credential-bearing endpoint
+    redirection.
+- hash: sha256:04766952a93ee52e5205d666b238def6c198ed65483b990a4afdda994464e21b
+  rule_id: AST4
+  file: scripts/complexa_design.py
+  reason: Executes complexa only after validating its installation prefix, YAML containment, scalar override
+    allowlist, task/run identifiers and finite timeout. The argument list uses shell=False; Hydra paths
+    are literal quoted values and interpolations/object-construction overrides are rejected. Regression
+    tests reject binary/config redirection and traversal before execution.
+- hash: sha256:5e50e6dde13ab9b4984b94b999b3f217333b5c8ebab010022873221fc4171c28
+  rule_id: AST4
+  file: scripts/pipeline.py
+  reason: Internal callers use separated argument lists for fixed Python helpers, the optional operator-installed
+    paperclip CLI, or the validated Complexa installation. shell=False and a bounded timeout are explicit.
+    Complexa executable/config/environment settings and names are validated at submit_complexa before
+    this helper; trusted installed code is not a sandbox boundary.
+- hash: sha256:2f373c64e0348b567aee617fd0ca446db739394da61db874e84400c6270eb04c
+  rule_id: AST4
+  file: scripts/validate_binders.py
+  reason: Runs only the expected vendor/ipsae/ipsae.py after checking the same SHA-256 pin as fetch_ipsae.sh,
+    with fixed Python, a list of arguments, shell=False and a 300-second timeout. Cutoffs are bounded
+    integers. Tests cover tampering, failed process status, output parsing and preservation of both interface
+    directions.
+- hash: sha256:6b2054693b09dc1fc57d6ea98abcc41002fac76dd316f7630027a7b78fe6f971
+  rule_id: TT2
+  file: scripts/pipeline.py
+  reason: 'The reported environment-to-process path is validated in submit_complexa by execution.py: complexa
+    must reside in the active environment or checkout .venv/bin and the YAML must remain under checkout/configs.
+    Names, search algorithm and counts are checked; no shell or unrestricted Hydra override is used. A
+    regression test verifies arbitrary executable rejection before _run.'
+- hash: sha256:bc517b8d873d6c6e86fd4e3e36777ef171736e1dd719aba8426e90bd01202313
+  rule_id: RP1
+  file: references/setup.md
+  reason: The launch block rejects every value except the expected NGC repository and a 64-hex SHA-256
+    digest before login or launch. Profile inspection explicitly reuses that validated digest. The static
+    Docker parser cannot resolve the checked variable. Five mocked Bash cases verify rejection before
+    side effects and no credential logging.
+- hash: sha256:94c5b3de264aeffd46e047fb9e33dad6fd167233ec04e3db6b593dd1bd58aa7f
+  rule_id: RP1
+  file: references/setup.md
+  reason: The launch block rejects every value except the expected NGC repository and a 64-hex SHA-256
+    digest before login or launch. Profile inspection explicitly reuses that validated digest. The static
+    Docker parser cannot resolve the checked variable. Five mocked Bash cases verify rejection before
+    side effects and no credential logging.
+- hash: sha256:954341ff645dfe6201f440a3c6a7813a000a339a6ede7064f37bcd765d577249
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:7b5ba124e406e7d4045470b3ae9bea0c2ff2ff7ff5b5cde47ac4c288a873baf1
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:c61895144809fb9bd8a3286d851a558893517e41aa4eaf50d47e23956062a47f
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:1e4e353fa14ff468045e9e176cfb7ab73a1756b0f1b777fbe41d880bcded7a61
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:bd97ee0bd55fd446abf787947cfb41996ed344881724cadb3b7a2348b3e756fd
+  rule_id: PE3
+  file: references/complexa-cli.md
+  reason: The comment describes the trusted upstream complexa init command writing its own configuration
+    file. It does not instruct credential harvesting or read unrelated secret stores.
+- hash: sha256:241d2a29b9762d4171c4f682215d4684727c5fcdc1f02b8bbee1d57d7f9d5922
+  rule_id: PE2
+  file: references/setup.md
+  reason: chmod 700 restricts one named user-owned cache and grants no elevated privilege. The container
+    runs with the caller's UID/GID. No sudo, recursive chmod or wildcard is used.
+- hash: sha256:11bc993db92e81207f8dd759c6e17691bb8de533ebdf7e89c3aa16bd31608a32
+  rule_id: PE3
+  file: references/setup.md
+  reason: The comment describes the trusted upstream complexa init command writing its own configuration
+    file. It does not instruct credential harvesting or read unrelated secret stores.
+- hash: sha256:2b3c38418c0cf1b9ad1b621dc68c5bb8ae511a8a1992b6e169730c4bb600d8d7
+  rule_id: PE3
+  file: scripts/validate_binders.py
+  reason: Optional documented dotenv configuration is parsed as text for NVIDIA_API_KEY or NGC_API_KEY
+    only, without shell evaluation or logging. Environment values take precedence. Local mode never loads
+    credentials; hosted credentials are sent only to the NVIDIA HTTPS host with redirects blocked. Synthetic-key
+    tests cover precedence and unrelated entries.

@@ -5,13 +5,13 @@
 import copy
 import importlib.util
 import json
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL / "scripts"))
@@ -419,15 +419,20 @@ class OfflineWorkflowTests(unittest.TestCase):
         tests.mkdir()
         shutil.copy2(SKILL / "evals/grader.py", tests / "grader.py")
         write_json(tests / "entry.json", {"id": case})
-        env = {
-            **os.environ,
-            "HARBOR_TESTS_DIR": str(tests),
-            "HARBOR_VERIFIER_DIR": str(verifier),
-            "BINDER_EVAL_WORKSPACE": str(self.workspace),
-        }
-        subprocess.run(
-            [sys.executable, "-I", str(tests / "grader.py")], env=env, check=True
-        )
+        parent_reward = self.workspace / "parent-reward.json"
+        # A parent-only override must not redirect the standalone verifier's
+        # output. The child needs only these three explicit fixture paths.
+        with mock.patch.dict("os.environ", {"HARBOR_REWARD_JSON": str(parent_reward)}):
+            env = {
+                "HARBOR_TESTS_DIR": str(tests),
+                "HARBOR_VERIFIER_DIR": str(verifier),
+                "BINDER_EVAL_WORKSPACE": str(self.workspace),
+            }
+            subprocess.run(
+                [sys.executable, "-I", str(tests / "grader.py")],
+                env=env, shell=False, check=True,
+            )
+        self.assertFalse(parent_reward.exists())
         self.assertEqual(
             json.loads((verifier / "reward.json").read_text())["custom_metrics"],
             {"artifact_correctness": 1.0},

@@ -8,17 +8,25 @@ your local checkout ($COMPLEXA_REPO) and reads the generated complex PDBs from
 `./inference/`. Hotspots and binder length are target-dict-driven upstream, so
 register the target first (`complexa target add ...`) and select it with --task-name.
 
-Examples
+Usage:
   COMPLEXA_REPO=/path/to/Proteina-Complexa \
     python complexa_design.py run --task-name <task-name> --run-name <run> \
       --algorithm best-of-n --num-samples 8 --seed 0 --out outputs/<run>
   python complexa_design.py extract outputs/<run>/inference/**/complex_0.pdb
 
+Arguments: run/extract subcommand; run takes registered task/run names, scalar
+  generation settings and optional output directory (see --help).
+Output: JSON chain sequences; run optionally copies PDBs and command.txt.
+Exit codes: 0 success, 1 execution/input-file failure, 2 CLI usage error.
+
 See references/complexa-cli.md for the full override list.
 """
 from __future__ import annotations
-import argparse, os, shutil, subprocess, sys, time
+import argparse, os, shlex, shutil, subprocess, sys, time
 from pathlib import Path
+
+from execution import (ALGORITHMS, MAX_TIMEOUT, bounded_int, complexa_config,
+                       complexa_executable, complexa_repo, contained, scalar_override)
 
 THREE_TO_ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
@@ -30,46 +38,45 @@ DEFAULT_CONFIG = "configs/search_binder_local_pipeline.yaml"
 
 
 def repo_root() -> Path:
-    r = os.environ.get("COMPLEXA_REPO")
-    if not r:
-        sys.exit("Set COMPLEXA_REPO to your Proteina-Complexa checkout "
-                 "(https://github.com/NVIDIA-Digital-Bio/Proteina-Complexa).")
-    p = Path(r).expanduser()
-    if not p.is_dir():
-        sys.exit(f"COMPLEXA_REPO is not a directory: {p}")
-    return p
+    return complexa_repo()
 
 
-def build_argv(a) -> list[str]:
+def build_argv(a, root: Path | None = None) -> list[str]:
+    root = root if root is not None else repo_root()
     verb = "generate" if a.mode == "generate" else "design"
-    argv = [a.cli_bin, verb, a.config, f"++run_name={a.run_name}"]
+    argv = [complexa_executable(a.cli_bin, root), verb, complexa_config(a.config, root)]
+    overrides = [f"++run_name={a.run_name}"]
     if a.task_name:
-        argv.append(f"++generation.task_name={a.task_name}")
+        overrides.append(f"++generation.task_name={a.task_name}")
     if a.algorithm:
-        argv.append(f"++generation.search.algorithm={a.algorithm}")
+        overrides.append(f"++generation.search.algorithm={a.algorithm}")
     if a.num_samples is not None:
-        argv.append(f"++generation.dataloader.dataset.nres.nsamples={a.num_samples}")
+        overrides.append(f"++generation.dataloader.dataset.nres.nsamples={a.num_samples}")
     if a.seed is not None:
-        argv.append(f"++seed={a.seed}")
+        overrides.append(f"++seed={a.seed}")
     if a.gen_njobs is not None:
-        argv.append(f"++gen_njobs={a.gen_njobs}")
+        overrides.append(f"++gen_njobs={a.gen_njobs}")
     if a.eval_njobs is not None:
-        argv.append(f"++eval_njobs={a.eval_njobs}")
+        overrides.append(f"++eval_njobs={a.eval_njobs}")
     if a.ckpt_path:
-        argv.append(f"++ckpt_path={a.ckpt_path}")
+        overrides.append(f"++ckpt_path={a.ckpt_path}")
     if a.ckpt_name:
-        argv.append(f"++ckpt_name={a.ckpt_name}")
+        overrides.append(f"++ckpt_name={a.ckpt_name}")
     if a.autoencoder_ckpt_path:
-        argv.append(f"++autoencoder_ckpt_path={a.autoencoder_ckpt_path}")
-    argv.extend(a.override or [])  # caller escape hatch, appended last so it wins
+        overrides.append(f"++autoencoder_ckpt_path={a.autoencoder_ckpt_path}")
+    overrides.extend(a.override or [])
+    argv.extend(scalar_override(item, root) for item in overrides)
+    if a.af2_bypass:
+        argv.extend(["++generation.search.algorithm=single-pass",
+                     "~generation.reward_model.reward_models.af2folding"])
     return argv
 
 
 def discover_complex_pdbs(root: Path, since: float | None = None) -> list[Path]:
-    inf = root / "inference"
+    inf = contained(root / "inference", root)
     if not inf.is_dir():
         return []
-    pdbs = [p for p in inf.rglob("*.pdb") if p.is_file()]
+    pdbs = [contained(p, inf) for p in inf.rglob("*.pdb") if p.is_file()]
     if since is not None:
         pdbs = [p for p in pdbs if p.stat().st_mtime >= since - 1]
     return sorted(pdbs)
@@ -91,23 +98,32 @@ def extract(pdb_path: str) -> dict:
 
 def cmd_run(a) -> None:
     root = repo_root()
-    argv = build_argv(a)
+    argv = build_argv(a, root)
+    timeout = bounded_int(a.timeout, 1, MAX_TIMEOUT, "timeout")
+    out = Path(a.out).expanduser().resolve() if a.out else None
+    if out:
+        contained(out / "inference", out)
+        contained(out / "command.txt", out)
     print("cwd:", root, file=sys.stderr)
-    print("cmd:", " ".join(argv), file=sys.stderr)
+    print("cmd:", shlex.join(argv), file=sys.stderr)
     t0 = time.time()
-    proc = subprocess.run(argv, cwd=root)
+    proc = subprocess.run(argv, cwd=root, shell=False, timeout=timeout)
     if proc.returncode != 0:
         sys.exit(f"complexa exited with code {proc.returncode}")
     pdbs = discover_complex_pdbs(root, since=t0)
-    out = Path(a.out) if a.out else None
     saved = []
     if out:
-        (out / "inference").mkdir(parents=True, exist_ok=True)
-        for p in pdbs:
-            dest = out / "inference" / p.name
-            shutil.copy2(p, dest)
+        names = [p.name for p in pdbs]
+        if len(set(names)) != len(names):
+            raise ValueError("generated PDB basenames collide; choose a single run before copying")
+        destination_dir = contained(out / "inference", out)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        for source in pdbs:
+            dest = contained(destination_dir / source.name, out)
+            if source != dest:
+                shutil.copy2(source, dest)
             saved.append(str(dest))
-        (out / "command.txt").write_text(" ".join(argv) + "\n")
+        contained(out / "command.txt", out).write_text(shlex.join(argv) + "\n")
     import json
     report = [extract(p) for p in (saved or [str(p) for p in pdbs])]
     print(json.dumps({"n_complexes": len(report), "binders": report}, indent=1))
@@ -132,7 +148,8 @@ def main() -> None:
         sp.add_argument("--mode", choices=["design", "generate"], default="generate")
         sp.add_argument("--task-name")
         sp.add_argument("--run-name", default="complexa_run")
-        sp.add_argument("--algorithm", default="best-of-n")
+        sp.add_argument("--algorithm", choices=ALGORITHMS, default="best-of-n")
+        sp.add_argument("--af2-bypass", action="store_true", help="single-pass generation without the AF2 reward")
         sp.add_argument("--num-samples", type=int)
         sp.add_argument("--seed", type=int, default=0)
         sp.add_argument("--gen-njobs", type=int)
@@ -140,7 +157,8 @@ def main() -> None:
         sp.add_argument("--ckpt-path"); sp.add_argument("--ckpt-name")
         sp.add_argument("--autoencoder-ckpt-path")
         sp.add_argument("--cli-bin", default=os.environ.get("COMPLEXA_BIN", "complexa"))
-        sp.add_argument("--override", nargs="*", help="extra ++key=value Hydra overrides")
+        sp.add_argument("--override", nargs="*", help="documented scalar ++key=value overrides only")
+        sp.add_argument("--timeout", type=int, default=21600, help="generation timeout in seconds (1..86400)")
         sp.add_argument("--out", help="copy discovered complex PDBs here")
 
     sp = sub.add_parser("run", help="build + run complexa, then discover/extract")
@@ -149,10 +167,13 @@ def main() -> None:
     sp.add_argument("pdb", nargs="+")
 
     a = p.parse_args()
-    if a.cmd == "run":
-        cmd_run(a)
-    elif a.cmd == "extract":
-        cmd_extract(a)
+    try:
+        if a.cmd == "run":
+            cmd_run(a)
+        elif a.cmd == "extract":
+            cmd_extract(a)
+    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+        p.exit(1, f"ERROR: {error}\n")
 
 
 if __name__ == "__main__":

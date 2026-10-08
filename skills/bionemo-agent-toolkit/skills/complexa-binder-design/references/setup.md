@@ -20,7 +20,8 @@ cd Proteina-Complexa
 # (a) UV env (recommended, no Docker):
 ./env/build_uv_env.sh                # FULL install — required (see note)
 source .venv/bin/activate
-# (b) OR the upstream image:  docker run --gpus all -it proteina-complexa
+# For Docker installation, build the reviewed upstream env/docker/Dockerfile
+# and run its resulting local image ID (sha256), rather than an implicit tag.
 
 complexa init            # writes .env (Phase 1) — re-run `complexa init uv|docker` to emit env.sh
 complexa download --complexa-all   # model + autoencoder checkpoints from NGC
@@ -46,8 +47,8 @@ The skill's Stage-1 tooling needs a few packages **in the same environment** tha
 runs the scripts (the Proteina-Complexa `.venv` is convenient):
 
 ```bash
-# in the Proteina-Complexa venv (uv) or any py>=3.10 env:
-uv pip install numpy biotite pyyaml        # or: pip install numpy biotite pyyaml
+# From this skill directory, in a Python 3.12+ helper environment:
+python -m pip install -r requirements.txt
 bash scripts/fetch_ipsae.sh              # vendors the MIT ipSAE script into vendor/ipsae/
 ```
 
@@ -73,7 +74,7 @@ reward. It is **optional**:
 - **Bypass AF2** (no AF2 params needed): use `single-pass` generation **and** drop the
   reward with the Hydra override `~generation.reward_model.reward_models.af2folding`.
   Selection then falls entirely to the **independent Boltz2 gate** (Stage 3). The
-  helper does this for you: `complexa_design.py --af2-bypass`.
+  helper does this for you: `complexa_design.py run --af2-bypass`.
 
 > If a run fails with `AssertionError: No model parameters found` /
 > `model_*_multimer_v3 not found`, AF2 params aren't configured — run
@@ -100,22 +101,45 @@ model family than Complexa's reward/evaluate:
 - **Local NIM:** `http://localhost:8000/...` (no auth) → `--endpoint local`. To stand one
   up yourself:
 
+  Set `BOLTZ2_IMAGE` to the repository digest of a reviewed release from the
+  [Boltz2 NGC catalog](https://catalog.ngc.nvidia.com/orgs/nim/teams/mit/containers/boltz2).
+  Copy the real SHA-256 digest from the selected catalog version or its
+  `docker image inspect` RepoDigests after pulling that explicit version. Record
+  it with the run configuration; do not invent a digest or use a moving tag.
+
   ```bash
-  docker login nvcr.io -u '$oauthtoken' -p "$NGC_API_KEY"      # once
-  mkdir -p ~/nimcache_boltz2 && chmod 700 ~/nimcache_boltz2
+  (
+  set +x
+  set -euo pipefail
+  : "${NGC_API_KEY:?Set NGC_API_KEY}"
+  : "${BOLTZ2_IMAGE:?Set the reviewed Boltz2 repository digest}"
+  if [[ ! "$BOLTZ2_IMAGE" =~ ^nvcr\.io/nim/mit/boltz2@sha256:[a-f0-9]{64}$ ]]; then
+    printf 'BOLTZ2_IMAGE must be the expected NGC repository plus a SHA-256 digest\n' >&2
+    exit 1
+  fi
+  printf '%s' "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+  mkdir -p "$HOME/nimcache_boltz2"
+  chmod 700 "$HOME/nimcache_boltz2"
   docker run -d --name boltz2 --gpus device=0 --shm-size=8g \
-      -e NGC_API_KEY -v ~/nimcache_boltz2:/opt/nim/.cache -p 8000:8000 \
-      nvcr.io/nim/mit/boltz2:latest                            # OpenFold3 NIM analogously
-  curl -fsS http://localhost:8000/v1/health/ready && echo READY
-  export BOLTZ2_URL=http://localhost:8000/biology/mit/boltz2/predict   # validator reads this
+      --user "$(id -u):$(id -g)" -e NGC_API_KEY \
+      -v "$HOME/nimcache_boltz2:/opt/nim/.cache" -p 127.0.0.1:8000:8000 "$BOLTZ2_IMAGE"
+  )
+  curl --noproxy '*' -fsS http://127.0.0.1:8000/v1/health/ready
+  export BOLTZ2_URL=http://127.0.0.1:8000/biology/mit/boltz2/predict
   ```
 
+  Mode 700 restricts this user-owned cache; it grants no elevated privileges.
+  The container uses the caller's UID/GID. If the selected release requires a
+  fixed UID, arrange access to this cache for that UID before launch. The NGC key
+  is passed by name for model downloads, and the prediction API binds only to
+  loopback. Readiness GET requests carry neither protein data nor credentials.
+
   **Profile note:** if the NIM exits with `NIMProfileIDNotFound` / "0 profiles" (some GPUs
-  have no bundled profile), run `docker run --rm --gpus device=0 -e NGC_API_KEY
-  nvcr.io/nim/mit/boltz2:latest list-model-profiles` and pin the profile matching **your**
+  have no bundled profile), reuse the validated digest in
+  `docker run --rm --gpus device=0 -e NGC_API_KEY "$BOLTZ2_IMAGE" list-model-profiles`
+  and pin the profile matching **your**
   GPU's compute capability via `-e NIM_MODEL_PROFILE=<profile_id>` — pick it for the
-  hardware you're on, don't reuse an id from another machine. (Fuller multi-NIM launch
-  guide: the sibling `protein-binder-design/references/local-nim-setup.md`.)
+  hardware you're on, don't reuse an id from another machine.
 
 `scripts/boltz2_refold.py` does the **holo** refolds (and chains `validate_binders.py`
 for apo + gate). Both have **retry/backoff** for the hosted endpoint's rate limit
@@ -127,14 +151,23 @@ a local Boltz2 NIM.
 | Var | Purpose |
 |---|---|
 | `COMPLEXA_REPO` | path to the Proteina-Complexa checkout (required for generation) |
-| `COMPLEXA_BIN` | `complexa` binary (default `complexa`; e.g. `<repo>/.venv/bin/complexa`) |
-| `COMPLEXA_CONFIG` | pipeline YAML (default `configs/search_binder_local_pipeline.yaml`) |
+| `COMPLEXA_BIN` | installed `complexa` in the active Python environment or `<repo>/.venv/bin/complexa` |
+| `COMPLEXA_CONFIG` | existing YAML under the checkout's `configs/` (default `configs/search_binder_local_pipeline.yaml`) |
 | `COMPLEXA_OUTPUTS` | skill run-dir root (default `outputs`) |
-| `COMPLEXA_TIMEOUT_S` | per-`complexa design` subprocess timeout (default 21600) |
+| `COMPLEXA_TIMEOUT_S` | legacy pipeline generation timeout, 1..86400 seconds (default 21600); direct driver uses `--timeout` |
+| `BOLTZ2_IMAGE` | reviewed immutable NGC repository digest for local deployment |
 | `NVIDIA_API_KEY` / `NGC_API_KEY` | hosted Boltz2/OF3 auth + NGC weight download |
 | `AF2_DIR` | AF2-Multimer params (only if NOT bypassing AF2) |
 | `RF3_CKPT_PATH`, `RF3_EXEC_PATH` | RoseTTAFold3 reward/eval (optional) |
 | `FOLDSEEK_EXEC`, `MMSEQS_EXEC`, `DSSP_EXEC`, `SC_EXEC` | analyze-stage tools (optional) |
+
+Installation/config variables must come from the operator's trusted environment,
+not target annotations, retrieved text, or API responses. The drivers reject
+executables outside the active environment and checkout `.venv`, configs outside
+the checkout's `configs/`, and unsupported Hydra overrides. These checks do not
+sandbox code in a trusted installation. Hosted credentials are restricted to the
+NVIDIA HTTPS host; use `--endpoint local --url ...` for another service, without
+NVIDIA auth. Prediction redirects are disabled for both modes.
 
 ## 7. Verify the environment
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
 """Dependency-free PDB parsing helpers for binder-design handoffs.
@@ -7,6 +8,12 @@ Covers the fragile glue between NIM steps:
 - one-letter sequence from CA atoms
 - map PDB author residue numbers -> 1-based sequence index (hotspot/pocket remap)
 - CA coordinates for RMSD
+
+Usage: Import extract_chain, sequence, remap_to_seq_index, or structure_ca_coords.
+Arguments: Structure text, explicit chain ID, and author residue IDs where needed.
+Output: Selected PDB text, sequence, residue indices, or CA coordinate tuples.
+Exit codes: Not applicable to this library; missing/ambiguous residues or chains
+    raise KeyError/ValueError. mmCIF input requires Biotite.
 """
 from __future__ import annotations
 
@@ -16,6 +23,19 @@ THREE_TO_ONE = {
     "MET": "M", "PHE": "F", "PRO": "P", "SER": "S", "THR": "T", "TRP": "W",
     "TYR": "Y", "VAL": "V", "MSE": "M", "SEC": "U", "PYL": "O",
 }
+
+# Fixed-width PDB ATOM columns, expressed as zero-based offsets/slices.
+ATOM_NAME = slice(12, 16)
+ALTLOC = 16
+RESIDUE_NAME = slice(17, 20)
+CHAIN_ID = 21
+AUTHOR_RESIDUE_ID = slice(22, 27)
+AUTHOR_RESIDUE_NUMBER = slice(22, 26)
+INSERTION_CODE = 26
+X_COORD = slice(30, 38)
+Y_COORD = slice(38, 46)
+Z_COORD = slice(46, 54)
+OCCUPANCY = slice(54, 60)
 
 
 def _first_model_lines(pdb_text):
@@ -29,9 +49,9 @@ def _iter_atom_lines(pdb_text, chain=None):
     for line in _first_model_lines(pdb_text):
         if not line.startswith("ATOM"):
             continue
-        if len(line) < 54:
+        if len(line) < Z_COORD.stop:
             continue
-        if chain is not None and line[21] != chain:
+        if chain is not None and line[CHAIN_ID] != chain:
             continue
         yield line
 
@@ -39,14 +59,14 @@ def _iter_atom_lines(pdb_text, chain=None):
 def extract_chain(pdb_text, chain):
     """First model and chosen CA conformer; retain chain and author numbering."""
     keep = []
-    selected = {line[22:27]: line for line in _selected_ca_lines(pdb_text, chain)}
+    selected = {line[AUTHOR_RESIDUE_ID]: line for line in _selected_ca_lines(pdb_text, chain)}
     for line in _first_model_lines(pdb_text):
-        if line.startswith(("ATOM", "HETATM", "TER")) and len(line) > 21 and line[21] == chain:
-            choice = selected.get(line[22:27])
+        if line.startswith(("ATOM", "HETATM", "TER")) and len(line) > CHAIN_ID and line[CHAIN_ID] == chain:
+            choice = selected.get(line[AUTHOR_RESIDUE_ID])
             if line.startswith("ATOM") and choice:
-                if line[12:16].strip() == "CA" and line != choice:
+                if line[ATOM_NAME].strip() == "CA" and line != choice:
                     continue
-                if choice[16].strip() and line[16] not in (" ", choice[16]):
+                if choice[ALTLOC].strip() and line[ALTLOC] not in (" ", choice[ALTLOC]):
                     continue
             keep.append(line)
     return "\n".join(keep)
@@ -55,11 +75,11 @@ def extract_chain(pdb_text, chain):
 def _selected_ca_lines(pdb_text, chain=None):
     chosen = {}
     for line in _iter_atom_lines(pdb_text, chain):
-        if line[12:16].strip() != "CA":
+        if line[ATOM_NAME].strip() != "CA":
             continue
-        key = (line[21], line[22:27])
-        occupancy = float(line[54:60].strip() or 0) if len(line) >= 60 else 0
-        priority = (bool(line[16].strip()), -occupancy, line[16])
+        key = (line[CHAIN_ID], line[AUTHOR_RESIDUE_ID])
+        occupancy = float(line[OCCUPANCY].strip() or 0) if len(line) >= OCCUPANCY.stop else 0
+        priority = (bool(line[ALTLOC].strip()), -occupancy, line[ALTLOC])
         if key not in chosen or priority < chosen[key][0]:
             chosen[key] = (priority, line)
     return [line for _, line in chosen.values()]
@@ -73,10 +93,10 @@ def ca_residues(pdb_text, chain=None):
     """
     out = []
     for line in _selected_ca_lines(pdb_text, chain):
-        res_name = line[17:20].strip()
-        res_seq = int(line[22:26])
-        icode = line[26].strip()
-        x = float(line[30:38]); y = float(line[38:46]); z = float(line[46:54])
+        res_name = line[RESIDUE_NAME].strip()
+        res_seq = int(line[AUTHOR_RESIDUE_NUMBER])
+        icode = line[INSERTION_CODE].strip()
+        x, y, z = (float(line[field]) for field in (X_COORD, Y_COORD, Z_COORD))
         out.append((res_name, res_seq, icode, (x, y, z)))
     return out
 

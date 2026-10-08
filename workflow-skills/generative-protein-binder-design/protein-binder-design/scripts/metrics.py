@@ -1,16 +1,26 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-"""Deterministic RMSD metrics (numpy; biotite for mmCIF input)."""
+"""Deterministic RMSD metrics (NumPy; Biotite for mmCIF input).
+
+Usage: python3 metrics.py backbone.pdb prediction.cif --backbone-chain A --predicted-chain B
+Arguments: Two structure paths and explicit binder chain IDs (mmCIF label IDs).
+Output: CA-RMSD in angstroms on stdout; no files are written.
+Exit codes: 0 success; 1 unavailable RMSD/input failure; 2 invalid CLI arguments.
+    Library functions raise ValueError for invalid coordinates.
+"""
 from __future__ import annotations
 
 import numpy as np
+
+COORDINATE_DIMENSIONS = 3
 
 
 def kabsch_rmsd(p, q):
     """Minimal RMSD after optimal superposition of two (N, 3) coord sets."""
     p = np.asarray(p, dtype=float)
     q = np.asarray(q, dtype=float)
-    if p.shape != q.shape or p.ndim != 2 or p.shape[1] != 3:
+    if p.shape != q.shape or p.ndim != 2 or p.shape[1] != COORDINATE_DIMENSIONS:
         raise ValueError(f"coordinate shape mismatch: {p.shape} vs {q.shape}")
     if p.shape[0] == 0:
         raise ValueError("no coordinates provided")

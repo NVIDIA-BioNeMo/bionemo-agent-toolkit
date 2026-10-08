@@ -1,6 +1,14 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-"""Import synthetic score fixtures and export audited, reloaded manifests offline."""
+"""Import synthetic score fixtures and export audited, reloaded manifests offline.
+
+Usage: python3 offline_bookkeeping.py fixture.json --output-dir DIR
+Arguments: JSON with target and profiles; a new or empty output directory.
+Output: Per-profile manifest.json, all_candidates.csv, candidates.csv, summary.json;
+    JSON summaries on stdout. Multiple profiles use named subdirectories.
+Exit codes: 0 success; 1 invalid fixture or I/O failure; 2 invalid CLI arguments.
+"""
 
 from __future__ import annotations
 
@@ -116,7 +124,11 @@ def main() -> None:
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(run_fixture(args.input, args.output_dir), indent=2))
+    try:
+        result = run_fixture(args.input, args.output_dir)
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        parser.exit(1, f"Offline import failed: {exc}\n")
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
 """Run manifest for protein-binder-design campaigns.
@@ -5,6 +6,11 @@
 A campaign manifest is a single JSON file that records every candidate's
 lineage, scores, artifacts, and filter status. It is the backbone for ranking,
 resumability, validation, and the final report. No third-party dependencies.
+
+Usage: Import Manifest and call create(run_dir, target) or load(path).
+Arguments: Campaign paths, target/parameter/filter dictionaries, candidate IDs and scores.
+Output: Mutation methods save manifest.json; to_csv writes the selected candidate table.
+Exit codes: Not applicable to this library; invalid data and I/O errors raise exceptions.
 """
 from __future__ import annotations
 

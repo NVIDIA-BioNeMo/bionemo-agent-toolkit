@@ -19,11 +19,14 @@
 # metadata) with the small stdlib-`urllib` shim below, aliased as `http_client`
 # so every `http_client.X` reference in this file works unchanged. UniProt query
 # logic is untouched. Original: google-deepmind/science-skills (Apache-2.0).
+# MODIFIED 2026-10-08: bound records, pages, response bytes (including gzip),
+# mapping polls and request rate; implement stream via bounded search pages.
 
 from __future__ import annotations
 
 import argparse
 import gzip
+import io
 import json
 import re
 import sys
@@ -33,6 +36,33 @@ from typing import Any, Iterator
 import urllib.error
 import urllib.parse
 import urllib.request
+
+DEFAULT_LIMIT = 100
+MAX_RESULTS = 10000
+PAGE_SIZE = 500
+MAX_RESPONSE_BYTES = 16 * 1024 * 1024
+MAX_MAPPING_POLLS = 150
+
+
+def _read_bounded(stream):
+  data = stream.read(MAX_RESPONSE_BYTES + 1)
+  if len(data) > MAX_RESPONSE_BYTES:
+    raise ValueError("UniProt response exceeds the 16 MiB page limit; narrow the query")
+  return data
+
+
+def _decode_bytes(raw):
+  if raw[:2] == b"\x1f\x8b":
+    with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
+      return _read_bounded(stream)
+  return raw
+
+
+def _result_limit(limit):
+  limit = DEFAULT_LIMIT if limit is None else limit
+  if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_RESULTS:
+    raise ValueError(f"limit must be 1..{MAX_RESULTS}")
+  return limit
 
 
 class _HttpError(Exception):
@@ -57,9 +87,16 @@ class _HttpClient:
 
   def __init__(self, base_url, qps=1.0):
     self.base_url = base_url
+    self._interval = 1.0 / qps
+    self._last_request = None
     self._ua = {"User-Agent": "bionemo-nim-skills-uniprot/1.0"}
 
   def _request(self, url, headers=None, method="GET", data=None):
+    endpoint = urllib.parse.urlsplit(url)
+    expected = urllib.parse.urlsplit(self.base_url)
+    if (endpoint.scheme != "https" or endpoint.hostname != expected.hostname
+        or endpoint.port not in (None, 443) or endpoint.username or endpoint.password):
+      raise ValueError("UniProt requests must remain on the configured HTTPS API host")
     hdrs = dict(self._ua)
     if headers:
       hdrs.update(headers)
@@ -67,10 +104,13 @@ class _HttpClient:
     return urllib.request.Request(url, headers=hdrs, method=method, data=body)
 
   def fetch(self, url, headers=None, method="GET", data=None):
+    if self._last_request is not None:
+      time.sleep(max(0, self._interval - (time.monotonic() - self._last_request)))
+    self._last_request = time.monotonic()
     try:
       with urllib.request.urlopen(self._request(url, headers, method, data), timeout=120) as r:  # nosec B310 - UniProt https API, scheme fixed by caller
         charset = r.headers.get_content_charset() or "utf-8"
-        return _HttpResponse(r.headers, r.read(), charset)
+        return _HttpResponse(r.headers, _read_bounded(r), charset)
     except urllib.error.HTTPError as e:
       raise _HttpError(str(e), status_code=e.code) from e
     except urllib.error.URLError as e:
@@ -78,16 +118,12 @@ class _HttpClient:
 
   def fetch_json(self, url, headers=None, method="GET", data=None):
     resp = self.fetch(url, headers=headers, method=method, data=data)
-    raw = resp.data
-    if raw[:2] == b"\x1f\x8b":
-      raw = gzip.decompress(raw)
+    raw = _decode_bytes(resp.data)
     return json.loads(raw.decode(resp.encoding))
 
   def stream_lines(self, url, headers=None):
     resp = self.fetch(url, headers=headers)
-    raw = resp.data
-    if raw[:2] == b"\x1f\x8b":
-      raw = gzip.decompress(raw)
+    raw = _decode_bytes(resp.data)
     for line in raw.decode(resp.encoding).splitlines():
       yield line
 
@@ -125,7 +161,7 @@ def _get_decompressed_data(resp: http_client.HttpResponse) -> str:
   data = resp.data
   # UniProt sometimes double-gzips content.
   if data.startswith(b"\x1f\x8b"):
-    data = gzip.decompress(data)
+    data = _decode_bytes(data)
   return data.decode(resp.encoding)
 
 
@@ -149,10 +185,15 @@ def search_proteins(
     query: str,
     dataset: str = "uniprotkb",
     output_format: str = "json",
-    limit: int | None = None,
+    limit: int | None = DEFAULT_LIMIT,
     fields: list[str] | None = None,
 ) -> Iterator[dict[str, Any] | str]:
-  """Search proteins in a UniProt dataset with automatic pagination."""
+  """Search at most limit entries (default 100, maximum 10000)."""
+  limit = _result_limit(limit)
+  if dataset not in ("uniprotkb", "uniparc", "uniref"):
+    raise ValueError("unsupported UniProt dataset")
+  if output_format not in ("json", "tsv", "fasta"):
+    raise ValueError("bounded searches support json, tsv and fasta")
   url = f"{BASE_URL}/{dataset}/search"
   params: dict[str, Any] = {
       "query": query,
@@ -160,20 +201,11 @@ def search_proteins(
   }
   # Determine if automatic pagination is needed
   # UniProt has a hard limit of 500 for the 'size' parameter.
-  use_pagination = limit is None or limit > 500
-  request_size = min(limit, 500) if limit is not None else 500
+  request_size = min(limit, PAGE_SIZE)
   params["size"] = request_size
 
   if fields:
     params["fields"] = ",".join(fields)
-
-  if not use_pagination:
-
-    def _single_request_iterator():
-      full_url = _add_params_to_url(url, params)
-      yield _fetch(full_url, as_json=(output_format == "json"))
-
-    return _single_request_iterator()
 
   # Pagination logic
   def _paginate_generator():
@@ -182,8 +214,13 @@ def search_proteins(
     fetched_count = 0
     total_results = None
     header = None
+    page_count = 0
+    max_pages = (limit + PAGE_SIZE - 1) // PAGE_SIZE
 
     while next_url:
+      if page_count >= max_pages:
+        raise UniProtError("pagination exceeded its page budget; narrow the query")
+      page_count += 1
       full_url = _add_params_to_url(next_url, current_params)
       resp = CLIENT.fetch(full_url)
       if total_results is None:
@@ -221,22 +258,7 @@ def search_proteins(
           break
         if len(page_results) > remaining:
           page_results = page_results[:remaining]
-          # This reconstruction only executes when we need to truncate results.
-          #
-          # No Trimming Needed: If limit is None, or if the current page results
-          # fit within the remaining limit, data already contains the full page
-          # content as received from the server (either as a parsed dict for
-          # JSON or a raw string for FASTA/others). We can just yield it.
-          #
-          # Trimming Needed: We only need to reconstruct data if we had to slice
-          # page_results to respect the limit. In that case, build a new data
-          # object from the truncated page_results.
-          #
-          # TSV is the only exception (handled below) where we always
-          # reconstruct the data, regardless of whether we applied a limit or
-          # not. This is because we are actively modifying the content by
-          # removing the header lines from subsequent pages, so we can never
-          # just yield the raw server response for TSV after the first page.
+          # Reconstruct this page after enforcing the remaining record budget.
           if isinstance(data, dict):
             data["results"] = page_results
           elif output_format == "fasta":
@@ -263,6 +285,9 @@ def search_proteins(
         print(f"Progress: {fetched_count} fetched", file=sys.stderr)
 
       yield data
+
+      if not page_results:
+        break
 
       if limit is not None and fetched_count >= limit:
         break
@@ -299,6 +324,7 @@ def get_entry(
 
 def run_id_mapping(ids: list[str], from_db: str, to_db: str) -> dict[str, Any]:
   """Execute the ID mapping workflow."""
+  _result_limit(len(ids))
   # 1. Submit job
   submit_url = f"{BASE_URL}/idmapping/run"
   form_dict = {
@@ -315,7 +341,7 @@ def run_id_mapping(ids: list[str], from_db: str, to_db: str) -> dict[str, Any]:
   # 2. Poll for status
   status_url = f"{BASE_URL}/idmapping/status/{job_id}"
   results_resp = None
-  while True:
+  for _ in range(MAX_MAPPING_POLLS):
     status_resp = _fetch(status_url, as_json=True)
     if not isinstance(status_resp, dict):
       raise UniProtError(
@@ -332,8 +358,10 @@ def run_id_mapping(ids: list[str], from_db: str, to_db: str) -> dict[str, Any]:
       break
     if job_status == "FAILED":
       raise UniProtError(f"ID mapping job failed: {status_resp.get('errors')}")
-    print(f"ID Mapping Job status: {job_status}")
+    print(f"ID Mapping Job status: {job_status}", file=sys.stderr)
     time.sleep(2)
+  else:
+    raise UniProtError("ID mapping exceeded its poll budget")
 
   # 3. Get results (if not already fetched during status poll)
   if results_resp:
@@ -354,36 +382,11 @@ def stream_results(
     dataset: str = "uniprotkb",
     output_format: str = "tsv",
     fields: list[str] | None = None,
+    limit: int = DEFAULT_LIMIT,
 ) -> Iterator[str]:
-  """Stream all results for a bulk query using the /stream endpoint.
-
-  The /stream endpoint always returns the full result set (up to 10M entries).
-  It does NOT support limiting the number of results. Use `search_proteins`
-  with a `limit` parameter if you need a subset of results.
-
-  Args:
-    query: The search query.
-    dataset: The dataset to search in.
-    output_format: The output format.
-    fields: The fields to retrieve.
-
-  Yields:
-    str: Each line of the result set.
-  """
-  url = f"{BASE_URL}/{dataset}/stream"
-  params = {"query": query, "format": output_format}
-  headers = {"Accept-Encoding": "identity"}
-  if fields:
-    params["fields"] = ",".join(fields)
-  full_url = _add_params_to_url(url, params)
-  fetched_count = 0
-  for line in CLIENT.stream_lines(full_url, headers=headers):
-    if line:
-      fetched_count += 1
-      if fetched_count % 1000 == 0:
-        print(f"Progress: {fetched_count} lines fetched...", file=sys.stderr)
-      yield line
-  print(f"Total fetched lines: {fetched_count}", file=sys.stderr)
+  """Yield lines from bounded search pages, limiting entries rather than lines."""
+  for page in search_proteins(query, dataset, output_format, limit, fields):
+    yield from (json.dumps(page) if isinstance(page, dict) else page).splitlines()
 
 
 if __name__ == "__main__":
@@ -399,7 +402,7 @@ if __name__ == "__main__":
       help="Dataset to search in (e.g. uniprotkb, uniparc, unipref)",
   )
   s_parser.add_argument(
-      "--limit", type=int, help="Total number of results to return"
+      "--limit", type=int, default=DEFAULT_LIMIT, help="Maximum results (default 100; maximum 10000)"
   )
   s_parser.add_argument("--format", default="json")
   s_parser.add_argument("--fields")
@@ -436,7 +439,7 @@ if __name__ == "__main__":
   # Stream command
   st_parser = subparsers.add_parser(
       "stream",
-      help="Stream ALL results for a bulk query (up to 10M entries, no limit)",
+      help="Stream bounded search pages (default 100 entries; maximum 10000)",
   )
   st_parser.add_argument("query")
   st_parser.add_argument(
@@ -446,6 +449,7 @@ if __name__ == "__main__":
   )
   st_parser.add_argument("--format", default="tsv")
   st_parser.add_argument("--fields")
+  st_parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
 
   args = parser.parse_args()
 
@@ -503,6 +507,7 @@ if __name__ == "__main__":
         args.dataset,
         output_format=args.format,
         fields=stream_fields,
+        limit=args.limit,
     ):
       print(row)
   elif not args.command:

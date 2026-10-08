@@ -1,9 +1,17 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
 """Reconcile a synthetic campaign with saved responses; never submit inference.
 
 The cache binding contract is documented in references/offline.md. This is an
 offline fixture/recovery adapter, not an endpoint client or a provenance attestor.
+
+Usage: python3 refold_cache.py manifest.json --output-dir DIR
+Arguments: A synthetic offline-bookkeeping manifest and a new directory outside its run.
+Output: Copied run with verified metrics or per-candidate blocked reasons, both CSVs,
+    summary.json, recovered complexes, and a JSON summary on stdout.
+Exit codes: 0 recovery/export completed (inspect blocked candidates); 1 invalid run
+    or I/O failure; 2 invalid CLI arguments. No inference requests are submitted.
 """
 
 from __future__ import annotations
@@ -20,6 +28,9 @@ from biotite import InvalidFileError
 
 from manifest import Manifest
 from offline_bookkeeping import export_run
+
+PLDDT_PERCENT_MAX = 100
+ARTIFACT_ID_HEX_LENGTH = 16
 
 
 class CacheError(ValueError):
@@ -78,10 +89,10 @@ def binder_plddt(text, format, chain, sequence_length, scale):
     if scale not in {"0-1", "0-100"}:
         raise CacheError("plddt_scale_unresolved")
     values = [float(v) for v in selected.b_factor]
-    upper = 1 if scale == "0-1" else 100
+    upper = 1 if scale == "0-1" else PLDDT_PERCENT_MAX
     if any(not math.isfinite(v) or not 0 <= v <= upper for v in values):
         raise CacheError("invalid_plddt")
-    return sum(values) / len(values) * (100 / upper)
+    return sum(values) / len(values) * (PLDDT_PERCENT_MAX / upper)
 
 
 def extract_scores(manifest: Manifest, candidate: dict, root: Path):
@@ -192,7 +203,7 @@ def recover(input_manifest: Path, output_dir: Path) -> dict:
             # Commit metrics only after all bindings and required scores validate.
             complexes = output_dir / "recovered_complexes"
             complexes.mkdir(exist_ok=True)
-            name = digest(candidate["id"].encode())[:16] + (
+            name = digest(candidate["id"].encode())[:ARTIFACT_ID_HEX_LENGTH] + (
                 ".pdb" if format == "pdb" else ".cif"
             )
             path = complexes / name
@@ -224,7 +235,11 @@ def main():
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(recover(args.manifest, args.output_dir), indent=2))
+    try:
+        result = recover(args.manifest, args.output_dir)
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        parser.exit(1, f"Cache recovery failed: {exc}\n")
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

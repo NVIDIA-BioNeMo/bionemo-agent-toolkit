@@ -1,9 +1,12 @@
 ---
 name: protein-binder-design
 description: >
-  Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. Use for binder design, minibinder design, de novo binders, RFdiffusion + ProteinMPNN + Boltz2/OpenFold3 pipelines, epitope/hotspot-targeted design, in-silico binder validation, ranking designs by interface confidence, and offline binder campaign manifests or cached refold bookkeeping.
+  Use when designing RFdiffusion/ProteinMPNN binders or validating and resuming binder campaigns. Not for code or report review.
 license: Apache-2.0
-compatibility: "numpy>=1.24; requests>=2.28; biotite (mmCIF chain extraction)"
+compatibility: "Python>=3.12 with requirements.txt; Bash for hosted_env.sh"
+metadata:
+  author: "NVIDIA BioNeMo <bionemofeedback@nvidia.com>"
+  tags: [protein-design, binder-design, bionemo]
 allowed-tools: Bash, Read, Write, AskUserQuestion
 permissions:
   - env      # reads NVIDIA_API_KEY/NGC_API_KEY and configured NIM endpoints
@@ -12,9 +15,51 @@ permissions:
 
 # Protein Binder Design (workflow)
 
+## Purpose
+
 Run a de novo binder design campaign by composing atomic NIM skills. This skill
 owns orchestration, handoff contracts, filtering, validation, and the run
 manifest. For per-NIM API details, consult the corresponding NIM skill.
+
+Use for requests such as “design protein binders”, “run an RFdiffusion campaign”,
+“validate and rank these binders”, or “resume this binder manifest”. A request to
+review code, explain methods, or inspect an evaluation report does not start a
+design campaign. Offline bookkeeping stays offline.
+
+## Prerequisites
+
+- Python 3.12+; install [requirements.txt](requirements.txt) for RMSD, mmCIF,
+  cache recovery, and Python HTTP examples. Manifest and PDB-only helpers use
+  the standard library. Install [requirements-dev.txt](requirements-dev.txt)
+  to run `python3 -m pytest tests` with coverage.
+- Live inference needs hosted NIM credentials or reachable local NIM services;
+  local deployment also needs Docker, the NVIDIA Container Toolkit, and a
+  supported GPU. See Configuration below and [local setup](references/local-nim-setup.md).
+
+## Inputs
+
+Required inputs from the user prompt or saved manifest: target structure/sequence,
+target chain, epitope/hotspots, binder length range, backbone/sequence counts,
+output directory, and hosted or local endpoints. Resolve the confidence
+selection policy before live inference. Resume requests require the saved
+manifest and artifacts; offline imports require a synthetic score fixture or
+cache bindings as defined in [offline contracts](references/offline.md).
+Optional inputs include a target MSA, sourced positive controls, and explicit
+overrides to the default selection thresholds.
+
+Apply the user's explicit corrections first. Otherwise preserve saved campaign
+settings, then use supplied task context; ask only for unresolved inputs. Record
+intentional changes to saved settings so resumed results remain interpretable.
+
+## Data handling
+
+Hosted mode sends target structures/sequences, candidate sequences, and any
+requested alignments to the selected NVIDIA NIM endpoints under that service's
+terms. Use the user's selected deployment; resolve the destination before
+uploading data if it is unspecified. Local mode sends inference inputs to the
+configured local service; initial image/weight downloads still contact NGC.
+All modes write JSON/CSV and, when produced, PDB/mmCIF/FASTA artifacts under the
+chosen run directory. Keep credentials out of those artifacts and logs.
 
 ## Composed skills
 
@@ -113,12 +158,17 @@ missing scores and label the passing fraction provisional when scoring is incomp
   Use the same saved sample for confidence and coordinates; mmCIF request polymer
   IDs are label chain IDs. Whole-complex pLDDT does not supply binder-only pLDDT.
 
-## Run manifest (reproducibility backbone)
+## Output Format
 
 Every campaign writes `manifest.json` (+ `candidates.csv`) under a run dir via
 `scripts/manifest.py`. It records lineage, params, scores, artifacts, filter
 status, and controls — enabling ranking, resumability, validation, and the
-final report. Schema and usage: `references/manifest.md`.
+final report. Schema and usage: [manifest contract](references/manifest.md).
+Keep all entries in `all_candidates.csv`; `candidates.csv` contains only ranked
+survivors and retains its header when none pass. Offline helpers also write
+`summary.json`. The final response identifies the mode, completed/blocked stages,
+artifact paths, selection thresholds, ranked IDs, and missing scores. Report
+control counts separately and mark an incomplete passing fraction provisional.
 
 ## Filters (defaults)
 
@@ -195,11 +245,9 @@ reuse it for every call:
   in one invocation, so no exported state from a previous tool shell is needed.
   It disables shell tracing and preserves arguments and the child's exit code.
 - **Local** (self-hosted NGC containers): point each NIM at its local URL
-  (e.g. `http://localhost:8000/...`); local NIMs need no auth header. To **launch** the
-  NIMs yourself (docker run per NIM, persistent caches, health checks, and the GPU
-  **profile‑selection gotcha** — some NIMs (e.g. Boltz2) need `NIM_MODEL_PROFILE` pinned
-  on GPUs that have no bundled profile, while others (RFdiffusion/ProteinMPNN) auto‑select
-  by compute capability): see **`references/local-nim-setup.md`**.
+  (e.g. `http://localhost:8000/...`); local NIMs need no auth header. Follow
+  [local setup](references/local-nim-setup.md) for digest-pinned images, private
+  cache mounts, loopback ports, readiness checks, and GPU-specific profile selection.
 
 Per-NIM paths, request/response schemas, and worked `curl`/Python examples live in
 `references/pipeline.md`.
@@ -221,15 +269,37 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
   score is complete, not a reason to repeat inference. Reuse saved predictions
   for missing metrics; preserve completed candidates and explicit failure records.
 
-## Scripts
+## Available Scripts
 
-- `scripts/manifest.py` — campaign manifest (create / load / score / filter / rank / CSV).
-- `scripts/offline_bookkeeping.py` — import synthetic profiles and export saved state.
-- `scripts/refold_cache.py` — recover synthetic cached metrics with identity/digest checks.
-- `scripts/hosted_env.sh` — wrap hosted commands to normalize and pass the NIM key.
-- `scripts/pdb_utils.py` — PDB parse, chain extract, sequence, residue remap, CA coords.
-- `scripts/metrics.py` — Kabsch CA-RMSD from explicit PDB/mmCIF binder chains.
-- `scripts/controls.py` — scrambled negative controls.
-- `scripts/registry.py` + `assets/targets.json` — **example** benchmark target
-  registry (illustrative epitopes — verify against the cited structure before a
-  real campaign). Replace with your own targets.
+Paths below are relative to this skill. Run CLIs with `python3 scripts/<name>.py`
+or `bash scripts/hosted_env.sh`; import library helpers after adding the skill's
+`scripts` directory to the Python import path. No harness-specific runner is required.
+
+| Script | Purpose | Arguments |
+|---|---|---|
+| [offline_bookkeeping.py](scripts/offline_bookkeeping.py) | CLI: import synthetic score profiles | `input.json --output-dir DIR` |
+| [refold_cache.py](scripts/refold_cache.py) | CLI: recover metrics from verified cache bindings | `manifest.json --output-dir DIR` |
+| [metrics.py](scripts/metrics.py) | CLI/library: binder CA-RMSD | `backbone.pdb prediction.cif --backbone-chain A --predicted-chain B` |
+| [hosted_env.sh](scripts/hosted_env.sh) | Credential wrapper | `COMMAND [ARG ...]` |
+| [manifest.py](scripts/manifest.py) | Library: save, filter, rank, export | `Manifest.create(run_dir, target, mode, params, filters)` / `Manifest.load(path)` |
+| [pdb_utils.py](scripts/pdb_utils.py) | Library: select chain and remap residues | `remap_to_seq_index(pdb_text, chain, author_resnums)` |
+| [controls.py](scripts/controls.py) | Library: composition-preserving negative controls | `make_scrambled_controls(seqs, n=5, seed=0)` |
+| [registry.py](scripts/registry.py) | Library: load a user-populated target registry | `get_target(name, path=None)`; default is the empty `assets/targets.json` template |
+
+## Limitations
+
+Confidence thresholds and scrambled controls provide computational screening,
+not experimental proof of binding. The target registry contains no verified
+positive controls. Boltz2 composite confidence is distinct from ipTM. Cached
+synthetic fixtures test bookkeeping, not model performance or biological validity.
+
+## Troubleshooting
+
+| Error or symptom | Cause | Resolution |
+|---|---|---|
+| Missing NIM key | Neither supported key is set | Configure the selected hosted credential or use an available local service |
+| `selection_policy_unresolved` | No explicit ipTM or calibrated composite cutoff | Resolve the refolder/cutoff before design inference |
+| Absent hotspot or chain | Author numbering/chain differs from input | Inspect the selected model and insertion codes; supply the correct residue IDs |
+| Cache binding/digest failure | Response identity or bytes do not match | Keep the failed candidate visible; obtain matching artifacts before retrying |
+| No ranked survivors | Enabled metric missing or below threshold | Inspect the audit CSV; retain the empty ranking and disclose incomplete scoring |
+| Missing Python module / tests cannot collect | Helper or test dependencies absent | Install the appropriate requirements in the same Python environment used to run the command |
