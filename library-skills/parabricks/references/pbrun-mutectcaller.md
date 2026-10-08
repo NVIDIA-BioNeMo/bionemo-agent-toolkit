@@ -35,6 +35,12 @@ docker run --rm --gpus all \
 Verify exact tumor/normal, resource, interval, and filtering flags against the
 selected version.
 
+For a panel of normals in **4.7.0**, follow
+[prepon](pbrun-prepon.md) for contig-header validation and the required `.pon`
+resource. Pass the prepared **VCF.GZ** to `--pon`, then use
+[postpon](pbrun-postpon.md) for PON INFO annotation of the caller's VCF.
+A `.tbi` alone does not replace the preprocessing resource.
+
 ## Mutect2 Option Mapping
 
 Use this mapping when translating a GATK `Mutect2` command to

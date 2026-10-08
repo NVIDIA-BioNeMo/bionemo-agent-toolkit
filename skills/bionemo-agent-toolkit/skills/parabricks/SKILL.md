@@ -69,9 +69,10 @@ clinical interpretation, or promise exact runtime without benchmark data.
 
 Use `Read` for the selected skill references, `WebFetch` for official NVIDIA
 documentation, and `AskUserQuestion` for missing inputs or probe consent.
-Limit `Bash` to the bundled readiness helper and the diagnostic commands in
-[runtime-environment.md](references/runtime-environment.md). Generating a
-`pbrun` command does not authorize running a genomics workload.
+Use `Bash` for the bundled readiness and STAR translation helpers, the diagnostic
+commands in [runtime-environment.md](references/runtime-environment.md), and
+writing command artifacts requested by the user. Generating a `pbrun` command
+does not authorize running a genomics workload.
 
 ## Instructions
 
@@ -89,7 +90,9 @@ Limit `Bash` to the bundled readiness helper and the diagnostic commands in
    options not covered by the selected tool reference, using rows naming that
    tool. A simple tool-selection answer does not need every command reference.
 4. Generate a Docker command with explicit input/index/output mounts, workdir,
-   and placeholders for unresolved values. Explain relevant validation checks
+   and placeholders for unresolved values. Check the final command against the
+   selected tool's required arguments, including outputs separate from the
+   primary result file. Explain relevant validation checks
    and distinguish proposed checks from observations of a completed run.
    Command guidance for a remote host does not require probing this workstation.
 

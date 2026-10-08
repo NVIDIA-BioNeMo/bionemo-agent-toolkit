@@ -7,11 +7,11 @@ Live evaluation did not show a material gain or regression. Collect more evidenc
 ## Evaluation Metadata
 
 - Skill: `parabricks`
-- Evaluation date: 2026-10-02
+- Evaluation date: 2026-10-07
 - Evaluator version: `1.5.6`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`), Codex (`openai/openai/gpt-5.5`)
-- Tasks: 7 evaluation tasks (6 positive, 1 negative)
-- Dataset digest: `sha256:23088600f666e241635d67155f709ac6a3b62ee4705f6b793e39fe5421955b6b` (skill-evaluator-dataset-snapshot/1)
+- Tasks: 18 evaluation tasks (17 positive, 1 negative)
+- Dataset digest: `sha256:6e9efe466a1409e4cbcd58924a921028b12d3af7cce343c86b975cfbf78f9f1b` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -85,6 +85,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
+- **CRITICAL** CONTENT_DEDUP/llm_prompt_size_limit: A Tier 2 cluster exceeds the LLM prompt character limit. (`skills/bionemo-agent-toolkit/skills/parabricks`)
 - **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in command-conventions.md (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)

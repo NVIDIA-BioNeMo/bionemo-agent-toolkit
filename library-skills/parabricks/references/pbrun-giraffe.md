@@ -35,6 +35,16 @@ docker run --rm --gpus all \
 Always verify exact graph resource flags and output options against the selected
 version before finalizing. Do not guess graph/index file combinations.
 
+For **4.7.0**, the GBZ graph, distance index, minimizer index, and zipcodes file
+are required inputs. Supply `--zipcodes-name` explicitly; do not infer a
+compatible zipcodes file from a minimizer filename. Use `--ref-paths` when the
+output BAM needs a supplied path order or sequence dictionary.
+
+To produce a **coordinate-sorted BAM without duplicate marking**, use
+`--no-markdups`. `--align-only` stops before coordinate sorting and therefore
+does not meet that output requirement. Preserve the supplied sample and all
+read-group fields using the Giraffe-specific flags in the mapping below.
+
 ## Performance Guidance
 
 Prefer the documented automatic stream selection for general commands: leave

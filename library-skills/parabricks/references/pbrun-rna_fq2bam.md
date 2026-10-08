@@ -20,6 +20,12 @@ For shared wrapper mappings, cross-tool option rows, validation habits, and Para
 
 ## Command Shape
 
+For Parabricks 4.7.0, every command needs a read-input mode, `--ref`,
+`--genome-lib-dir`, **`--output-dir`**, and **`--out-bam`**. The output directory
+and final BAM are separate required arguments; a BAM path or Docker mount does
+not replace `--output-dir`. Check that both remain present after translating
+upstream STAR flags, and use explicit placeholders for unresolved paths.
+
 Paired-end RNA-seq FASTQs:
 
 ```bash

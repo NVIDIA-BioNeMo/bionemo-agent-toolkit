@@ -39,6 +39,47 @@ For Roche SBX-D or SBX-Fast BAMs, add `--sbx`. That selects the shipped
 `deepvariant_pangenome_aware_sbx.eng` model unless `--pb-model-file` overrides
 it, and applies SBX make-examples/postprocess defaults.
 
+## Parabricks 4.7.0 command
+
+For prepared BAM/CRAM input, the four required arguments are `--ref`,
+`--pangenome` (the GBZ graph), `--in-bam`, and `--out-variants`:
+
+```bash
+pbrun pangenome_aware_deepvariant \
+  --ref /workdir/<reference.fa> \
+  --pangenome /workdir/<graph.gbz> \
+  --in-bam /workdir/<sample.bam> \
+  --out-variants /outputdir/<sample.vcf.gz>
+```
+
+Check that the linear reference, input alignments, graph paths, and selected
+model belong to a compatible setup. This standalone caller consumes prepared
+alignments; it does not require rerunning the `pangenome_germline` FASTQ pipeline.
+
+## Comparing with Google's implementation
+
+The 4.7.0 manual documents three sources of output differences. Investigate
+them separately after matching inputs, model versions, and comparison settings:
+
+- **CNN inference:** TensorRT and Keras can differ by about `10^-5` in predicted
+  scores. The manual reports observed differing variants among zero-quality
+  `RefCalls`; this is an observation, not a guarantee about every dataset.
+- **Supplementary-read ordering:** with `--keep-supplementary-alignments`,
+  equal sorting keys can leave reads in a different order. For a controlled
+  upstream comparison, the manual recommends replacing `std::sort` with
+  `std::stable_sort` in `BuildPileupForOneSample` in `pileup_image_native.cc`.
+- **GBZ query caching:** Google's fast path can make graph-query results depend
+  on prior query order. Parabricks disables it. For comparison only, the manual
+  describes disabling **both** `updateCache` and the cached-range lookup in
+  `GbzReader::Query()` in `deepvariant/third_party/nucleus/io/gbz_reader.cc`.
+  Disabling only cache updates leaves the cache-hit path in place. This change
+  can slow the upstream implementation substantially and is not routine tuning.
+
+Keep any upstream patches in a separate comparison build, record versions and
+settings, and measure output differences before claiming parity. Do not
+present these C++ changes as `pbrun` flags, silently alter production software,
+or promise that they remove TensorRT numerical differences.
+
 ## DeepVariant/Pangenome Option Mapping
 
 Use this mapping when translating a Google DeepVariant workflow that consumes

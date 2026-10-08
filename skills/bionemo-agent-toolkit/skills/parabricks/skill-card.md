@@ -63,12 +63,12 @@ Underlying evaluation signals used in this run: <br>
 - `goal_accuracy`: Whether the user's goal was achieved. <br>
 - `behavior_check`: Whether the expected workflow behavior was followed. <br>
 - `skill_efficiency`: Tool-call productivity. <br>
-- `token_efficiency`: Actual uncached prompt plus completion usage. <br>
+- `token_efficiency`: Actual uncached prompt plus completion token usage. <br>
 
 
 
 ## Evaluation Results: <br>
-| Measure | Claude Code | Codex |
+| Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
 | Overall | 97.7% | 96.5% |
 | Security | 100.0% | 100.0% |

@@ -60,6 +60,13 @@ identified need, after checking support in the chosen tool and release.
 
 ## Validating a run
 
+Before presenting a command, check its required arguments as a complete set;
+translating the user's upstream flags alone may omit required wrapper inputs
+or outputs. For example, `rna_fq2bam` needs both `--output-dir` for generated
+STAR outputs and `--out-bam` for the final BAM. A Docker output mount does not
+supply either argument. Retain explicit placeholders when a required path is
+unknown. Check this from the command text without launching a container.
+
 Before execution, check that every input and required index resolves through
 the mounts and that reference, known-sites, model, and graph resources are
 compatible with the assay and each other. CRAM decoding needs the appropriate

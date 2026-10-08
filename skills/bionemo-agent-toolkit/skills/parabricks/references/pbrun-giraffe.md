@@ -7,6 +7,16 @@ evidence. Check missing graph components and read-group errors. This route
 requires an intentional graph-alignment workflow; ordinary short-read BWA-MEM
 alignment without graph resources belongs with [fq2bam](pbrun-fq2bam.md).
 
+For **4.7.0**, the GBZ graph, distance index, minimizer index, and zipcodes file
+are required inputs. Supply `--zipcodes-name` explicitly; do not infer a
+compatible zipcodes file from a minimizer filename. Use `--ref-paths` when the
+output BAM needs a supplied path order or sequence dictionary.
+
+To produce a **coordinate-sorted BAM without duplicate marking**, use
+`--no-markdups`. `--align-only` stops before coordinate sorting and therefore
+does not meet that output requirement. Preserve the supplied sample and all
+read-group fields using the Giraffe-specific flags in the mapping below.
+
 ## Performance Guidance
 
 Prefer the documented automatic stream selection for general commands: leave
@@ -51,3 +61,7 @@ equivalent.
 | Upstream `vg giraffe` options not listed here | No direct equivalent | Not documented for this tool. |
 | — | `--nstreams`, `--num-cpu-threads-per-gpu`, `--batch-size`, `--write-threads`, `--work-queue-capacity` | GPU/CPU pipeline scheduling controls. Prefer `--nstreams auto` for default guidance; use integer stream counts only for benchmarked/manual tuning. |
 | — | `--minimizers-gpu` | GPU offload for minimizers/seeds in supported single-end runs. |
+
+## Key References
+
+- [Parabricks 4.7.0 Giraffe manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_giraffe.html)
