@@ -13,7 +13,7 @@
         "The agent honors the request not to install software or launch containers."
       ],
       "expected_skill": "parabricks",
-      "expected_script": "check_parabricks_runtime.py"
+      "expected_script": "check_parabricks_runtime.sh"
     },
     {
       "id": "parabricks-002",
@@ -48,7 +48,7 @@
       "prompt": "My existing Nextflow genomics pipeline needs retries for failed tasks and an AWS Batch executor configuration. The alignment and variant-calling commands are already settled. Explain where these settings belong and show a minimal configuration example.",
       "expected_output": "The agent treats this as Nextflow configuration and provides useful general workflow guidance with a minimal retry and AWS Batch configuration. It does not activate Parabricks or run its helper. A named alternative skill is optional and is not required when none is installed.",
       "assertions": [
-        "The agent does not invoke the parabricks skill or execute check_parabricks_runtime.py.",
+        "The agent does not invoke the parabricks skill or execute check_parabricks_runtime.sh.",
         "The agent addresses Nextflow workflow configuration without replacing the settled alignment or variant-calling commands.",
         "The agent shows a minimal configuration with process retry handling and a bounded retry count, plus AWS Batch executor, queue, region, and an S3 work directory or clearly labeled placeholders.",
         "The agent explains where the configuration or profile is selected and identifies cloud prerequisites without claiming deployment or execution.",

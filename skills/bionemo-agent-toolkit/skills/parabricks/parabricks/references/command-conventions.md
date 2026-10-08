@@ -21,18 +21,12 @@ consent rules. Preparing a workload command does not authorize executing it.
 
 ## Translating options
 
-The mapping tables primarily describe Parabricks 4.7.1. Check each selected
+The mapping tables primarily describe Parabricks 4.7.0. Check each selected
 release's NVIDIA tool manual before finalizing syntax, defaults, optional flags,
 input modes, or output naming. An upstream option without a documented mapping
 has no assumed Parabricks equivalent; do not pass it through or borrow an option
 from another `pbrun` tool. Flag availability does not establish biological parity.
 In option tables, **—** in the baseline column denotes a Parabricks-only control.
-
-Preserve an upstream option's value only when its meaning, units, and scope
-match the Parabricks option. For partial mappings, omit the setting from the
-base command or present it as a separate tuning choice with its own rationale.
-An explanatory caveat does not make a copied value equivalent; check that the
-generated command follows the mapping explanation.
 
 GATK and Picard wrapper translations shared by `applybqsr`, `bam2fq`,
 `bammetrics`, `bamsort`, `bqsr`, `collectmultiplemetrics`, `fq2bam`,

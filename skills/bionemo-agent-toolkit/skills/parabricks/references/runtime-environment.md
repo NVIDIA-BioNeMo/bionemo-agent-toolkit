@@ -14,17 +14,17 @@ assuming local results apply.
 When the current machine is the execution host, prefer the bundled diagnostic
 script and use its report as the basis for recommendations. Run these examples
 from the skill directory containing `SKILL.md`; the helper is at
-`scripts/check_parabricks_runtime.py` relative to that directory:
+`scripts/check_parabricks_runtime.sh` relative to that directory:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py
+bash scripts/check_parabricks_runtime.sh
 ```
 
 When input, output, or temporary directories are known, include them in the
 storage check:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py \
+bash scripts/check_parabricks_runtime.sh \
   --path <input-dir> \
   --path <output-dir> \
   --path <tmp-dir>
@@ -54,7 +54,7 @@ and driver using `--cuda-test-image`; `--parabricks-version` selects only the
 Parabricks image and does not change the CUDA probe image:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py \
+bash scripts/check_parabricks_runtime.sh \
   --run-container-check \
   --cuda-test-image nvidia/cuda:<release-compatible-tag> \
   --parabricks-version <version>
@@ -63,7 +63,7 @@ python3 scripts/check_parabricks_runtime.py \
 For machine-readable output, use:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py --format json
+bash scripts/check_parabricks_runtime.sh --format json
 ```
 
 Do not install, upgrade, or modify packages. If prerequisites are missing,
@@ -75,7 +75,7 @@ policy, and Parabricks version.
 
 | Script | Purpose | Arguments |
 |--------|---------|-----------|
-| `scripts/check_parabricks_runtime.py` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--cuda-test-image <image:tag>`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
+| `scripts/check_parabricks_runtime.sh` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--cuda-test-image <image:tag>`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
 
 ## Discovery Commands
 
@@ -134,12 +134,6 @@ target release:
 docker run --rm --gpus all nvidia/cuda:<release-compatible-tag> nvidia-smi
 ```
 
-For Python:
-
-```bash
-python3 --version
-```
-
 For Parabricks container access, after the user confirms the desired version:
 
 ```bash
@@ -167,7 +161,7 @@ For authorized container probes on a Parabricks 4.2 host, explicitly select the
 CUDA image from that manual:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py \
+bash scripts/check_parabricks_runtime.sh \
   --run-container-check \
   --cuda-test-image nvidia/cuda:12.0.0-base-ubuntu20.04 \
   --parabricks-version 4.2-1
@@ -185,7 +179,6 @@ For any selected release, check its manual for:
 - An NVIDIA driver compatible with that Parabricks container's CUDA version.
 - NVIDIA GPU support and per-device memory for the selected tool and options.
 - CPU RAM and CPU thread recommendations for multi-GPU systems.
-- Python 3 availability.
 - No unsupported GPU mode for the target Parabricks version. Verify whether
   vGPU or MIG limitations apply in the current docs before making a strong
   claim.
@@ -201,7 +194,6 @@ Use the diagnostic script output to report:
   toolkit installation and the CUDA runtime bundled inside the selected image.
 - Whether Docker is installed and new enough.
 - Whether Docker can access GPUs through NVIDIA Container Toolkit.
-- Whether Python 3 is available.
 - CPU thread count and system RAM.
 - Free space on input, output, and temporary filesystems when paths are known.
 - Whether the selected Parabricks container can be pulled and can run `pbrun`.
@@ -223,8 +215,6 @@ Examples:
   Toolkit installation page and tell the user to configure Docker GPU runtime.
 - Docker cannot access GPUs: suggest verifying driver health, container toolkit
   installation, Docker daemon configuration, and user permissions.
-- Missing Python 3: provide an OS-specific Python 3 install command only after
-  confirming the OS/package manager.
 - Missing Parabricks image access: ask whether the user is authenticated to
   NVIDIA NGC and whether network/proxy policy permits pulling from `nvcr.io`.
 
@@ -239,7 +229,7 @@ Use qualitative recommendations:
 - `hardware-constrained`: GPU memory, CPU RAM, CPU threads, or storage may
   limit the requested workflow.
 - `runtime-incomplete`: required software such as Docker, NVIDIA Container
-  Toolkit, driver support, Python 3, or image access is missing or unverified.
+  Toolkit, driver support, or image access is missing or unverified.
 - `I/O-constrained`: storage layout or free space is likely to dominate runtime
   or failure risk.
 - `not supported`: the target OS/GPU/runtime mode appears unsupported for the
@@ -277,7 +267,7 @@ Structure the response as:
 
 ```text
 Environment summary:
-<OS/GPU/driver/Docker/container toolkit/Python/CPU/RAM/storage facts>
+<OS/GPU/driver/Docker/container toolkit/CPU/RAM/storage facts>
 
 Assessment:
 <ready | hardware-constrained | runtime-incomplete | I/O-constrained | not supported | not enough information>

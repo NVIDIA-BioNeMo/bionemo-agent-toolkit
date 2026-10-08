@@ -91,7 +91,7 @@ exposed by `rna_fq2bam`.
 | `--outFileNamePrefix` | `--output-dir`, `--out-prefix` | `--output-dir` controls the generated output directory; `--out-prefix` controls the prefix for output data. |
 | `--outSAMtype BAM SortedByCoordinate` | Implicit pipeline behavior plus `--out-bam` | `rna_fq2bam` outputs a sorted BAM path via `--out-bam`; it does not expose generic `--outSAMtype`. |
 | `--outSAMattrRGline` | Read group in `--in-fq` / `--in-se-fq`, or `--read-group-sm`, `--read-group-lb`, `--read-group-pl`, `--read-group-id-prefix` | Not a full one-to-one replacement for arbitrary STAR read group lines. |
-| `--runThreadN` | No direct equivalent; tune separately | STAR specifies total threads; Parabricks `--num-threads` specifies workers per GPU stream. Omit it from the base translation to retain release-specific auto/default behavior. Do not copy the STAR value; an explicit setting needs a separate tuning rationale. |
+| `--runThreadN` | `--num-threads` | Not one-to-one: Parabricks defines worker threads per GPU stream and may use GPU/system-memory auto tuning. |
 | `--genomeSAindexNbases` | `--num-sa-bases` | Same SA pre-indexing length concept. |
 | `--alignIntronMax` | `--max-intron-size` | Same role. |
 | `--alignIntronMin` | `--min-intron-size` | Same role. |
@@ -145,32 +145,6 @@ exposed by `rna_fq2bam`.
 
 If a STAR option is not listed above, assume there is no direct `rna_fq2bam`
 flag until the selected Parabricks version's tool reference says otherwise.
-
-### Translation example: preserve behavior without copying thread counts
-
-For paired compressed FASTQs with STAR `--outSAMtype BAM SortedByCoordinate`,
-`--outFilterMismatchNmax 5`, `--twopassMode Basic`, and `--runThreadN 16`, use
-this `pbrun` fragment inside the Docker command shape above, after verifying
-the selected release's flags:
-
-```bash
-pbrun rna_fq2bam \
-  --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
-  --read-files-command zcat \
-  --genome-lib-dir /workdir/<star_genome_library>/ \
-  --ref /workdir/<reference.fa> \
-  --output-dir /outputdir/<rna_output>/ \
-  --out-bam /outputdir/<sample.bam> \
-  --max-out-filter-mismatch 5 \
-  --two-pass-mode Basic
-```
-
-The fragment deliberately omits `--num-threads`: STAR's total thread count of
-16 does not determine Parabricks workers per GPU stream. Keep release-specific
-auto/default behavior unless the user requests separate resource tuning. Sorted
-BAM output is expressed through `--out-bam`, not a passed-through `--outSAMtype`.
-This translates the listed options; other pipeline behavior, such as duplicate
-marking, still needs review before claiming equivalence to the CPU workflow.
 
 ## rna_fq2bam Options Without STAR Equivalents
 

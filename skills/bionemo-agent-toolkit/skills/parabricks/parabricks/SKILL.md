@@ -1,11 +1,11 @@
 ---
 name: parabricks
 description: >-
-  Use for NVIDIA Parabricks reference/index compatibility, CPU-to-Parabricks
-  option translation, and `pbrun` command guidance, including planning-only or
-  "do not run" questions. Route tools for FASTQ/BAM, RNA-seq, variant calling,
-  BAM QC, and GVCFs, and assess GPU/runtime readiness. Do NOT use for inspecting
-  or accelerating whole pipelines — use genomics-workflow-acceleration.
+  Route NVIDIA Parabricks pbrun tools, assess GPU/runtime readiness, and provide
+  version-aware command guidance for FASTQ/BAM processing, RNA-seq, variant
+  calling, BAM QC, and GVCF workflows, including planning-only questions about a
+  named pbrun tool. Do NOT use for inspecting or accelerating whole pipelines —
+  use genomics-workflow-acceleration.
 license: CC-BY-4.0 AND Apache-2.0
 metadata:
   author: "Angel Pizarro <apizarro@nvidia.com>"
@@ -33,7 +33,6 @@ or wiring optional GPU branches. For pipeline-level work, use
 - Which `pbrun` tool fits the user's data and goal
 - GPU, driver, Docker, container, storage, or installation readiness
 - Command shape, flags, and validation for a specific Parabricks tool
-- Reference/index compatibility and CPU-to-Parabricks option translation
 - Troubleshooting a single Parabricks command or tool family
 - Planning-only or "do not run" questions about a named `pbrun` tool (for
   example reference/index compatibility, output naming, or flag validity). Use

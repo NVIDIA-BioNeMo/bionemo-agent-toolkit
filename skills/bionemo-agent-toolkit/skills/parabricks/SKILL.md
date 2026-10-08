@@ -8,7 +8,7 @@ description: >-
 license: CC-BY-4.0 AND Apache-2.0
 allowed-tools: Bash, Read, WebFetch, AskUserQuestion
 metadata:
-  author: Ohad Mosafi (@ohadmo)
+  author: "Angel Pizarro <apizarro@nvidia.com>"
   version: "1.2.1"
   tags:
     - parabricks
@@ -41,8 +41,8 @@ Parabricks references or run its helper solely for orchestration settings.
 
 - **Command guidance:** No Parabricks/NGC credential or local GPU/container
   runtime is required to read references or generate commands.
-- **Readiness helper:** Python 3 is required on the host being inspected;
-  missing runtime components are reported as readiness gaps.
+- **Readiness helper:** Runs with Bash on the host being inspected; missing
+  runtime components are reported as readiness gaps.
 - **Execution:** The documented Docker commands require a supported Linux host,
   an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker,
   NVIDIA Container Toolkit, and access to the selected Parabricks image.
@@ -138,12 +138,12 @@ For routing heuristics when multiple tools could apply, see
 For GPU, driver, Docker, container, storage, or installation questions, read
 [runtime-environment.md](references/runtime-environment.md). Confirm that the
 current machine is the intended execution host before probing it. Run the
-bundled [readiness helper](scripts/check_parabricks_runtime.py) with this skill's
+bundled [readiness helper](scripts/check_parabricks_runtime.sh) with this skill's
 directory as the working directory. Run it in a separate tool call and read its
 output before selecting any follow-up diagnostics:
 
 ```bash
-python3 scripts/check_parabricks_runtime.py
+bash scripts/check_parabricks_runtime.sh
 ```
 
 Run it once, including known storage paths, and use the report. Select an
