@@ -2,6 +2,8 @@
 
 Use this reference for NVIDIA Parabricks `pbrun bam2fq` — converting aligned BAM/CRAM back to FASTQ output.
 
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
 ## First Steps
 
 1. Confirm the Parabricks version or container tag.
@@ -17,13 +19,36 @@ Use this reference for NVIDIA Parabricks `pbrun bam2fq` — converting aligned B
 5. For runtime readiness or installation questions, use
    `runtime-environment.md`.
 
+## Preserving reads during conversion
+
+For Parabricks 4.7.0, paired reads use `--out-suffixF` and `--out-suffixF2`.
+Orphan first mates, orphan second mates, and unpaired reads are **ignored**
+unless `--out-suffixO`, `--out-suffixO2`, and `--out-suffixS`, respectively, are
+supplied. A single unpaired output does not capture both orphan categories.
+Every suffix must end in `.gz`; changing the suffix to `.fastq` does not request
+uncompressed output. The paired defaults are `_1.fastq.gz` and `_2.fastq.gz`.
+
+To retain reads marked as QC failures, omit `--remove-qc-failure`. For read-group
+splitting, `--rg-tag` accepts only `PU` or `ID`, not `SM` or `LB`; choose the tag
+that represents the user's requested grouping. Paired read names acquire `/1`
+and `/2` suffixes. Check matching names and counts after conversion, allowing
+these suffixes, and account for the separate orphan and unpaired outputs.
+
+When converting CRAM for realignment to a new assembly, `bam2fq --ref` must
+match the **source CRAM's** reference. Use the new reference only at the later
+alignment step; it cannot decode a CRAM made against a different sequence.
+Retaining these read categories still does not recover reads or bases already
+removed before the source alignment was produced.
+
 ## Command Shape
 
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
-
 ```bash
-pbrun bam2fq \
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun bam2fq \
   --ref /workdir/<reference.fa> \
   --in-bam /workdir/<input.bam> \
   --out-prefix /outputdir/<sample_prefix>
@@ -36,7 +61,7 @@ read group splitting, QC filtering, temporary directory, or threading flags.
 ## SamToFastq Option Mapping
 
 Use this mapping when translating a GATK/Picard `SamToFastq` command to
-`pbrun bam2fq`. Parabricks v4.7.0 documents `bam2fq` as the GPU counterpart for
+`pbrun bam2fq`. Parabricks documents `bam2fq` as the GPU counterpart for
 converting BAM/CRAM to FASTQ, but it uses an output prefix plus suffix flags
 instead of Picard's individual output filenames.
 
@@ -50,9 +75,6 @@ instead of Picard's individual output filenames.
 | `--REFERENCE_SEQUENCE`, `-R` | `--ref` | Required for CRAM input; optional for BAM depending on version. |
 | `--READ_GROUP_TAG` | `--rg-tag` | Parabricks documents `PU` or `ID` for splitting reads into different FASTQ files. |
 | `--INCLUDE_NON_PF_READS false` | `--remove-qc-failure` | Partial equivalent: Parabricks removes reads marked as QC failure when set. |
-| `--TMP_DIR` | `--tmp-dir` | Same temporary-directory role, but Parabricks treats it as a wrapper/runtime path. |
-| `--VERBOSITY` | `--verbose` | Partial equivalent only: Parabricks exposes a boolean verbose flag. |
-| `--version` | `--version` | Same version-reporting role. |
 | `--arguments_file`, `--VALIDATION_STRINGENCY`, Picard compression/common flags | No direct equivalent | Not exposed by current Parabricks docs. |
 
 If a Picard `SamToFastq` option is not listed above, assume there is no direct
@@ -64,12 +86,10 @@ otherwise.
 | `pbrun bam2fq` option | Why it has no SamToFastq equivalent |
 | --- | --- |
 | `--num-threads` | Parabricks worker-thread count. |
-| `--logfile` | Parabricks wrapper log file path. |
-| `--x3` | Parabricks option to show full command-line arguments. |
-| `--with-petagene-dir` | Parabricks/PetaGene integration. |
 | `--keep-tmp` | Parabricks temporary-file retention. |
-| `--no-seccomp-override` | Parabricks Docker/seccomp behavior. |
-| `--preserve-file-symlinks` | Parabricks path handling behavior. |
+
+
+Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
@@ -88,4 +108,4 @@ otherwise.
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_bam2fq.html>
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/bam2fq>

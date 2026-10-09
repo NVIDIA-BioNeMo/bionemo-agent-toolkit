@@ -2,6 +2,8 @@
 
 Use this reference for NVIDIA Parabricks `pbrun mutectcaller` — GATK Mutect2-style somatic variant calling from tumor (and optional normal) BAM/CRAM to VCF.
 
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
 ## First Steps
 
 1. Confirm the Parabricks version or container tag.
@@ -18,11 +20,13 @@ Use this reference for NVIDIA Parabricks `pbrun mutectcaller` — GATK Mutect2-s
 
 ## Command Shape
 
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
-
 ```bash
-pbrun mutectcaller \
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun mutectcaller \
   --ref /workdir/<reference.fa> \
   <version-specific-tumor-normal-inputs> \
   --out-vcf /outputdir/<somatic.vcf.gz>
@@ -31,10 +35,16 @@ pbrun mutectcaller \
 Verify exact tumor/normal, resource, interval, and filtering flags against the
 selected version.
 
+For a panel of normals in **4.7.0**, follow
+[prepon](pbrun-prepon.md) for contig-header validation and the required `.pon`
+resource. Pass the prepared **VCF.GZ** to `--pon`, then use
+[postpon](pbrun-postpon.md) for PON INFO annotation of the caller's VCF.
+A `.tbi` alone does not replace the preprocessing resource.
+
 ## Mutect2 Option Mapping
 
 Use this mapping when translating a GATK `Mutect2` command to
-`pbrun mutectcaller`. Parabricks v4.7.0 documents `mutectcaller` as the
+`pbrun mutectcaller`. Parabricks documents `mutectcaller` as the
 accelerated GATK Mutect2 counterpart; the core tumor/normal flags map directly,
 but common GATK engine and Java controls do not.
 
@@ -51,9 +61,6 @@ but common GATK engine and Java controls do not.
 | `--alleles` | `--mutect-alleles` | Force-call allele VCF input. |
 | `--intervals`, `-L` | `--interval` or `--interval-file` | Parabricks separates inline intervals from interval files. |
 | `--interval-padding`, `-ip` | `--interval-padding`, `-ip` | Same padding role when documented. |
-| `--TMP_DIR` / `--tmp-dir` | `--tmp-dir` | Same temporary-directory role, but Parabricks treats it as a wrapper/runtime path. |
-| `--verbosity` | `--verbose` | Partial equivalent only: Parabricks exposes a boolean verbose flag. |
-| `--version` | `--version` | Same version-reporting role. |
 | `--java-options`, `--native-pair-hmm-threads`, GATK engine/common flags | No direct equivalent | Not exposed as GATK engine controls by current Parabricks docs. |
 
 If a GATK `Mutect2` option is not listed above, assume there is no direct
@@ -66,11 +73,11 @@ reference says otherwise.
 | --- | --- |
 | PON index handoff from `prepon` / `postpon` workflow flags | Parabricks decomposes PON handling into preprocessing, calling, and postprocessing steps. |
 | Parabricks-specific filtering or compatibility flags documented for the selected version | These are wrapper-specific controls; verify current docs before use. |
-| GPU/CPU thread and partition controls | Parabricks runtime performance tuning. |
-| `--logfile`, `--x3` | Parabricks wrapper logging and full-argument display. |
-| `--with-petagene-dir` | Parabricks/PetaGene integration. |
-| `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks` | Parabricks wrapper filesystem/container controls. |
+| `--num-streams-per-gpu`, `--mutect-low-memory`, `--run-partition` | Parabricks GPU/partition performance controls. `--num-streams-per-gpu` default 1. |
 | `--num-gpus` | Parabricks GPU count. |
+
+
+Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
@@ -88,4 +95,4 @@ reference says otherwise.
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_mutectcaller.html>
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/mutectcaller>
