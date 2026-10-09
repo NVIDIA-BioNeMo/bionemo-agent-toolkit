@@ -1,0 +1,64 @@
+{
+  "provenance": "Synthetic software bookkeeping fixture. Scores and thresholds are illustrative, not predictions or scientific validation. No biological sequences or live inference are represented.",
+  "target": {
+    "name": "synthetic ranking fixture"
+  },
+  "profiles": [
+    {
+      "name": "boltz2-only",
+      "rank_by": "boltz2_confidence",
+      "filters": {
+        "iptm_min": null,
+        "boltz2_confidence_min": 0.73,
+        "binder_plddt_min": 80,
+        "self_consistency_rmsd_max": 2
+      },
+      "candidates": [
+        {
+          "id": "binder_b",
+          "scores": {
+            "boltz2_confidence": 0.77,
+            "binder_plddt": 89,
+            "self_consistency_rmsd": 1.2
+          },
+          "is_control": false
+        },
+        {
+          "id": "control",
+          "scores": {
+            "boltz2_confidence": 0.99,
+            "binder_plddt": 99
+          },
+          "is_control": true,
+          "control_type": "scrambled"
+        },
+        {
+          "id": "binder_a",
+          "scores": {
+            "boltz2_confidence": 0.89,
+            "binder_plddt": 86,
+            "self_consistency_rmsd": 1.4
+          },
+          "is_control": false
+        },
+        {
+          "id": "low_confidence",
+          "scores": {
+            "boltz2_confidence": 0.729,
+            "binder_plddt": 90,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        },
+        {
+          "id": "pending",
+          "scores": {
+            "boltz2_confidence": 0.95,
+            "binder_plddt": 90
+          },
+          "is_control": false
+        }
+      ]
+    }
+  ]
+}

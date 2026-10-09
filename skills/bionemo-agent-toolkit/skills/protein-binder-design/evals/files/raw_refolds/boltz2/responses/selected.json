@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "data_structure\n#\nloop_\n_atom_site.group_PDB \n_atom_site.type_symbol \n_atom_site.label_atom_id \n_atom_site.label_alt_id \n_atom_site.label_comp_id \n_atom_site.label_asym_id \n_atom_site.label_seq_id \n_atom_site.pdbx_PDB_ins_code \n_atom_site.auth_seq_id \n_atom_site.auth_comp_id \n_atom_site.auth_asym_id \n_atom_site.auth_atom_id \n_atom_site.B_iso_or_equiv \n_atom_site.label_entity_id \n_atom_site.Cartn_x \n_atom_site.Cartn_y \n_atom_site.Cartn_z \n_atom_site.pdbx_PDB_model_num \n_atom_site.id \nATOM C CA . ALA A 1 . 1 ALA T CA 99.0 1 0.0  20.0 0.0 1 1\nATOM C CA . ALA A 2 . 2 ALA T CA 99.0 1 2.0  20.0 0.0 1 2\nATOM C CA . ALA A 3 . 3 ALA T CA 99.0 1 4.0  20.0 0.0 1 3\nATOM C CA . ALA A 4 . 4 ALA T CA 99.0 1 6.0  20.0 0.0 1 4\nATOM C CA . ALA A 5 . 5 ALA T CA 99.0 1 8.0  20.0 0.0 1 5\nATOM C CA . ALA A 6 . 6 ALA T CA 99.0 1 10.0 20.0 0.0 1 6\nATOM C CA . ALA B 1 . 1 ALA Y CA 99.0 2 8.0  7.0  0.0 1 7\nATOM C CA . ALA B 2 . 2 ALA Y CA 99.0 2 8.0  11.0 0.0 1 8\nATOM C CA . ALA B 3 . 3 ALA Y CA 99.0 2 5.0  7.0  0.0 1 9\n#\n",
+      "format": "mmcif"
+    },
+    {
+      "structure": "data_structure\n#\nloop_\n_atom_site.group_PDB \n_atom_site.type_symbol \n_atom_site.label_atom_id \n_atom_site.label_alt_id \n_atom_site.label_comp_id \n_atom_site.label_asym_id \n_atom_site.label_seq_id \n_atom_site.pdbx_PDB_ins_code \n_atom_site.auth_seq_id \n_atom_site.auth_comp_id \n_atom_site.auth_asym_id \n_atom_site.auth_atom_id \n_atom_site.B_iso_or_equiv \n_atom_site.label_entity_id \n_atom_site.Cartn_x \n_atom_site.Cartn_y \n_atom_site.Cartn_z \n_atom_site.pdbx_PDB_model_num \n_atom_site.id \nATOM C CA . ALA A 1 . 1 ALA T CA 99.0 1 0.0  20.0 0.0 1 1\nATOM C CA . ALA A 2 . 2 ALA T CA 99.0 1 2.0  20.0 0.0 1 2\nATOM C CA . ALA A 3 . 3 ALA T CA 99.0 1 4.0  20.0 0.0 1 3\nATOM C CA . ALA A 4 . 4 ALA T CA 99.0 1 6.0  20.0 0.0 1 4\nATOM C CA . ALA A 5 . 5 ALA T CA 99.0 1 8.0  20.0 0.0 1 5\nATOM C CA . ALA A 6 . 6 ALA T CA 99.0 1 10.0 20.0 0.0 1 6\nATOM C CA . ALA B 1 . 1 ALA Y CA 80.0 2 8.0  7.0  0.0 1 7\nATOM C CA . ALA B 2 . 2 ALA Y CA 82.0 2 8.0  11.0 0.0 1 8\nATOM C CA . ALA B 3 . 3 ALA Y CA 84.0 2 5.0  7.0  0.0 1 9\n#\n",
+      "format": "mmcif"
+    }
+  ],
+  "confidence_scores": [
+    0.99,
+    0.81
+  ]
+}

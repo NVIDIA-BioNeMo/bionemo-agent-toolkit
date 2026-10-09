@@ -1,0 +1,14 @@
+schema_version: 1
+
+harbor:
+  task_source: evals_json
+  agents:
+    claude-code:
+      model: aws/anthropic/bedrock-claude-opus-5
+  # Hosted independent validation needs this key inside the agent sandbox.
+  # Generation still requires a provisioned Complexa GPU runtime and weights.
+  runtime_env:
+    - NGC_API_KEY
+
+grading:
+  mode: aces_default
