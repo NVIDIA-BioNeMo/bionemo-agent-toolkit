@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
+# Copyright (c) 2026 NVIDIA Corporation. All rights reserved.
+
+name: CodonFM
+repo: NVIDIA-BioNeMo/CodonFM
+ref: main
+description: >-
+  Codon foundation-model setup, coding-sequence embeddings, masked-codon
+  variant scoring, and fine-tuning with public Encodon checkpoints.
+# Keep the model family at depth 1 under the group root, as with KERMT,
+# so the grouped catalog's orphan pruner recognizes its ownership.
+skills:
+  - path: skills
+    catalog_dir: open-models-skills/codonfm
