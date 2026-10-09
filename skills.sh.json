@@ -31,6 +31,10 @@
     {
       "title": "Open Models",
       "skills": [
+        "codonfm-embed",
+        "codonfm-finetune",
+        "codonfm-score",
+        "codonfm-setup",
         "complexa-design",
         "complexa-evaluate-pdbs",
         "complexa-setup",

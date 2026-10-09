@@ -10,6 +10,27 @@ Audit date: 2026-07-16 (first dry-run sync, off `origin/main`).
 
 ## Sourced components (public GitHub)
 
+### CodonFM — `NVIDIA-BioNeMo/CodonFM@main`, path `skills`
+
+Audited 2026-10-08 at `26457c38a20a34c1eeb4b36b01c6aa879598a2bb`.
+
+- Four skills: `codonfm-setup`, `codonfm-embed`, `codonfm-score`, and
+  `codonfm-finetune`. Each carries an eval dataset, `BENCHMARK.md`,
+  `skill-card.md`, and `skill.oms.sig`. NVIDIA/skills' source-onboarding checks
+  pass for all four, including signed-file digests and measured PASS reports.
+- **SRC-4**: setup, scoring, and fine-tuning instructions contain Markdown
+  links to files outside the published skill tree, including `../../src/runner.py`
+  and `../../notebooks/4-EnCodon-Downstream-Task-riboNN.ipynb`. They resolve in
+  the product checkout but break in catalog copies. Fix these upstream using
+  public source links or explicit runtime paths in the user's CodonFM checkout,
+  then regenerate the source signatures before syncing the changes.
+- **SRC-9**: `skills/stage_eval_context.py` is source-repository fixture
+  maintenance tooling, not an installed skill. The grouped import preserves it
+  to match the upstream tree; it is not included in the generated aggregate.
+  Move it outside the published `skills/` container upstream.
+- Catalog copies intentionally preserve the published source bytes and signing
+  artifacts. Do not patch these portability issues in the vendored copies.
+
 ### nvMolKit — `NVIDIA-BioNeMo/nvMolKit@main`, path `agent-skills/nvmolkit-usage`
 - ✅ 1 clean, self-contained skill.
 - ⚠️ **SRC-2**: `path` points directly at a single skill dir, not a `skills/`
