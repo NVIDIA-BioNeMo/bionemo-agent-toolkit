@@ -1,10 +1,31 @@
 # Reviewed 2026-10-08 against the NVCARPS SkillSpector 2.11.2 scanner.
 # Exact fingerprints bind file contents, location, emitted evidence and scanner version.
+# PE3 rules match exact file/evidence pairs because LLM annotations change fingerprint fields.
 # Re-review these exceptions after changing the guarded call sites or execution.py.
 # No rule-wide suppressions; actual input/resource/supply-chain gaps are fixed in code.
 version: 2
 scanner_version: 2.11.2
-rules: []
+rules:
+- id: PE3
+  path: references/complexa-cli.md
+  message: ".env\n"
+  reason: The matched text is the comment describing complexa init writing its own configuration file.
+    This exception is limited to that literal evidence in this setup reference; it does not allow
+    credential-file access elsewhere. LLM annotations change exact fingerprints for the same comment.
+- id: PE3
+  path: references/setup.md
+  message: ".env "
+  reason: The matched text is the comment describing complexa init writing its own configuration file.
+    This exception is limited to that literal evidence in this setup reference; it does not allow
+    credential-file access elsewhere. LLM annotations change exact fingerprints for the same comment.
+- id: PE3
+  path: scripts/validate_binders.py
+  message: '.env"'
+  reason: The matched text is the comment documenting optional dotenv configuration. The reader accepts
+    only NVIDIA_API_KEY or NGC_API_KEY as text, with environment precedence and no shell evaluation or
+    logging. Local mode never loads credentials; hosted credentials go only to the validated NVIDIA
+    HTTPS host with redirects blocked. This exception matches only this file and literal evidence,
+    including when LLM annotations change the finding fingerprint. Re-review if credential handling changes.
 fingerprints:
 - hash: sha256:551b4fe6ad88369046dd4ebd868cd1f86f5117fb9598d8e07e0a57ba4dca2629
   rule_id: AST4
@@ -75,25 +96,8 @@ fingerprints:
   file: BENCHMARK.md
   reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
     code or instruction reads peer skills. Historical evidence is retained unchanged.
-- hash: sha256:bd97ee0bd55fd446abf787947cfb41996ed344881724cadb3b7a2348b3e756fd
-  rule_id: PE3
-  file: references/complexa-cli.md
-  reason: The comment describes the trusted upstream complexa init command writing its own configuration
-    file. It does not instruct credential harvesting or read unrelated secret stores.
 - hash: sha256:241d2a29b9762d4171c4f682215d4684727c5fcdc1f02b8bbee1d57d7f9d5922
   rule_id: PE2
   file: references/setup.md
   reason: chmod 700 restricts one named user-owned cache and grants no elevated privilege. The container
     runs with the caller's UID/GID. No sudo, recursive chmod or wildcard is used.
-- hash: sha256:11bc993db92e81207f8dd759c6e17691bb8de533ebdf7e89c3aa16bd31608a32
-  rule_id: PE3
-  file: references/setup.md
-  reason: The comment describes the trusted upstream complexa init command writing its own configuration
-    file. It does not instruct credential harvesting or read unrelated secret stores.
-- hash: sha256:2b3c38418c0cf1b9ad1b621dc68c5bb8ae511a8a1992b6e169730c4bb600d8d7
-  rule_id: PE3
-  file: scripts/validate_binders.py
-  reason: Optional documented dotenv configuration is parsed as text for NVIDIA_API_KEY or NGC_API_KEY
-    only, without shell evaluation or logging. Environment values take precedence. Local mode never loads
-    credentials; hosted credentials are sent only to the NVIDIA HTTPS host with redirects blocked. Synthetic-key
-    tests cover precedence and unrelated entries.
