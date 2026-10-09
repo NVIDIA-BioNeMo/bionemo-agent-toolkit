@@ -13,7 +13,7 @@ description: >
   env` end-to-end, edits the required `.env` keys, picks the right runtime (UV
   vs Docker), and emits a replayable setup artifact.
 compatibility: "complexa CLI installed (pip install -e .); bash 4+; nvidia-smi optional"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # Complexa Setup Skill

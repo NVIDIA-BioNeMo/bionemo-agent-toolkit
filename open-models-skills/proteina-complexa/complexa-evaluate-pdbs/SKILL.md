@@ -12,7 +12,7 @@ description: >
   evaluate → analyze chain, parses the result CSV, and reports pass-rates against
   the right result_type thresholds.
 compatibility: "complexa CLI installed (pip install -e .); CUDA GPU; AF2_DIR (colabdesign) or RF3_CKPT_PATH+RF3_EXEC_PATH (rf3_latest); ESMFold weights for monomer paths"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # Complexa Evaluate-PDBs Skill

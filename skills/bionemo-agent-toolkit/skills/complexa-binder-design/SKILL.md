@@ -4,7 +4,7 @@ description: >
   Run a complete protein binder design campaign with NVIDIA Proteina-Complexa: resolve a target structure and hotspots from a name/sequence/PDB, co-design binder sequence+structure with reward-guided test-time search (best-of-n, beam search, FK steering, MCTS), select with the internal AF2 reward gate, then INDEPENDENTLY validate each binder by refolding the complex with Boltz2 (default) or OpenFold3 and rank on interface confidence, pLDDT, ipSAE, apo/holo stability, and hotspot contact. Use whenever the user wants de novo binders against a named target, sequence, or PDB, hotspot/epitope-targeted design, Proteina-Complexa / Complexa, or ranked validated binders from one request. Sibling of protein-binder-design (RFdiffusion + ProteinMPNN); this skill uses Proteina-Complexa.
 license: Apache-2.0
 compatibility: "python>=3.10; numpy>=1.24; biotite (target prep + Boltz2 templates); pyyaml (target registration)"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 permissions:
   - env      # reads NVIDIA_API_KEY/NGC_API_KEY, COMPLEXA_*, BOLTZ2_URL, AF2_DIR
   - network  # Boltz2 (health.api.nvidia.com), RCSB, ColabFold MSA, AlphaFold params

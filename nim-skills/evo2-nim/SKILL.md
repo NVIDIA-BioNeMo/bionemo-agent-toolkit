@@ -4,7 +4,7 @@ description: >
   Generate and analyze DNA sequences using NVIDIA's Evo 2 BioNeMo NIM microservice. Use for Evo2/Evo 2, DNA generation, genomic sequence generation, hosted generation, local Docker deployment, local forward passes, layer outputs, logits, sampled probabilities, and BioNeMo NIM workflows.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28; numpy>=1.24"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # Evo 2 NIM
