@@ -41,7 +41,6 @@ Exit codes: 0 tables written (including failed designs), 2 invalid/missing input
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
 import os
@@ -55,16 +54,7 @@ from pathlib import Path
 
 import numpy as np
 
-# ----------------------------------------------------------------------------- gate defaults
-GATE = {
-    "ipsae_min": ("min", 0.45),
-    "iptm": ("min", 0.65),
-    "binder_plddt": ("min", 0.70),
-    "complex_plddt": ("min", 0.70),
-    "apo_binder_plddt": ("min", 0.70),
-    "binder_rmsd": ("max", 2.50),
-    "hotspot_contact_frac": ("min", 0.20),
-}
+from binder_ranking import GATE, evaluate_gate, rank_rows, write_rankings
 
 from boltz2_endpoint import HOSTED_URL, LOCAL_URL, open_prediction, validate_endpoint
 from execution import bounded_int
@@ -305,23 +295,6 @@ def boltz2_predict_apo(seq: str, url: str, api_key: str | None,
     raise last if last else RuntimeError("apo prediction retries exhausted")
 
 
-# ----------------------------------------------------------------------------- gating
-def evaluate_gate(metrics: dict, hotspot_conditioned: bool) -> tuple[bool, str | None]:
-    reasons = []
-    for key, (mode, thr) in GATE.items():
-        if key == "hotspot_contact_frac" and not hotspot_conditioned:
-            continue
-        val = metrics.get(key)
-        if isinstance(val, (bool, np.bool_)) or not isinstance(val, (int, float, np.integer, np.floating)) or not np.isfinite(val):
-            reasons.append(f"{key}=NA (not measured)")
-            continue
-        if mode == "min" and val < thr:
-            reasons.append(f"{key}={val:.3f} < {thr}")
-        elif mode == "max" and val > thr:
-            reasons.append(f"{key}={val:.3f} > {thr}")
-    return (len(reasons) == 0), ("; ".join(reasons) if reasons else None)
-
-
 # ----------------------------------------------------------------------------- main
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -495,30 +468,9 @@ def main() -> int:
             rec["failure_reason"] = f"scoring error: {e}"
         rows.append(rec)
 
-    # ---- rank: passers first, then ipTM and ipSAE_min (missing values last) ----
-    def sort_key(r):
-        def descending(key):
-            value = r.get(key)
-            return -value if isinstance(value, (int, float)) and np.isfinite(value) else float("inf")
-        return (not r.get("pass", False),
-                descending("iptm"), descending("ipsae_min"))
-    rows.sort(key=sort_key)
-    for i, r in enumerate(rows, 1):
-        r["rank"] = i
-
+    rows = rank_rows(rows)
+    write_rankings(rows, run_dir)
     val_dir = run_dir / "validation"
-    (val_dir / "validation_scores.json").write_text(json.dumps(rows, indent=2))
-    (run_dir / "ranked_binders.json").write_text(json.dumps(rows, indent=2))
-
-    csv_cols = ["rank", "name", "batch_id", "pass", "ipsae_min", "ipsae_max", "iptm",
-                "binder_plddt", "complex_plddt", "apo_binder_plddt", "binder_rmsd",
-                "hotspot_contact_frac", "binder_len", "apo_status", "failure_reason"]
-    for path in (val_dir / "validation_scores.csv", run_dir / "ranked_binders.csv"):
-        with open(path, "w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=csv_cols, extrasaction="ignore")
-            w.writeheader()
-            for r in rows:
-                w.writerow({k: r.get(k) for k in csv_cols})
 
     n_pass = sum(1 for r in rows if r.get("pass"))
     print(f"Scored {len(rows)} designs; {n_pass} PASS the gate "

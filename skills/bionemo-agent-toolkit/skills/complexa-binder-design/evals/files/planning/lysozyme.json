@@ -1,0 +1,32 @@
+{
+  "target": {
+    "name": "hen egg-white lysozyme",
+    "pdb_id": "1LYZ",
+    "chain": "A"
+  },
+  "epitope": {
+    "mode": "explicit_patch"
+  },
+  "goal": {
+    "kind": "passing_candidates",
+    "count": 5
+  },
+  "generation": {
+    "algorithm": "best-of-n",
+    "num_samples": 10,
+    "seed": 0
+  },
+  "validation": {
+    "refolder": "boltz2",
+    "endpoint": "hosted"
+  },
+  "availability": {
+    "gpu": false,
+    "complexa": false,
+    "checkpoints": false,
+    "af2_params": false,
+    "refolder": false,
+    "structure": false
+  },
+  "max_rounds": 2
+}

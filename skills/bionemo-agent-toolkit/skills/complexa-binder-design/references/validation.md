@@ -5,6 +5,31 @@ Complexa's internal scoring. Extract binder + target sequences, re-fold, score
 the interface, gate, rank. Use a **single refolder** (Boltz2 default; OpenFold3
 optional - do not run both). Endpoints/auth: read `boltz2-nim` / `openfold3-nim`.
 
+## Saved metric review
+
+When measurements have already been exported, `scripts/binder_ranking.py` applies
+the same gate and ordering as `validate_binders.py` without making predictions:
+
+```bash
+python scripts/binder_ranking.py --scores saved_scores.json --out outputs/review
+```
+
+The input is a JSON object with `evidence_kind` (`saved_metrics` or `synthetic`),
+boolean `hotspot_conditioned`, positive integer `requested`, and `scores`, a list
+of records with unique `name` values and the metric keys in the gate below.
+Retain any upstream `failure_reason`; it prevents old scores from rescuing a
+failed prediction. Invalid/missing values fail rather than being coerced. This
+review uses supplied measurements; it does not establish their provenance or
+perform new independent structural validation. Synthetic inputs must retain that
+label. Use a new output directory; the command refuses to overwrite an old run.
+
+The complete audit is written to ranked JSON/CSV and validation score JSON/CSV.
+`summary.json` and `REPORT.md` disclose the input hash, unchanged gate, requested,
+evaluated, passed and delivered counts, quota decision and saved-score exhaustion.
+The requested quota must be met for GO; failed rows remain visibly failed even
+when fewer passers are available. No new scientific binding claim follows from
+re-ranking either saved or synthetic metrics.
+
 ## Per-chain conditioning policy
 
 "De novo" applies to the **binder**, not the target.

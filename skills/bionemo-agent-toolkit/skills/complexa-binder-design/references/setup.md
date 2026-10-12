@@ -173,8 +173,27 @@ NVIDIA auth. Prediction redirects are disabled for both modes.
 
 ```bash
 bash scripts/check_setup.sh                       # one-shot readiness checklist
+bash scripts/check_setup.sh --prepare-only        # CPU preparation prerequisites only
 python scripts/preflight_design.py <target>       # Stage 1 end-to-end (no GPU)
 ```
+
+The checklist exits 1 when a required prerequisite is absent. Its default checks
+the standard checkpoint locations, CUDA in the selected Python environment,
+configured AF2 directory, ipSAE presence and hosted credential presence. Pass
+`--af2-bypass` and/or `--endpoint local` only for a campaign using those choices;
+the generation/refold commands still need their corresponding options. Activate
+the generation environment, or set `PYTHON` to that interpreter, before a full
+check. Custom checkpoint overrides, model configuration and endpoint health need
+separate verification; this inventory does not run inference or prove readiness
+of a remote service. No credential value is printed.
+
+On an unprovisioned CPU sandbox, run local preparation or review existing results
+and report the blocked generation/validation stage. Do not repeatedly probe the
+same missing runtime, launch installations that cannot supply the missing GPU,
+retry failed downloads through ad hoc commands, or disable certificate checks.
+Stage local structure files and reviewed hotspots before starting a restricted
+evaluation. CPU workflow evaluation and deferred GPU integration are described in
+[the evaluation coverage notes](../evals/README.md).
 
 ## 8. End-to-end quickstart (no NIM)
 
