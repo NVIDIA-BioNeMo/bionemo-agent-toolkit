@@ -1,0 +1,17 @@
+{
+  "name": "genomics-workflow-acceleration",
+  "subpath": "skills/genomics-workflow-acceleration",
+  "type": "dir",
+  "resolved_sha": "15d907bfa8038f90806d2761c8ae2976bc3dba66",
+  "generated_by": "build_repo/autogenerate.py",
+  "files": [
+    "SKILL.md",
+    "references/comparison-checklist.md",
+    "references/nf-core-parabricks-map.md",
+    "references/parabricks-runtime-readiness.md",
+    "references/parabricks-tool-map.md",
+    "references/step-consolidation.md",
+    "references/workflow-frameworks.md",
+    "references/workflow-layout.md"
+  ]
+}
