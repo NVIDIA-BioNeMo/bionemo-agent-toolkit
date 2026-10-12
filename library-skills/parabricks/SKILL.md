@@ -68,7 +68,7 @@ This skill routes and guides Parabricks commands. It does not install
 Parabricks, infer missing sample metadata, guarantee output parity, provide
 clinical interpretation, or promise exact runtime without benchmark data.
 
-## Workflow
+## Instructions
 
 1. Confirm the Parabricks version or container tag. These references track the
    current published docs and were last verified against v4.7.1. Use the user's
@@ -154,7 +154,9 @@ shape and flags.
 for recent Parabricks releases. Verify in NVIDIA docs or MCP before routing
 CRAM v3.1 inputs to other tools.
 
-## Runtime Readiness
+## Examples
+
+### Runtime Readiness
 
 For GPU, driver, Docker, container, storage, or installation questions, read
 [runtime-environment.md](references/runtime-environment.md) and prefer:
@@ -166,7 +168,7 @@ bash skills/parabricks/scripts/check_parabricks_runtime.sh
 Add `--path <dir>` for known input/output/tmp paths. Run container probes only
 with user consent.
 
-## Command Shape
+### Command Shape
 
 ```bash
 docker run --rm --gpus all \
