@@ -22,7 +22,7 @@ from binder_ranking import GATE, evaluate_gate, rank_saved_scores  # noqa: E402
 spec = importlib.util.spec_from_file_location("complexa_artifact_grader", SKILL / "evals/grader.py")
 GRADER = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(GRADER)
-CASES = {c["id"]: c for c in json.loads((SKILL / "evals/evals.json").read_text())["evals"]}
+CASES = {c["id"]: c for c in json.loads((SKILL / "evals/deferred/cpu-artifacts.json").read_text())["evals"]}
 
 
 def write_json(path, data):
@@ -197,6 +197,8 @@ class OfflineTier3Tests(unittest.TestCase):
         archived = json.loads((SKILL / "evals/deferred/live-campaigns.json").read_text())["evals"]
         self.assertEqual(len(archived), 4)
         self.assertFalse({c["id"] for c in archived} & CASES.keys())
+        active = json.loads((SKILL / "evals/evals.json").read_text())["evals"]
+        self.assertFalse({c["id"] for c in active} & CASES.keys())
 
     def test_empty_ranking_and_preservation_of_existing_output(self):
         source = self.workspace / "scores.json"

@@ -5,7 +5,7 @@ harbor:
   agents:
     claude-code:
       model: aws/anthropic/bedrock-claude-opus-5
-  # Active tasks are offline; forward no model credentials.
+  # Planning uses standard Python in the default sandbox; forward no model credentials.
 
 grading:
   mode: aces_plus_custom

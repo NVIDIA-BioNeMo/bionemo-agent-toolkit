@@ -4,6 +4,7 @@
 import copy
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -42,7 +43,11 @@ class CampaignPlanningTests(unittest.TestCase):
         self.assertEqual(result["custom_metrics"]["artifact_correctness"], expected, result["details"])
 
     def test_plans_execute_with_standard_python_only_and_pass_independent_grader(self):
-        for case in GRADER.PLANNING_CASES:
+        # A Dockerfile selects the managed image builder even for CPU tasks.
+        self.assertFalse((SKILL / "evals/environment/Dockerfile").exists())
+        positive_cases = {case for case, entry in CASES.items() if entry.get("expected_skill")}
+        self.assertEqual(positive_cases, set(GRADER.PLANNING_CASES))
+        for case in sorted(positive_cases):
             with self.subTest(case=case):
                 source, output = self.stage(case)
                 # -S excludes scientific site-packages; the network guard catches
@@ -54,6 +59,18 @@ class CampaignPlanningTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assert_grade(case, 1.)
                 self.assertEqual({p.name for p in output.iterdir()}, {"campaign_plan.json", "PLAN.md"})
+                tests = self.workspace / "tests"
+                tests.mkdir(exist_ok=True)
+                (tests / "entry.json").write_text(json.dumps({"id": case}))
+                verifier = self.workspace / "verifier" / case
+                reward = verifier / "reward.json"
+                env = {**os.environ, "HARBOR_TESTS_DIR": str(tests), "HARBOR_VERIFIER_DIR": str(verifier),
+                       "HARBOR_REWARD_JSON": str(reward), "COMPLEXA_EVAL_WORKSPACE": str(self.workspace)}
+                checked = subprocess.run([sys.executable, "-B", "-S", "-c", guard,
+                                          str(SKILL / "evals/grader.py")], env=env,
+                                         capture_output=True, text=True, timeout=15, shell=False)
+                self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+                self.assertEqual(json.loads(reward.read_text())["custom_metrics"]["artifact_correctness"], 1.)
 
     def test_verifier_rejects_plans_that_change_intent_or_claim_execution(self):
         case = "planning-lysozyme-patch"

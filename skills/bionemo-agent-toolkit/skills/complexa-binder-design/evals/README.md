@@ -1,10 +1,14 @@
 # Tier 3 coverage
 
-The active CPU suite evaluates **campaign planning when the model runtime is
-unavailable**, plus executable CPU preparation and saved-result checks. Inputs and
-dependencies are identical in both conditions. It does not test generation or live
-independent refolding. All fixture coordinates and scores are synthetic. The
-original four cases are preserved byte-for-byte in `deferred/live-campaigns.json`,
+The active suite evaluates **campaign planning when the model runtime is
+unavailable**, plus one negative routing case. The planner and artifact grader use
+only standard Python in the existing sandbox image, with the same inputs in both
+conditions. No custom Dockerfile, package installation, GPU or model credentials
+are required. It does not test structure preparation, generation or independent
+refolding. The four CPU execution cases are preserved in
+`deferred/cpu-artifacts.json` and remain covered by local regression tests. Their
+fixture coordinates and scores are synthetic. The original four live campaign
+cases are preserved byte-for-byte in `deferred/live-campaigns.json`,
 with their original configuration in `deferred/config.yml`; they are not active
 coverage. Planning success is distinct from completion of a scientific campaign.
 
@@ -20,23 +24,25 @@ excluded that agent from scored coverage; it was not a measured quality zero.
 | `planning-pdl1-blocked` | Preserve 5JDR/A, beam-search and exactly eight generated candidates in a blocked, bounded plan; request epitope evidence. |
 | `planning-barnase-interface` | Plan sequence/structure co-design for 1BRS/A and independent validation; require verification of the barstar partner chain. |
 | `planning-lysozyme-patch` | Preserve the desired five passing binders for 1LYZ/A, request the missing patch, and cap attempts without guaranteeing passers. |
-| `offline-interface-preflight` | Derive one interface and save exact target/hotspot geometry. |
-| `offline-missing-epitope` | Detect an absent explicit patch and save a failed preflight without substitutes. |
-| `offline-independent-ranking` | Apply all unchanged gates; preserve missing/failing evidence; rank and report a quota shortfall. |
-| `offline-interrupted-validation` | Reject stale responses, retain current failures/missing results, preserve raw evidence and replace stale rankings. |
 | `routing-gromacs-guidance` | Provide bounded MD guidance with no binder workflow, installations or simulation. |
 
-New case IDs and a new dataset digest make this a new coverage profile. Do not
+The planning profile has its own dataset digest and coverage scope. Do not
 compare its aggregate as a like-for-like improvement over the old live campaign
-score. Compare per-agent results and report offline coverage explicitly.
+score or the preceding eight-case CPU profile. Compare per-agent results and
+report planning coverage explicitly.
 
-`environment/Dockerfile` installs the pinned CPU dependencies before the task in
-both conditions. The active config forwards no model keys. All paths in `files`
-are staged under `/workspace/input/`; outputs go under `/workspace/output/`.
+The preceding eight-case profile added a custom Dockerfile for scientific CPU
+dependencies. That triggered Astra's managed image builder, and the October 12 CI
+attempt stopped at builder authentication before any agent tests ran. The active
+planning profile uses the default sandbox and does not invoke that image builder;
+normal sandbox and agent API access are still required. No `nvcarps-ci` changes
+are needed for this profile.
+
+The active config forwards no model keys. All paths in `files` are staged under
+`/workspace/input/`; outputs go under `/workspace/output/`.
 The three planning requests explicitly supply the unavailable-runtime facts so
-agents need no repeated readiness probes. They use standard Python only; the
-scientific CPU dependencies are for the four supporting execution cases. Each
-plan must preserve the user's intent, explain missing inputs/runtime, order future
+agents need no repeated readiness probes. Each plan must preserve the user's
+intent, explain missing inputs/runtime, order future
 stages, retain independent holo/apo gates and record finite budgets/stops. The
 scientific decision stays NOT_EVALUATED, with no generated candidates or metrics.
 No task depends on another trial's artifacts. The negative case requests guidance
@@ -45,10 +51,11 @@ explicitly, so running a long simulation is outside its scope.
 `grading.mode: aces_plus_custom` retains the ACES trajectory judges and adds
 `grader.py`, which imports no skill code and verifies saved artifacts against
 pinned fixture bytes and independently calculated results. It checks the actual
-plan semantics, PDB geometry, gates, rank order, complete failure audit, raw evidence
-preservation and coverage labels. Mutation tests ensure fabricated execution,
-changed targets, missing blockers, unbounded plans and wrong scores do not pass. The guidance
-case has no artifact metric and is judged by the trajectory rubric.
+plan semantics, unchanged future validation gates, finite budgets and coverage
+labels. It also supports the deferred CPU artifact cases. Mutation tests ensure
+fabricated execution, changed targets, missing blockers and unbounded plans do not
+pass. The guidance case has no artifact metric and is judged by the trajectory
+rubric.
 
 SkillEvaluator 1.5.6 does not use this custom artifact metric as its headline
 gate. Inspect `artifact_correctness` in each positive trial's custom reward;
@@ -56,7 +63,31 @@ an ACES pass with incorrect artifacts does not establish workflow completion.
 Local regression tests do not establish live-agent scores or lift:
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -B -S -m unittest discover -s tests -p test_campaign_planning.py -v
+```
+
+## Optional CPU execution coverage
+
+`deferred/cpu-artifacts.json` retains these cases unchanged. They are outside the
+default Tier 3 dataset and need a CPU environment with NumPy 2.5.1, Biotite 1.7.1
+and PyYAML 6.0.3 provisioned before running the tests. Keep these dependencies and
+fixtures identical in both conditions if reactivating this separate agent profile.
+Paths in its `files` entries remain relative to the skill root; use the shared
+`grader.py` and `aces_plus_custom` grading. Do not mix its results into the
+planning-only score.
+
+| Deferred case | Required deliverable |
+| --- | --- |
+| `offline-interface-preflight` | Derive one interface and save exact target/hotspot geometry. |
+| `offline-missing-epitope` | Detect an absent explicit patch and save a failed preflight without substitutes. |
+| `offline-independent-ranking` | Apply all unchanged gates; preserve missing/failing evidence; rank and report a quota shortfall. |
+| `offline-interrupted-validation` | Reject stale responses, retain current failures/missing results, preserve raw evidence and replace stale rankings. |
+
+With those dependencies already installed, the existing execution and mutation
+tests run locally without model inference or network access:
+
+```bash
+python3 -m unittest discover -s tests -p test_tier3_offline.py -v
 ```
 
 ## Restoring live campaign evaluation
