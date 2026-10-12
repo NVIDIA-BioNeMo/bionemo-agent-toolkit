@@ -1,42 +1,40 @@
 # Parabricks prepon
 
-Prepare an existing panel-of-normals (PON) resource for `mutectcaller --pon`.
-Collect the PON VCF.GZ and its tabix index. Check that contig headers include
-chromosome names and lengths, and that the PON matches the calling reference.
-Confirm the generated index location and its accessibility to Mutect. This
-indexes a PON; it neither creates the panel from samples nor prepares a
-pangenome graph.
+Use this reference for NVIDIA Parabricks `pbrun prepon` — pangenome-aware panel-of-normals preprocessing for somatic variant workflows.
+
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
+## First Steps
+
+1. Confirm the Parabricks version or container tag.
+2. Confirm the user is preparing inputs for a pangenome-aware workflow.
+3. Collect required inputs for the selected version:
+   - Reference and pangenome graph/resource bundle.
+   - Input reads/alignments or intermediate files.
+   - Output directory or intermediate output paths.
+4. Ask which downstream tool will consume the output:
+   `pangenome_germline`, `pangenome_aware_deepvariant`, or another workflow.
+5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 ```bash
-pbrun prepon \
-  --in-pon-file /workdir/<panel_of_normals.vcf.gz>
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun prepon \
+  <version-specific-input-options> \
+  <version-specific-output-options>
 ```
 
-## Header Repair and Calling Handoff
-
-For **4.7.0**, a tabix index alone is insufficient: `prepon` creates the
-additional `.pon` resource required by `mutectcaller --pon`. The calling flag
-still takes the **PON VCF.GZ path**, not the generated `.pon` file.
-
-If contig lengths are missing, use the matching reference's `.fai` to repair
-the header in a new PON copy, for example with `bcftools reheader --fai
-<reference.fa.fai> --output <new-panel.vcf.gz> <original-panel.vcf.gz>`.
-Confirm the reference sequence/build and contig names agree before replacing
-header metadata; reheadering cannot convert assemblies. Preserve the original,
-choose unused output paths, and create a **new tabix index** for the changed
-VCF, for example `bcftools index --tbi <new-panel.vcf.gz>`.
-
-Run `prepon` on the repaired, indexed PON before
-[mutectcaller](pbrun-mutectcaller.md). Then use
-[postpon](pbrun-postpon.md) with the caller's VCF and the same PON VCF.GZ to
-produce PON INFO annotations. These steps consume an existing panel; they do
-not construct one from normal-sample BAMs.
+Verify exact resource and intermediate file flags against the selected version.
 
 ## Panel-of-Normals Preprocessing Option Mapping
 
-Parabricks documents `prepon` as a preprocessing step for PON
+Use this mapping when translating panel-of-normals setup around GATK Mutect2 to
+`pbrun prepon`. Parabricks documents `prepon` as a preprocessing step for PON
 use with `mutectcaller`, rather than a direct standalone GATK tool clone.
 
 | Baseline option | `pbrun prepon` equivalent | Notes |
@@ -45,12 +43,33 @@ use with `mutectcaller`, rather than a direct standalone GATK tool clone.
 | Generated PON index/intermediate | Default/version-specific `prepon` output | Verify output behavior in the selected version; some docs show no explicit output flag. |
 | Docker volume/workdir options | Docker `--volume` / `--workdir` outside `pbrun` | Container launch options, not `pbrun prepon` flags. |
 | GATK `CreateSomaticPanelOfNormals` options | No direct equivalent | `prepon` preprocesses an existing PON resource for Parabricks use. |
-| GATK engine/common flags | No direct equivalent | Not documented for this tool. |
-| — | Version-specific PON index/intermediate behavior | Creates resources consumed by `mutectcaller`. |
+| GATK engine/common flags | No direct equivalent | Not exposed by current Parabricks docs for `prepon`. |
+
+If a PON-related GATK option is not listed above, assume there is no direct
+`pbrun prepon` flag until the selected Parabricks version's tool reference says
+otherwise.
+
+## prepon Options Without Panel-of-Normals Equivalents
+
+| `pbrun prepon` option | Why it has no direct GATK equivalent |
+| --- | --- |
+| Version-specific PON index/intermediate behavior | Parabricks creates resources consumed by `mutectcaller`. |
+| `--num-gpus` | Parabricks GPU count. |
+
+
+Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
+
+## Validation
+
+- Required graph/reference resources are complete.
+- Output intermediate files exist and match the downstream workflow.
+- Logs do not show graph resource, reference, mount, CUDA, or memory errors.
+
+## Guardrails
+
+- Do not use for standard linear-reference preprocessing.
+- Do not invent downstream compatibility; ask which pangenome workflow follows.
 
 ## Key References
 
-- [Parabricks 4.7.0 prepon manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_prepon.html)
-- [Parabricks 4.7.0 mutectcaller manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_mutectcaller.html)
-- [Parabricks 4.7.0 postpon manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_postpon.html)
-- [bcftools reheader and index options](https://samtools.github.io/bcftools/bcftools.html)
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/prepon>

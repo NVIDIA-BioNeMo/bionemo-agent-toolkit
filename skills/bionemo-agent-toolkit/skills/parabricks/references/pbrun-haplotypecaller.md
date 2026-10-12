@@ -1,57 +1,57 @@
 # Parabricks haplotypecaller
 
-Collect prepared aligned reads, reference FASTA, and a VCF or gVCF destination.
-Clarify intervals, ploidy, and emission mode as needed, and inspect interval
-errors. Establish input recalibration history before stating that BQSR has
-been performed. For a pipeline starting from FASTQ, use
-[germline](pbrun-germline.md). Somatic tumor-normal analysis needs a somatic
-caller rather than HaplotypeCaller.
+Use this reference for NVIDIA Parabricks `pbrun haplotypecaller` — GATK HaplotypeCaller-style germline variant calling from aligned BAM/CRAM to VCF or gVCF.
+
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
+## First Steps
+
+1. Confirm the Parabricks version or container tag.
+2. Confirm the user has aligned BAM/CRAM input. If starting from FASTQ and
+   wanting a pipeline, consider `pbrun-germline.md`.
+3. Collect required inputs:
+   - Reference FASTA.
+   - Input BAM/CRAM.
+   - Output VCF or gVCF.
+4. Ask for intervals, ploidy, emit mode, gVCF mode, and logs only when relevant.
+5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 ```bash
-pbrun haplotypecaller \
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun haplotypecaller \
   --ref /workdir/<reference.fa> \
   --in-bam /workdir/<input.bam> \
   --out-variants /outputdir/<sample.vcf.gz>
 ```
 
-## Recalibration and GATK Pass-Through
-
-A BQSR report records recalibration parameters; creating the report does not
-apply them to the existing BAM. When calling directly from the BAM and its
-matching report, pass `--in-recal-file` to HaplotypeCaller. It uses recalibrated
-qualities during calling without requiring a separate recalibrated BAM. If
-the BAM has already had that report applied, do not apply it a second time.
-
-For gVCF output, add `--gvcf`; a `.g.vcf.gz` filename alone does not select the
-emission mode. Keep caller settings separate from top-level Parabricks flags:
-in **4.7.0**, supported pass-through settings belong in one quoted
-`--haplotypecaller-options` value. Its documented options use **one leading
-hyphen**, except `--output-mode`, which uses two. For example:
-
-```bash
-  --haplotypecaller-options="-min-pruning <value> -pcr-indel-model <model>"
-```
-
-Use only the options and values documented for the selected release; this
-is not an unrestricted GATK argument pass-through.
+Verify exact VCF/gVCF, interval, ploidy, and output flags against the selected
+version.
 
 ## HaplotypeCaller Option Mapping
 
-Parabricks v4.7.0 documents this as a
+Use this mapping when translating a GATK `HaplotypeCaller` command to
+`pbrun haplotypecaller`. Parabricks documents this as a
 GPU-accelerated HaplotypeCaller counterpart, but the CLI is not one-to-one:
 some GATK flags are direct Parabricks flags, while other supported original
 HaplotypeCaller options must be passed through `--haplotypecaller-options`.
 
 | GATK option | `pbrun haplotypecaller` equivalent | Notes |
 | --- | --- | --- |
+| `--reference`, `-R` | `--ref` | Required reference FASTA path. |
 | `--input`, `-I` | `--in-bam` | Required BAM/CRAM input. |
 | `--output`, `-O` | `--out-variants` | Required VCF/gVCF output. |
 | `--bqsr-recal-file` via prior `ApplyBQSR` | `--in-recal-file` | Optional BQSR report input; Parabricks applies updated qualities internally. |
+| `--intervals`, `-L` | `--interval` or `--interval-file` | Parabricks separates inline intervals from interval files. |
 | `--exclude-intervals`, `-XL` | `--exclude-intervals`, `-XL` | Same exclude-interval role. |
+| `--interval-padding`, `-ip` | `--interval-padding`, `-ip` | Same padding role. |
 | `--emit-ref-confidence GVCF` | `--gvcf` | Generate gVCF output. |
-| `--sample-ploidy` | `--ploidy` | Currently documents haploid and diploid support. |
+| `--sample-ploidy` | `--ploidy` | Parabricks currently documents haploid and diploid support. |
 | `--annotation`, `-A`; `--annotations-to-exclude`, `-AX`; `--output-mode`; selected assembly/calling knobs | `--haplotypecaller-options` | Pass supported original HaplotypeCaller options as one string. |
 | `--annotation-group`, `-G` | `--annotation-group`, `-G` | Supported annotation group output. |
 | `--gvcf-gq-bands`, `-GQB` | `--gvcf-gq-bands`, `-GQB` | Reference-confidence GQ bands. |
@@ -62,15 +62,40 @@ HaplotypeCaller options must be passed through `--haplotypecaller-options`.
 | `--max-alternate-alleles` | `--max-alternate-alleles` | Same genotyping cap role. |
 | `--disable-read-filter` | `--disable-read-filter` | Limited to filters documented by the selected Parabricks version. |
 | `--native-pair-hmm-threads`, `--java-options`, GATK engine/common flags | No direct equivalent | Not exposed as GATK engine controls by current Parabricks docs. |
-| — | `--htvc-bam-output` | Output for assembled haplotypes. |
-| — | `--htvc-alleles` | Force-call VCF input naming for the HTVC path. |
-| — | `--rna` | RNA-optimized mode. |
-| — | `--adaptive-pruning` | Parabricks-exposed graph pruning control. |
-| — | `--force-call-filtered-alleles` | Force-calling behavior tied to its documented allele input. |
-| — | `--filter-reads-too-long`, `--no-alt-contigs` | Read/contig filtering conveniences. |
-| — | `--sample-sex`, `--range-male`, `--range-female`, `--use-GRCh37-regions` | Sex-chromosome handling controls. |
-| — | `--htvc-low-memory`, `--num-htvc-threads`, `--run-partition`, `--gpu-num-per-partition` | GPU/partition performance controls. |
+
+If a GATK `HaplotypeCaller` option is not listed above, assume there is no
+direct `pbrun haplotypecaller` flag until the selected Parabricks version's
+tool reference says otherwise.
+
+## haplotypecaller Options Without HaplotypeCaller Equivalents
+
+| `pbrun haplotypecaller` option | Why it has no GATK HaplotypeCaller equivalent |
+| --- | --- |
+| `--htvc-bam-output` | Parabricks output for assembled haplotypes. |
+| `--htvc-alleles` | Parabricks force-call VCF input naming for the HTVC path. |
+| `--rna` | Parabricks RNA-optimized mode. |
+| `--adaptive-pruning` | Parabricks-exposed graph pruning control. |
+| `--force-call-filtered-alleles` | Parabricks force-calling behavior tied to its documented allele input. |
+| `--filter-reads-too-long`, `--no-alt-contigs` | Parabricks read/contig filtering conveniences. |
+| `--htvc-low-memory`, `--num-htvc-threads`, `--num-streams-per-gpu`, `--run-partition`, `--gpu-num-per-partition` | Parabricks GPU/partition performance controls. `--num-streams-per-gpu` default 1. |
+| `--num-gpus` | Parabricks GPU count. |
+
+
+Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
+
+## Validation
+
+- BAM/CRAM and reference match.
+- Output VCF/gVCF exists and is indexed when requested.
+- Logs do not show reference mismatch, malformed intervals, mount, CUDA, or
+  memory errors.
+
+## Guardrails
+
+- Do not use for somatic tumor/normal calling.
+- Do not claim BQSR was performed unless input was already recalibrated or the
+  selected pipeline did so.
 
 ## Key References
 
-- [Parabricks 4.7.0 HaplotypeCaller manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_haplotypecaller.html)
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/haplotypecaller>

@@ -1,12 +1,40 @@
 # Parabricks deepsomatic
 
-Confirm the supported tumor-normal or tumor-only design. Collect tumor reads,
-normal reads where applicable, reference FASTA, output location, and required
-model bundle. Establish sample roles explicitly, and ask about intervals or
-candidate resources when needed. Validate model suitability for the assay as
-well as reference compatibility; investigate model and sample-label errors.
-Use this for somatic analysis, not germline DeepVariant. Sensitivity or
-specificity claims require comparable validation data.
+Use this reference for NVIDIA Parabricks `pbrun deepsomatic` — DeepSomatic-based somatic variant calling from tumor (and optional normal) BAM/CRAM to VCF/gVCF.
+
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
+## First Steps
+
+1. Confirm the Parabricks version or container tag.
+2. Confirm the somatic analysis design: tumor-normal or tumor-only if supported
+   by the selected version.
+3. Collect required inputs:
+   - Reference FASTA.
+   - Tumor BAM/CRAM.
+   - Normal BAM/CRAM when applicable.
+   - Output VCF/gVCF or output directory.
+   - Model or resource bundle when required by the selected version.
+4. Ask for intervals, sample names, optional candidate resources, and logs only
+   when relevant.
+5. For runtime readiness, see `runtime-environment.md`.
+
+## Command Shape
+
+```bash
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun deepsomatic \
+  --ref /workdir/<reference.fa> \
+  <version-specific-tumor-normal-inputs> \
+  <version-specific-output-options>
+```
+
+Verify exact input, model, output, interval, and sample-label flags against the
+selected version before finalizing.
 
 ## Gotchas
 
@@ -14,13 +42,41 @@ Parabricks DeepSomatic `--gvcf` option actually produces both .g.vcf and .vcf fi
 
 ## DeepSomatic Option Mapping
 
-Parabricks v4.7.0 documents DeepSomatic as the
-Google counterpart with TensorRT-accelerated model inference.
+Use this when translating Google DeepSomatic to `pbrun deepsomatic`. Shared
+DeepSomatic mappings (--ref, `--out-variants`, model modes, intervals, models,
+and shard/stream controls) for `deepsomatic` are in
+[shared-options.md](shared-options.md).
 
 | Google DeepSomatic option | `pbrun deepsomatic` equivalent | Notes |
 | --- | --- | --- |
 | `--reads_tumor` | `--in-tumor-bam` | Required tumor BAM/CRAM input. |
-| `--reads_normal` | `--in-normal-bam` | Required normal BAM/CRAM input for paired mode. |
-| `--make_examples_extra_args` for supported candidate/pileup/read controls | Matching explicit Parabricks flags such as `--vsc-*`, `--alt-aligned-pileup`, `--min-mapping-quality`, and `--channel-*` | Exposes many make-examples options as first-class flags. |
-| Google DeepSomatic options not listed here | No direct equivalent | Not documented for this tool. |
-| — | `--pb-model-file` | TensorRT model file input. |
+| `--reads_normal` | `--in-normal-bam` | Required normal BAM/CRAM for paired mode. |
+| `--make_examples_extra_args` for supported candidate/pileup/read controls | Matching explicit Parabricks flags such as `--vsc-*`, `--alt-aligned-pileup`, `--min-mapping-quality`, and `--channel-*` | Parabricks exposes many make-examples options as first-class flags. |
+| Google DeepSomatic options not listed here or in shared-options | No direct equivalent | Not exposed for `deepsomatic` in current docs. |
+
+If a Google DeepSomatic option is not listed here or in
+[shared-options.md](shared-options.md) for `deepsomatic`, assume no direct flag
+until the selected release's tool reference confirms it.
+
+Parabricks GPU runtime and wrapper controls for `deepsomatic` are in
+[shared-options.md](shared-options.md) and
+[command-conventions.md](command-conventions.md#shared-wrapper-controls).
+
+## Validation
+
+- Tumor and normal sample roles are explicit and correct.
+- BAM/CRAM, reference, indexes, model/resources, and intervals match the same
+  reference build.
+- Output VCF/gVCF or output directory exists.
+- Logs do not show model/resource, sample-label, reference mismatch, mount,
+  CUDA, or out-of-memory errors.
+
+## Guardrails
+
+- Do not substitute `deepsomatic` for germline DeepVariant.
+- Do not invent tumor/normal relationships or model files.
+- Do not promise exact sensitivity/specificity without comparable validation.
+
+## Key References
+
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/deepsomatic>

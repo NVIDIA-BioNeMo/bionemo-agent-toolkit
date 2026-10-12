@@ -21,12 +21,18 @@ consent rules. Preparing a workload command does not authorize executing it.
 
 ## Translating options
 
-The mapping tables primarily describe Parabricks 4.7.0. Check each selected
+The mapping tables primarily describe Parabricks 4.7.1. Check each selected
 release's NVIDIA tool manual before finalizing syntax, defaults, optional flags,
 input modes, or output naming. An upstream option without a documented mapping
 has no assumed Parabricks equivalent; do not pass it through or borrow an option
 from another `pbrun` tool. Flag availability does not establish biological parity.
 In option tables, **—** in the baseline column denotes a Parabricks-only control.
+
+Preserve an upstream option's value only when its meaning, units, and scope
+match the Parabricks option. For partial mappings, omit the setting from the
+base command or present it as a separate tuning choice with its own rationale.
+An explanatory caveat does not make a copied value equivalent; check that the
+generated command follows the mapping explanation.
 
 GATK and Picard wrapper translations shared by `applybqsr`, `bam2fq`,
 `bammetrics`, `bamsort`, `bqsr`, `collectmultiplemetrics`, `fq2bam`,
@@ -43,6 +49,10 @@ The RNA references retain their STAR-specific logging and scratch-directory
 comparisons. For GPU, threading, memory, and algorithm controls, combine the
 selected tool's table with its entries in the shared mappings. Respect the
 listed tool scope because meanings and availability vary by command.
+
+For BWA stream defaults on `fq2bam` and `fq2bam_meth`, see
+[performance.md](performance.md). Giraffe `--nstreams` tuning stays in
+`pbrun-giraffe.md`.
 
 ## Shared wrapper controls
 
@@ -71,6 +81,13 @@ Before execution, check that every input and required index resolves through
 the mounts and that reference, known-sites, model, and graph resources are
 compatible with the assay and each other. CRAM decoding needs the appropriate
 reference. Confirm writable output and scratch directories with adequate space.
+
+Treat inputs as read-only and never overwrite existing data. When a tool writes
+beside its input (for example `indexgvcf` writes the `.tbi` next to the GVCF) and
+the input mount is read-only, plan a copy to a writable mount and index the
+copy. Check that destination files do not already exist before copying, ask
+before replacing anything, and keep commands labeled as a plan until the user
+runs them.
 
 After an authorized run, verify completion and the requested output artifacts,
 including optional metrics, recalibration reports, and indexes. An existing

@@ -16,5 +16,18 @@ memory-pressure troubleshooting after confirming the selected Parabricks
 version's docs. More streams increase device memory use, so fixed stream counts
 should not be part of conservative default command templates.
 
+## Optional fq2bam / fq2bam_meth controls
+
+- `--max-read-length-on-gpu`: keep the default 512 bp unless many reads are
+  longer than 512 bp. Valid values are 512 or 1024. Reads above the selected
+  value still use CPU recovery. Raising GPU processing above 512 bp also
+  requires raising `--max-read-length`.
+- `--run-partition`: try on systems with 4 or more GPUs. It forks one worker
+  process per partition. `--bwa-gpu-num-per-partition` controls GPUs per
+  partition (default: 2) and must divide `--num-gpus` evenly.
+- For `fq2bam_meth`, `--bwa-primary-cpus` and `--bwa-cpu-thread-pool` tune
+  CPU-stage threading (`--bwa-cpu-thread-pool` defaults to 1; do not copy older
+  fq2bam defaults without checking the selected release).
+
 Official performance guidance:
 <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/GettingStarted/BestPerformance.html>

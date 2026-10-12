@@ -1,26 +1,46 @@
 # Parabricks starfusion
 
-Collect STAR `Chimeric.out.junction`, the CTAT/STAR-Fusion genome resource
-library, and an output directory. Raw RNA FASTQs first need compatible junction
-generation, for example through [rna_fq2bam](pbrun-rna_fq2bam.md); this tool is
-not a raw-read aligner. Check junction format, library compatibility, and the
-expected fusion result files. Select optional filters and interpret fusion
-calls using project-specific filtering and validation criteria.
+Use this reference for NVIDIA Parabricks `pbrun starfusion` — RNA fusion detection using STAR-Fusion-compatible inputs and resources.
+
+For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
+
+## First Steps
+
+1. Confirm the Parabricks version or container tag.
+2. Confirm the user has STAR `Chimeric.out.junction` input. If the user only
+   has raw RNA FASTQs, route to `pbrun-rna_fq2bam.md` or ask how they will
+   produce STAR-Fusion-compatible chimeric junction input.
+3. Collect required inputs:
+   - Chimeric junction input path.
+   - STAR-Fusion genome resource library directory.
+   - Output directory.
+4. Ask about optional version-specific filters, logs, and runtime settings only
+   when relevant.
+5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 Fusion detection from chimeric junction input:
 
 ```bash
-pbrun starfusion \
+docker run --rm --gpus all \
+  --volume /host/input:/workdir \
+  --volume /host/output:/outputdir \
+  --workdir /workdir \
+  nvcr.io/nvidia/clara/clara-parabricks:<version> \
+  pbrun starfusion \
   --chimeric-junction /workdir/<chimeric_junction.out> \
   --genome-lib-dir /workdir/<genome_resource_library>/ \
   --output-dir /outputdir/<starfusion_output>/
 ```
 
+Verify exact input, genome resource, output, filter, and log flags against the
+selected version.
+
 ## STAR-Fusion Option Mapping
 
-Parabricks v4.7.0 exposes a focused subset of the
+Use this mapping when translating an upstream `STAR-Fusion` command to
+`pbrun starfusion`. Parabricks exposes a focused subset of the
 STAR-Fusion CLI: the chimeric junction input, CTAT genome resource library,
 output directory, output prefix, and worker thread count. Many upstream
 STAR-Fusion filtering, STAR-alignment, FusionInspector, shared-memory, and
@@ -73,7 +93,7 @@ alignment index, even when both come from the same reference build.
 | `--denovo_reconstruct` | No direct equivalent | Upstream Trinity reconstruction mode not exposed by current Parabricks docs. |
 | `--misc_FI_opts` | No direct equivalent | Upstream FusionInspector pass-through option not exposed by current Parabricks docs. |
 | `--run_STAR_only` | No direct equivalent | `pbrun starfusion` does not run STAR alignment; it consumes STAR chimeric junction output. |
-| `--STAR_PATH` | No direct equivalent | Does not expose a STAR executable path for `pbrun starfusion`. |
+| `--STAR_PATH` | No direct equivalent | Parabricks does not expose a STAR executable path for `pbrun starfusion`. |
 | `--STAR_twopass` | No direct equivalent | STAR-alignment option not exposed because this Parabricks command consumes existing junctions. |
 | `--STAR_max_mate_dist` | No direct equivalent | STAR-alignment option not exposed by `pbrun starfusion`. |
 | `--STAR_SJDBoverhangMin` | No direct equivalent | STAR-alignment option not exposed by `pbrun starfusion`. |
@@ -92,10 +112,42 @@ alignment index, even when both come from the same reference build.
 | `--DEVEL_STAR` | No direct equivalent | Upstream development option not exposed by `pbrun starfusion`. |
 | `--show_full_usage_info` | No direct equivalent | Upstream help/usage option not exposed by `pbrun starfusion`. |
 | `--help`, `-h` | No direct equivalent | Use `pbrun starfusion --help` or the selected Parabricks tool reference instead. |
-| — | `--logfile` | Wrapper log file path; upstream STAR-Fusion writes to standard output/error and its output directory. |
-| — | `--keep-tmp` | Temporary-file retention. Upstream STAR-Fusion has `--tmpdir`, but not this wrapper cleanup flag. |
+
+If a STAR-Fusion option is not listed above, assume there is no direct
+`pbrun starfusion` flag until the selected Parabricks version's tool reference
+says otherwise.
+
+## starfusion Options Without STAR-Fusion Equivalents
+
+These options are Parabricks runtime, container, logging, or filesystem wrapper
+options and are not STAR-Fusion CLI options already covered in the mapping
+above.
+
+| `pbrun starfusion` option | Why it has no STAR-Fusion equivalent |
+| --- | --- |
+| `--logfile` | Parabricks wrapper log file path; upstream STAR-Fusion writes to standard output/error and its output directory. |
+| `--keep-tmp` | Parabricks temporary-file retention. Upstream STAR-Fusion has `--tmpdir`, but not this wrapper cleanup flag. |
+
+
+Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
+
+## Validation
+
+- Chimeric junction input and genome resource library paths resolve inside the
+  container.
+- Input format is compatible with STAR-Fusion expectations.
+- Output directory contains expected STAR-Fusion result files.
+- Logs do not show missing genome resource library, malformed junction input,
+  mount, CUDA, or memory errors.
+
+## Guardrails
+
+- Do not treat `starfusion` as a raw FASTQ aligner.
+- Do not invent genome resource library paths or compatibility.
+- Do not over-interpret fusion calls without project-specific filtering and
+  validation criteria.
 
 ## Key References
 
-- [Parabricks 4.7.0 STAR-Fusion manual](https://archive.docs.nvidia.com/clara/parabricks/4.7.0/Documentation/ToolDocs/man_starfusion.html)
+- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/starfusion>
 - <https://raw.githubusercontent.com/STAR-Fusion/STAR-Fusion/master/STAR-Fusion>
