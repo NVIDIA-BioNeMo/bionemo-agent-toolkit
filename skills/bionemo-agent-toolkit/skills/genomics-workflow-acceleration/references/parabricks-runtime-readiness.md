@@ -31,7 +31,7 @@ For full GPU/driver/Docker/container/storage readiness, installation guidance, a
 per-tool commands, use the **`parabricks` skill**:
 
 - [skills/parabricks/references/runtime-environment.md](../../parabricks/references/runtime-environment.md)
-- Diagnostic script: `python3 skills/parabricks/scripts/check_parabricks_runtime.py`
+- Diagnostic script: `bash skills/parabricks/scripts/check_parabricks_runtime.sh`
 
 ## Document in deliverables
 
