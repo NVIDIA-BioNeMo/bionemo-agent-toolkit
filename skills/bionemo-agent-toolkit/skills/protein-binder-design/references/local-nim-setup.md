@@ -1,80 +1,118 @@
-# Running the BioNeMo NIMs locally (self-hosted)
+# Running the BioNeMo NIMs locally
 
-Use this when you want to self-host RFdiffusion, ProteinMPNN, and a co-folder (Boltz2)
-instead of the managed `build.nvidia.com` endpoints — e.g. to avoid rate limits or to
-keep a campaign self-contained on one node. The pipeline logic is unchanged; only the
-base URL changes (no `Authorization` header for local NIMs).
+Use this guide when the user chooses self-hosted RFdiffusion, ProteinMPNN, and
+Boltz2. Inference inputs go to the configured local services without an
+Authorization header. Pulling containers and downloading model weights still
+requires access to NVIDIA NGC.
 
 ## Prerequisites
 
-- Docker with the NVIDIA container runtime (`docker run --gpus ...` works).
-- An NGC API key in `NGC_API_KEY` (used to pull images and download model weights).
-- `docker login nvcr.io -u '$oauthtoken' -p "$NGC_API_KEY"` once.
+- Docker with the NVIDIA Container Toolkit and a supported GPU/driver stack.
+- An NGC key in `NGC_API_KEY`, with access to the selected model versions and
+  their governing terms accepted.
+- Choose the image version and digest from each model's NGC catalog:
+  [RFdiffusion](https://catalog.ngc.nvidia.com/orgs/nim/teams/ipd/containers/rfdiffusion),
+  [ProteinMPNN](https://catalog.ngc.nvidia.com/orgs/nim/teams/ipd/containers/proteinmpnn),
+  [Boltz2](https://catalog.ngc.nvidia.com/orgs/nim/teams/mit/containers/boltz2).
 
-## Images
+Authenticate with the existing environment key through stdin, with shell tracing
+disabled. This avoids putting the secret in the command's argument list:
 
-| NIM | Image | Idle GPU | Serves |
+```bash
+set +x
+printf '%s' "${NGC_API_KEY:?Set NGC_API_KEY}" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+```
+
+## Image and API contracts
+
+Set `RFD_IMAGE`, `PMPNN_IMAGE`, and `BOLTZ2_IMAGE` to the respective full NGC
+repository reference ending in `@sha256:` plus its 64-character digest. Obtain
+the digest from the selected catalog version or the `RepoDigests` output of
+`docker image inspect` after pulling that explicit version. Do not invent a
+digest or use a moving tag. Save the three references and selected GPU profiles
+in the campaign parameters so a resumed run uses the same containers.
+
+| NIM | Image variable | Cache mount | Local prediction path |
 |---|---|---|---|
-| RFdiffusion | `nvcr.io/nim/ipd/rfdiffusion:latest` | ~24 GB | `:8000/v1/biology/ipd/rfdiffusion/generate` |
-| ProteinMPNN | `nvcr.io/nim/ipd/proteinmpnn:latest` | ~1.5 GB | `:8000/v1/biology/ipd/proteinmpnn/predict` |
-| Boltz2 | `nvcr.io/nim/mit/boltz2:latest` | ~8 GB | `:8000/biology/mit/boltz2/predict` |
+| RFdiffusion | `RFD_IMAGE` | `/opt/nim/.cache` | `/biology/ipd/rfdiffusion/generate` |
+| ProteinMPNN | `PMPNN_IMAGE` | `/home/nvs/.cache/nim` | `/biology/ipd/proteinmpnn/predict` |
+| Boltz2 | `BOLTZ2_IMAGE` | `/opt/nim/.cache` | `/biology/mit/boltz2/predict` |
 
-All three co-fit on one ≥48 GB GPU (~33 GB idle together).
+These paths follow the published
+[RFdiffusion 2.3.0](https://docs.nvidia.com/nim/bionemo/rfdiffusion/2.3.0/quickstart-guide.html),
+[ProteinMPNN 1.2.0](https://docs.nvidia.com/nim/bionemo/proteinmpnn/1.2.0/quickstart-guide.html),
+and [Boltz2 1.10.0](https://docs.nvidia.com/nim/bionemo/boltz2/1.10.0/getting-started.html)
+guides; check the selected release's API/cache contract when changing versions.
+Hosted prediction URLs additionally include `/v1`. GPU memory depends on the
+model, profile, and input length; check each support matrix and run the stages
+sequentially if the models do not fit together.
 
 ## Launch pattern
 
-Give each NIM its own persistent cache (so weights download once), a name, and a port.
-Mount the cache at `/opt/nim/.cache` and make it writable:
+Run the following Bash block after setting the three image variables. It checks
+every digest before launching any service. Each container receives only its own
+cache directory and exposes an unauthenticated API on the host's loopback address.
 
 ```bash
-mkdir -p ~/nimcache_rfd ~/nimcache_pmpnn ~/nimcache_boltz2 && chmod 700 ~/nimcache_*
+(
+set +x
+set -euo pipefail
+: "${NGC_API_KEY:?Set NGC_API_KEY}"
+: "${RFD_IMAGE:?Set the RFdiffusion repository digest}"
+: "${PMPNN_IMAGE:?Set the ProteinMPNN repository digest}"
+: "${BOLTZ2_IMAGE:?Set the Boltz2 repository digest}"
+
+require_digest() {
+  local image_ref="$1" repository="$2" digest
+  digest="${image_ref#"$repository@sha256:"}"
+  if [[ "$image_ref" != "$repository@sha256:$digest" || ! "$digest" =~ ^[a-f0-9]{64}$ ]]; then
+    printf 'Expected an immutable image digest for %s\n' "$repository" >&2
+    exit 1
+  fi
+}
+require_digest "$RFD_IMAGE" nvcr.io/nim/ipd/rfdiffusion
+require_digest "$PMPNN_IMAGE" nvcr.io/nim/ipd/proteinmpnn
+require_digest "$BOLTZ2_IMAGE" nvcr.io/nim/mit/boltz2
+
+mkdir -p "$HOME/nimcache_rfd" "$HOME/nimcache_pmpnn" "$HOME/nimcache_boltz2"
+chmod 700 "$HOME/nimcache_rfd" "$HOME/nimcache_pmpnn" "$HOME/nimcache_boltz2"
 docker run -d --name rfdiffusion --gpus device=0 --shm-size=4g \
-  -e NGC_API_KEY -v ~/nimcache_rfd:/opt/nim/.cache -p 8081:8000 \
-  nvcr.io/nim/ipd/rfdiffusion:latest
+  --user "$(id -u):$(id -g)" -e NGC_API_KEY \
+  -v "$HOME/nimcache_rfd:/opt/nim/.cache" -p 127.0.0.1:8081:8000 "$RFD_IMAGE"
 docker run -d --name proteinmpnn --gpus device=0 --shm-size=4g \
-  -e NGC_API_KEY -v ~/nimcache_pmpnn:/opt/nim/.cache -p 8082:8000 \
-  nvcr.io/nim/ipd/proteinmpnn:latest
+  --user "$(id -u):$(id -g)" -e NGC_API_KEY \
+  -v "$HOME/nimcache_pmpnn:/home/nvs/.cache/nim" -p 127.0.0.1:8082:8000 "$PMPNN_IMAGE"
 docker run -d --name boltz2 --gpus device=0 --shm-size=8g \
-  -e NGC_API_KEY -v ~/nimcache_boltz2:/opt/nim/.cache -p 8083:8000 \
-  nvcr.io/nim/mit/boltz2:latest
+  --user "$(id -u):$(id -g)" -e NGC_API_KEY \
+  -v "$HOME/nimcache_boltz2:/opt/nim/.cache" -p 127.0.0.1:8083:8000 "$BOLTZ2_IMAGE"
+)
 ```
 
-Wait for readiness (first start downloads weights — minutes):
+The three caches are owned by the invoking user and mode 700; the containers run
+with that user's UID/GID. For releases requiring a fixed container user, arrange
+access to these exact directories for that UID before launch. Do not widen
+permissions on unrelated caches. First startup downloads weights and can take
+several minutes. Check readiness with local GET requests that send no credentials
+or protein data and bypass configured HTTP proxies:
 
 ```bash
-curl -fsS http://localhost:8081/v1/health/ready && echo RFD_OK
-curl -fsS http://localhost:8082/v1/health/ready && echo PMPNN_OK
-curl -fsS http://localhost:8083/v1/health/ready && echo BOLTZ2_OK
+curl --noproxy '*' -fsS http://127.0.0.1:8081/v1/health/ready
+curl --noproxy '*' -fsS http://127.0.0.1:8082/v1/health/ready
+curl --noproxy '*' -fsS http://127.0.0.1:8083/v1/health/ready
 ```
-
-If the NIMs and your client share a user-defined docker network, reach them by container
-name instead of published ports (e.g. `http://rfdiffusion:8000/...`).
 
 ## GPU profile selection
 
-Most of these NIMs **auto-select** a profile by compute capability (SM) and just work on
-a supported GPU. Some NIMs match profiles by **exact GPU model**, so on a GPU that has no
-bundled profile the container exits early with `NIMProfileIDNotFound` / "0 profiles found".
-If that happens, list the bundled profiles and pin the one that matches **your** GPU's
-compute capability:
+If startup reports `NIMProfileIDNotFound` or no compatible profiles, inspect the
+selected release's supported GPUs and available profiles. For releases exposing
+`list-model-profiles`, reuse the already validated image digest:
 
 ```bash
-# 1) list the profiles this NIM ships and their tags (gpu / compute capability / precision / backend)
-docker run --rm --gpus device=0 -e NGC_API_KEY \
-  <nim-image> list-model-profiles
-# 2) choose the profile whose tags match YOUR GPU (compute capability first), then pin it:
-docker run -d --name <nim> --gpus device=0 --shm-size=8g \
-  -e NGC_API_KEY -e NIM_MODEL_PROFILE=<profile_id> \
-  -v ~/nimcache_<nim>:/opt/nim/.cache -p 8083:8000 <nim-image>
+docker run --rm --gpus device=0 -e NGC_API_KEY "${BOLTZ2_IMAGE:?Set the validated Boltz2 digest}" list-model-profiles
 ```
 
-A TRT-optimized engine built for one GPU generally loads on another of the **same compute
-capability** (you may see a benign cross-device warning). Always select the profile for the
-hardware you are running on — **do not copy a `NIM_MODEL_PROFILE` id from another machine**,
-and check the NIM's support matrix for your exact GPU.
-
-## Then point the pipeline at local
-
-Set the local base URLs and drop the `Authorization` header. Request/response shapes for
-every NIM are in `references/pipeline.md` — only the URL/auth changes between hosted and
-local.
+Select a profile documented for that GPU and add `-e NIM_MODEL_PROFILE` to the
+corresponding launch command after setting the chosen profile in the environment.
+Matching compute capability alone does not establish engine compatibility.
+Record the profile with the image digest. Then use the local prediction paths
+above in the pipeline and omit hosted authentication headers.

@@ -20,7 +20,7 @@ protein-binder-design/
 │   ├── metrics.py           # Kabsch CA-RMSD (self-consistency)
 │   ├── controls.py          # scrambled negative controls
 │   └── registry.py          # target-registry loader
-├── assets/targets.json      # EXAMPLE target registry (verify before real use)
+├── assets/targets.json      # empty target-registry template (populate before use)
 └── evals/                   # trigger + assertion evals
 ```
 
@@ -30,7 +30,25 @@ protein-binder-design/
 - Access to the BioNeMo NIMs you intend to use (RFdiffusion, ProteinMPNN, Boltz2
   and/or OpenFold3, optional MSA-Search) — hosted at
   [build.nvidia.com](https://build.nvidia.com) or self-hosted via NGC.
-- Python ≥ 3.10 with `numpy` (`pip install numpy`). Scripts are otherwise stdlib.
+- Python ≥ 3.12 for the pinned helper environment. Install dependencies with
+  `python3 -m pip install -r requirements.txt`; mmCIF parsing and cached refold
+  recovery require Biotite. Manifest and PDB-only helpers use the standard library.
+
+## Offline tests
+
+Install `requirements-dev.txt` in a virtual environment, then run
+`python3 -m pytest tests`. To inspect coverage, run
+`python3 -m pytest --cov=scripts --cov-report=term-missing tests`.
+These tests use synthetic fixtures and credentials; they make no model calls.
+
+## Tier 1 validation
+
+NVCARPS selects `config/skillspector-baseline.yml` before the repository-wide
+baseline. Include this file, the requirements files, and the tests when committing
+the skill; synchronize the aggregate copy with the repository's plugin sync tool.
+The baseline records reviewed false positives as exact source fingerprints for
+SkillSpector 2.11.2. Source edits or a scanner upgrade require another review;
+the environment-copy finding is fixed in code and is not suppressed.
 
 ## Configure
 

@@ -2,40 +2,134 @@
   "skill_name": "protein-binder-design",
   "evals": [
     {
-      "id": "1",
-      "prompt": "Design 50 de novo mini-binders against PD-L1 (use the target registry entry) at its defined interface epitope. Generate backbones, design 8 sequences each, co-fold the shortlist against the target, and rank by interface confidence. Save a run manifest and a ranked CSV.",
-      "expected_output": "An orchestration that composes the rfdiffusion-nim, proteinmpnn-nim, and boltz2-nim/openfold3-nim skills in order, remaps epitope residues, writes a run manifest via scripts/manifest.py, applies the ipTM/pLDDT/RMSD filter, and exports a ranked candidates.csv.",
-      "files": [],
+      "id": "offline-manifest",
+      "prompt": "Run an offline software bookkeeping exercise using /workspace/input/bookkeeping.json. All scores, controls, and thresholds in this file are synthetic; do not call model APIs or describe these numbers as scientific predictions. For each profile, create a separate run directory and manifest using the supplied target, filters, ranking metric, candidates, scores, and control flags. Use the bundled manifest helper if available, or implement equivalent bookkeeping. Save and reload each manifest, apply the supplied filters, exclude controls from rankings and success counts, and export both all_candidates.csv and ranked candidates.csv. Show the resulting counts and ranked IDs for each profile. Leave absent scores absent, including ipTM for the Boltz2 profile. Label all results as simulated bookkeeping, disclose the pending candidate, and explain that these results provide no live inference coverage.",
+      "expected_output": "Two saved and reloaded manifests and two CSVs per profile. Each profile has four non-control candidates, two passing candidates, and one control. Both rankings contain best then boundary. Below and pending fail; the control is excluded from rankings and counts. The Boltz2 profile retains boltz2_confidence without inventing ipTM. The simulated 2/4 passing fraction is provisional because pending lacks required scores. No model calls or scientific validation claims.",
+      "files": [
+        "evals/files/bookkeeping.json"
+      ],
       "assertions": [
-        {"id": "composes-rfdiffusion", "description": "Uses RFdiffusion for binder backbones", "check": "Plan invokes the rfdiffusion-nim skill with a binder contig and hotspot_res"},
-        {"id": "composes-proteinmpnn", "description": "Uses ProteinMPNN for sequence design", "check": "Plan invokes the proteinmpnn-nim skill and drops the native/WT row from mfasta"},
-        {"id": "composes-cofold", "description": "Co-folds binder with target", "check": "Plan invokes boltz2-nim or openfold3-nim to co-fold the binder with the target and collects ipTM or confidence"},
-        {"id": "writes-manifest", "description": "Writes a run manifest", "check": "Plan uses scripts/manifest.py (Manifest.create, set_scores, apply_filters, to_csv)"},
-        {"id": "applies-filter", "description": "Applies default filter thresholds", "check": "Plan filters on ipTM >= 0.8, binder pLDDT >= 80, self-consistency RMSD <= 2.0"},
-        {"id": "remaps-epitope", "description": "Remaps epitope residues", "check": "Plan remaps epitope author numbering using scripts/pdb_utils.py before use"}
+        "[executes-bookkeeping] Executes the bookkeeping and produces a manifest and both CSV artifacts per profile; a proposed plan alone does not pass.",
+        "[resumes-state] Saves and reloads each profile without changing the supplied scores, filters, rank_by metric, or control flags.",
+        "[filters-missing-scores] Each profile reports n_candidates=4, n_passed=2, n_controls=1; below and pending fail.",
+        "[ranks-and-exports] Each ranked candidates.csv contains best then boundary, excludes the control, and all_candidates.csv retains all five entries.",
+        "[separates-metrics] Boltz2 is filtered and ranked by boltz2_confidence, with iptm_min disabled and no invented ipTM score.",
+        "[states-coverage] Labels every result as simulated offline bookkeeping, discloses the incomplete candidate and provisional 2/4 ratio, and makes no live inference or scientific validation claim."
       ]
     },
     {
-      "id": "2",
-      "prompt": "For my binder campaign against PD-L1, include proper controls and tell me the success rate.",
-      "expected_output": "Adds scrambled-sequence negative controls and published-binder positive controls through the same co-folding pipeline, marks them is_control in the manifest, and reports success rate as n_passed / n_candidates.",
-      "files": [],
+      "id": "offline-boltz2-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/boltz2_only.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/boltz2-only. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "The supplied composite-confidence cutoff is 0.73; ipTM remains disabled and absent. Ranked IDs are binder_a then binder_b. Counts are n_candidates=4, n_passed=2, n_controls=1; the audit retains all five entries. The sequence-only control is exempt only from RMSD. Pending lacks RMSD and low_confidence fails. The 2/4 fraction is provisional and synthetic.",
+      "files": [
+        "evals/files/boltz2_only.json"
+      ],
       "assertions": [
-        {"id": "negative-controls", "description": "Generates scrambled negative controls", "check": "Plan uses scripts/controls.py to scramble binder sequences and marks them is_control with control_type scrambled"},
-        {"id": "positive-controls", "description": "Uses published binders as positive controls", "check": "Plan re-scores published binders from the registry through the same pipeline as positive controls"},
-        {"id": "success-rate", "description": "Reports a success rate", "check": "Plan reports success rate as n_passed divided by n_candidates from manifest.summary()"},
-        {"id": "same-pipeline", "description": "Controls run through identical pipeline", "check": "Controls are co-folded and scored with the same settings as the designs"}
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/boltz2-only; a plan alone does not pass.",
+        "[separate-metrics] Keeps the supplied 0.73 confidence cutoff, disabled ipTM and enabled pLDDT/RMSD filters; does not invent ipTM or rename confidence to ipTM.",
+        "[ranked-artifact] candidates.csv contains exactly binder_a then binder_b, excluding the higher-scoring control and pending.",
+        "[complete-audit] The manifest and all_candidates.csv retain all five entries; reports n_candidates=4, n_passed=2, n_controls=1.",
+        "[control-applicability] The sequence-only control has no invented RMSD or backbone and is exempt only from RMSD; its confidence and pLDDT still pass the supplied filters.",
+        "[honest-coverage] Discloses pending's missing RMSD and a provisional 2/4 fraction, labels scores synthetic, and makes no live inference or scientific validation claim."
       ]
     },
     {
-      "id": "3",
-      "prompt": "Continue my interrupted binder run in runs/rbd_binders and only process candidates that are missing scores.",
-      "expected_output": "Loads the existing manifest with Manifest.load, identifies candidates lacking the needed scores/artifacts, and resumes without re-running completed stages.",
-      "files": [],
+      "id": "offline-mixed-threshold-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/mixed_thresholds.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/mixed-thresholds. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "All supplied thresholds are enforced. Ranked IDs are binder_a then binder_b, despite higher ipTM on the control and designs failing other criteria. Counts are n_candidates=6, n_passed=2, n_controls=1; all seven entries remain in the audit. The string-valued interface score stays invalid rather than being coerced; pending lacks RMSD. Results are synthetic and 2/6 is provisional.",
+      "files": [
+        "evals/files/mixed_thresholds.json"
+      ],
       "assertions": [
-        {"id": "loads-manifest", "description": "Loads the existing manifest", "check": "Plan calls Manifest.load on the run directory"},
-        {"id": "resumes-incomplete", "description": "Skips completed candidates", "check": "Plan only processes candidates missing required scores or artifacts"},
-        {"id": "no-recompute", "description": "Does not recompute finished stages", "check": "Plan avoids re-running stages already recorded in the manifest"}
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/mixed-thresholds; a plan alone does not pass.",
+        "[all-thresholds] Keeps every supplied filter; high_confidence_low_plddt and high_rmsd fail despite higher ipTM than selected designs.",
+        "[ranked-artifact] candidates.csv contains exactly binder_a then binder_b in descending numeric ipTM order and excludes controls, failures and incomplete designs.",
+        "[complete-audit] The manifest and all_candidates.csv retain all seven entries; reports n_candidates=6, n_passed=2, n_controls=1.",
+        "[invalid-and-missing] Preserves the string score as supplied and rejects it as invalid; pending is incomplete. Does not invent, coerce, or repair scores.",
+        "[honest-coverage] Reports a provisional 2/6 fraction because scoring is incomplete and labels the outputs synthetic offline bookkeeping, with no live inference claim."
+      ]
+    },
+    {
+      "id": "offline-empty-ranking",
+      "prompt": "Review my protein binder campaign in /workspace/input/no_survivors.json. Produce manifest.json, a complete all_candidates.csv audit, and ranked candidates.csv under /workspace/output/no-survivors. Preserve the supplied policy, scores, and control flags; save and reload the manifest before reporting counts and ranked IDs. All inputs are synthetic software fixtures. Work offline and make no live inference or scientific validation claim.",
+      "expected_output": "No design passes every applicable filter. candidates.csv has a header and zero data rows even though the synthetic control passes. Counts are n_candidates=4, n_passed=0, n_controls=1; all five entries remain in the audit and manifest. Pending lacks pLDDT and RMSD. The 0/4 fraction is provisional; thresholds are not relaxed to manufacture a shortlist.",
+      "files": [
+        "evals/files/no_survivors.json"
+      ],
+      "assertions": [
+        "[executes-export] Creates and reloads the manifest and writes both CSV artifacts under /workspace/output/no-survivors; a plan alone does not pass.",
+        "[empty-ranked-artifact] candidates.csv is header-only with zero data rows; the file is not omitted and there is no fallback to all candidates.",
+        "[control-exclusion] Excludes the passing control from the ranked design shortlist and design/pass counts.",
+        "[complete-audit] The manifest and all_candidates.csv retain all five entries; reports n_candidates=4, n_passed=0, n_controls=1.",
+        "[preserves-policy] Keeps all supplied scores, flags and thresholds; does not relax criteria to obtain a nonempty shortlist.",
+        "[honest-coverage] Discloses pending's missing pLDDT and RMSD, a provisional 0/4 fraction, and synthetic offline coverage; no live inference or scientific validation claim."
+      ]
+    },
+    {
+      "id": "offline-target-preparation",
+      "prompt": "Prepare the supplied target for a binder workflow from /workspace/input/target_prep/request.json. Follow /workspace/input/target_prep/CONTRACT.md and write the preparation artifacts under /workspace/output/target-prep. Resolve each requested hotspot handoff independently and report which can proceed. Work offline using these synthetic inputs; do not run inference.",
+      "files": [
+        "evals/files/target_prep/"
+      ],
+      "expected_output": "Target chain E from model 1 gives AGST, author map 10:1,42:2,42A:3,77:4. Present hotspots produce E42,E77 and sequence indices 2,4. Missing author 43 blocks that request without a nearest-residue guess. Target PDB retains chain E and author numbering.",
+      "assertions": [
+        "[structure-selection] Uses chain E, first model and one alternate CA per residue.",
+        "[author-map] Preserves 42 versus 42A and sparse numbering in the map and saved PDB.",
+        "[handoff] Saves present hotspots as E42/E77 and sequence indices 2/4.",
+        "[blocked-input] Missing 43 blocks only its request; no inferred replacement or partial payload.",
+        "[artifacts] Writes target.pdb and preparation.json with the specified fields.",
+        "[coverage] Discloses synthetic offline coverage and makes no inference claim."
+      ]
+    },
+    {
+      "id": "offline-refold-extraction",
+      "prompt": "Reconcile the saved refold results under /workspace/input/raw_refolds/ into two output runs /workspace/output/raw-refolds/boltz2 and /workspace/output/raw-refolds/openfold3. Follow /workspace/input/cache_contract.md, preserve the campaign policies, and report the resulting rankings and any blocked candidates. The responses are synthetic offline fixtures; make no model calls.",
+      "files": [
+        "evals/files/raw_refolds/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "Both rankings contain selected only. Boltz2 selected uses sample 1 confidence 0.81 and binder pLDDT 82; ipTM absent. OpenFold3 selected uses sample 1 ipTM 0.83 and binder pLDDT 86. poor_binder fails pLDDT 60 in both. Boltz2 incomplete is blocked for length mismatch; OpenFold3 composite_only is blocked for missing explicit ipTM. Counts 3/1/1 and 3/1/0, respectively; both fractions provisional.",
+      "assertions": [
+        "[sample-binding] Scores and saved complex use the recorded sample, not the highest confidence sample.",
+        "[chain-confidence] Uses binder CA confidence with explicit scale and mmCIF label IDs, not target or whole-complex means.",
+        "[metric-separation] Does not turn a Boltz2 composite or OpenFold3 confidence_score into ipTM.",
+        "[partial-response] Blocks incomplete chains and absent required metrics without partial score imports.",
+        "[saved-results] Writes both reloaded manifests, audit/ranked CSVs and summaries with correct counts and provenance.",
+        "[coverage] Reports simulated offline results, unresolved candidates and provisional fractions without model calls."
+      ]
+    },
+    {
+      "id": "offline-cache-resume",
+      "prompt": "Finish the recoverable offline work in /workspace/input/resume_cache/manifest.json and write the resumed run under /workspace/output/resumed. Use /workspace/input/cache_contract.md. Preserve the original run and its completed results and failure history, reconcile available cached responses, and replace stale exports. Report what remains blocked. All inputs are synthetic; do not submit inference or retries.",
+      "files": [
+        "evals/files/resume_cache/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "done and below are complete and unchanged; a finite low score is not pending. recoverable retains ipTM 0.86, gains binder pLDDT 84 and aligned RMSD approximately zero from cache. missing and failed stay blocked without invented metrics. Failure history and existing artifacts remain unchanged. Counts 5/2/1; ranked IDs done then recoverable; stale control/missing rows removed; 2/5 provisional.",
+      "assertions": [
+        "[resume-preservation] Keeps complete passing and failing scores, artifact bytes and historical failed stages.",
+        "[cache-recovery] Recovers only missing metrics; existing ipTM 0.86 is not replaced by raw 0.98.",
+        "[geometry] Aligns explicit full binder chains to obtain RMSD near zero.",
+        "[blocked-work] Records missing_artifact and missing_prediction without retries or fabricated scores.",
+        "[exports] Replaces stale ranking with done/recoverable; counts 5/2/1 and full audit retained.",
+        "[coverage] Reports pending work and provisional simulated 2/5 with no live inference coverage."
+      ]
+    },
+    {
+      "id": "offline-provenance-rejection",
+      "prompt": "Audit and reconcile /workspace/input/provenance_cache/manifest.json under /workspace/output/provenance. Follow /workspace/input/cache_contract.md. Decide which saved responses can supply scores to their candidates and produce the manifest, exports, summary and rejection reasons. Preserve the supplied evidence. These are synthetic offline fixtures; do not call models or repair provenance by guessing.",
+      "files": [
+        "evals/files/provenance_cache/",
+        "evals/files/cache_contract.md"
+      ],
+      "expected_output": "Only valid is recovered and ranked, with boltz2_confidence 0.9 and binder_plddt 84. Reject candidate_swap, target_swap, sequence_swap, sample_swap and response_tampered for their respective candidate/target/sequence/selected-sample/file hash mismatch; leave all their scores empty and retain original evidence. Counts 6/1/0; 1/6 provisional; no ipTM invented.",
+      "assertions": [
+        "[identity] Checks candidate and sequence identity before accepting scores.",
+        "[target] Rejects a response binding to another target digest.",
+        "[artifact-integrity] Checks response bytes and selected-complex digest; does not rewrite bindings to fit cached data.",
+        "[fail-closed] Leaves rejected candidates unscored and present in the audit with specific reasons.",
+        "[exports] Ranks only valid and records counts 6/1/0 with source hashes/sample provenance.",
+        "[coverage] Reports provisional synthetic results and no live inference coverage."
       ]
     }
   ]

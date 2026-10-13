@@ -1,0 +1,86 @@
+# Reviewed 2026-10-07 against SkillSpector 2.11.2, the scanner used by NVCARPS.
+# Exact fingerprints bind the complete file contents and scanner version.
+# File edits or a scanner upgrade invalidate these exceptions and require review.
+# No rule-wide suppressions; credential harvesting is fixed in code, not waived.
+# Environment-isolation regression rechecked 2026-10-08; its AST4 hash refreshed.
+version: 2
+scanner_version: 2.11.2
+rules: []
+fingerprints:
+  - hash: sha256:9996d6fb97fdfb596f2f50c4cf3e79570283746d312372f175e15db370fc0831
+    rule_id: AS3
+    file: BENCHMARK.md
+    reason: >-
+      Generated historical evaluation quotes this skill's own manifest path in
+      four diagnostic rows. No instruction or code reads other installed skills.
+      The benchmark evidence and scores remain unmodified.
+  - hash: sha256:daaafc2bfa26f14b989e67b1e96716fcf3f4d8f9989dde5b033821ad887d9f10
+    rule_id: PE2
+    file: references/local-nim-setup.md
+    reason: >-
+      chmod 700 restricts three explicitly named, user-owned cache directories.
+      It neither invokes sudo nor grants elevated privileges. Container UID/GID
+      matches the invoking user; no recursive chmod or wildcard is used.
+  - hash: sha256:4eb3e8ba0df55f36be8791053aef6e0998b6e4a4b45536296e05def0f16496d8
+    rule_id: RP1
+    file: references/local-nim-setup.md
+    reason: >-
+      The launch block validates all three image references against the expected
+      NGC repositories and 64-hex SHA-256 digests before any service starts.
+      The static Docker parser cannot resolve these checked shell variables.
+      Mocked execution verified that tags, wrong registries, and malformed
+      digests fail before any command with side effects.
+  - hash: sha256:3bf6b75e39342d08503840522a956796814679807c077c7a7fa32191d4ee9661
+    rule_id: RP1
+    file: references/local-nim-setup.md
+    reason: >-
+      The optional profile-listing example explicitly reuses the Boltz2 digest
+      validated by the preceding launch block. It specifies no moving/default
+      tag. The static Docker parser cannot resolve the checked variable.
+  - hash: sha256:49a8eccca8415a52025878019d22ad62d4407bb3e0bac773944c5e33cfa357ff
+    rule_id: AST4
+    file: tests/test_hosted_env.py
+    reason: >-
+      Fixed test commands exercise credential selection with synthetic values,
+      an explicit argument list, shell=False, and an isolated environment.
+      The legacy bash -c source test uses positional parameters with fixed code;
+      it interpolates no user input and makes no network calls.
+  - hash: sha256:9a86caae52eb514ddfe60d96005e799e15e99d09abc0c657cde9ca81e54c5734
+    rule_id: AST4
+    file: tests/test_hosted_env.py
+    reason: >-
+      Fixed bash tracing test checks that a synthetic credential stays out of
+      output and that the wrapper preserves an argument containing spaces and
+      the child's exit status. Uses shell=False and no inherited credentials.
+  - hash: sha256:410d6f5fceb976f9e8783fe51370814d9f4c6112cde35bdf4f7474073a20be80
+    rule_id: AST4
+    file: tests/test_offline.py
+    reason: >-
+      Executes this repository's standalone offline grader with the current
+      Python executable, isolated mode, a fixed argument list, and shell=False.
+      The child receives only three temporary fixture paths. It receives no
+      developer/CI credentials and submits no inference or network requests.
+      A parent-only reward-path override verifies environment isolation: restoring
+      bulk inheritance makes the output-location assertion fail.
+  # Additional occurrences of the same reviewed benchmark/path and launch text.
+  # Each line is fingerprinted separately; the scanner expands compacted groups.
+  - hash: sha256:d52d9f5c67c895424f94182a0e365ebf673b1de593e196f607ef46c557aa5990
+    rule_id: AS3
+    file: BENCHMARK.md
+    reason: Generated diagnostic quotes this skill's own manifest path; no peer-skill access.
+  - hash: sha256:f5ea4acc4cd746d227dc072baf0af37bc71905295cae7d8d542d87a18ce2038b
+    rule_id: AS3
+    file: BENCHMARK.md
+    reason: Generated diagnostic quotes this skill's own manifest path; no peer-skill access.
+  - hash: sha256:757ebd760479cde3d81fd3a0d32fdf58a7d00c4c1607cb529906d7d648c632ed
+    rule_id: AS3
+    file: BENCHMARK.md
+    reason: Generated diagnostic quotes this skill's own manifest path; no peer-skill access.
+  - hash: sha256:23cec21cbfc72046b9fec2058f664eccab0821054e7c9ac9497fae60424ffea3
+    rule_id: RP1
+    file: references/local-nim-setup.md
+    reason: ProteinMPNN launch uses the expected NGC repository and SHA-256 digest checked before any service starts.
+  - hash: sha256:658d33910213c2b483f90ad16b6aa0cc2f1a3067813cf9b2e85101e488b9b343
+    rule_id: RP1
+    file: references/local-nim-setup.md
+    reason: Boltz2 launch uses the expected NGC repository and SHA-256 digest checked before any service starts.

@@ -1,0 +1,4 @@
+# Tested helper environment (Python 3.12+); NumPy/Biotite match the Tier 3 image.
+numpy==2.5.1
+biotite==1.7.1
+requests==2.34.2

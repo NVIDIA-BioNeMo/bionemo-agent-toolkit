@@ -2,9 +2,9 @@
 # registration. The forked prune-orphans.sh scans the SOURCED roots
 # (library-skills/, open-models-skills/) and deletes any dir there that is
 # neither declared in components.d/*.yml nor listed below. The wholly-native
-# roots (nim-skills/, workflows/) are not scanned at all (see PRUNE_ROOTS in
-# .github/scripts/prune-orphans.sh), so they need no entry — but nim-skills and
-# workflows are listed here for documentation.
+# roots (nim-skills/, workflows/, workflow-skills/) are not scanned at all
+# (see PRUNE_ROOTS in .github/scripts/prune-orphans.sh), so they need no entry
+# — but they are listed here for documentation.
 #
 # Add an entry only with a documented reason and an owner.
 exceptions:
@@ -15,6 +15,10 @@ exceptions:
     component: BioNeMo NIMs
   - dir: workflows
     reason: Native meta-skill workflows (generative-protein-binder-design, virtual_screening, ai_q) authored in-repo.
+    owner: trvachov
+    component: Workflows
+  - dir: workflow-skills
+    reason: Native workflow skills migrated out of workflows/ for individual skill validation in NVCarps.
     owner: trvachov
     component: Workflows
 

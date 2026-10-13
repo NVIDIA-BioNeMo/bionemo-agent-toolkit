@@ -1,0 +1,62 @@
+{
+  "provenance": "Synthetic software bookkeeping fixture. Scores and thresholds are illustrative, not predictions or scientific validation. No biological sequences or live inference are represented.",
+  "target": {
+    "name": "synthetic ranking fixture"
+  },
+  "profiles": [
+    {
+      "name": "no-survivors",
+      "rank_by": "iptm",
+      "filters": {
+        "iptm_min": 0.8,
+        "binder_plddt_min": 80,
+        "self_consistency_rmsd_max": 2
+      },
+      "candidates": [
+        {
+          "id": "control",
+          "scores": {
+            "iptm": 0.99,
+            "binder_plddt": 99
+          },
+          "is_control": true,
+          "control_type": "scrambled"
+        },
+        {
+          "id": "below",
+          "scores": {
+            "iptm": 0.79,
+            "binder_plddt": 90,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        },
+        {
+          "id": "pending",
+          "scores": {
+            "iptm": 0.95
+          },
+          "is_control": false
+        },
+        {
+          "id": "low_plddt",
+          "scores": {
+            "iptm": 0.91,
+            "binder_plddt": 79,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        },
+        {
+          "id": "high_rmsd",
+          "scores": {
+            "iptm": 0.92,
+            "binder_plddt": 96,
+            "self_consistency_rmsd": 2.01
+          },
+          "is_control": false
+        }
+      ]
+    }
+  ]
+}

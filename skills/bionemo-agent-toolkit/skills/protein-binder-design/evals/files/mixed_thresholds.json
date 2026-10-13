@@ -1,0 +1,81 @@
+{
+  "provenance": "Synthetic software bookkeeping fixture. Scores and thresholds are illustrative, not predictions or scientific validation. No biological sequences or live inference are represented.",
+  "target": {
+    "name": "synthetic ranking fixture"
+  },
+  "profiles": [
+    {
+      "name": "mixed-thresholds",
+      "rank_by": "iptm",
+      "filters": {
+        "iptm_min": 0.8,
+        "binder_plddt_min": 85,
+        "self_consistency_rmsd_max": 1.5
+      },
+      "candidates": [
+        {
+          "id": "binder_b",
+          "scores": {
+            "iptm": 0.84,
+            "binder_plddt": 90,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        },
+        {
+          "id": "high_confidence_low_plddt",
+          "scores": {
+            "iptm": 0.99,
+            "binder_plddt": 84,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        },
+        {
+          "id": "binder_a",
+          "scores": {
+            "iptm": 0.87,
+            "binder_plddt": 90,
+            "self_consistency_rmsd": 1.2
+          },
+          "is_control": false
+        },
+        {
+          "id": "high_rmsd",
+          "scores": {
+            "iptm": 0.98,
+            "binder_plddt": 95,
+            "self_consistency_rmsd": 1.51
+          },
+          "is_control": false
+        },
+        {
+          "id": "pending",
+          "scores": {
+            "iptm": 0.96,
+            "binder_plddt": 90
+          },
+          "is_control": false
+        },
+        {
+          "id": "control",
+          "scores": {
+            "iptm": 0.999,
+            "binder_plddt": 99
+          },
+          "is_control": true,
+          "control_type": "scrambled"
+        },
+        {
+          "id": "invalid_score",
+          "scores": {
+            "iptm": "0.95",
+            "binder_plddt": 90,
+            "self_consistency_rmsd": 1
+          },
+          "is_control": false
+        }
+      ]
+    }
+  ]
+}

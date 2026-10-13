@@ -7,7 +7,7 @@ and ranks by interface metrics (ipTM / ipSAE / pLDDT / apo↔holo RMSD):
 - **[`complexa-binder-design/`](complexa-binder-design/SKILL.md)** — NVIDIA
   **Proteina-Complexa** reward-guided co-design (binder sequence + structure together)
   with an AF2-reward gate, validated independently with Boltz2 / OpenFold3.
-- **[`protein-binder-design/`](protein-binder-design/SKILL.md)** — **RFdiffusion +
+- **[`protein-binder-design/`](../../workflow-skills/generative-protein-binder-design/protein-binder-design/SKILL.md)** — **RFdiffusion +
   ProteinMPNN + Boltz2 / OpenFold3** BioNeMo NIM orchestration (backbones → sequences →
   co-fold → filter).
 
