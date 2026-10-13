@@ -2,8 +2,9 @@
 
 ## Active coverage: offline software workflows
 
-`evals.json` runs eight offline exercises. The four original prompts, assertions,
-expected outputs and score fixtures remain unchanged for historical comparison.
+`evals.json` runs eight offline exercises. The original task requests, assertions,
+expected outputs and score fixtures remain unchanged. Each prompt additionally
+identifies the same prepared Python interpreter for both conditions.
 Four additional cases require target mapping, saved-response interpretation,
 recovery decisions and provenance checks. Their output contracts and all required
 inputs are staged in both conditions; equivalent implementations are accepted.
@@ -20,19 +21,28 @@ inputs are staged in both conditions; equivalent implementations are accepted.
 | `offline-provenance-rejection` | `provenance_cache/`, `cache_contract.md` | Reject candidate, sequence, target, sample and response-file mismatches before scoring. |
 
 Every case stages identical inputs for the with/without-skill conditions.
-`harbor.pre_agent_setup` in `config.yml` installs the same pinned NumPy 2.5.1
-and Biotite 1.7.1 wheels in both conditions, then checks their imports and versions
-before the agent starts. Setup uses the sandbox's `python3` interpreter, which
-also runs the workflow helpers, and needs permission to install its packages.
+`harbor.pre_agent_setup` in `config.yml` runs the staged `setup_eval_env.py` in
+both conditions. It selects an installed Python 3.12+, creates the writable
+`/workspace/pbd-eval-venv` virtual environment, installs the same pinned NumPy
+2.5.1 and Biotite 1.7.1 wheels, and checks their imports before the agent starts.
+Every prompt specifies `/workspace/pbd-eval-venv/bin/python` for Python commands.
+Setup leaves system Python packages untouched and needs no root privileges.
 There is no custom `evals/environment/Dockerfile`, so Astra uses its existing
 sandbox image without invoking the managed image builder or requiring its token.
-The standard sandbox must provide Python 3.12+, pip, and package-index access
+The standard sandbox must provide Python 3.12+ with venv/ensurepip, a writable
+workspace, and package-index access
 for setup. Setup downloads packages; the subsequent exercises
 make no network calls. Normal sandbox and agent API access are still required.
 Installation or import failures stop environment preflight before agent trials.
+Setup reports the chosen interpreter and the phase that failed. If preflight
+fails, inspect its healthcheck stdout and
+stderr to distinguish a missing pip module, an installation-permission error,
+package-index access, an incompatible wheel, or an import error. The summary's
+`HealthcheckError` alone does not identify which condition failed. Preserve this
+diagnostic evidence before retrying; changing model settings cannot repair setup.
 These offline cases need no GPU, NIM credentials, or changes to the CI service.
-The original prompts and fixtures are preserved; environment and verifier
-changes should still be recorded when comparing with historical reports.
+The task requests and fixtures are preserved; the interpreter instruction,
+environment and verifier changes must be recorded in historical comparisons.
 The added prompts request campaign outputs without giving the expected order;
 the assertions check saved artifacts, not use of a particular helper.
 All sequences, toy coordinates, numeric inputs, saved responses and control labels are synthetic.
