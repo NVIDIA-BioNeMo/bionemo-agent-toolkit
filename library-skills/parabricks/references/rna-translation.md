@@ -33,8 +33,8 @@ Run from the skill directory with an existing request file:
 python3 scripts/translate_star_to_parabricks.py --input requests.json
 ```
 
-The CLI also accepts `--input -` for JSON on stdin. Prefer this helper to manually
-rewriting long flag lists; it can be run without reading its implementation.
+The CLI also accepts `--input -` for JSON on stdin. Use the helper to preserve
+long argument lists, then review its output against the supplied manifest.
 
 ## Result and review
 
@@ -52,5 +52,7 @@ prove a correct translation. Exit 0 permits reviewable drafts; exit 2 means at
 least one invalid request or an input/usage error.
 
 The helper does not verify numeric ranges, index compatibility or biological
-equivalence. See the RNA tool reference for STAR output-contract limitations
-and index provenance. Single-cell and unlisted options require manual review.
+equivalence. Generated `command` strings are unvalidated drafts: the user must
+review them before authorizing execution. See the RNA tool reference for STAR
+output-contract limitations and index provenance. Single-cell and unlisted
+options require manual review.

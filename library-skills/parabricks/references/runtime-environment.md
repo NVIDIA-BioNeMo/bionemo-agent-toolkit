@@ -132,8 +132,9 @@ docker info
 When Docker is available and daemon access succeeds, use the opt-in helper
 probes above. Select an image appropriate to the target release and driver.
 Record its trusted registry digest for reproducibility; `--cuda-test-image`
-and `--parabricks-image` accept digest references. A floating or implicit
-`latest` tag is not a reproducible release selection. The script does not log
+and `--parabricks-image` require an explicit release tag or a full SHA-256 digest.
+The helper rejects untagged images and `latest`; tags can still be moved, so use
+a verified digest when immutability matters. The script does not log
 in to a registry, install a runtime, or inspect credentials.
 
 ## Requirements For The Selected Release

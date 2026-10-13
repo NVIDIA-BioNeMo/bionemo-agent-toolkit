@@ -13,6 +13,13 @@ CC-BY-4.0 AND Apache-2.0 <br>
 ## Use Case: <br>
 Developers and bioinformatics engineers selecting and configuring NVIDIA Parabricks GPU-accelerated genomics tools for FASTQ/BAM processing, variant calling, RNA-seq alignment, and runtime readiness assessment. <br>
 
+### Triggers and exclusions
+Use for requests such as "prepare a pbrun fq2bam command", "translate these STAR
+arguments to Parabricks", or "check this host's Parabricks readiness".
+Whole-workflow acceleration planning belongs to `genomics-workflow-acceleration`.
+General GPU advice, unrelated genomics tools and clinical interpretation are
+outside this skill's scope.
+
 ### Deployment Geography for Use: <br>
 Global <br>
 

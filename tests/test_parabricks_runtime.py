@@ -6,9 +6,11 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 
@@ -51,8 +53,6 @@ class FakeHostTests(unittest.TestCase):
             if found:
                 (self.bin / tool).symlink_to(found)
 
-
-class GpuProbeTests(FakeHostTests):
     def install_fake_nvidia_smi(self, rows, banner, banner_returncode, query_returncode):
         (self.tmp / "rows").write_text(rows)
         (self.tmp / "banner").write_text(banner)
@@ -62,6 +62,8 @@ class GpuProbeTests(FakeHostTests):
         fake.write_text(FAKE_NVIDIA_SMI)
         fake.chmod(0o755)
 
+
+class GpuProbeTests(FakeHostTests):
     def run_script(self):
         env = {"PATH": str(self.bin), "FAKE_DIR": str(self.tmp), "HOME": str(self.tmp)}
         completed = subprocess.run(
@@ -186,6 +188,35 @@ esac
         self.assertEqual(process.returncode, 2)
         self.assertFalse((self.tmp / "docker-calls").exists())
 
+    def test_unpinned_or_malformed_images_fail_before_any_probe(self):
+        for option in ("--cuda-test-image", "--parabricks-image"):
+            for image in ("nvidia/cuda", "nvidia/cuda:latest", "registry.example:5000/image",
+                          "image@sha256:abc", "image@sha256:" + "g" * 64,
+                          "image:tag --privileged", "--privileged:tag"):
+                with self.subTest(option=option, image=image):
+                    process = self.run_probe(option, image)
+                    self.assertEqual(process.returncode, 2, process.stderr)
+                    self.assertFalse((self.tmp / "docker-calls").exists())
+        for tag in ("latest", "4.7.1-1 --privileged", "bad/tag", "-option"):
+            with self.subTest(tag=tag):
+                process = self.run_probe("--parabricks-version", tag)
+                self.assertEqual(process.returncode, 2, process.stderr)
+                self.assertFalse((self.tmp / "docker-calls").exists())
+
+    def test_explicit_registry_tags_and_digests_are_preserved(self):
+        for option, opt_in, command in (
+            ("--cuda-test-image", "--run-container-check", "nvidia-smi"),
+            ("--parabricks-image", "--run-parabricks-check", "pbrun --help"),
+        ):
+            for image in ("registry.example:5000/team/image:release-1.2",
+                          "registry.example:5000/team/image@sha256:" + "a" * 64,
+                          "registry.example/team/image:release-1.2@sha256:" + "a" * 64):
+                with self.subTest(option=option, image=image):
+                    (self.tmp / "docker-calls").unlink(missing_ok=True)
+                    process = self.run_probe(opt_in, option, image)
+                    self.assertEqual(process.returncode, 0, process.stderr)
+                    self.assertEqual(self.container_calls(), [f"run --rm --gpus all {image} {command}"])
+
     def test_missing_docker_reports_gap_without_attempting_container(self):
         (self.bin / "docker").unlink()
         process = self.run_probe("--run-parabricks-check", "--parabricks-version", "4.7.1-1")
@@ -231,6 +262,38 @@ esac
         self.assertIn("command timed out", report["storage"][0]["detail"])
         self.assertTrue(any("Storage probe failed" in q for q in report["open_questions"]))
 
+    def test_df_failure_prevents_ready_when_all_other_checks_pass(self):
+        self.install_fake_nvidia_smi(
+            "NVIDIA A100, 81920, 80000, 580.173.02, 8.0",
+            "CUDA Version: 13.0", 0, 0,
+        )
+        path = self.tmp / 'data with "quotes" and \\backslash'
+        path.mkdir()
+        (self.bin / "df").unlink()
+        (self.bin / "df").write_text(
+            "#!/bin/sh\nprintf '%s\\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on' "
+            "'disk 2147483648 1073741824 1073741824 50% /'\n"
+        )
+        (self.bin / "df").chmod(0o755)
+        args = ("--run-container-check", "--run-parabricks-check",
+                "--parabricks-version", "4.7.1-1", "--path", str(path))
+        ready = self.run_probe(*args)
+        self.assertEqual(ready.returncode, 0, ready.stderr)
+        report = json.loads(ready.stdout)
+        self.assertEqual(report["assessment"], ["ready"])
+        self.assertEqual(report["open_questions"], [])
+        self.assertEqual(report["storage"][0]["path"], str(path))
+        self.assertEqual(report["storage"][0]["free_gb"], 1024)
+
+        (self.bin / "df").write_text("#!/bin/sh\necho 'synthetic df failure' >&2\nexit 1\n")
+        failed = self.run_probe(*args)
+        self.assertEqual(failed.returncode, 0, failed.stderr)
+        report = json.loads(failed.stdout)
+        self.assertEqual(report["assessment"], ["not enough information"])
+        self.assertEqual(report["storage"][0]["status"], "failed")
+        self.assertTrue(any(str(path) in question and "synthetic df failure" in question
+                            for question in report["open_questions"]))
+
     def test_timeout_cannot_be_disabled_or_set_to_an_invalid_value(self):
         for value in ("0", "000", "-1", "abc"):
             with self.subTest(value=value):
@@ -253,6 +316,42 @@ esac
         self.assertEqual(unavailable.returncode, 2)
         self.assertIn("Cannot start the Bash readiness helper", unavailable.stderr)
         self.assertNotIn("Traceback", unavailable.stderr)
+
+    def test_legacy_python_entry_point_reports_signal_exit(self):
+        (self.bin / "bash").unlink()
+        (self.bin / "bash").write_text("#!/bin/sh\nkill -TERM $$\n")
+        (self.bin / "bash").chmod(0o755)
+        process = self.run_probe(legacy=True)
+        self.assertEqual(process.returncode, 143)
+
+    def test_legacy_python_entry_point_forwards_cancellation(self):
+        (self.bin / "bash").unlink()
+        (self.bin / "bash").write_text(
+            "#!/bin/sh\ntrap 'echo terminated > \"$FAKE_DIR/terminated\"; exit 143' TERM\n"
+            "echo ready > \"$FAKE_DIR/ready\"\nwhile :; do sleep 0.05; done\n"
+        )
+        (self.bin / "bash").chmod(0o755)
+        process = subprocess.Popen(
+            [sys.executable, str(SCRIPT.with_suffix(".py"))],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            start_new_session=True,
+            env={"PATH": str(self.bin), "FAKE_DIR": str(self.tmp), "HOME": str(self.tmp)},
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not (self.tmp / "ready").exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue((self.tmp / "ready").exists(), "synthetic child did not start")
+            process.terminate()
+            process.communicate(timeout=5)
+            self.assertEqual(process.returncode, 143)
+            self.assertEqual((self.tmp / "terminated").read_text().strip(), "terminated")
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.communicate(timeout=5)
 
 
 if __name__ == "__main__":

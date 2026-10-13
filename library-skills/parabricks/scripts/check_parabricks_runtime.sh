@@ -33,10 +33,10 @@ options:
   -h, --help                Show this help message and exit.
   --path PATH               Input, output, or temporary path to include in storage checks. Can be repeated.
   --run-container-check     Run a Docker CUDA container with --gpus all to test NVIDIA Container Toolkit.
-  --cuda-test-image IMAGE   CUDA image used with --run-container-check. Default: $DEFAULT_CUDA_TEST_IMAGE
+  --cuda-test-image IMAGE   CUDA image with an explicit tag or SHA-256 digest. Default: $DEFAULT_CUDA_TEST_IMAGE
   --run-parabricks-check    Run pbrun --help in the selected Parabricks container; may pull the image.
   --parabricks-version TAG  Select a Parabricks tag, for example $EXAMPLE_PARABRICKS_VERSION. Does not launch a container by itself.
-  --parabricks-image IMAGE  Select a full Parabricks image reference, including an optional immutable digest, instead of a tag.
+  --parabricks-image IMAGE  Select a full Parabricks image with an explicit tag or SHA-256 digest instead of --parabricks-version.
   --format {text,json}      Report output format.
   --timeout SECONDS         Positive timeout for each probe (requires GNU timeout or gtimeout).
 EOF
@@ -46,6 +46,32 @@ die_usage() {
   usage >&2
   printf '%s: error: %s\n' "$PROG" "$1" >&2
   exit 2
+}
+
+validate_tag() {
+  local tag=$1 option=$2
+  if [[ ! "$tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]] || [ "$tag" = latest ]; then
+    die_usage "$option requires an explicit release tag, not latest"
+  fi
+}
+
+validate_image_reference() {
+  local image=$1 option=$2 repository digest
+  case $image in
+    *@sha256:*)
+      repository=${image%@sha256:*}
+      digest=${image##*@sha256:}
+      [[ "$digest" =~ ^[a-f0-9]{64}$ ]] || die_usage "$option requires a 64-character SHA-256 digest"
+      ;;
+    *)
+      # A registry port is not an image tag: inspect the final path component.
+      case ${image##*/} in
+        *:*) repository=${image%:*}; validate_tag "${image##*:}" "$option" ;;
+        *) die_usage "$option requires an explicit release tag or SHA-256 digest" ;;
+      esac
+      ;;
+  esac
+  [[ "$repository" =~ ^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$ ]] || die_usage "$option has an invalid image repository"
 }
 
 PATHS=()
@@ -97,6 +123,13 @@ if [ -n "$PARABRICKS_VERSION" ] && [ -n "$PARABRICKS_IMAGE" ]; then
 fi
 if [ "$RUN_PARABRICKS_CHECK" = 1 ] && [ -z "$PARABRICKS_VERSION$PARABRICKS_IMAGE" ]; then
   die_usage "--run-parabricks-check requires --parabricks-version TAG or --parabricks-image IMAGE"
+fi
+validate_image_reference "$CUDA_TEST_IMAGE" --cuda-test-image
+if [ -n "$PARABRICKS_VERSION" ]; then
+  validate_tag "$PARABRICKS_VERSION" --parabricks-version
+fi
+if [ -n "$PARABRICKS_IMAGE" ]; then
+  validate_image_reference "$PARABRICKS_IMAGE" --parabricks-image
 fi
 
 # ---------------------------------------------------------------------------
@@ -250,8 +283,7 @@ check_nvidia_smi() {
   # Keep GPU discovery usable even when the optional banner probe fails.
   run_cmd nvidia-smi
   if [ "$CMD_RC" = 0 ]; then
-    GPU_CUDA=$(printf '%s\n' "$CMD_OUT" \
-      | grep -oE 'CUDA Version:[[:space:]]*[0-9]+(\.[0-9]+)+' \
+    GPU_CUDA=$(grep -oE 'CUDA Version:[[:space:]]*[0-9]+(\.[0-9]+)+' <<<"$CMD_OUT" \
       | head -n 1 | grep -oE '[0-9]+(\.[0-9]+)+')
   fi
 
@@ -307,8 +339,7 @@ check_docker() {
     return
   fi
   DOCKER_VERSION_OUTPUT=$CMD_OUT
-  DOCKER_VERSION=$(printf '%s\n' "$CMD_OUT" \
-    | grep -oiE 'version[[:space:]]+[0-9]+(\.[0-9]+){1,2}' \
+  DOCKER_VERSION=$(grep -oiE 'version[[:space:]]+[0-9]+(\.[0-9]+){1,2}' <<<"$CMD_OUT" \
     | head -n 1 | awk '{ print $2 }')
 
   run_cmd docker info --format '{{json .}}'
@@ -406,7 +437,7 @@ check_storage_path() {
 
   run_cmd df -Pk -- "$target"
   if [ "$CMD_RC" = 0 ]; then
-    read -r total_kib used_kib free_kib <<<"$(printf '%s\n' "$CMD_OUT" | awk 'NR == 2 { print $2, $3, $4 }')"
+    read -r total_kib used_kib free_kib <<<"$(awk 'NR == 2 { print $2, $3, $4 }' <<<"$CMD_OUT")"
   fi
   if [ "$CMD_RC" != 0 ] || [ -z "$total_kib" ]; then
     ST_CHECKED+=("$target"); ST_STATUS+=(failed); ST_TOTAL+=(""); ST_FREE+=(""); ST_USED+=("")
@@ -576,7 +607,7 @@ render_text() {
 
 json_str() {
   local s
-  s=$(printf '%s' "$1" | tr -d '\000-\010\013\014\016-\037')
+  s=$(tr -d '\000-\010\013\014\016-\037' <<<"$1")
   s=${s//\\/\\\\}
   s=${s//\"/\\\"}
   s=${s//$'\n'/\\n}
@@ -603,7 +634,7 @@ json_num() {
 json_obj() {
   local indent=$1 pad inner sep="" out="{"
   shift
-  pad=$(printf '%*s' "$indent" '')
+  printf -v pad '%*s' "$indent" ''
   inner="$pad  "
   while [ $# -ge 2 ]; do
     if [ -n "$2" ]; then
@@ -620,7 +651,7 @@ json_obj() {
 json_arr() {
   local indent=$1 pad inner item sep="" out="["
   shift
-  pad=$(printf '%*s' "$indent" '')
+  printf -v pad '%*s' "$indent" ''
   inner="$pad  "
   for item in "$@"; do
     out+="$sep"$'\n'"$inner$item"

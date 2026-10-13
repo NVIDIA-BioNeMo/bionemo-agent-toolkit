@@ -98,17 +98,10 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 ## Findings and Observations
 
-<details>
-<summary>Show detailed findings and successful checks</summary>
-
-- **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
-- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
-- **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in command-conventions.md (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
-- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/parabricks`)
-- **MEDIUM** SECURITY/Skill Enumeration (AS3): Agent Snooping: skills/parabricks/SKILL.md (`BENCHMARK.md:88`)
-- 16 additional finding(s) are available in the full evaluation artifacts.
-
-</details>
+The historical report recorded 21 findings, including script documentation,
+reference depth, repository layout and a skill-enumeration warning triggered by
+paths quoted in the report itself. Detailed findings remain in the immutable
+historical snapshot linked above.
 
 ## Scoring Methodology
 
