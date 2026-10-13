@@ -38,5 +38,6 @@
             "Design a de novo binder for a target with RFdiffusion and ProteinMPNN",
             "Score a BRCA1 variant with Evo2"
         ]
-    }
+    },
+    "mcpServers": "./.mcp.json"
 }

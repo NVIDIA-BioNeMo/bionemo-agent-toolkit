@@ -1,0 +1,19 @@
+name: atomworks-studio
+on:
+  pull_request:
+    paths:
+      - 'integrations/atomworks-studio/**'
+      - 'tests/test_atomworks_*.py'
+      - '.github/workflows/atomworks-studio.yml'
+  push:
+    branches: [main]
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r integrations/atomworks-studio/requirements.txt
+      - run: python -m unittest discover -s tests -p 'test_atomworks_*.py'

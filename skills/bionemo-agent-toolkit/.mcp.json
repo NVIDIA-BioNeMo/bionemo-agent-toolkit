@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "rfd4-studio-app": {
+      "command": "./atomworks-studio/start_server",
+      "args": [
+        "app"
+      ],
+      "cwd": ".",
+      "startup_timeout_sec": 120,
+      "env_vars": [
+        "RFD4_STUDIO_HOME",
+        "RFD4_STUDIO_PYTHON"
+      ],
+      "default_tools_approval_mode": "auto"
+    },
+    "rfd4-studio": {
+      "command": "./atomworks-studio/start_server",
+      "args": [
+        "agent"
+      ],
+      "cwd": ".",
+      "startup_timeout_sec": 120,
+      "env_vars": [
+        "RFD4_STUDIO_HOME",
+        "RFD4_STUDIO_PYTHON"
+      ],
+      "tools": {
+        "execute_rfd4_plan": {
+          "approval_mode": "prompt"
+        }
+      },
+      "default_tools_approval_mode": "auto"
+    }
+  }
+}

@@ -148,6 +148,18 @@ def compatibility_symlink_problem() -> str | None:
     return None
 
 
+def sync_studio_runtime(write_files: bool) -> list[str]:
+    """Ship the optional first-party adapter; never vendor model source or weights."""
+    src = REPO / 'integrations' / 'atomworks-studio'
+    dst = AGGREGATE_ROOT / 'atomworks-studio'
+    if write_files:
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.venv'))
+        return []
+    return ['[studio runtime] ' + d for d in compare(src, dst)]
+
+
 def check() -> int:
     source = discover_source_skills()
     listed = config_skill_names()
@@ -182,6 +194,8 @@ def check() -> int:
         diffs = compare(source[name], AGGREGATE_SKILLS / name)
         for d in diffs:
             problems.append(f"[freshness] {name}: {d}")
+
+    problems.extend(sync_studio_runtime(False))
 
     if problems:
         print("Aggregate sync check FAILED:\n")
@@ -239,6 +253,8 @@ def write() -> int:
             shutil.rmtree(p)
             removed += 1
             print(f"  - removed orphan aggregate skill: {p.name}")
+
+    sync_studio_runtime(True)
 
     print(f"Rebuilt {rebuilt} skill(s) in the aggregate; removed {removed} orphan(s).")
 
