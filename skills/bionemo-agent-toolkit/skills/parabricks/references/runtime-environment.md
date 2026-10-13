@@ -20,6 +20,12 @@ from the skill directory containing `SKILL.md`; the helper is at
 bash scripts/check_parabricks_runtime.sh
 ```
 
+The helper requires Bash and GNU coreutils `timeout` (or `gtimeout`). If neither
+timeout utility is available, it exits with status 2 before running probes.
+`--timeout SECONDS` must be positive; probes that ignore termination are killed
+after a one-second grace period. The legacy `check_parabricks_runtime.py` entry
+point forwards to this Bash helper with the same arguments and exit status.
+
 When input, output, or temporary directories are known, include them in the
 storage check:
 

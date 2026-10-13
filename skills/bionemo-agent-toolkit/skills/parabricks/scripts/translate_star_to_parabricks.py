@@ -17,6 +17,7 @@ Exit codes:
     0: all requests produced drafts, possibly needing review.
     2: invalid request, command-line usage, unreadable input or invalid JSON.
 
+Requires Python 3.7 or newer; no additional packages are needed.
 No subprocesses, network requests, input-data inspection, or workloads are run.
 Mappings: Parabricks 4.7.0/4.7.1 rna_fq2bam and STAR 2.7.2a parametersDefault.
 """
@@ -298,7 +299,7 @@ def translate(request):
     try:
         argv = build_draft(request, result)
         result.update(status="needs_review" if result["issues"] else "draft",
-                      draft_argv=argv, command=shlex.join(argv))
+                      draft_argv=argv, command=" ".join(shlex.quote(arg) for arg in argv))
     except ValueError as exc:
         result["issues"].append(str(exc))
     return result

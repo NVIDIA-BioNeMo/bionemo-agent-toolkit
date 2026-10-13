@@ -1,17 +1,33 @@
 # Skill Benchmark: parabricks
 
-> **Overall verdict: NEUTRAL — One or more dimensions remain below PASS**
+> **Current payload (1.3.0): live evaluation and signing pending.**
 
-Live evaluation did not show a material gain or regression. Collect more evidence or improve the skill before making a publication decision.
+The results below are **historical**, from the seven-task 1.2.1 snapshot in
+[commit `e5c239f`](https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit/blob/e5c239fe58bb94054db7c2094b2ecd042d0e9154/skills/bionemo-agent-toolkit/skills/parabricks/BENCHMARK.md).
+They do not evaluate the current skill or its 18-task dataset. The current
+`evals/evals.json` file has SHA-256
+`c8e1f1aeb72575a376b78a840fdb48229ba7e8421e07e63800e61779c4a2b654`;
+this file hash is not an evaluator dataset-snapshot digest.
 
-## Evaluation Metadata
+The historical evaluator reported **NEUTRAL**. Its explanation that dimensions
+were below PASS is inconsistent with the displayed scores: all are above the
+stated 50% threshold. Overall lift was unavailable. These tables do not establish
+a publication pass or justify a claim of no regression; the original verdict
+is retained without inventing a replacement explanation.
+
+The prior signature no longer matches the payload and has been removed. Run
+NVSkills CI on the final changes to regenerate the benchmark, skill card, and
+signature together before treating this revision as validated and signed.
+
+## Historical Evaluation Metadata
 
 - Skill: `parabricks`
-- Evaluation date: 2026-10-07
+- Evaluated skill version: `1.2.1`
+- Evaluation date: 2026-10-02
 - Evaluator version: `1.5.6`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`), Codex (`openai/openai/gpt-5.5`)
-- Tasks: 18 evaluation tasks (17 positive, 1 negative)
-- Dataset digest: `sha256:6e9efe466a1409e4cbcd58924a921028b12d3af7cce343c86b975cfbf78f9f1b` (skill-evaluator-dataset-snapshot/1)
+- Tasks: 7 evaluation tasks (6 positive, 1 negative)
+- Dataset digest: `sha256:23088600f666e241635d67155f709ac6a3b62ee4705f6b793e39fe5421955b6b` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -72,7 +88,7 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
-## Tier Status
+## Historical Tier Status
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
@@ -85,7 +101,6 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **CRITICAL** CONTENT_DEDUP/llm_prompt_size_limit: A Tier 2 cluster exceeds the LLM prompt character limit. (`skills/bionemo-agent-toolkit/skills/parabricks`)
 - **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)
 - **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in command-conventions.md (`skills/bionemo-agent-toolkit/skills/parabricks/SKILL.md`)

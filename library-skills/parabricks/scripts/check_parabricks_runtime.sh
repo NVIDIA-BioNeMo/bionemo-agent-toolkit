@@ -16,6 +16,7 @@ MIN_GPU_MEMORY_GB=16
 LOW_STORAGE_WARNING_GB=100
 SUMMARY_MAX_CHARS=300
 DEFAULT_TIMEOUT_SECONDS=30
+TIMEOUT_KILL_AFTER_SECONDS=1
 SCHEMA_VERSION=1
 EXAMPLE_PARABRICKS_VERSION="4.7.0-1"
 PROG=$(basename "$0")
@@ -37,7 +38,7 @@ options:
   --parabricks-version TAG  Select a Parabricks tag, for example $EXAMPLE_PARABRICKS_VERSION. Does not launch a container by itself.
   --parabricks-image IMAGE  Select a full Parabricks image reference, including an optional immutable digest, instead of a tag.
   --format {text,json}      Report output format.
-  --timeout SECONDS         Timeout in seconds for each external command.
+  --timeout SECONDS         Positive timeout for each probe (requires GNU timeout or gtimeout).
 EOF
 }
 
@@ -90,6 +91,7 @@ esac
 case $TIMEOUT in
   ''|*[!0-9]*) die_usage "argument --timeout: invalid int value: '$TIMEOUT'" ;;
 esac
+[ -n "${TIMEOUT//0/}" ] || die_usage "argument --timeout: must be greater than zero"
 if [ -n "$PARABRICKS_VERSION" ] && [ -n "$PARABRICKS_IMAGE" ]; then
   die_usage "choose --parabricks-version or --parabricks-image, not both"
 fi
@@ -106,7 +108,8 @@ if command -v timeout >/dev/null 2>&1; then
 elif command -v gtimeout >/dev/null 2>&1; then
   TIMEOUT_BIN=gtimeout
 else
-  TIMEOUT_BIN=""
+  printf '%s: error: GNU timeout or gtimeout is required; no probes were run.\n' "$PROG" >&2
+  exit 2
 fi
 
 TMP_DIR=$(mktemp -d) || exit 1
@@ -127,15 +130,11 @@ run_cmd() {
     CMD_RC=""; CMD_OUT=""; CMD_ERR="command not found"
     return
   fi
-  if [ -n "$TIMEOUT_BIN" ]; then
-    "$TIMEOUT_BIN" "$TIMEOUT" "$@" >"$TMP_DIR/out" 2>"$TMP_DIR/err" </dev/null
-    CMD_RC=$?
-    if [ "$CMD_RC" -eq 124 ]; then
-      CMD_TIMED_OUT=1; CMD_RC=""
-    fi
-  else
-    "$@" >"$TMP_DIR/out" 2>"$TMP_DIR/err" </dev/null
-    CMD_RC=$?
+  "$TIMEOUT_BIN" --kill-after="$TIMEOUT_KILL_AFTER_SECONDS" "$TIMEOUT" "$@" \
+    >"$TMP_DIR/out" 2>"$TMP_DIR/err" </dev/null
+  CMD_RC=$?
+  if [ "$CMD_RC" -eq 124 ] || [ "$CMD_RC" -eq 137 ]; then
+    CMD_TIMED_OUT=1; CMD_RC=""
   fi
   CMD_OUT=$(trim_str "$(cat "$TMP_DIR/out")")
   CMD_ERR=$(trim_str "$(cat "$TMP_DIR/err")")
@@ -324,7 +323,7 @@ check_docker() {
   else
     DOCKER_DAEMON_ACCESS=false
     DOCKER_STATUS=warning
-    details="${details:+$details }docker info failed; Docker daemon may be unavailable or permission-restricted."
+    details="${details:+$details }docker info failed: $(summarize_result). Docker daemon may be unavailable or permission-restricted."
   fi
   DOCKER_DETAIL=$details
 }
@@ -405,10 +404,13 @@ check_storage_path() {
     return
   fi
 
-  read -r total_kib used_kib free_kib <<<"$(df -Pk -- "$target" 2>/dev/null | awk 'NR == 2 { print $2, $3, $4 }')"
-  if [ -z "$total_kib" ]; then
+  run_cmd df -Pk -- "$target"
+  if [ "$CMD_RC" = 0 ]; then
+    read -r total_kib used_kib free_kib <<<"$(printf '%s\n' "$CMD_OUT" | awk 'NR == 2 { print $2, $3, $4 }')"
+  fi
+  if [ "$CMD_RC" != 0 ] || [ -z "$total_kib" ]; then
     ST_CHECKED+=("$target"); ST_STATUS+=(failed); ST_TOTAL+=(""); ST_FREE+=(""); ST_USED+=("")
-    ST_DETAIL+=("df failed for $target.")
+    ST_DETAIL+=("df failed for $target: $(summarize_result)")
     return
   fi
 
@@ -487,6 +489,10 @@ classify() {
       low_storage=1
     fi
     [ "${ST_STATUS[$i]}" = missing ] && missing_storage=1
+    if [ "${ST_STATUS[$i]}" = failed ]; then
+      add_unique ASSESSMENTS "not enough information"
+      add_unique OPEN_QUESTIONS "Storage probe failed for ${ST_PATH[$i]}: ${ST_DETAIL[$i]}"
+    fi
   done
   if [ "$low_storage" = 1 ]; then
     add_unique ASSESSMENTS "I/O-constrained"

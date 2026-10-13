@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -16,8 +17,9 @@ SCRIPT = (Path(__file__).resolve().parents[1] / "library-skills" / "parabricks"
 
 # Host tools the script needs; everything else (including any real nvidia-smi
 # or docker) is kept off PATH so the fake below is the only GPU probe.
-HOST_TOOLS = ("awk", "basename", "cat", "df", "dirname", "getconf", "grep",
-              "head", "mktemp", "rm", "sed", "tail", "tr", "uname")
+HOST_TOOLS = ("awk", "basename", "bash", "cat", "df", "dirname", "getconf", "grep",
+              "head", "mktemp", "rm", "sed", "sleep", "tail", "timeout", "gtimeout",
+              "tr", "uname")
 
 FAKE_NVIDIA_SMI = """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_DIR/calls"
@@ -130,10 +132,12 @@ esac
 ''')
         fake.chmod(0o755)
 
-    def run_probe(self, *args):
+    def run_probe(self, *args, legacy=False):
+        command = ([sys.executable, str(SCRIPT.with_suffix(".py"))] if legacy else
+                   [shutil.which("bash"), str(SCRIPT)])
         return subprocess.run(
-            [shutil.which("bash"), str(SCRIPT), "--format", "json", *args],
-            capture_output=True, text=True,
+            [*command, "--format", "json", *args],
+            capture_output=True, text=True, timeout=10,
             env={"PATH": str(self.bin), "FAKE_DIR": str(self.tmp), "HOME": str(self.tmp)},
         )
 
@@ -188,6 +192,67 @@ esac
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(json.loads(process.stdout)["checks"]["parabricks_container"]["status"], "missing")
         self.assertEqual(self.container_calls(), [])
+
+    def test_missing_timeout_fails_before_any_probe(self):
+        for name in ("timeout", "gtimeout"):
+            (self.bin / name).unlink(missing_ok=True)
+        process = self.run_probe("--timeout", "1", "--run-container-check")
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("GNU timeout or gtimeout is required", process.stderr)
+        self.assertFalse((self.tmp / "docker-calls").exists())
+
+    def test_gtimeout_is_used_when_timeout_is_unavailable(self):
+        timer = shutil.which("timeout") or shutil.which("gtimeout")
+        self.assertIsNotNone(timer, "tests require GNU coreutils timeout")
+        for name in ("timeout", "gtimeout"):
+            (self.bin / name).unlink(missing_ok=True)
+        (self.bin / "gtimeout").symlink_to(timer)
+        process = self.run_probe("--timeout", "1")
+        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertEqual(json.loads(process.stdout)["checks"]["docker"]["status"], "ok")
+
+    def test_hung_probe_is_killed_even_if_it_ignores_termination(self):
+        (self.bin / "docker").write_text("#!/bin/sh\ntrap '' TERM\nexec sleep 30\n")
+        process = self.run_probe("--timeout", "1")
+        self.assertEqual(process.returncode, 0, process.stderr)
+        report = json.loads(process.stdout)["checks"]["docker"]
+        self.assertEqual(report["status"], "failed")
+        self.assertIn("command timed out", report["detail"])
+
+    def test_storage_probe_is_bounded_and_reported_as_unknown_on_timeout(self):
+        # Replace the symlink, never write through it into the host df binary.
+        (self.bin / "df").unlink()
+        (self.bin / "df").write_text("#!/bin/sh\nexec sleep 30\n")
+        (self.bin / "df").chmod(0o755)
+        process = self.run_probe("--timeout", "1", "--path", str(self.tmp))
+        self.assertEqual(process.returncode, 0, process.stderr)
+        report = json.loads(process.stdout)
+        self.assertEqual(report["storage"][0]["status"], "failed")
+        self.assertIn("command timed out", report["storage"][0]["detail"])
+        self.assertTrue(any("Storage probe failed" in q for q in report["open_questions"]))
+
+    def test_timeout_cannot_be_disabled_or_set_to_an_invalid_value(self):
+        for value in ("0", "000", "-1", "abc"):
+            with self.subTest(value=value):
+                process = self.run_probe("--timeout", value)
+                self.assertEqual(process.returncode, 2)
+                self.assertFalse((self.tmp / "docker-calls").exists())
+
+    def test_legacy_python_entry_point_preserves_report_arguments_and_exit_status(self):
+        process = self.run_probe("--path", str(self.tmp), legacy=True)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        report = json.loads(process.stdout)
+        self.assertEqual(report["checks"]["docker"]["status"], "ok")
+        self.assertEqual(report["storage"][0]["path"], str(self.tmp))
+        self.assertEqual(self.container_calls(), [])
+        invalid = self.run_probe("--timeout", "0", legacy=True)
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("must be greater than zero", invalid.stderr)
+        (self.bin / "bash").unlink()
+        unavailable = self.run_probe(legacy=True)
+        self.assertEqual(unavailable.returncode, 2)
+        self.assertIn("Cannot start the Bash readiness helper", unavailable.stderr)
+        self.assertNotIn("Traceback", unavailable.stderr)
 
 
 if __name__ == "__main__":

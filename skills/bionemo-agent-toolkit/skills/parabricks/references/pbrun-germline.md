@@ -6,22 +6,25 @@
    a standalone `haplotypecaller` run.
 2. Collect required inputs:
    - Reference FASTA.
-   - FASTQ pairs or BAM/CRAM, depending on the selected version.
-   - Output VCF/gVCF or output directory.
+   - Paired or single-end FASTQs.
+   - Output BAM and VCF/gVCF paths.
    - Known-sites/resources for BQSR when used.
 3. Ask for read groups, intervals, ploidy, temporary directory, and logs when
    relevant.
 4. For preprocessing-only questions, route to
    `pbrun-fq2bam.md` and related FASTQ/BAM references; for runtime readiness, use
    `runtime-environment.md`.
+   For prepared BAM/CRAM input, use `pbrun-haplotypecaller.md`; the 4.7.1
+   germline pipeline does not document `--in-bam`.
 
 ## Command Shape
 
 ```bash
 pbrun germline \
   --ref /workdir/<reference.fa> \
-  <version-specific-input-options> \
-  <version-specific-output-options>
+  --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
+  --out-bam /outputdir/<sample.bam> \
+  --out-variants /outputdir/<sample.vcf.gz>
 ```
 
 Verify exact input, known-sites, output, interval, and ploidy flags against the
@@ -30,7 +33,7 @@ selected version.
 ## BWA-MEM/GATK Germline Option Mapping
 
 Use this when translating a baseline BWA-MEM plus GATK germline workflow to
-`pbrun germline`. Preprocessing mappings (--ref, FASTQ/BAM inputs, BWA options,
+`pbrun germline`. Preprocessing mappings (--ref, FASTQ inputs, BAM output, BWA options,
 markdup/BQSR, intervals, and shared execution controls) for `germline` are in
 [shared-options.md](shared-options.md).
 

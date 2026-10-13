@@ -3,6 +3,7 @@
 Use `scripts/translate_star_to_parabricks.py` for Parabricks 4.7.0 or 4.7.1
 alignment drafts. It reads a JSON request object or array and never opens the
 FASTQs, invokes the decompressor, contacts a service, or launches Parabricks.
+Requires Python 3.7 or newer; no third-party packages are needed.
 
 ## Request schema
 

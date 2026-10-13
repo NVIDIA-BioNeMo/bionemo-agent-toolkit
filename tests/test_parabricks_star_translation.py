@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT = (Path(__file__).resolve().parents[1] / "library-skills" / "parabricks"
@@ -106,7 +107,11 @@ class TranslationTests(unittest.TestCase):
                              "reads/a $(touch should-not-exist).fq.gz", "--outSAMattrRGline",
                              "ID:a", "SM:patient 1", "DS:apostrophe's $literal", "--outSAMtype",
                              "BAM", "SortedByCoordinate"]
-        result = translation.translate(data)
+        # Python 3.7 has shlex.quote/split but no shlex.join. Exercise the same
+        # quoting contract with that newer API absent.
+        with mock.patch.object(translation.shlex, "join", create=True):
+            del translation.shlex.join
+            result = translation.translate(data)
         self.assertEqual(result["status"], "draft")
         self.assertEqual(shlex.split(result["command"]), result["draft_argv"])
         options = option_values(result["draft_argv"])

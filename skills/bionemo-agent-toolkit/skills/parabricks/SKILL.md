@@ -41,8 +41,11 @@ or wiring optional GPU branches. For pipeline-level work, use
 
 - **Command guidance:** No Parabricks/NGC credential or local GPU/container
   runtime is required to read references or generate commands.
-- **Readiness helper:** Runs with Bash on the host being inspected; missing
-  runtime components are reported as readiness gaps.
+- **Readiness helper:** Requires Bash and GNU coreutils `timeout` (or `gtimeout`)
+  on the host being inspected. Missing runtime components are reported as
+  readiness gaps; without a timeout utility it exits before running probes.
+- **STAR translation helper:** Requires Python 3.7 or newer, using only the
+  standard library. It does not require a GPU or a Parabricks installation.
 - **Execution:** The documented Docker commands require a supported Linux host,
   an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker,
   NVIDIA Container Toolkit, and access to the selected Parabricks image.
@@ -100,7 +103,7 @@ clinical interpretation, or promise exact runtime without benchmark data.
 ## Available Scripts
 
 Run these from the skill directory containing this file; paths are relative to
-that directory. They use Bash or Python directly and need no additional packages.
+that directory. See the helper prerequisites above.
 
 | Script | Purpose | Arguments |
 | --- | --- | --- |
