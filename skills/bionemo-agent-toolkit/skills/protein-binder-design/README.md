@@ -43,7 +43,7 @@ These tests use synthetic fixtures and credentials; they make no model calls.
 
 ## Tier 1 validation
 
-NVCARPS selects `config/skillspector-baseline.yml` before the repository-wide
+CI selects `config/skillspector-baseline.yml` before the repository-wide
 baseline. Include this file, the requirements files, and the tests when committing
 the skill; synchronize the aggregate copy with the repository's plugin sync tool.
 The baseline records reviewed false positives as exact source fingerprints for

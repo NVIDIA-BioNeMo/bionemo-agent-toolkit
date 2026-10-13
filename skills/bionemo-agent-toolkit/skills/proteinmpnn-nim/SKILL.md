@@ -12,8 +12,6 @@ permissions:
 
 # ProteinMPNN NIM
 
-<!-- nv-carps: dummy edit to trigger NIM skill validation. -->
-
 Design protein sequences for a supplied backbone PDB. Use this guide for
 first-pass hosted/local usage; load supplemental files only when needed:
 

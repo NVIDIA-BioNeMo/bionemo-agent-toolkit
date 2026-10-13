@@ -1,4 +1,4 @@
-# Reviewed 2026-10-07 against SkillSpector 2.11.2, the scanner used by NVCARPS.
+# Reviewed 2026-10-07 against SkillSpector 2.11.2, the scanner used in CI.
 # Exact fingerprints bind the complete file contents and scanner version.
 # File edits or a scanner upgrade invalidate these exceptions and require review.
 # No rule-wide suppressions; credential harvesting is fixed in code, not waived.

@@ -12,7 +12,7 @@ This script enforces two invariants:
 
   1. COVERAGE  — every distributable source skill is listed in ``skills.sh.json``.
   2. FRESHNESS — for every listed skill, the aggregate skill folder is an exact
-                 copy of the source skill folder (including ``evals/`` — NVCARPS
+                 copy of the source skill folder (including ``evals/`` —
                  Tier 3 requires the eval dataset in the validated payload).
 
 Modes:
@@ -50,7 +50,7 @@ EXCLUDE_SEGMENTS = {"plugins", "vendor", "evals", "node_modules", ".git"}
 JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
 # Subdirectories of a skill that are stripped from the aggregate payload.
 # Empty: the aggregate is a full copy. ``evals/`` is intentionally kept because
-# NVCARPS Tier 3 (live agent eval) validates the aggregate and requires the
+# Tier 3 (live agent eval) validates the aggregate and requires the
 # eval dataset there — stripping it makes Tier 3 skip → coverage invalid → gate block.
 STRIP_FROM_AGGREGATE: set[str] = set()
 # Generated artifacts the NVSkills signing/eval pipeline writes into the aggregate

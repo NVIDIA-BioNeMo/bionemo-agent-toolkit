@@ -18,7 +18,7 @@ exceptions:
     owner: trvachov
     component: Workflows
   - dir: workflow-skills
-    reason: Native workflow skills migrated out of workflows/ for individual skill validation in NVCarps.
+    reason: Native workflow skills migrated out of workflows/ for individual skill validation in CI.
     owner: trvachov
     component: Workflows
 

@@ -20,8 +20,17 @@ inputs are staged in both conditions; equivalent implementations are accepted.
 | `offline-provenance-rejection` | `provenance_cache/`, `cache_contract.md` | Reject candidate, sequence, target, sample and response-file mismatches before scoring. |
 
 Every case stages identical inputs for the with/without-skill conditions.
-`environment/Dockerfile` supplies the same pinned NumPy and Biotite versions to
-both conditions during environment setup, before the offline task starts.
+`harbor.pre_agent_setup` in `config.yml` installs the same pinned NumPy 2.5.1
+and Biotite 1.7.1 wheels in both conditions, then checks their imports and versions
+before the agent starts. Setup uses the sandbox's `python3` interpreter, which
+also runs the workflow helpers, and needs permission to install its packages.
+There is no custom `evals/environment/Dockerfile`, so Astra uses its existing
+sandbox image without invoking the managed image builder or requiring its token.
+The standard sandbox must provide Python 3.12+, pip, and package-index access
+for setup. Setup downloads packages; the subsequent exercises
+make no network calls. Normal sandbox and agent API access are still required.
+Installation or import failures stop environment preflight before agent trials.
+These offline cases need no GPU, NIM credentials, or changes to the CI service.
 The original prompts and fixtures are preserved; environment and verifier
 changes should still be recorded when comparing with historical reports.
 The added prompts request campaign outputs without giving the expected order;

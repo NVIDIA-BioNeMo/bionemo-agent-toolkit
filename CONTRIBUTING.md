@@ -56,11 +56,11 @@ copy directly; run `python scripts/plugin_sync.py --write` after changing a
 source skill. The root `plugins -> skills` symlink is a temporary compatibility
 path for existing plugin consumers.
 
-The `protein-binder-design` source skill uses `workflow-skills/` because NVCarps
-treats the `workflows/` prefix as a whole-workflow validation target. This lets
-NVCarps validate the generated skill individually while plugin-sync and security
-checks cover its source. Both roots remain registered so existing workflow
-sources can stay in `workflows/` until they are migrated.
+The `protein-binder-design` source skill uses `workflow-skills/` because CI treats
+the `workflows/` prefix as a whole-workflow validation target. This lets CI
+validate the generated skill individually while plugin-sync and security checks
+cover its source. Both roots remain registered so existing workflow sources can
+stay in `workflows/` until they are migrated.
 
 ### Onboarding a source repo
 
@@ -95,7 +95,7 @@ the same conventions `NVIDIA/skills` uses, so a compliant repo is ingestible by
 - **SRC-8 · No `AGENTS.md` / `CLAUDE.md` inside a skill dir** (auto-loaded by some harnesses).
 - **SRC-9 · No stray non-skill files** in the skills container.
 
-**Compliance — enforced by `NVIDIA/skills`; deferred here (NVCARPS):**
+**Compliance — enforced by `NVIDIA/skills`; deferred here:**
 - **SRC-10 · Co-located `evals/evals.json`** per skill + a `BENCHMARK.md` report.
   Eval definitions for a **sourced** skill must live under `evals/` **in the
   source component repo** — never authored into the catalog copy here. The sync

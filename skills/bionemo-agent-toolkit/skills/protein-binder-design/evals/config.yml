@@ -2,6 +2,15 @@ schema_version: 1
 
 harbor:
   task_source: evals_json
+  # Use the existing sandbox image; install identical CPU dependencies in both
+  # conditions before the agent starts.
+  pre_agent_setup:
+    - >-
+      python3 -m pip install --disable-pip-version-check --no-cache-dir
+      --only-binary=:all: --timeout 15 --retries 1
+      numpy==2.5.1 biotite==1.7.1
+    - >-
+      python3 -c "import numpy, biotite; assert numpy.__version__ == '2.5.1'; assert biotite.__version__ == '1.7.1'"
   agents:
     claude-code:
       model: aws/anthropic/bedrock-claude-opus-5
