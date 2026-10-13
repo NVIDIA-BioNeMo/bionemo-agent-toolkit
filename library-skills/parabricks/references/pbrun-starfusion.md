@@ -1,34 +1,23 @@
 # Parabricks starfusion
 
-Use this reference for NVIDIA Parabricks `pbrun starfusion` — RNA fusion detection using STAR-Fusion-compatible inputs and resources.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the user has STAR `Chimeric.out.junction` input. If the user only
+1. Confirm the user has STAR `Chimeric.out.junction` input. If the user only
    has raw RNA FASTQs, route to `pbrun-rna_fq2bam.md` or ask how they will
    produce STAR-Fusion-compatible chimeric junction input.
-3. Collect required inputs:
+2. Collect required inputs:
    - Chimeric junction input path.
    - STAR-Fusion genome resource library directory.
    - Output directory.
-4. Ask about optional version-specific filters, logs, and runtime settings only
+3. Ask about optional version-specific filters, logs, and runtime settings only
    when relevant.
-5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 Fusion detection from chimeric junction input:
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun starfusion \
+pbrun starfusion \
   --chimeric-junction /workdir/<chimeric_junction.out> \
   --genome-lib-dir /workdir/<genome_resource_library>/ \
   --output-dir /outputdir/<starfusion_output>/
@@ -113,10 +102,6 @@ alignment index, even when both come from the same reference build.
 | `--show_full_usage_info` | No direct equivalent | Upstream help/usage option not exposed by `pbrun starfusion`. |
 | `--help`, `-h` | No direct equivalent | Use `pbrun starfusion --help` or the selected Parabricks tool reference instead. |
 
-If a STAR-Fusion option is not listed above, assume there is no direct
-`pbrun starfusion` flag until the selected Parabricks version's tool reference
-says otherwise.
-
 ## starfusion Options Without STAR-Fusion Equivalents
 
 These options are Parabricks runtime, container, logging, or filesystem wrapper
@@ -128,17 +113,10 @@ above.
 | `--logfile` | Parabricks wrapper log file path; upstream STAR-Fusion writes to standard output/error and its output directory. |
 | `--keep-tmp` | Parabricks temporary-file retention. Upstream STAR-Fusion has `--tmpdir`, but not this wrapper cleanup flag. |
 
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
-
 ## Validation
 
-- Chimeric junction input and genome resource library paths resolve inside the
-  container.
 - Input format is compatible with STAR-Fusion expectations.
 - Output directory contains expected STAR-Fusion result files.
-- Logs do not show missing genome resource library, malformed junction input,
-  mount, CUDA, or memory errors.
 
 ## Guardrails
 
@@ -149,5 +127,4 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/starfusion>
 - <https://raw.githubusercontent.com/STAR-Fusion/STAR-Fusion/master/STAR-Fusion>

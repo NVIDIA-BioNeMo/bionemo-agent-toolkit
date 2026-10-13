@@ -23,7 +23,8 @@ PROG=$(basename "$0")
 usage() {
   cat <<EOF
 usage: $PROG [-h] [--path PATH] [--run-container-check] [--cuda-test-image IMAGE]
-       [--parabricks-version TAG] [--format {text,json}] [--timeout SECONDS]
+       [--run-parabricks-check] [--parabricks-version TAG | --parabricks-image IMAGE]
+       [--format {text,json}] [--timeout SECONDS]
 
 Check local NVIDIA Parabricks runtime readiness and print a report.
 
@@ -32,7 +33,9 @@ options:
   --path PATH               Input, output, or temporary path to include in storage checks. Can be repeated.
   --run-container-check     Run a Docker CUDA container with --gpus all to test NVIDIA Container Toolkit.
   --cuda-test-image IMAGE   CUDA image used with --run-container-check. Default: $DEFAULT_CUDA_TEST_IMAGE
-  --parabricks-version TAG  Parabricks container tag to test with pbrun --help, for example $EXAMPLE_PARABRICKS_VERSION.
+  --run-parabricks-check    Run pbrun --help in the selected Parabricks container; may pull the image.
+  --parabricks-version TAG  Select a Parabricks tag, for example $EXAMPLE_PARABRICKS_VERSION. Does not launch a container by itself.
+  --parabricks-image IMAGE  Select a full Parabricks image reference, including an optional immutable digest, instead of a tag.
   --format {text,json}      Report output format.
   --timeout SECONDS         Timeout in seconds for each external command.
 EOF
@@ -46,8 +49,10 @@ die_usage() {
 
 PATHS=()
 RUN_CONTAINER_CHECK=0
+RUN_PARABRICKS_CHECK=0
 CUDA_TEST_IMAGE=$DEFAULT_CUDA_TEST_IMAGE
 PARABRICKS_VERSION=""
+PARABRICKS_IMAGE=""
 FORMAT="text"
 TIMEOUT=$DEFAULT_TIMEOUT_SECONDS
 
@@ -55,17 +60,20 @@ while [ $# -gt 0 ]; do
   case $1 in
     -h|--help) usage; exit 0 ;;
     --run-container-check) RUN_CONTAINER_CHECK=1; shift ;;
+    --run-parabricks-check) RUN_PARABRICKS_CHECK=1; shift ;;
     --path=*) PATHS+=("${1#*=}"); shift ;;
     --cuda-test-image=*) CUDA_TEST_IMAGE=${1#*=}; shift ;;
     --parabricks-version=*) PARABRICKS_VERSION=${1#*=}; shift ;;
+    --parabricks-image=*) PARABRICKS_IMAGE=${1#*=}; shift ;;
     --format=*) FORMAT=${1#*=}; shift ;;
     --timeout=*) TIMEOUT=${1#*=}; shift ;;
-    --path|--cuda-test-image|--parabricks-version|--format|--timeout)
+    --path|--cuda-test-image|--parabricks-version|--parabricks-image|--format|--timeout)
       [ $# -ge 2 ] || die_usage "argument $1: expected one argument"
       case $1 in
         --path) PATHS+=("$2") ;;
         --cuda-test-image) CUDA_TEST_IMAGE=$2 ;;
         --parabricks-version) PARABRICKS_VERSION=$2 ;;
+        --parabricks-image) PARABRICKS_IMAGE=$2 ;;
         --format) FORMAT=$2 ;;
         --timeout) TIMEOUT=$2 ;;
       esac
@@ -82,6 +90,12 @@ esac
 case $TIMEOUT in
   ''|*[!0-9]*) die_usage "argument --timeout: invalid int value: '$TIMEOUT'" ;;
 esac
+if [ -n "$PARABRICKS_VERSION" ] && [ -n "$PARABRICKS_IMAGE" ]; then
+  die_usage "choose --parabricks-version or --parabricks-image, not both"
+fi
+if [ "$RUN_PARABRICKS_CHECK" = 1 ] && [ -z "$PARABRICKS_VERSION$PARABRICKS_IMAGE" ]; then
+  die_usage "--run-parabricks-check requires --parabricks-version TAG or --parabricks-image IMAGE"
+fi
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -344,12 +358,17 @@ check_parabricks_container() {
   PB_IMAGE=""
   PB_DETAIL=""
   PB_REASON=""
-  if [ -z "$PARABRICKS_VERSION" ]; then
+  if [ "$RUN_PARABRICKS_CHECK" != 1 ]; then
     PB_STATUS=not_checked
-    PB_REASON="Use --parabricks-version <tag> to test pbrun in a Parabricks container."
+    PB_REASON="Use --run-parabricks-check with --parabricks-version <tag> or --parabricks-image <image> to test pbrun."
     return
   fi
-  PB_IMAGE="nvcr.io/nvidia/clara/clara-parabricks:$PARABRICKS_VERSION"
+  if [ "$DOCKER_STATUS" = missing ]; then
+    PB_STATUS=missing
+    PB_DETAIL="Docker is missing, so Parabricks container access cannot be tested."
+    return
+  fi
+  PB_IMAGE=${PARABRICKS_IMAGE:-"nvcr.io/nvidia/clara/clara-parabricks:$PARABRICKS_VERSION"}
   run_cmd docker run --rm --gpus all "$PB_IMAGE" pbrun --help
   if [ "$CMD_RC" = 0 ]; then
     PB_STATUS=ok
@@ -452,7 +471,7 @@ classify() {
 
   if [ "$PB_STATUS" = not_checked ]; then
     add_unique ASSESSMENTS "not enough information"
-    add_unique OPEN_QUESTIONS "Parabricks container access was not tested; rerun with --parabricks-version <tag> after choosing a version."
+    add_unique OPEN_QUESTIONS "Parabricks container access was not tested; use --run-parabricks-check with --parabricks-version <tag> or --parabricks-image <image> after selecting an image and authorizing the probe."
   elif [ "$PB_STATUS" != ok ]; then
     add_unique ASSESSMENTS "runtime-incomplete"
     add_unique RECOMMENDATIONS "Verify NGC authentication, network/proxy policy, and the requested Parabricks image tag."

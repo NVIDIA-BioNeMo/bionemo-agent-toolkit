@@ -1,15 +1,12 @@
 ---
 name: parabricks
 description: >-
-  Use for NVIDIA Parabricks reference/index compatibility, CPU-to-Parabricks
-  option translation, and `pbrun` command guidance, including planning-only or
-  "do not run" questions. Route tools for FASTQ/BAM, RNA-seq, variant calling,
-  BAM QC, and GVCFs, and assess GPU/runtime readiness. Do NOT use for inspecting
-  or accelerating whole pipelines — use genomics-workflow-acceleration.
+  Plan NVIDIA Parabricks/pbrun commands, translate CPU options and check runtime
+  readiness. Use for individual tools, including planning-only questions.
 license: CC-BY-4.0 AND Apache-2.0
 metadata:
   author: "Angel Pizarro <apizarro@nvidia.com>"
-  version: "1.2.4"
+  version: "1.3.0"
   tags:
     - parabricks
     - genomics
@@ -22,7 +19,7 @@ metadata:
 
 Use this skill to discover the right NVIDIA Parabricks `pbrun` command, assess
 runtime readiness, and generate version-aware command guidance for individual
-tools and pipelines.
+tools.
 
 Do **not** use this skill for whole-workflow inspection, acceleration planning,
 or wiring optional GPU branches. For pipeline-level work, use
@@ -53,10 +50,18 @@ or wiring optional GPU branches. For pipeline-level work, use
   See [runtime-environment.md](references/runtime-environment.md) for
   version-specific requirements and checks.
 
-For command guidance, identify the assay, inputs, reference build, desired
-output, and target version. Ask only for missing facts that affect the answer;
-an explicitly labeled template can use placeholders while those facts are
-unresolved. Runtime-only questions do not need sample metadata.
+## Inputs
+
+Use the user's explicit arguments and supplied manifests as the source of
+truth; use prior context only where it does not conflict. Read a named manifest
+before translating it. For command guidance, identify the assay, input paths,
+reference/index provenance, outputs and target release. Ask only for missing
+facts that change the answer; label unresolved template values as placeholders.
+Required inputs are the selected tool's read/reference and output arguments.
+Optional inputs include intervals, resource bundles, logs and tuning parameters
+when supported by that tool; do not invent them to fill a template.
+Runtime-only questions do not need sample metadata. Supplied deployment paths
+are not permission to probe local data or hardware.
 
 If the user is unsure which tool applies, scan the **Tool Reference Index**
 below, then load the matching `references/pbrun-<tool>.md` file.
@@ -70,89 +75,65 @@ clinical interpretation, or promise exact runtime without benchmark data.
 
 ## Instructions
 
-1. Confirm the Parabricks version or container tag. These references track the
-   current published docs and were last verified against v4.7.1. Use the user's
-   container tag in generated commands. For another version, or if the NVIDIA
-   Parabricks docs look newer, verify against those docs or `pbrun <tool>
-   --help` on their container before answering.
+1. Identify the requested release. The option references cover v4.7.1; examples
+   from another release are labeled. A software version and image tag can
+   differ: NVIDIA's 4.7.1 image is tagged `4.7.1-1`. Preserve the user's verified
+   image selection; use [command-conventions.md](references/command-conventions.md)
+   for the shared launch and validation contract.
 2. Classify the request:
    - **Runtime** → [runtime-environment.md](references/runtime-environment.md)
    - **Tool discovery** → **Tool Reference Index** (below)
    - **Specific command** → matching `references/pbrun-<tool>.md`. Read it
      **before** any web search or MCP lookup; use those only to verify
      version-sensitive details the reference does not settle.
-3. For command shape and option translation, follow
-   [command-conventions.md](references/command-conventions.md) and
-   [shared-options.md](references/shared-options.md) together with the
-   per-tool reference.
+3. Combine the tool-specific mapping with [shared-options.md](references/shared-options.md)
+   rows whose **Tools** column names the selected command. For STAR argument
+   arrays or multi-lane batches,
+   use the local [translation helper](references/rna-translation.md); it preserves
+   tokens and reports unmapped semantics without executing a workload.
 4. Collect missing biological and filesystem context before generating commands.
-5. Generate conservative Docker commands with explicit mounts, workdir, and
-   placeholders. Validate paths, indexes, and outputs after command generation.
+5. Return the requested command or artifact with unresolved assumptions. For
+   planning-only work, check command text against the references and supplied
+   facts. Filesystem, container and output checks apply only to an authorized
+   execution. Do not turn command preparation into a readiness inspection.
+
+## Available Scripts
+
+Run these from the skill directory containing this file; paths are relative to
+that directory. They use Bash or Python directly and need no additional packages.
+
+| Script | Purpose | Arguments |
+| --- | --- | --- |
+| `scripts/check_parabricks_runtime.sh` | Inspect the execution host; report gaps without installing anything | `--path DIR` (repeatable), `--format text\|json`, `--timeout SECONDS`; container probes require `--run-container-check` or `--run-parabricks-check` with `--parabricks-version TAG` / `--parabricks-image IMAGE` |
+| `scripts/translate_star_to_parabricks.py` | Convert explicit STAR argument arrays to reviewed command drafts | `--input FILE` or `--input -`; [request and output schema](references/rna-translation.md) |
+
+## Output Format
+
+For explanations, give the decision, complete command, and remaining checks.
+For file requests, write the specified path and schema, then read back and
+validate the artifact against the input manifest. Report all job IDs, omitted
+options and unresolved output contracts. Do not replace supplied values with
+illustrative examples. The runtime helper's JSON has `schema_version`, `checks`
+and readiness results; the translator emits `status`, `draft_argv`, `command`,
+`notes`, `issues` and `untranslated` for each request.
 
 ## Tool Reference Index
 
-Use these tables for tool discovery when assay, input type, or goal is unclear.
-After choosing a tool, load only its `references/pbrun-<tool>.md` for command
-shape and flags.
+If the command is named, open `references/pbrun-<command>.md` directly.
+For tool selection and official manual links, use [tool-index.md](references/tool-index.md).
+Common routes:
 
-### FASTQ/BAM Processing
-
-| Parabricks Tool | Skill Reference | Use when |
-|------|-----------|----------|
-| [`applybqsr`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/applybqsr) | [pbrun-applybqsr.md](references/pbrun-applybqsr.md) | Apply a BQSR recalibration table to aligned BAM/CRAM after `bqsr`. |
-| [`bam2fq`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/bam2fq) | [pbrun-bam2fq.md](references/pbrun-bam2fq.md) | Convert BAM input to FASTQ output. |
-| [`bamsort`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/bamsort) | [pbrun-bamsort.md](references/pbrun-bamsort.md) | Standalone BAM sort (CRAM v3.1 read support documented for recent releases). |
-| [`bqsr`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/bqsr) | [pbrun-bqsr.md](references/pbrun-bqsr.md) | Generate base quality score recalibration data for later `applybqsr`. |
-| [`fq2bam`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/fq2bam) | [pbrun-fq2bam.md](references/pbrun-fq2bam.md) | Raw paired short-read DNA FASTQ → aligned BAM/CRAM with common preprocessing (align/sort/dedup/BQSR path). |
-| [`fq2bam_meth`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/fq2bam_meth) | [pbrun-fq2bam_meth.md](references/pbrun-fq2bam_meth.md) | Bisulfite or methylation FASTQ workflows — not standard DNA `fq2bam`. |
-| [`giraffe`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/giraffe) | [pbrun-giraffe.md](references/pbrun-giraffe.md) | Pangenome graph alignment (vg giraffe); pairs with pangenome-aware pre/post and callers. |
-| [`markdup`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/markdup) | [pbrun-markdup.md](references/pbrun-markdup.md) | Mark duplicate reads in aligned BAM/CRAM when not folded into `fq2bam`. |
-| [`minimap2`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/minimap2) | [pbrun-minimap2.md](references/pbrun-minimap2.md) | Long-read FASTQ alignment (CRAM v3.1 read support documented for recent releases). |
-
-### Variant Calling
-
-| Parabricks Tool | Skill Reference | Use when |
-|------|-----------|----------|
-| [`deepsomatic`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/deepsomatic) | [pbrun-deepsomatic.md](references/pbrun-deepsomatic.md) | Tumor/normal or tumor-only somatic calling with DeepSomatic (CRAM v3.1 reads documented for recent releases). |
-| [`deepvariant`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/deepvariant) | [pbrun-deepvariant.md](references/pbrun-deepvariant.md) | DeepVariant from BAM/CRAM; short-read germline recall alternative to `haplotypecaller`. |
-| [`deepvariant_germline`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/deepvariant_germline) | [pbrun-deepvariant_germline.md](references/pbrun-deepvariant_germline.md) | FASTQ-in DeepVariant germline pipeline when the user wants DeepVariant end-to-end from reads. |
-| [`germline`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/germline) | [pbrun-germline.md](references/pbrun-germline.md) | FASTQ-in GATK-style germline pipeline; do not route existing BAM/CRAM here without version-verified docs. |
-| [`haplotypecaller`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/haplotypecaller) | [pbrun-haplotypecaller.md](references/pbrun-haplotypecaller.md) | GATK HaplotypeCaller-compatible germline calling from BAM/CRAM (primary short-read variant recall path). |
-| [`mutectcaller`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/mutectcaller) | [pbrun-mutectcaller.md](references/pbrun-mutectcaller.md) | Tumor/normal or tumor-only somatic calling with Mutect2-compatible caller (CRAM v3.1 reads documented for recent releases). |
-| [`ont_germline`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/ont_germline) | [pbrun-ont_germline.md](references/pbrun-ont_germline.md) | Oxford Nanopore long-read germline workflow. |
-| [`pacbio_germline`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/pacbio_germline) | [pbrun-pacbio_germline.md](references/pbrun-pacbio_germline.md) | PacBio long-read germline workflow. |
-| [`pangenome_aware_deepvariant`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/pangenome_aware_deepvariant) | [pbrun-pangenome_aware_deepvariant.md](references/pbrun-pangenome_aware_deepvariant.md) | Pangenome-aware DeepVariant; for Roche SBX-D/SBX-Fast BAMs use `--sbx` (verify in docs/MCP). CRAM v3.1 reads documented for recent releases. |
-| [`pangenome_germline`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/pangenome_germline) | [pbrun-pangenome_germline.md](references/pbrun-pangenome_germline.md) | Pangenome-aware germline workflow with graph resources. |
-| [`postpon`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/postpon) | [pbrun-postpon.md](references/pbrun-postpon.md) | Post-processing for pangenome-aware workflows (with `prepon` / graph alignment). |
-| [`prepon`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/prepon) | [pbrun-prepon.md](references/pbrun-prepon.md) | Pre-processing for pangenome-aware workflows (with `postpon` / callers). |
-| [`somatic`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/somatic) | [pbrun-somatic.md](references/pbrun-somatic.md) | Tumor/normal somatic variant calling pipeline (caller family alternative to `mutectcaller` / `deepsomatic`). |
-
-### RNA
-
-| Parabricks Tool | Skill Reference | Use when |
-|------|-----------|----------|
-| [`rna_fq2bam`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/rna_fq2bam) | [pbrun-rna_fq2bam.md](references/pbrun-rna_fq2bam.md) | RNA-seq FASTQ → splice-aware aligned BAM (STAR-based workflow). `--ref` and the STAR `--genome-lib-dir` must be the same assembly (contig renaming cannot fix a mismatch); STAR 2.7.2a compatibility baseline. |
-| [`starfusion`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/starfusion) | [pbrun-starfusion.md](references/pbrun-starfusion.md) | Fusion detection with STAR-Fusion from chimeric junction input and genome library. |
-
-### Quality Control
-
-| Parabricks Tool | Skill Reference | Use when |
-|------|-----------|----------|
-| [`bammetrics`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/bammetrics) | [pbrun-bammetrics.md](references/pbrun-bammetrics.md) | BAM metrics and QC on existing alignments — not variant calling or coverage repair. |
-| [`collectmultiplemetrics`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/collectmultiplemetrics) | [pbrun-collectmultiplemetrics.md](references/pbrun-collectmultiplemetrics.md) | Multiple Picard/GATK-style alignment metrics — not variant recall from BAM/CRAM. |
-
-### Variant and GVCF Processing
-
-| Parabricks Tool | Skill Reference | Use when |
-|------|-----------|----------|
-| [`dbsnp`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/dbsnp) | [pbrun-dbsnp.md](references/pbrun-dbsnp.md) | dbSNP annotation or variant file processing support. |
-| [`genotypegvcf`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/genotypegvcf) | [pbrun-genotypegvcf.md](references/pbrun-genotypegvcf.md) | Joint-genotype GVCF input(s) into VCF after indexing. |
-| [`indexgvcf`](https://docs.nvidia.com/clara/parabricks/tool-reference/tools/indexgvcf) | [pbrun-indexgvcf.md](references/pbrun-indexgvcf.md) | Index GVCF before `genotypegvcf` or consolidation workflows. Writes `<input>.tbi` beside the input (no `--out`); for read-only inputs, index a writable copy after checking for existing files. |
-
-**CRAM v3.1 reads:** Documented for `bamsort`, `deepsomatic`, `deepvariant`,
-`haplotypecaller`, `minimap2`, `mutectcaller`, and `pangenome_aware_deepvariant`
-for recent Parabricks releases. Verify in NVIDIA docs or MCP before routing
-CRAM v3.1 inputs to other tools.
+| Request | Reference |
+| --- | --- |
+| DNA FASTQ alignment / RNA STAR translation | [fq2bam](references/pbrun-fq2bam.md) / [rna_fq2bam](references/pbrun-rna_fq2bam.md) |
+| Existing BAM germline calls / tumor-normal calls | [haplotypecaller](references/pbrun-haplotypecaller.md) / [mutectcaller](references/pbrun-mutectcaller.md) |
+| Giraffe graph alignment | [giraffe](references/pbrun-giraffe.md) |
+| STAR-Fusion migration | [starfusion](references/pbrun-starfusion.md) |
+| Recalibration / apply a recalibration report | [bqsr](references/pbrun-bqsr.md) / [applybqsr](references/pbrun-applybqsr.md) |
+| BAM metrics / multiple metric families | [bammetrics](references/pbrun-bammetrics.md) / [collectmultiplemetrics](references/pbrun-collectmultiplemetrics.md) |
+| GVCF indexing / joint genotyping | [indexgvcf](references/pbrun-indexgvcf.md) / [genotypegvcf](references/pbrun-genotypegvcf.md) |
+| Panel-of-normals preparation / annotation | [prepon](references/pbrun-prepon.md) / [postpon](references/pbrun-postpon.md) |
+| BWA performance options | [performance](references/performance.md) |
 
 ## Examples
 
@@ -162,25 +143,22 @@ For GPU, driver, Docker, container, storage, or installation questions, read
 [runtime-environment.md](references/runtime-environment.md) and prefer:
 
 ```bash
-bash skills/parabricks/scripts/check_parabricks_runtime.sh
+bash scripts/check_parabricks_runtime.sh --format json
 ```
 
 Add `--path <dir>` for known input/output/tmp paths. Run container probes only
 with user consent.
 
-### Command Shape
+### STAR Translation
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun <selected-tool> \
-  <tool-specific-options>
+python3 scripts/translate_star_to_parabricks.py --input requests.json
 ```
 
-Check the version-specific tool reference before finalizing flags.
+Prepare the request using the [translation schema](references/rna-translation.md).
+Review `issues` and `untranslated` before using the draft. Tool references show
+the `pbrun` portion; the shared container envelope is documented once in
+[command-conventions.md](references/command-conventions.md).
 
 ## Troubleshooting
 
@@ -191,6 +169,7 @@ Check the version-specific tool reference before finalizing flags.
 | Runtime question | GPU, Docker, drivers, or storage | Use runtime-environment reference and diagnostic script |
 | Wrong tool family | Assay or input type unclear | Confirm DNA/RNA/methylation/long-read/pangenome before routing |
 | CUDA or memory failure | Runtime not ready or GPU memory constrained | Assess runtime before tuning command flags |
+| Documentation MCP unavailable | Connection, timeout or server error | Use the bundled release reference first; for an unresolved fact, fall back to the official versioned manual and mark any remaining uncertainty |
 
 ## Guardrails
 
@@ -203,9 +182,10 @@ Check the version-specific tool reference before finalizing flags.
 - Do not install, upgrade, or modify packages. Label setup commands as user-run.
 - Do not claim CPU execution of Parabricks tools.
 - Do not claim biological or VCF parity without a comparison run.
-- Use the Parabricks documentation MCP server for exact command syntax and
-  option defaults whenever it is available; do not present version-sensitive
-  details as verified if the lookup failed.
+- Use the optional documentation MCP server only for details the bundled
+  references do not settle. If its connection fails, avoid repeated discovery
+  or lookup loops; use the official manual. Never claim a failed lookup verified
+  an option. Documentation access does not require genomic data or credentials.
 
 ## Key References
 

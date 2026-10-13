@@ -42,6 +42,51 @@ def option_values(argv):
 
 
 class TranslationTests(unittest.TestCase):
+    def test_supported_releases_preserve_the_same_argument_contract(self):
+        first = translation.translate(request(version="4.7.0"))
+        second = translation.translate(request(version="4.7.1"))
+        self.assertEqual(first, second)
+        self.assertEqual(second["status"], "draft")
+
+    def test_invalid_version_types_are_reported_without_crashing(self):
+        for version in [None, [], {}, 4.7]:
+            with self.subTest(version=version):
+                result = translation.translate(request(version=version))
+                self.assertEqual(result["status"], "invalid")
+                self.assertIsNone(result["draft_argv"])
+
+    def test_batch_manifest_preserves_lanes_settings_and_decompressors(self):
+        manifest = json.loads((SCRIPT.parent.parent / "evals/files/rna-batch.json").read_text())
+        results = {}
+        for job in manifest["jobs"]:
+            target = job["target"]
+            result = translation.translate({
+                "version": manifest["parabricks_version"], "name": job["id"],
+                "star_args": job["cpu_star_argv"], "ref": target["reference"],
+                "output_dir": target["output_directory"], "out_bam": target["bam"],
+                "mark_duplicates": target["mark_duplicates"],
+            })
+            self.assertEqual(result["status"], "draft", result)
+            options = option_values(result["draft_argv"])
+            self.assertEqual(options["--ref"], [[target["reference"]]])
+            self.assertEqual(options["--output-dir"], [[target["output_directory"]]])
+            self.assertEqual(options["--out-bam"], [[target["bam"]]])
+            self.assertIn("--no-markdups", options)
+            self.assertNotIn("--num-threads", options)
+            self.assertEqual(shlex.split(result["command"]), result["draft_argv"])
+            results[job["id"]] = options
+        self.assertEqual(len(results["treated"]["--in-fq"]), 3)
+        self.assertEqual(len(results["control"]["--in-se-fq"]), 2)
+        self.assertEqual(len(results["rescue"]["--in-fq"]), 1)
+        self.assertEqual(results["treated"]["--max-junction-mismatches"], [["0", "-1", "0", "0"]])
+        self.assertEqual(results["treated"]["--out-chim-type"], [["WithinBAM_SoftClip"]])
+        self.assertEqual(results["treated"]["--two-pass-mode"], [["Basic"]])
+        for job in manifest["jobs"]:
+            source = job["cpu_star_argv"]
+            start = source.index("--readFilesCommand") + 1
+            end = next((i for i in range(start, len(source)) if source[i].startswith("--")), len(source))
+            self.assertEqual(results[job["id"]]["--read-files-command"], [[" ".join(source[start:end])]])
+
     def test_pairs_metadata_required_outputs_and_default_marking(self):
         result = translation.translate(request())
         self.assertEqual(result["status"], "draft")

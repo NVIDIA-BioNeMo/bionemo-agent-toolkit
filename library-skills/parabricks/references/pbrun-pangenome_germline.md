@@ -1,32 +1,20 @@
 # Parabricks pangenome_germline
 
-Use this reference for NVIDIA Parabricks `pbrun pangenome_germline` — pangenome-aware germline pipeline from FASTQ or aligned inputs through vg giraffe and DeepVariant to VCF/gVCF.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the user wants pangenome-aware germline calling.
-3. Collect required inputs:
+1. Confirm the user wants pangenome-aware germline calling.
+2. Collect required inputs:
    - Reference FASTA and pangenome graph/resource bundle.
-   - FASTQ or aligned input as supported by the selected version.
-   - Output VCF/gVCF or output directory.
+   - Paired-end or single-end FASTQ input.
+   - Output BAM and VCF/gVCF paths.
    - Any model/resource bundle required by the selected version.
-4. Ask whether `prepon` or `postpon` steps are part of the intended workflow.
-5. For pangenome graph alignment only, consider
-   `pbrun-fq2bam.md` and related FASTQ/BAM references; for runtime readiness, use
-   `runtime-environment.md`.
+3. For graph alignment only, use `pbrun-giraffe.md`. For prepared BAM input,
+   use the standalone caller in `pbrun-pangenome_aware_deepvariant.md`.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun pangenome_germline \
+pbrun pangenome_germline \
   <version-specific-pangenome-resource-options> \
   <version-specific-input-options> \
   <version-specific-output-options>
@@ -49,10 +37,7 @@ pipeline-level rather than one-to-one.
 | `vg giraffe --zipcodes-name`, `-z` | `--zipcodes-name` or version-specific graph flag | Zipcodes input when required. |
 | `vg giraffe --ref-paths` | `--ref-paths` or version-specific path-list flag | Path list/dictionary for headers and reference extraction. |
 | FASTQ query input | `--in-fq` or selected input flag | Verify paired/single-end syntax for the selected version. |
-| Giraffe-aligned BAM input | `--in-bam` or selected input flag | Use only if the selected version supports prepared alignment input. |
 | Linear reference FASTA for variant calling | `--ref` | Reference must match graph-derived paths/build. |
-| DeepVariant `--output_vcf` | `--out-variants` | VCF/gVCF output. |
-| DeepVariant `--output_gvcf` / gVCF mode | `--gvcf` plus `--out-variants` | Output path extension controls VCF/gVCF naming when documented. |
 | DeepVariant custom model | `--pb-model-file` | Optional TensorRT model. Default is the shipped pangenome-aware engine, or the SBX engine when `--sbx` is set. |
 | Roche SBX Google case-study settings | `--sbx` | Roche SBX-D / SBX-Fast mode on the pangenome-aware DeepVariant stage. |
 | `vg giraffe --max-multimaps`, `-M` | `--max-multimaps` | Max alignments per read (default: 1). |
@@ -64,22 +49,14 @@ pipeline-level rather than one-to-one.
 | `pbrun pangenome_germline` option | Why it has no direct baseline equivalent |
 | --- | --- |
 | `--sbx` | Roche SBX mode for the pangenome-aware DeepVariant stage. |
-| `prepon`/`postpon` workflow handoff flags | Parabricks-specific pangenome preprocessing/postprocessing integration. |
 | GPU graph-alignment stream, batch, queue, and minimizer controls | Parabricks GPU implementation tuning. |
 | GPU write/sort/storage controls | Parabricks accelerated output pipeline. |
 | DeepVariant channel/allele-counter flags exposed directly by Parabricks | Parabricks first-class controls for DeepVariant internals. |
-| `--num-gpus` | Parabricks GPU count. |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
 - Pangenome resources are complete and compatible with the reference build.
-- Inputs resolve inside the container.
 - Output VCF/gVCF or output directory exists.
-- Logs do not show graph resource, reference, model, mount, CUDA, or memory
-  errors.
 
 ## Guardrails
 
@@ -87,7 +64,3 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
   explicitly wants pangenome-aware analysis.
 - Do not invent graph bundle paths or compatibility.
 - Use `--sbx` only when the user has Roche SBX-D or SBX-Fast data.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/pangenome_germline>

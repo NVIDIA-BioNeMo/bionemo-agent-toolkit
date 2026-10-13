@@ -1,32 +1,21 @@
 # Parabricks pangenome_aware_deepvariant
 
-Use this reference for NVIDIA Parabricks `pbrun pangenome_aware_deepvariant` — pangenome-aware DeepVariant germline calling from reads/alignments and a pangenome graph to VCF/gVCF.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag and verify this tool is
-   present in that version.
-2. Confirm the user wants pangenome-aware DeepVariant rather than standard
+1. Confirm the user wants pangenome-aware DeepVariant rather than standard
    `deepvariant` or `pangenome_germline`.
-3. Collect required inputs:
+2. Collect required inputs:
    - Reference FASTA and pangenome graph/resource bundle.
    - Input reads or alignments as supported by the selected version.
    - Output VCF/gVCF or output directory.
    - Model/resource bundle when required.
-4. Ask whether `prepon`, `postpon`, or `giraffe` outputs are expected inputs.
-5. For runtime readiness, see `runtime-environment.md`.
+3. Confirm how the BAM was aligned and which graph and linear reference were
+   used. For graph alignment from FASTQ, use `pbrun-giraffe.md`.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun pangenome_aware_deepvariant \
+pbrun pangenome_aware_deepvariant \
   <version-specific-pangenome-resource-options> \
   <version-specific-input-options> \
   <version-specific-output-options>
@@ -108,18 +97,12 @@ resource flags are part of the command surface.
 | `--sample-name-pangenome`, `--ref-name-pangenome` | Parabricks pangenome sample/reference name controls (defaults `pangenome` and `GRCh38`). |
 | GPU graph/pangenome runtime controls | Parabricks GPU implementation tuning. |
 | Parabricks TensorRT model-file controls | Parabricks model deployment differs from Google DeepVariant's Keras/TensorFlow runtime. |
-| `--num-gpus` | Parabricks GPU count. |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
 - Pangenome resources, reference, model/resources, and input files are
   compatible.
 - Output VCF/gVCF or output directory exists.
-- Logs do not show missing graph resources, model errors, reference mismatch,
-  mount, CUDA, or memory errors.
 
 ## Guardrails
 
@@ -128,7 +111,3 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 - Do not invent Roche SBX sample names or case-study BAM paths; use `--sbx`
   only when the user has SBX-D or SBX-Fast alignments.
 - Verify current docs before recommending any optional flags.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/pangenome_aware_deepvariant>

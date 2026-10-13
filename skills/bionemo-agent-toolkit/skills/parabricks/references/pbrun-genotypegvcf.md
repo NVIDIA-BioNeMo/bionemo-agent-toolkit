@@ -1,32 +1,22 @@
 # Parabricks genotypegvcf
 
-Use this reference for NVIDIA Parabricks `pbrun genotypegvcf` — joint genotyping of one or more GVCFs into a multi-sample VCF.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the input is GVCF. If the user has BAM/CRAM or FASTQ, route to
+1. Confirm the input is GVCF. If the user has BAM/CRAM or FASTQ, route to
    variant-calling references in this skill first.
-3. Collect required inputs:
+2. Collect required inputs:
    - Input GVCF path or cohort input expected by the selected version.
    - Reference FASTA if required.
    - Output VCF path.
-4. Ask about intervals, sample/cohort structure, temporary directory, and logs
+3. Ask about intervals, sample/cohort structure, temporary directory, and logs
    only when relevant.
-5. If the GVCF is not indexed and the workflow requires an index, route to
+4. If the GVCF is not indexed and the workflow requires an index, route to
    `pbrun-indexgvcf.md`.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun genotypegvcf \
+pbrun genotypegvcf \
   <version-specific-gvcf-input-options> \
   <version-specific-output-options>
 ```
@@ -42,14 +32,9 @@ GATK GenotypeGVCFs counterpart for converting one or more gVCF inputs to VCF.
 
 | GATK option | `pbrun genotypegvcf` equivalent | Notes |
 | --- | --- | --- |
-| `--reference`, `-R` | `--ref` | Required reference FASTA path. |
 | `--variant`, `-V` | `--in-gvcf` | Required input gVCF/gVCF.GZ. |
 | `--output`, `-O` | `--out-vcf` | Required output VCF. |
 | GATK intervals, annotation controls, cloud flags, `--arguments_file`, and Java options | No direct equivalent | Not exposed by current Parabricks docs for `genotypegvcf`. |
-
-If a GATK `GenotypeGVCFs` option is not listed above, assume there is no direct
-`pbrun genotypegvcf` flag until the selected Parabricks version's tool
-reference says otherwise.
 
 ## genotypegvcf Options Without GenotypeGVCFs Equivalents
 
@@ -57,23 +42,13 @@ reference says otherwise.
 | --- | --- |
 | `--num-threads` | Parabricks worker-thread count. |
 
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
-
 ## Validation
 
-- GVCF input resolves inside the container.
 - Required GVCF index and reference files exist.
 - Output VCF exists and is indexed when requested.
-- Logs do not show malformed GVCF, missing index, reference mismatch, mount,
-  CUDA, or memory errors.
 
 ## Guardrails
 
 - Do not present `genotypegvcf` as a read-level variant caller.
 - Do not invent cohort/sample assumptions.
 - Treat multi-sample behavior and input list formats as version-sensitive.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/genotypegvcf>

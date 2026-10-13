@@ -45,9 +45,11 @@ credential/configuration files to discover authentication or host access.
 Use the helper's GPU and runtime results and request administrator-supplied
 diagnostics when the target environment is inaccessible.
 
-The default check does not launch containers. Either `--run-container-check`
-or `--parabricks-version` launches a container independently; the latter is not
-just version metadata. Only pass these flags when the user has authorized the
+The default check does not launch containers. `--run-container-check` enables
+the CUDA probe; `--run-parabricks-check` enables the Parabricks probe and requires
+`--parabricks-version` or a full `--parabricks-image` reference. Supplying an
+image selection alone does not launch anything.
+Only enable probes when the user has authorized the
 network/image-access side effects. These checks may pull images or require NGC
 authentication. Select a CUDA probe image compatible with the target release
 and driver using `--cuda-test-image`; `--parabricks-version` selects only the
@@ -56,8 +58,9 @@ Parabricks image and does not change the CUDA probe image:
 ```bash
 bash scripts/check_parabricks_runtime.sh \
   --run-container-check \
-  --cuda-test-image nvidia/cuda:<release-compatible-tag> \
-  --parabricks-version <version>
+  --cuda-test-image nvidia/cuda@sha256:<verified-compatible-digest> \
+  --run-parabricks-check \
+  --parabricks-image nvcr.io/nvidia/clara/clara-parabricks@sha256:<verified-digest>
 ```
 
 For machine-readable output, use:
@@ -70,12 +73,6 @@ Do not install, upgrade, or modify packages. If prerequisites are missing,
 provide commands for the user or system administrator to run, and make clear
 that the commands must be reviewed for their OS, package manager, security
 policy, and Parabricks version.
-
-## Available Scripts
-
-| Script | Purpose | Arguments |
-|--------|---------|-----------|
-| `scripts/check_parabricks_runtime.sh` | Collect local OS, CPU/RAM, GPU, Docker, optional container, Parabricks image, and storage readiness facts | `--path <dir>` repeatable, `--run-container-check`, `--cuda-test-image <image:tag>`, `--parabricks-version <tag>`, `--format text\|json`, `--timeout <seconds>` |
 
 ## Discovery Commands
 
@@ -126,20 +123,12 @@ docker --version
 docker info
 ```
 
-When Docker is available and daemon access succeeds, an authorized container
-probe can test NVIDIA Container Toolkit. Select a CUDA image appropriate to the
-target release:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:<release-compatible-tag> nvidia-smi
-```
-
-For Parabricks container access, after the user confirms the desired version:
-
-```bash
-docker pull nvcr.io/nvidia/clara/clara-parabricks:<version>
-docker run --rm --gpus all nvcr.io/nvidia/clara/clara-parabricks:<version> pbrun --help
-```
+When Docker is available and daemon access succeeds, use the opt-in helper
+probes above. Select an image appropriate to the target release and driver.
+Record its trusted registry digest for reproducibility; `--cuda-test-image`
+and `--parabricks-image` accept digest references. A floating or implicit
+`latest` tag is not a reproducible release selection. The script does not log
+in to a registry, install a runtime, or inspect credentials.
 
 ## Requirements For The Selected Release
 
@@ -164,6 +153,7 @@ CUDA image from that manual:
 bash scripts/check_parabricks_runtime.sh \
   --run-container-check \
   --cuda-test-image nvidia/cuda:12.0.0-base-ubuntu20.04 \
+  --run-parabricks-check \
   --parabricks-version 4.2-1
 ```
 

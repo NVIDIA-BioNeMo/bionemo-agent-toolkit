@@ -1,33 +1,22 @@
 # Parabricks deepsomatic
 
-Use this reference for NVIDIA Parabricks `pbrun deepsomatic` — DeepSomatic-based somatic variant calling from tumor (and optional normal) BAM/CRAM to VCF/gVCF.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the somatic analysis design: tumor-normal or tumor-only if supported
+1. Confirm the somatic analysis design: tumor-normal or tumor-only if supported
    by the selected version.
-3. Collect required inputs:
+2. Collect required inputs:
    - Reference FASTA.
    - Tumor BAM/CRAM.
    - Normal BAM/CRAM when applicable.
    - Output VCF/gVCF or output directory.
    - Model or resource bundle when required by the selected version.
-4. Ask for intervals, sample names, optional candidate resources, and logs only
+3. Ask for intervals, sample names, optional candidate resources, and logs only
    when relevant.
-5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun deepsomatic \
+pbrun deepsomatic \
   --ref /workdir/<reference.fa> \
   <version-specific-tumor-normal-inputs> \
   <version-specific-output-options>
@@ -54,10 +43,6 @@ and shard/stream controls) for `deepsomatic` are in
 | `--make_examples_extra_args` for supported candidate/pileup/read controls | Matching explicit Parabricks flags such as `--vsc-*`, `--alt-aligned-pileup`, `--min-mapping-quality`, and `--channel-*` | Parabricks exposes many make-examples options as first-class flags. |
 | Google DeepSomatic options not listed here or in shared-options | No direct equivalent | Not exposed for `deepsomatic` in current docs. |
 
-If a Google DeepSomatic option is not listed here or in
-[shared-options.md](shared-options.md) for `deepsomatic`, assume no direct flag
-until the selected release's tool reference confirms it.
-
 Parabricks GPU runtime and wrapper controls for `deepsomatic` are in
 [shared-options.md](shared-options.md) and
 [command-conventions.md](command-conventions.md#shared-wrapper-controls).
@@ -68,15 +53,9 @@ Parabricks GPU runtime and wrapper controls for `deepsomatic` are in
 - BAM/CRAM, reference, indexes, model/resources, and intervals match the same
   reference build.
 - Output VCF/gVCF or output directory exists.
-- Logs do not show model/resource, sample-label, reference mismatch, mount,
-  CUDA, or out-of-memory errors.
 
 ## Guardrails
 
 - Do not substitute `deepsomatic` for germline DeepVariant.
 - Do not invent tumor/normal relationships or model files.
 - Do not promise exact sensitivity/specificity without comparable validation.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/deepsomatic>

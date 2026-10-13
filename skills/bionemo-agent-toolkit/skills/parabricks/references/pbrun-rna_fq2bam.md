@@ -1,26 +1,20 @@
 # Parabricks rna_fq2bam
 
-Use this reference for NVIDIA Parabricks `pbrun rna_fq2bam` — RNA-seq FASTQ alignment that emulates the STAR RNA-Seq alignment application.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the input is RNA-seq FASTQ. If the data is DNA, route to
+1. Confirm the input is RNA-seq FASTQ. If the data is DNA, route to
    `pbrun-fq2bam.md` and related FASTQ/BAM references.
-3. Collect required inputs:
+2. Collect required inputs:
    - Paired or single-end RNA-seq FASTQ paths.
    - Reference FASTA path.
    - STAR genome library directory.
    - Output directory and expected BAM/output naming.
-4. Ask for read group values, compression/read-files handling, temporary
+3. Ask for read group values, compression/read-files handling, temporary
    directory, and logs when relevant.
-5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
-For Parabricks 4.7.0, every command needs a read-input mode, `--ref`,
+For Parabricks 4.7.0/4.7.1, every command needs a read-input mode, `--ref`,
 `--genome-lib-dir`, **`--output-dir`**, and **`--out-bam`**. The output directory
 and final BAM are separate required arguments; a BAM path or Docker mount does
 not replace `--output-dir`. Check that both remain present after translating
@@ -29,12 +23,7 @@ upstream STAR flags, and use explicit placeholders for unresolved paths.
 Paired-end RNA-seq FASTQs:
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun rna_fq2bam \
+pbrun rna_fq2bam \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --genome-lib-dir /workdir/<star_genome_library>/ \
   --output-dir /outputdir/<rna_output>/ \
@@ -45,12 +34,7 @@ docker run --rm --gpus all \
 Single-end RNA-seq FASTQ:
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun rna_fq2bam \
+pbrun rna_fq2bam \
   --in-se-fq /workdir/<sample.fastq.gz> \
   --genome-lib-dir /workdir/<star_genome_library>/ \
   --output-dir /outputdir/<rna_output>/ \
@@ -80,7 +64,35 @@ the selected version.
   with matching `--ref` and `--genome-lib-dir` placeholders. Do not present the
   mismatched assets as runnable, and do not modify reference assets.
 
+The executable version is not the index-format marker. STAR 2.7.2a's
+`parametersDefault` declares `versionGenome 2.7.1a`; that value alone is not
+evidence of an incompatible build. Use intact build provenance, reference and
+annotation identity, and index integrity. Editing `genomeParameters.txt` cannot
+convert an index. When `sjdbInfo.txt` is present, an explicitly supplied
+junction overhang must match the stored build value: STAR's loader rejects a
+conflicting explicit value. Longer new reads do not require relabeling stored
+junctions. A separate rebuild is an option for a different overhang. Reuse
+still needs validation in the target Parabricks container.
+
+Sources: STAR 2.7.2a [index parameters](https://raw.githubusercontent.com/alexdobin/STAR/2.7.2a/source/parametersDefault)
+and [genome loader](https://raw.githubusercontent.com/alexdobin/STAR/2.7.2a/source/Genome.cpp).
+
+## Lanes and read groups
+
+Repeat `--in-fq R1 R2 'read-group'` once per pair, or
+`--in-se-fq FASTQ 'read-group'` once per single-end lane. The optional group is
+one argument, for example `'@RG\tID:lane1\tSM:sample\tPU:unit1'`.
+Either supply groups for every lane or let Parabricks generate all of them.
+Preserve explicit tag/value assignments and sample identity; a global prefix
+does not preserve arbitrary per-lane metadata. Keep spaces inside paths and
+group values as part of their original argument. A decompressor such as
+`gzip -dc` is also one value to `--read-files-command`.
+
 ## STAR Option Mapping
+
+For argument arrays or batches, use the translation helper and schema linked
+from SKILL.md. Its structured output preserves lane/read-group associations and
+reports unmapped options; read this table for interpretation or manual review.
 
 Use this mapping when translating a STAR command to `pbrun rna_fq2bam`.
 Parabricks documents compatibility with STAR 2.7.2a, but the CLI is not
@@ -149,14 +161,11 @@ exposed by `rna_fq2bam`.
 | `--soloStrand` | `--soloStrand` | Same flag spelling in current Parabricks docs. |
 | `--quantMode` | `--quantMode` | Same flag spelling in current Parabricks docs. |
 
-If a STAR option is not listed above, assume there is no direct `rna_fq2bam`
-flag until the selected Parabricks version's tool reference says otherwise.
-
 ### Translation example: preserve behavior without copying thread counts
 
 For paired compressed FASTQs with STAR `--outSAMtype BAM SortedByCoordinate`,
 `--outFilterMismatchNmax 5`, `--twopassMode Basic`, and `--runThreadN 16`, use
-this `pbrun` fragment inside the Docker command shape above, after verifying
+this `pbrun` fragment with the shared container envelope if requested, after verifying
 the selected release's flags:
 
 ```bash
@@ -193,7 +202,6 @@ not STAR CLI options already covered in the mapping above.
 | `--enable-gpu-helper-threads` | Parabricks GPU/CPU scheduling option. |
 | `--num-streams-per-gpu` | Parabricks GPU stream configuration. |
 | `--gpuwrite` | Parabricks GPU-accelerated final BAM/CRAM writing. |
-| `--gpuwrite-deflate-algo` | Parabricks/nvCOMP DEFLATE algorithm selection for `--gpuwrite`. |
 | `--gpusort` | Parabricks GPU-accelerated sorting and marking. |
 | `--use-gds` | Parabricks GPUDirect Storage option. |
 | `--memory-limit` | Parabricks sorting/postsorting system-memory limit. |
@@ -203,18 +211,11 @@ not STAR CLI options already covered in the mapping above.
 | `--tmp-dir` | Parabricks temporary directory. STAR has `--outTmpDir`, but this wrapper option applies to the pipeline. |
 | `--keep-tmp` | Parabricks temporary-file retention. STAR has `--outTmpKeep`, but this wrapper option applies to the pipeline. |
 | `--version` | Parabricks compatible software version reporting. |
-| `--num-gpus` | Parabricks GPU count. |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
-- FASTQ, reference, and STAR genome library paths resolve inside the container.
 - Genome library is compatible with the reference and RNA workflow.
 - Output BAM and expected STAR/metrics/log outputs are present.
-- Logs do not show genome library, FASTQ pairing, read group, mount, CUDA, or
-  memory errors.
 
 ## Guardrails
 
@@ -227,5 +228,4 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/rna_fq2bam>
 - <https://raw.githubusercontent.com/alexdobin/STAR/2.7.2a/source/parametersDefault>

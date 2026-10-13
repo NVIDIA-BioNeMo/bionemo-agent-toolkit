@@ -1,28 +1,18 @@
 # Parabricks indexgvcf
 
-Use this reference for NVIDIA Parabricks `pbrun indexgvcf` — indexing a GVCF for downstream joint genotyping or annotation.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the input is a GVCF that needs indexing.
-3. Collect required inputs:
+1. Confirm the input is a GVCF that needs indexing.
+2. Collect required inputs:
    - Input GVCF path, and whether its directory is writable inside the container.
    - Where the index must end up. There is no documented output-path option; the
      `.tbi` is written next to the input (see Output Naming below).
-4. Ask whether the output will be consumed by `genotypegvcf` or another tool.
-5. For runtime readiness, see `runtime-environment.md`.
+3. Ask whether the output will be consumed by `genotypegvcf` or another tool.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/results:/results \
-  --workdir /results \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun indexgvcf \
+pbrun indexgvcf \
   --input /results/<sample.g.vcf.gz>
 ```
 
@@ -61,24 +51,10 @@ creating a `.tbi` index by appending `.tbi` to the input GVCF filename.
 | Implicit output index path | Implicit `.tbi` next to input | Parabricks docs state the output name is determined by appending `.tbi` to the input GVCF filename. |
 | GATK output path override, cloud flags, `--arguments_file`, and Java options | No direct equivalent | Not exposed by current Parabricks docs for `indexgvcf`. |
 
-If a GATK `IndexFeatureFile` option is not listed above, assume there is no
-direct `pbrun indexgvcf` flag until the selected Parabricks version's tool
-reference says otherwise.
-
-## indexgvcf Options Without IndexFeatureFile Equivalents
-
-| `pbrun indexgvcf` option | Why it has no GATK IndexFeatureFile equivalent |
-| --- | --- |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
-
 ## Validation
 
-- GVCF input resolves inside the container.
 - Output index file is created.
 - Index path is accessible to the downstream tool.
-- Logs do not show malformed GVCF, mount, CUDA, or memory errors.
 
 ## Guardrails
 
@@ -88,7 +64,3 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 - Do not invent output index suffixes; verify version behavior.
 - Do not overwrite an existing GVCF or `.tbi`, and do not index a read-only
   original in place; use a writable copy after checking the destination.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/indexgvcf>

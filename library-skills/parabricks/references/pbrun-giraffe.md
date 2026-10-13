@@ -1,32 +1,20 @@
 # Parabricks giraffe
 
-Use this reference for NVIDIA Parabricks `pbrun giraffe` — pangenome graph alignment of short-read FASTQ to BAM/CRAM via vg giraffe.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the user is doing pangenome graph alignment. If they have ordinary
+1. Confirm the user is doing pangenome graph alignment. If they have ordinary
    short-read DNA FASTQs and no graph resources, route to `pbrun-fq2bam.md`.
-3. Collect required inputs for the selected version:
+2. Collect required inputs for the selected version:
    - FASTQ input paths.
    - Pangenome graph/index/resource files.
    - Reference or auxiliary files required by the workflow.
    - Output BAM/CRAM path and optional metrics/log paths.
-4. Ask for read group values when needed.
-5. For runtime readiness or installation questions, use
-   `runtime-environment.md`.
+3. Ask for read group values when needed.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun giraffe \
+pbrun giraffe \
   <version-specific-graph-input-options> \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --out-bam /outputdir/<sample.giraffe.bam>
@@ -87,15 +75,9 @@ equivalent.
 | `vg giraffe --copy-comment` | `--copy-comment` | Appends FASTQ comment to BAM output via auxiliary tag. |
 | Alignment-only output | `--align-only` | Stops after `vg giraffe` alignment output; does not coordinate-sort. |
 | GATK/Picard `SortSam --OUTPUT`, `-O` | `--out-bam` | Final BAM output path. |
-| GATK/Picard `MarkDuplicates -M` | `--out-duplicate-metrics` | Duplicate metrics output. |
 | GATK/Picard duplicate-marking behavior | `--markdups-*`, `--optical-duplicate-pixel-distance`, `--no-markdups` | Parabricks exposes the duplicate-marking controls documented for this pipeline. |
 | GATK/Picard `--version` | `--version` | Same version-reporting role. |
-| GATK/Picard `--java-options` | No direct equivalent | Java runtime settings do not apply to the Parabricks containerized GPU pipeline. |
 | Upstream `vg giraffe` options not listed here | No direct equivalent | Not exposed by current Parabricks docs for `pbrun giraffe`. |
-
-If a `vg giraffe`, SortSam, or MarkDuplicates option is not listed above,
-assume there is no direct `pbrun giraffe` flag until the selected Parabricks
-version's tool reference says otherwise.
 
 ## giraffe Options Without vg giraffe/GATK Equivalents
 
@@ -105,22 +87,13 @@ version's tool reference says otherwise.
 | `--monitor-usage` | Parabricks runtime resource monitoring. |
 | `--nstreams`, `--num-cpu-threads-per-gpu`, `--batch-size`, `--write-threads`, `--work-queue-capacity` | Parabricks GPU/CPU pipeline scheduling controls. Prefer `--nstreams auto` for default guidance; use integer stream counts only for benchmarked/manual tuning. |
 | `--minimizers-gpu` | Parabricks GPU offload for minimizers/seeds in supported single-end runs. |
-| `--gpuwrite`, `--gpuwrite-deflate-algo`, `--gpusort`, `--use-gds` | GPU-accelerated write/sort/storage controls. |
 | `--memory-limit`, `--low-memory` | Parabricks host/GPU memory controls for the pipeline. |
-| `--keep-tmp` | Parabricks temporary-file retention. |
-| `--num-gpus` | Parabricks GPU count. |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
-- FASTQ and graph resource paths resolve inside the container.
 - Graph resources are from the same build/pangenome bundle expected by the
   workflow.
 - Output BAM/CRAM is created.
-- Logs do not show missing graph resources, read group, mount, CUDA, or
-  out-of-memory errors.
 
 ## Guardrails
 
@@ -133,4 +106,3 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 ## Key References
 
 - <https://docs.nvidia.com/clara/parabricks/get-started/getting-the-best-performance>
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/giraffe>

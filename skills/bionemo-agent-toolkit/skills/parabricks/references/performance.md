@@ -26,8 +26,8 @@ should not be part of conservative default command templates.
   process per partition. `--bwa-gpu-num-per-partition` controls GPUs per
   partition (default: 2) and must divide `--num-gpus` evenly.
 - For `fq2bam_meth`, `--bwa-primary-cpus` and `--bwa-cpu-thread-pool` tune
-  CPU-stage threading (`--bwa-cpu-thread-pool` defaults to 1; do not copy older
-  fq2bam defaults without checking the selected release).
+  CPU-stage threading (`--bwa-cpu-thread-pool` defaults to 1; check the selected
+  release before reusing an older fq2bam default).
 
 Official performance guidance:
 <https://archive.docs.nvidia.com/clara/parabricks/4.7.0/GettingStarted/BestPerformance.html>

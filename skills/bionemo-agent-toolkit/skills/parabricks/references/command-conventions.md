@@ -2,8 +2,35 @@
 
 Read this reference once when preparing or reviewing a Parabricks command.
 Individual tool references contain biological constraints, concrete examples,
-and unique options. [shared-options.md](shared-options.md) defines repeated
-mappings once and lists the tools to which each applies.
+and unique options. Shared option mappings are linked from SKILL.md; filter
+their Tools column for the selected command.
+
+## Container image and mounts
+
+Tool examples give the command inside the container. Add one Docker envelope
+only when requested; preserve a requested bare `pbrun` command or argument array.
+Use an exact NVIDIA release tag (4.7.1 uses `4.7.1-1`), never `latest` or an
+implicit tag. For reproducible execution, resolve that release to its trusted
+NGC manifest digest and record the digest with the run. An image's local
+`RepoDigests` after an authorized pull can identify the downloaded manifest;
+do not invent a digest or silently switch releases.
+
+This is a template: replace the digest and paths with verified values before
+execution. Image pulls and container launches require the user's execution
+authorization. Mount only the required inputs, outputs and scratch directories:
+
+```bash
+docker run --rm --gpus all \
+  --volume /host/input:/workdir:ro \
+  --volume /host/output:/outputdir \
+  --workdir /outputdir \
+  nvcr.io/nvidia/clara/clara-parabricks@sha256:<verified-digest> \
+  pbrun <selected-tool> <tool-specific-options>
+```
+
+If a tool writes beside an input, use a writable working copy rather than making
+the original input directory writable. Keep sample data and registry credentials
+out of documentation lookups; request only public command/version information.
 
 ## Preparing inputs
 
@@ -14,8 +41,8 @@ scratch space. Collect optional intervals, logs, worker counts, and metrics
 only when relevant. Leave unknown values as visible placeholders; obtain sample
 names, read groups, reference resources, and model or graph bundles from the user.
 
-For runtime or installation questions, use
-[runtime-environment.md](runtime-environment.md). Probe the intended execution
+For runtime or installation questions, use the runtime reference linked from
+SKILL.md. Probe the intended execution
 host; local hardware does not describe a remote target. Follow the skill's probe
 consent rules. Preparing a workload command does not authorize executing it.
 
@@ -27,6 +54,9 @@ input modes, or output naming. An upstream option without a documented mapping
 has no assumed Parabricks equivalent; do not pass it through or borrow an option
 from another `pbrun` tool. Flag availability does not establish biological parity.
 In option tables, **—** in the baseline column denotes a Parabricks-only control.
+If an upstream option is absent from both the tool-specific table and its
+scoped rows in `shared-options.md`, treat it as unmapped until the selected
+release's official tool reference confirms support. Keep it visible for review.
 
 Preserve an upstream option's value only when its meaning, units, and scope
 match the Parabricks option. For partial mappings, omit the setting from the
@@ -50,8 +80,8 @@ comparisons. For GPU, threading, memory, and algorithm controls, combine the
 selected tool's table with its entries in the shared mappings. Respect the
 listed tool scope because meanings and availability vary by command.
 
-For BWA stream defaults on `fq2bam` and `fq2bam_meth`, see
-[performance.md](performance.md). Giraffe `--nstreams` tuning stays in
+For BWA stream defaults on `fq2bam` and `fq2bam_meth`, use the performance
+reference linked from SKILL.md. Giraffe `--nstreams` tuning stays in
 `pbrun-giraffe.md`.
 
 ## Shared wrapper controls

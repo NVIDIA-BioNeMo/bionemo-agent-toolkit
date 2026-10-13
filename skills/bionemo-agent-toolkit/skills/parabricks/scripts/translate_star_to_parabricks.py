@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Draft Parabricks 4.7.0 RNA commands from JSON STAR argument arrays.
+"""Draft Parabricks 4.7.0/4.7.1 RNA commands from JSON STAR argument arrays.
+
+Usage:
+    python3 scripts/translate_star_to_parabricks.py --input requests.json
+Arguments:
+    --input: JSON object or array; use - to read JSON from stdin. Each request
+    supplies version, star_args, ref, output_dir and out_bam; name and
+    mark_duplicates are optional. See references/rna-translation.md.
+Output:
+    JSON object or array with status (draft, needs_review or invalid),
+    draft_argv, a shell-quoted command, notes, issues and untranslated options.
+    A draft is not evidence of runtime compatibility or biological parity.
+Exit codes:
+    0: all requests produced drafts, possibly needing review.
+    2: invalid request, command-line usage, unreadable input or invalid JSON.
 
 No subprocesses, network requests, input-data inspection, or workloads are run.
-Mappings: Parabricks 4.7.0 man_rna_fq2bam and STAR 2.7.2a parametersDefault.
-See references/pbrun-rna_fq2bam.md for scope, input schema, and limitations.
+Mappings: Parabricks 4.7.0/4.7.1 rna_fq2bam and STAR 2.7.2a parametersDefault.
 """
 
 from __future__ import annotations
@@ -17,6 +30,9 @@ import re
 import shlex
 import sys
 
+
+SUPPORTED_VERSIONS = frozenset({"4.7.0", "4.7.1"})
+JUNCTION_MISMATCH_COUNT = 4
 
 SCALARS = {
     "genomeSAindexNbases": "num-sa-bases",
@@ -59,7 +75,7 @@ SCALARS = {
 VECTORS = {
     "readNameSeparator": ("read-name-separator", None),
     "outSAMattributes": ("out-sam-attributes", None),
-    "alignSJstitchMismatchNmax": ("max-junction-mismatches", 4),
+    "alignSJstitchMismatchNmax": ("max-junction-mismatches", JUNCTION_MISMATCH_COUNT),
 }
 ENUMS = {
     "outReadsUnmapped": {"None", "Fastx"},
@@ -141,98 +157,146 @@ def read_inputs(options):
     return argv
 
 
+def untranslated(result, name, values):
+    result["untranslated"].append({"option": "--" + name, "values": values})
+    return []
+
+
+def map_threads(options, result):
+    one(options, "runThreadN")
+    result["notes"].append("--runThreadN is a CPU thread count; --num-threads is workers per GPU stream. Leave Parabricks at auto unless separately tuned.")
+    return []
+
+
+def map_output_type(options, result):
+    values = options["outSAMtype"]
+    if values != ["BAM", "SortedByCoordinate"]:
+        result["issues"].append(f"STAR requested output mode {values!r}; rna_fq2bam produces a coordinate-sorted BAM. Review the output contract.")
+    return []
+
+
+def map_prefix(options, result):
+    basename = one(options, "outFileNamePrefix").rsplit("/", 1)[-1]
+    result["notes"].append("Generated STAR outputs use the requested output_dir and the original prefix basename; the final BAM uses out_bam.")
+    return ["--out-prefix", basename] if basename else []
+
+
+def map_decompressor(options, result):
+    values = options["readFilesCommand"]
+    if not values:
+        raise ValueError("--readFilesCommand requires a command")
+    # STAR joins these tokens into command text; retain it as one pbrun value.
+    return ["--read-files-command", " ".join(values)]
+
+
+def map_chimeric_output(options, result):
+    values = options["chimOutType"]
+    forms = {("Junctions",): "Junctions", ("WithinBAM",): "WithinBAM",
+             ("WithinBAM", "HardClip"): "WithinBAM_HardClip",
+             ("WithinBAM", "SoftClip"): "WithinBAM_SoftClip"}
+    target = forms.get(tuple(values))
+    if target is None:
+        return untranslated(result, "chimOutType", values)
+    return ["--out-chim-type", target]
+
+
+def map_unmapped_output(options, result):
+    values = options["outSAMunmapped"]
+    if values in (["None"], ["Within"]):
+        return ["--out-sam-unmapped", values[0]]
+    if values == ["Within", "KeepPairs"]:
+        result["issues"].append("Within_KeepPairs behaves like Within in sorted output. Extra unmapped-mate copies for each alignment of a multi-mapping mate and unsorted adjacency are not preserved; ordinary unmapped-read inclusion remains possible. Fastx is not a replacement for that record-level contract.")
+        return ["--out-sam-unmapped", "Within_KeepPairs"]
+    return untranslated(result, "outSAMunmapped", values)
+
+
+SPECIAL_TRANSLATORS = {
+    "runThreadN": map_threads,
+    "outSAMtype": map_output_type,
+    "outFileNamePrefix": map_prefix,
+    "readFilesCommand": map_decompressor,
+    "chimOutType": map_chimeric_output,
+    "outSAMunmapped": map_unmapped_output,
+}
+INPUT_OPTIONS = frozenset({"genomeDir", "readFilesIn", "outSAMattrRGline", "runMode"})
+
+
+def translate_option(name, options, result):
+    values = options[name]
+    if name in INPUT_OPTIONS:
+        return []
+    if name in SCALARS:
+        value = one(options, name)
+        if name in ENUMS and value not in ENUMS[name]:
+            return untranslated(result, name, values)
+        return ["--" + SCALARS[name], value]
+    if name in VECTORS:
+        target, count = VECTORS[name]
+        if not values or (count is not None and len(values) != count):
+            raise ValueError(f"Wrong number of values for --{name}")
+        return ["--" + target, *values]
+    if name in SPECIAL_TRANSLATORS:
+        return SPECIAL_TRANSLATORS[name](options, result)
+    return untranslated(result, name, values)
+
+
+def validate_request(request):
+    if not isinstance(request, dict):
+        raise ValueError("Each request must be a JSON object")
+    allowed = {"name", "version", "star_args", "ref", "output_dir", "out_bam", "mark_duplicates"}
+    if set(request) - allowed:
+        raise ValueError(f"Unknown request fields: {sorted(set(request) - allowed)}")
+    version = request.get("version")
+    if not isinstance(version, str) or version not in SUPPORTED_VERSIONS:
+        raise ValueError('This helper supports explicit versions "4.7.0" and "4.7.1" only')
+    for field in ("ref", "output_dir", "out_bam"):
+        if not nonempty_string(request.get(field)):
+            raise ValueError(f"{field} must be an explicit nonempty path string")
+    if not isinstance(request.get("mark_duplicates", False), bool):
+        raise ValueError("mark_duplicates must be a JSON boolean")
+
+
+def review_output_contract(options, result):
+    if "outSAMtype" not in options:
+        result["issues"].append("STAR's default output is SAM; the requested Parabricks target is a sorted BAM. Review that format change.")
+    if options.get("outSAMmode") == ["None"]:
+        result["issues"].append("--outSAMmode None suppresses alignment output; review its conflict with a requested final BAM.")
+    if "chimOutType" in options and options.get("chimSegmentMin", ["0"]) == ["0"]:
+        result["issues"].append("Chimeric output is disabled when --min-chim-segment is zero (the default).")
+    if result["untranslated"]:
+        result["issues"].append("Untranslated options were omitted from the draft. Resolve them before using it; this is not an equivalent command.")
+    if options.get("outSAMattrRGline", ["-"]) == ["-"]:
+        result["issues"].append("Parabricks will generate read groups. Confirm sample metadata if read-group identity matters; no metadata was inferred by this helper.")
+    result["notes"].append("Draft only: paths, reference/index compatibility, numeric ranges, runtime readiness, and biological output parity are not validated.")
+
+
+def build_draft(request, result):
+    validate_request(request)
+    options = parse_options(request.get("star_args"))
+    if "runMode" in options and one(options, "runMode") != "alignReads":
+        raise ValueError("This helper translates alignment only, not STAR indexing or other run modes")
+    argv = ["pbrun", "rna_fq2bam", "--ref", request["ref"],
+            "--genome-lib-dir", one(options, "genomeDir"),
+            "--output-dir", request["output_dir"], "--out-bam", request["out_bam"],
+            *read_inputs(options)]
+    if not request.get("mark_duplicates", False):
+        argv.append("--no-markdups")
+        result["notes"].append("Duplicate marking is disabled to preserve CPU STAR's lack of a marking step.")
+    else:
+        result["issues"].append("Duplicate marking adds a processing step that CPU STAR does not perform.")
+    for name in options:
+        argv.extend(translate_option(name, options, result))
+    review_output_contract(options, result)
+    return argv
+
+
 def translate(request):
     result = {"status": "invalid", "draft_argv": None, "command": None,
               "notes": [], "issues": [], "untranslated": []}
     if isinstance(request, dict) and "name" in request:
         result["name"] = request["name"]
     try:
-        if not isinstance(request, dict):
-            raise ValueError("Each request must be a JSON object")
-        allowed = {"name", "version", "star_args", "ref", "output_dir", "out_bam", "mark_duplicates"}
-        if set(request) - allowed:
-            raise ValueError(f"Unknown request fields: {sorted(set(request) - allowed)}")
-        if request.get("version") != "4.7.0":
-            raise ValueError('This helper supports only explicit version "4.7.0"')
-        for field in ("ref", "output_dir", "out_bam"):
-            if not nonempty_string(request.get(field)):
-                raise ValueError(f"{field} must be an explicit nonempty path string")
-        if not isinstance(request.get("mark_duplicates", False), bool):
-            raise ValueError("mark_duplicates must be a JSON boolean")
-        options = parse_options(request.get("star_args"))
-        if "runMode" in options and one(options, "runMode") != "alignReads":
-            raise ValueError("This helper translates alignment only, not STAR indexing or other run modes")
-        genome = one(options, "genomeDir")
-        argv = ["pbrun", "rna_fq2bam", "--ref", request["ref"],
-                "--genome-lib-dir", genome, "--output-dir", request["output_dir"],
-                "--out-bam", request["out_bam"], *read_inputs(options)]
-        if not request.get("mark_duplicates", False):
-            argv.append("--no-markdups")
-            result["notes"].append("Duplicate marking is disabled to preserve CPU STAR's lack of a marking step.")
-        else:
-            result["issues"].append("Duplicate marking adds a processing step that CPU STAR does not perform.")
-        handled = {"genomeDir", "readFilesIn", "outSAMattrRGline", "runMode"}
-        for name, values in options.items():
-            if name in handled:
-                continue
-            if name in SCALARS:
-                value = one(options, name)
-                if name in ENUMS and value not in ENUMS[name]:
-                    result["untranslated"].append({"option": "--" + name, "values": values})
-                else:
-                    argv.extend(["--" + SCALARS[name], value])
-            elif name in VECTORS:
-                target, count = VECTORS[name]
-                if not values or (count is not None and len(values) != count):
-                    raise ValueError(f"Wrong number of values for --{name}")
-                argv.extend(["--" + target, *values])
-            elif name == "runThreadN":
-                one(options, name)
-                result["notes"].append("--runThreadN is a CPU thread count; --num-threads is workers per GPU stream. Leave Parabricks at auto unless separately tuned.")
-            elif name == "outSAMtype":
-                if values != ["BAM", "SortedByCoordinate"]:
-                    result["issues"].append(f"STAR requested output mode {values!r}; rna_fq2bam produces a coordinate-sorted BAM. Review the output contract.")
-            elif name == "outFileNamePrefix":
-                prefix = one(options, name)
-                basename = prefix.rsplit("/", 1)[-1]
-                if basename:
-                    argv.extend(["--out-prefix", basename])
-                result["notes"].append("Generated STAR outputs use the requested output_dir and the original prefix basename; the final BAM uses out_bam.")
-            elif name == "readFilesCommand":
-                if not values:
-                    raise ValueError("--readFilesCommand requires a command")
-                # STAR joins these tokens as a command string. Preserve that
-                # string; shlex.join(argv) below quotes it as one pbrun value.
-                argv.extend(["--read-files-command", " ".join(values)])
-            elif name == "chimOutType":
-                forms = {("Junctions",): "Junctions", ("WithinBAM",): "WithinBAM",
-                         ("WithinBAM", "HardClip"): "WithinBAM_HardClip",
-                         ("WithinBAM", "SoftClip"): "WithinBAM_SoftClip"}
-                if tuple(values) in forms:
-                    argv.extend(["--out-chim-type", forms[tuple(values)]])
-                else:
-                    result["untranslated"].append({"option": "--" + name, "values": values})
-            elif name == "outSAMunmapped":
-                if values in (["None"], ["Within"]):
-                    argv.extend(["--out-sam-unmapped", values[0]])
-                elif values == ["Within", "KeepPairs"]:
-                    argv.extend(["--out-sam-unmapped", "Within_KeepPairs"])
-                    result["issues"].append("Within_KeepPairs behaves like Within in sorted output. Extra unmapped-mate copies for each alignment of a multi-mapping mate and unsorted adjacency are not preserved; ordinary unmapped-read inclusion remains possible. Fastx is not a replacement for that record-level contract.")
-                else:
-                    result["untranslated"].append({"option": "--" + name, "values": values})
-            else:
-                result["untranslated"].append({"option": "--" + name, "values": values})
-        if "outSAMtype" not in options:
-            result["issues"].append("STAR's default output is SAM; the requested Parabricks target is a sorted BAM. Review that format change.")
-        if options.get("outSAMmode") == ["None"]:
-            result["issues"].append("--outSAMmode None suppresses alignment output; review its conflict with a requested final BAM.")
-        if "chimOutType" in options and options.get("chimSegmentMin", ["0"]) == ["0"]:
-            result["issues"].append("Chimeric output is disabled when --min-chim-segment is zero (the default).")
-        if result["untranslated"]:
-            result["issues"].append("Untranslated options were omitted from the draft. Resolve them before using it; this is not an equivalent command.")
-        if options.get("outSAMattrRGline", ["-"]) == ["-"]:
-            result["issues"].append("Parabricks will generate read groups. Confirm sample metadata if read-group identity matters; no metadata was inferred by this helper.")
-        result["notes"].append("Draft only: paths, reference/index compatibility, numeric ranges, runtime readiness, and biological output parity are not validated.")
+        argv = build_draft(request, result)
         result.update(status="needs_review" if result["issues"] else "draft",
                       draft_argv=argv, command=shlex.join(argv))
     except ValueError as exc:

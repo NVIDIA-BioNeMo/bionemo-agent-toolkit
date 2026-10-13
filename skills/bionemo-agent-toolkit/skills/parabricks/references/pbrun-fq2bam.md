@@ -1,9 +1,5 @@
 # Parabricks fq2bam
 
-Use this reference for NVIDIA Parabricks `pbrun fq2bam` — paired short-read FASTQ to aligned BAM/CRAM with sort and optional markdup/BQSR.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
 1. Identify the execution context:
@@ -29,12 +25,7 @@ For shared wrapper mappings, cross-tool option rows, validation habits, and Para
 Prefer Docker commands shaped like:
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun fq2bam \
+pbrun fq2bam \
   --ref /workdir/<reference.fa> \
   --in-fq /workdir/<sample_R1.fastq.gz> /workdir/<sample_R2.fastq.gz> \
   --out-bam /outputdir/<sample.bam>
@@ -75,10 +66,6 @@ markdup/BQSR, intervals, GPU write controls, and similar) are in
 | GATK/Picard `MarkDuplicates -O` | `--out-bam` | Final output unless `--no-markdups` or `--align-only`. |
 | GATK/Picard `--arguments_file`, validation, compression, and cloud-auth common flags | No direct equivalent | Not exposed for `fq2bam` in current docs. |
 
-If a baseline option is not listed here or in [shared-options.md](shared-options.md)
-for `fq2bam`, assume no direct flag until the selected release's tool reference
-confirms it.
-
 ## fq2bam Options Without BWA-MEM/GATK Equivalents
 
 Parabricks-only pipeline, filtering, and performance flags for `fq2bam` are in
@@ -90,18 +77,14 @@ multi-GPU partition guidance is in [performance.md](performance.md).
 | --- | --- |
 | `--in-se-bam` | Convert single-ended BAM/CRAM back to FASTQ as pipeline input. |
 
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
-
 ## Validation
 
 After generating or reviewing a command, help the user verify:
 
 - The reference FASTA and required indexes are present in the mounted path expected inside the container.
-- FASTQ paths resolve inside the container.
 - Output directory is writable and has enough free space.
 - BAM or CRAM output exists after completion.
 - BQSR report exists when `--knownSites` and `--out-recal-file` were requested.
-- Logs do not show CUDA, Docker runtime, mount, reference-index, read-group, or out-of-memory errors.
 
 ## Guardrails
 
@@ -116,7 +99,7 @@ After generating or reviewing a command, help the user verify:
 For GPU visibility errors:
 
 - Check `nvidia-smi` on the target host.
-- Check `docker run --rm --gpus all nvidia/cuda:<tag> nvidia-smi` if Docker runtime setup is in question.
+- For Docker GPU access, use the opt-in container probe in the runtime reference.
 - Confirm the host has NVIDIA drivers and NVIDIA Container Toolkit configured.
 
 For mount/path errors:
@@ -141,5 +124,4 @@ For slow runtime:
 ## Key References
 
 - <https://docs.nvidia.com/clara/parabricks/get-started/getting-the-best-performance>
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/fq2bam>
 - <https://docs.nvidia.com/clara/parabricks/tutorials/step-by-step-tutorials/fq-2-bam-tutorial>

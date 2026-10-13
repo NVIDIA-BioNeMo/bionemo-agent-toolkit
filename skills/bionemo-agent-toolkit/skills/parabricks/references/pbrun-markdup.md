@@ -1,31 +1,19 @@
 # Parabricks markdup
 
-Use this reference for NVIDIA Parabricks `pbrun markdup` — marking duplicate reads in aligned BAM/CRAM data.
-
-For shared wrapper mappings, cross-tool option rows, validation habits, and Parabricks wrapper controls, see [command-conventions.md](command-conventions.md) and [shared-options.md](shared-options.md) (filter the **Tools** column for this command).
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Collect required inputs:
+1. Collect required inputs:
    - Input queryname-sorted BAM or CRAM path.
    - Output duplicate-marked BAM or CRAM path.
    - Reference FASTA when CRAM input or the selected version requires it.
-3. Ask whether duplicate metrics are needed.
-4. Ask about temporary directory, logs, and output index only when relevant and
+2. Ask whether duplicate metrics are needed.
+3. Ask about temporary directory, logs, and output index only when relevant and
    supported by the selected version.
-5. For runtime readiness or installation questions, use
-   `runtime-environment.md`.
 
 ## Command Shape
 
 ```bash
-docker run --rm --gpus all \
-  --volume /host/input:/workdir \
-  --volume /host/output:/outputdir \
-  --workdir /workdir \
-  nvcr.io/nvidia/clara/clara-parabricks:<version> \
-  pbrun markdup \
+pbrun markdup \
   --ref /workdir/<reference.fa> \
   --in-bam /workdir/<queryname_sorted.bam> \
   --out-bam /outputdir/<marked.bam> \
@@ -61,10 +49,6 @@ compatible with a coordinate-sort-order `MarkDuplicates` baseline.
 | GATK/Picard `--java-options` | No direct equivalent | Java runtime settings do not apply to the Parabricks containerized GPU tool. |
 | GATK/Picard `--arguments_file`, validation, compression, and cloud-auth common flags | No direct equivalent | Not exposed by current Parabricks docs for `markdup`. |
 
-If a GATK/Picard `MarkDuplicates` option is not listed above, assume there is
-no direct `pbrun markdup` flag until the selected Parabricks version's tool
-reference says otherwise.
-
 ## markdup Options Without MarkDuplicates Equivalents
 
 | `pbrun markdup` option | Why it has no MarkDuplicates equivalent |
@@ -72,10 +56,6 @@ reference says otherwise.
 | `--num-zip-threads`, `--num-worker-threads` | Parabricks CPU worker controls. |
 | `--mem-limit` | Parabricks memory limit for sorting/postsorting. |
 | `--gpuwrite`, `--gpuwrite-deflate-algo`, `--gpusort` | GPU-accelerated write/sort/marking controls. |
-| `--keep-tmp` | Parabricks temporary-file retention. |
-
-
-Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks`) are documented in [command-conventions.md](command-conventions.md#shared-wrapper-controls).
 
 ## Validation
 
@@ -83,8 +63,6 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
   required.
 - Output duplicate-marked BAM/CRAM is created.
 - Metrics output is present when requested.
-- Logs do not show sort-order, CRAM reference, mount, temp-space, CUDA, or
-  out-of-memory errors.
 
 ## Guardrails
 
@@ -93,7 +71,3 @@ Parabricks wrapper controls (`--logfile`, `--x3`, `--with-petagene-dir`, `--keep
 - Do not remove duplicates unless the user explicitly requests a tool/version
   option that does that.
 - Do not assume metrics are generated unless requested and supported.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/tool-reference/tools/markdup>
