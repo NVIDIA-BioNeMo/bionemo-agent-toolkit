@@ -55,7 +55,10 @@ python3 -m unittest discover -s tests -v
 ## Deterministic artifact checks
 
 `grading.mode: aces_plus_custom` runs the existing ACES judges and the standalone
-`grader.py`. The verifier reads actual manifests, CSVs, selected complex files
+`grader.py`. `config.yml` declares its `artifact_correctness` output under
+`grading.custom_metrics` so the evaluator can seal the reward contract before
+starting agents. The evaluator computes the schema digest from that declaration
+and the grader. The verifier reads actual manifests, CSVs, selected complex files
 and summaries. It pins input digests, checks score types and absence, ranking
 order, control exclusion, preserved state, source identity and artifact bytes.
 It imports no skill helpers. Tests exercise all eight workflows and deliberately

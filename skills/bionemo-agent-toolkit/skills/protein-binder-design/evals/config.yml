@@ -19,3 +19,5 @@ harbor:
 
 grading:
   mode: aces_plus_custom
+  custom_metrics:
+    - artifact_correctness
