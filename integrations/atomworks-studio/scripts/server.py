@@ -21,9 +21,27 @@ mcp = FastMCP('rfd4-studio-' + mode)
     'openai/widgetAccessible':True,
 })
 def panel():
-    return (Path(__file__).parents[1]/'assets/studio.html').read_text()
+    asset=Path(__file__).parents[1]/'assets/studio-upstream.html'
+    if not asset.exists(): raise RuntimeError('Build the pinned upstream Studio frontend first; see the adapter README.')
+    return asset.read_text()
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
+def get_compute_status() -> dict:
+    """Read registered target and timestamped readiness evidence. Does not provision or probe."""
+    return service.compute_status()
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
+def check_compute() -> dict:
+    """Probe existing target GPU, pinned runtime, registered weights and Studio; never provision."""
+    return service.check_compute()
 
 if mode == 'app':
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def studio_request(method: str, path: str, body: dict | None=None, form: list[dict] | None=None) -> dict:
+        """Run an allowlisted Studio editor operation against the configured loopback service."""
+        from studio_bridge import request
+        return request(service,method,path,body,form)
+
     @mcp.tool(title='Open AtomWorks Studio in chat', meta={'ui/resourceUri':URI,'openai/outputTemplate':URI,'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)
     def open_rfd4_studio() -> dict:
         """Open AtomWorks Studio inline in this conversation. The user may expand it beside the chat. Call this when asked to open RFD4, view a structure, or start the PD-L1 demo."""
@@ -68,6 +86,11 @@ if mode == 'app':
         return service.set_condition(session_id, atom_indices, condition, enabled, expected_revision)
 
 else:
+    @mcp.tool(annotations=WRITE)
+    def register_rfd4_compute(kind: str, name: str, runtime_root: str, studio_url: str, ssh_host: str='', instance_id: str='', weight_paths: list[str] | None=None) -> dict:
+        """Register a user-selected existing local, SSH, or Brev target. This does not provision or install. Use existing setup and Brev CLI skills first; tunnel Studio to loopback. Then call check_compute. Weight paths are actual checkpoint files. Never invent readiness."""
+        return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths)
+
     @mcp.tool(annotations=WRITE)
     def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42) -> dict:
         """Export an immutable annotated structure and checksum-bound compute plan."""

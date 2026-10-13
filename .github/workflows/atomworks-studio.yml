@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --global pnpm@11.25.0
-      - run: pnpm install --frozen-lockfile --ignore-scripts && pnpm build
+      - run: pnpm install --frozen-lockfile --ignore-scripts && node --check host/bridge.js && node --check build-upstream.mjs
         working-directory: integrations/atomworks-studio
       - run: pip install -r integrations/atomworks-studio/requirements.txt
       - run: python -m unittest discover -s tests -p 'test_atomworks_*.py'

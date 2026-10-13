@@ -23,8 +23,11 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     if mode=='app':
                         result=await session.call_tool('get_workspace',{})
                         self.assertFalse(result.isError)
-                        resource=await session.read_resource('ui://bionemo-rfd4/studio.html')
-                        self.assertIn('ui/initialize',resource.contents[0].text)
+                        if (server.parents[1]/'assets/studio-upstream.html').exists():
+                            resource=await session.read_resource('ui://bionemo-rfd4/studio.html')
+                            self.assertIn('ui/initialize',resource.contents[0].text)
+                        self.assertNotIn('register_rfd4_compute',names)
+                        self.assertIn('studio_request',names)
                         for tool in tools:
                             self.assertEqual(tool.meta['ui']['visibility'],['app','model'] if tool.name=='open_rfd4_studio' else ['app'])
                             self.assertNotIn('openai/ui', tool.meta)

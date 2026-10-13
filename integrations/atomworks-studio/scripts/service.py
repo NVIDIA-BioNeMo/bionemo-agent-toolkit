@@ -23,7 +23,7 @@ class Service(Backend):
 
     @staticmethod
     def public_plan(plan):
-        return {k:v for k,v in plan.items() if k not in ('target', 'image_markup')} | {'instance':plan['target']['instance'], 'instance_id':plan['target']['instance_id']}
+        return {k:v for k,v in plan.items() if k not in ('target', 'image_markup')} | {'instance':plan['target']['instance'], 'instance_id':plan['target'].get('instance_id', '')}
 
     def execute(self, plan_id, plan_checksum):
         plan = self.read(plan_id, 'plan.json')

@@ -1,93 +1,126 @@
-# Embedded AtomWorks Studio adapter
+# AtomWorks Studio in the conversation
 
-This adds a conversation-embedded MCP App to BioNeMo Agent Toolkit, following the NGS
-Workbench separation between an app surface and agent execution tools. It does
-not introduce an RFD4 skill. Use the existing RFD4-Proteína skills from your
-authorized model checkout for setup, annotated CIFs, generation, and evaluation.
+This adapter packages the actual Studio v0.1.0 browser editor as a self-contained
+MCP App. It reuses the upstream sequence strip, annotation forms, selection,
+analysis, structure editing and undo. There is no second molecular editor to maintain.
+The BioNeMo additions are compute registration/status, design notes, immutable
+run review, and result retrieval. Existing RFD4 skills supply setup and inference
+instructions; this integration does not introduce an RFD4 skill.
 
-Ask Codex to “open RFD4 Studio” to display the tool card in the conversation.
-It has no global full-page entry point; expand the card beside the chat if desired.
+## Upstream maintenance and building
 
-The app bundles Mol* and its CSS directly into one HTML resource. There is no
-iframe, external script, CDN, or browser connection to Studio. A small transport
-adapter uses MCP tools in the embedded app and a loopback tool endpoint during
-local development. Both serve the identical generated HTML.
+The source of truth is [Studio v0.1.0](https://github.com/RosettaCommons/atomworks-studio/releases/tag/v0.1.0),
+commit `648cfe3905d1f1893c0c37d2cc4b8eea942a5616`. `build-upstream.mjs` checks
+that revision and rejects tracked frontend modifications. It applies narrow
+build-time adapters without changing upstream files: API transport, session events,
+in-memory browser storage, inline CIF-parser WASM, and disabled PWA installation.
+Mol* is the supported renderer. Patinae and optional MP4 encoding are excluded.
+The build emits provenance, Studio's license, and notices for bundled dependencies.
 
-The preloaded PD-L1 example comes from the existing Studio deployment. Mol* picks
-source atom indices; Studio expands them to residues or chains and applies the
-conditions at the displayed document revision. This preserves Studio's annotation
-semantics rather than reimplementing the RFD4 condition format. Supported edits
-in this preview are hotspots, keeping sequence, and keeping coordinates. Text
-and PNG image notes are saved alongside the input, not interpreted as conditions.
+The upstream repository is private ahead of launch. Generated upstream assets
+are ignored and remain local; an unbuilt checkout cannot open the editor. The
+previous custom editor has been removed. For a release artifact, build against
+an authorized checkout and include the generated assets and licenses. Public
+redistribution should wait for the upstream launch.
 
-Review freezes a validated CIF, checksum, seed, design count, and Brev target.
-The embedded app hands execution to the conversation's native approval flow.
-The local preview asks for confirmation before calling the same execution service.
+With Node 24 and pnpm 11.25 installed, first build Studio's CIF parser using its
+upstream build instructions (or use matching compiled artifacts from your authorized
+v0.1.0 build), so `packages/web/src/wasm/` exists. Then:
 
-## Local setup
+```sh
+cd integrations/atomworks-studio
+pnpm install --frozen-lockfile --ignore-scripts
+ATOMWORKS_STUDIO_SOURCE=/authorized/atomworks-studio pnpm build
+RFD4_STUDIO_HOME=/path/to/state python scripts/preview.py
+```
 
-The tested Studio release is [v0.1.0](https://github.com/RosettaCommons/atomworks-studio/releases/tag/v0.1.0),
-commit `648cfe3905d1f1893c0c37d2cc4b8eea942a5616`. Studio supplies a full
-browser/VS Code editor and a PyMOL plugin. This adapter uses its annotation API
-with a smaller custom Mol* interface; it does not bundle the complete Studio UI.
-The release packages Studio separately from model inference. Repository access
-is required until its public launch.
+The same generated `assets/studio-upstream.html` serves the local preview at
+`http://127.0.0.1:8766` and the MCP app resource. No iframe or external JavaScript
+is needed. The local CSP permits WASM compilation, not JavaScript eval. The
+actual embedded host must also support WASM; local browser success is not proof
+of host rendering. Requalify the host when updating Studio or its dependencies.
 
-Use the upstream setup skill to prepare an existing Brev GPU instance and
-AtomWorks Studio. This adapter does not provision a machine or download weights.
-The model checkout must match the revision in `scripts/core.py`; its installed
-entrypoint is `REMOTE_ROOT/model/.venv/bin/rfd4-generate`. Write the checkout commit
-to `REMOTE_ROOT/model-revision`. Forward Studio's API to local loopback, for example
-port 18764. The Python adapter accesses that API; the viewer does not embed or
-fetch its website, and no frame-ancestor exceptions are needed.
+## Compute user flow
 
-Copy `config.example.json` into `$RFD4_STUDIO_HOME/config.json`, with a directory
-outside the repository. Fill in the exact Brev instance ID and remote root.
-Without an override, state lives in `~/.local/share/bionemo-rfd4`. Authenticate
-Brev and select the organization containing that instance. Runtime dependencies
-are installed with uv; alternatively set `RFD4_STUDIO_PYTHON` to a Python 3.12
-interpreter with `requirements.txt` installed.
+The editor shows the target name, transport, registration/readiness state, GPU
+information and check time. Registration is not readiness; checks expire after
+15 minutes. A readiness check establishes shell/GPU access, the pinned runtime
+entrypoint/revision, presence of registered weight files, and Studio API access.
+It does not establish that weights are compatible or that inference will succeed.
 
-Generate a local plugin that includes the existing upstream skills unchanged:
+**Set up compute in chat** sends a user message through `ui/message`. It does
+not run commands or provision infrastructure. In the standalone development
+preview it shows the equivalent text to copy into chat. The agent uses existing
+RFD4 setup and Brev CLI skills, then registers and checks the selected target:
+
+- `local`: a Linux GPU machine hosting the tool server; it need not be the
+  computer displaying ChatGPT.
+- `ssh`: a host already reachable with an SSH config alias or `user@host`, using
+  noninteractive SSH and the user's normal host-key verification.
+- `brev`: an existing Brev instance bound to its immutable ID in the active org.
+  New-instance provisioning belongs in chat, with machine and cost review.
+
+`register_rfd4_compute` is an agent-only tool. `check_compute` and
+`get_compute_status` are available to the app. Registration doesn't install,
+provision, authenticate, or declare success. Switching the target invalidates
+previous run approvals. Existing jobs require their original target configuration.
+
+The runtime layout is `RUNTIME_ROOT/model/.venv/bin/rfd4-generate`, with the model
+checkout revision in `RUNTIME_ROOT/model-revision`. The pinned model revision is
+in `scripts/core.py`. Studio is independently served on a loopback HTTP port;
+forward remote Studio to that port. SSH credentials and Brev authentication stay
+on the tool-server machine, never in browser storage.
+
+Example existing SSH registration (after setup):
+
+```json
+{
+  "kind": "ssh",
+  "name": "lab-gpu",
+  "ssh_host": "lab-gpu",
+  "runtime_root": "/srv/rfd4",
+  "studio_url": "http://127.0.0.1:18764",
+  "weight_paths": ["/srv/weights/actual-checkpoint.ckpt"]
+}
+```
+
+The old Brev `config.json` format still works. Keep state outside the repository
+using `RFD4_STUDIO_HOME`; the default is `~/.local/share/bionemo-rfd4`.
+
+## Scientific and execution boundaries
+
+Studio owns molecular state and validation. The tool bridge allowlists editor
+routes and accepts neither arbitrary URLs nor execution commands. Studio's
+revision and confirmation behavior is preserved. Image/text notes accompany the
+input; they are not automatically converted into model constraints.
+
+Review freezes the exported CIF, checksum, seed, count and exact target. Generate
+sends that review to the conversation for agent execution. Jobs use detached
+workers and durable records. Ambiguous submission is never automatically retried.
+This is a single-user adapter. Inference completion is not scientific validation;
+use the existing upstream evaluation skill.
+
+Stage the local plugin with the existing model skills unchanged:
 
 ```sh
 python scripts/plugin_sync.py --write
 python scripts/stage_rfd4_plugin.py --model-repo /authorized/RFD4 --output /local/plugin
 ```
 
-This staged bundle contains restricted model documentation and helpers. Keep it
-local; it is not the public distribution artifact. Upstream skill instructions
-still run against the configured model checkout. No Studio source, model
-weights, or RFD4 skills are redistributed in this adapter's repository payload.
-Upstream licenses remain applicable independently of this integration.
+Restricted model docs and skills stay in that local bundle. No model weights are
+included. Keep upstream licenses and access requirements separate from this adapter.
 
-## Build and preview
-
-With Node.js and pnpm installed:
-
-```sh
-cd integrations/atomworks-studio
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm build
-RFD4_STUDIO_HOME=/path/to/state python scripts/preview.py
-```
-
-Open `http://127.0.0.1:8766`. The preview enforces `frame-src 'none'`, disallows
-external scripts and eval, and authenticates its loopback tool calls with a
-per-process token. The generated HTML is committed for plugin runtime use.
-`THIRD_PARTY_NOTICES.txt` contains the licenses of bundled dependencies.
-
-## Verification and limits
+## Verification
 
 ```sh
 python -m unittest discover -s tests -p 'test_atomworks_*.py'
 python scripts/plugin_sync.py --check
 ```
 
-The Studio API must provide sessions, selection resolution, conditions, and
-export. Its server owns annotation state. Jobs use a detached local submission
-worker and durable records. Ambiguous submissions require inspection and are
-never retried automatically. A stopped worker before remote launch can leave a
-queued record; inspect `worker.log` before preparing another plan. This is a
-single-user local integration, not a multi-tenant service. Inference completion
-alone is not scientific validation; use the existing evaluation skill.
+The generated-HTML test is skipped when authorized upstream assets have not been
+built. CI checks the bridge/compute/protocol contracts without private source.
+Local qualification additionally covers the real upstream bundle, demo loading,
+selection, annotation, undo and compute status. Local and SSH execution transports
+have unit coverage; live inference has only been exercised on the configured Brev
+machine. Patinae, MP4, trajectory playback and host download behavior are not
+qualified in this embedded build.

@@ -12,3 +12,7 @@ __pycache__/
 
 # Frontend dependencies are reproducible from the pinned lockfile.
 node_modules/
+
+# Private upstream build until Studio public launch
+**/assets/studio-upstream*
+**/assets/STUDIO_LICENSE.md

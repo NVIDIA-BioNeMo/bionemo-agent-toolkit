@@ -28,7 +28,9 @@ def safe_session(value: str) -> str:
         raise ValueError('Invalid Studio session identifier')
     return value
 
-class Backend:
+from compute import Compute
+
+class Backend(Compute):
     def __init__(self, root=ROOT, runner=subprocess.run):
         self.root = Path(root)
         self.state = self.root / 'state'
@@ -39,17 +41,9 @@ class Backend:
     def config(self):
         path = self.root / 'config.json'
         if not path.exists():
-            raise ValueError('Copy config.example.json to config.json and choose your existing Brev instance.')
+            raise ValueError('No compute registered. Ask the agent to configure a local GPU, SSH host, or Brev machine.')
         cfg = json.loads(path.read_text())
-        if not cfg.get('instance_id'):
-            raise ValueError('Configure instance_id to bind execution to the intended Brev machine')
-        safe_id(cfg['instance'])
-        if not re.fullmatch(r'/[A-Za-z0-9_/-]+', cfg['remote_root']) or '..' in cfg['remote_root'].split('/'):
-            raise ValueError('remote_root must be a simple absolute Linux path')
-        parsed = urlparse(cfg['studio_url'])
-        if parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', 'localhost') or parsed.path not in ('', '/'):
-            raise ValueError('Studio must be on loopback; tunnel remote Studio to localhost first')
-        return cfg
+        return self.validate_config(cfg)
 
     def run(self, args, timeout=60):
         result = self.runner(args, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
@@ -67,17 +61,13 @@ class Backend:
         return output
 
     def verify_target(self, cfg):
-        if cfg.get('instance_id'):
+        if cfg.get('kind','brev') == 'brev':
             rows=json.loads(self.brev(cfg, 'ls', '--json'))['workspaces']
             if not any(row['name']==cfg['instance'] and row['id']==cfg['instance_id'] for row in rows):
                 raise ValueError('The configured instance is not in the active Brev organization; restore the original organization.')
 
     def preflight(self):
-        cfg = self.config()
-        # Metadata alone is not proof of shell/GPU readiness.
-        listing = self.brev(cfg, 'ls', '--json')
-        probe = self.brev(cfg, 'exec', cfg['instance'], 'nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader')
-        return {'instance': cfg['instance'], 'gpu': probe.strip(), 'inventory': json.loads(listing)}
+        return self.check_compute()
 
     def studio(self, method, path, **kwargs):
         cfg = self.config()
@@ -196,19 +186,19 @@ class Backend:
             root = cfg['remote_root']
             remote = f"{root}/runs/{record['job_id']}"
             record['remote_dir'] = remote
-            self.brev(cfg, 'exec', cfg['instance'], f'test -x {shlex.quote(root + "/model/.venv/bin/rfd4-generate")} && test "$(cat {root}/model-revision)" = {REVISION} && mkdir -p {shlex.quote(remote)}')
-            self.brev(cfg, 'copy', str(source), f"{cfg['instance']}:{remote}/input.cif", timeout=180)
+            self.target_exec(cfg, f'test -x {shlex.quote(root + "/model/.venv/bin/rfd4-generate")} && test "$(cat {root}/model-revision)" = {REVISION} && mkdir -p {shlex.quote(remote)}')
+            self.target_copy(cfg, source, f"{remote}/input.cif", timeout=180)
             args = [root + '/model/.venv/bin/rfd4-generate', f'inputs={remote}/input.cif', f'out_dir={remote}/output',
                     f'num_replicates={record["samples"]}', f'seed={record["seed"]}', 'batch_size=1', 'compile_lengths=null', 'prevalidate_inputs=true']
             # The shell sees only fixed commands, validated paths, IDs and numeric options.
             script = f'#!/bin/bash\nset +e\n(cd {shlex.quote(root + "/model")} && {shlex.join(args)})\ncode=$?\nprintf "%s" "$code" > {shlex.quote(remote + "/exit_code")}\nexit "$code"\n'
             local_script = self.state / record['job_id'] / 'run.sh'
             local_script.write_text(script)
-            self.brev(cfg, 'copy', str(local_script), f"{cfg['instance']}:{remote}/run.sh", timeout=180)
+            self.target_copy(cfg, local_script, f"{remote}/run.sh", timeout=180)
             record['status'] = 'submitting'
             self.save_job(record)
             # Never automatically retry this launch if the network outcome is ambiguous.
-            self.brev(cfg, 'exec', cfg['instance'], f'nohup bash {remote}/run.sh > {remote}/run.log 2>&1 < /dev/null & echo $! > {remote}/pid')
+            self.target_exec(cfg, f'nohup bash {remote}/run.sh > {remote}/run.log 2>&1 < /dev/null & echo $! > {remote}/pid')
             record['status'] = 'submitted'
         except Exception as error:
             record['status'] = 'submission_unknown' if record['status'] == 'submitting' else 'failed'
@@ -226,7 +216,7 @@ class Backend:
         if cfg['instance'] != record['instance']:
             raise ValueError('Restore the original instance in config before polling this job')
         remote = record['remote_dir']
-        output = self.brev(cfg, 'exec', record['instance'], f'if test -f {remote}/exit_code; then cat {remote}/exit_code; elif test -f {remote}/pid && kill -0 "$(cat {remote}/pid)" 2>/dev/null; then echo RUNNING; else echo UNKNOWN; fi')
+        output = self.target_exec(cfg, f'if test -f {remote}/exit_code; then cat {remote}/exit_code; elif test -f {remote}/pid && kill -0 "$(cat {remote}/pid)" 2>/dev/null; then echo RUNNING; else echo UNKNOWN; fi')
         value = output.strip()
         if value == '0': record['status'] = 'completed'
         elif value.isdigit(): record.update(status='failed', exit_code=int(value))
@@ -245,7 +235,7 @@ class Backend:
         self.verify_target(cfg)
         destination = self.state / safe_id(job_id) / 'results'
         destination.mkdir(exist_ok=True)
-        self.brev(cfg, 'copy', f"{record['instance']}:{record['remote_dir']}/output/inference_samples", str(destination), timeout=300)
+        self.target_copy(cfg, f"{record['remote_dir']}/output/inference_samples", destination, download=True, timeout=300)
         return {'job_id': job_id, 'files': [str(p) for p in destination.rglob('*.cif*')]}
 
     def open_result(self, job_id, index=0):

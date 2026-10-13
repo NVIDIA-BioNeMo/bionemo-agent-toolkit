@@ -16,7 +16,7 @@ service = Service()
 TOKEN = secrets.token_urlsafe(32)
 ORIGIN = 'http://127.0.0.1:8766'
 # Mirrors the no-iframe, no-external-script environment of the embedded app.
-CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'; frame-src 'none'; worker-src blob:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'; frame-src 'none'; worker-src blob:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 def load_demo(): return service.viewer_payload(service.load_demo())
 def import_structure(cif): return service.viewer_payload(service.import_cif(cif))
@@ -26,10 +26,11 @@ def open_result(job_id):
 ALLOWED = {'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
            'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
            'set_condition':service.set_condition,'prepare_design':service.prepare,
-           'execute_rfd4_plan':service.execute,'check_rfd4_job':service.status}
+           'studio_request':lambda **kw: __import__('studio_bridge').request(service,**kw),'get_compute_status':service.compute_status,'check_compute':service.check_compute,'execute_rfd4_plan':service.execute,'check_rfd4_job':service.status}
 
 async def index(request):
-    html=(Path(__file__).parents[1]/'assets/studio.html').read_text()
+    asset=Path(__file__).parents[1]/'assets/studio-upstream.html'
+    html=asset.read_text()
     return HTMLResponse(html.replace('/*LOCAL_CONFIG*/',f'window.localToken={json.dumps(TOKEN)};'),
         headers={'Cache-Control':'no-store','Content-Security-Policy':CSP,'X-Content-Type-Options':'nosniff'})
 
