@@ -2,7 +2,7 @@
 import hashlib
 import json
 import fcntl
-from core import Backend, safe_id
+from core import Backend, safe_id, safe_session
 
 class Service(Backend):
     def plans(self):
@@ -42,3 +42,38 @@ class Service(Backend):
     def overview(self):
         jobs = [json.loads(p.read_text()) for p in self.state.glob('*/job.json')]
         return {'plans':[self.public_plan(p) for p in self.plans()], 'jobs':[{k:v for k,v in j.items() if k != 'target'} for j in jobs]}
+
+    def viewer_payload(self, result):
+        session_id = safe_session(result['session_id'])
+        exported = self.studio('POST', f'sessions/{session_id}/export')
+        structure = result.get('structure')
+        if structure is None or structure['revision'] != exported['revision']:
+            structure = self.studio('GET', f'sessions/{session_id}')['structure']
+        if structure['revision'] != exported['revision']:
+            raise ValueError('The structure changed while loading; reload it before selecting atoms')
+        return {k: v for k, v in dict(result, cif=exported['cif'], structure=structure).items()
+                if k not in ('editor_path', 'editor_url')}
+
+    def resolve_selection(self, session_id, atom_indices, scope='residue'):
+        safe_session(session_id)
+        self.validate_indices(atom_indices)
+        if scope not in ('atom', 'residue', 'chain'):
+            raise ValueError('Choose atom, residue, or chain')
+        return self.studio('POST', f'sessions/{session_id}/selections/resolve',
+                           json={'atom_indices':atom_indices, 'scope':scope})
+
+    @staticmethod
+    def validate_indices(atom_indices):
+        if not atom_indices or len(atom_indices) > 100000 or any(type(i) is not int or i < 0 for i in atom_indices):
+            raise ValueError('Select valid nonnegative atom indices')
+
+    def set_condition(self, session_id, atom_indices, condition, enabled, expected_revision):
+        safe_session(session_id)
+        self.validate_indices(atom_indices)
+        if condition not in ('hotspot', 'sequence', 'coordinate'):
+            raise ValueError('Unsupported condition for this preview')
+        if type(expected_revision) is not int or expected_revision < 0 or type(enabled) is not bool:
+            raise ValueError('Supply the current revision and an enabled boolean')
+        return self.studio('POST', f'sessions/{session_id}/conditions', json={
+            'atom_indices':atom_indices, 'condition':condition, 'enabled':enabled,
+            'expected_revision':expected_revision, 'scope':'atom'})

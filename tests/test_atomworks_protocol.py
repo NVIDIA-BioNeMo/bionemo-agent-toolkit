@@ -17,6 +17,8 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     await session.initialize()
                     tools=(await session.list_tools()).tools
                     names={tool.name for tool in tools}
+                    resources=(await session.list_resources()).resources
+                    self.assertEqual(resources[0].meta['ui']['csp']['frameDomains'],[])
                     self.assertEqual('execute_rfd4_plan' in names,mode=='agent')
                     if mode=='app':
                         result=await session.call_tool('get_workspace',{})
@@ -27,6 +29,9 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                             self.assertEqual(tool.meta['ui']['visibility'],['app','model'] if tool.name=='open_rfd4_studio' else ['app'])
                             self.assertNotIn('openai/ui', tool.meta)
                             self.assertNotIn('com.openai', tool.meta)
+                            if tool.name=='open_rfd4_studio':
+                                self.assertEqual(tool.meta['openai/outputTemplate'],'ui://bionemo-rfd4/studio.html')
+                                self.assertEqual(tool.meta['ui/resourceUri'],'ui://bionemo-rfd4/studio.html')
                     else:
                         execute=next(t for t in tools if t.name=='execute_rfd4_plan')
                         self.assertEqual(execute.meta['ui']['visibility'],['model'])

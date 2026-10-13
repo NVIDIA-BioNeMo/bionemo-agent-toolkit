@@ -22,6 +22,12 @@ def safe_id(value: str) -> str:
         raise ValueError('Invalid identifier')
     return value
 
+def safe_session(value: str) -> str:
+    # Studio uses URL-safe random tokens, which can begin with '-' or '_'.
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,96}', value):
+        raise ValueError('Invalid Studio session identifier')
+    return value
+
 class Backend:
     def __init__(self, root=ROOT, runner=subprocess.run):
         self.root = Path(root)
@@ -99,7 +105,7 @@ class Backend:
         return result
 
     def annotate(self, session_id, expression, condition):
-        safe_id(session_id)
+        safe_session(session_id)
         if condition not in ('hotspot', 'sequence', 'coordinate'):
             raise ValueError('Use hotspot, sequence, or coordinate; inspect other conditions in Studio')
         selection = self.studio('POST', f'sessions/{session_id}/selections/query', json={'expression': expression})
@@ -109,7 +115,7 @@ class Backend:
         return self.studio('POST', f'sessions/{session_id}/conditions', json={'atom_indices': indices, 'condition': condition})
 
     def snapshot(self, session_id, note='', markup=None):
-        safe_id(session_id)
+        safe_session(session_id)
         if len(note) > 20000:
             raise ValueError('Design note is too long')
         image = None

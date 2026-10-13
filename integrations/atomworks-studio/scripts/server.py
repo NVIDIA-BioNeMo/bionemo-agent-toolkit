@@ -13,15 +13,10 @@ APP = {'ui':{'visibility':['app']}}
 REVIEW = {'ui':{'resourceUri':URI,'visibility':['app','model']}}
 mode = sys.argv[1] if len(sys.argv)>1 else 'app'
 mcp = FastMCP('rfd4-studio-' + mode)
-try:
-    origin = service.config()['studio_url'].rstrip('/')
-except (ValueError, KeyError):
-    origin = None
-
 @mcp.resource(URI, name='rfd4-studio', title='AtomWorks Studio', mime_type='text/html;profile=mcp-app', meta={
-    'ui':{'csp':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[origin] if origin else []},'supportsFullscreen':True},
+    'ui':{'csp':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[]},'supportsFullscreen':True},
     'openai/ui':{'availableDisplayModes':['inline','fullscreen']},
-    'openai/widgetCSP':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[origin] if origin else []},
+    'openai/widgetCSP':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[]},
     'openai/widgetSupportsFullscreen':True,
     'openai/widgetAccessible':True,
 })
@@ -29,7 +24,7 @@ def panel():
     return (Path(__file__).parents[1]/'assets/studio.html').read_text()
 
 if mode == 'app':
-    @mcp.tool(title='Open AtomWorks Studio in chat', meta={'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)
+    @mcp.tool(title='Open AtomWorks Studio in chat', meta={'ui/resourceUri':URI,'openai/outputTemplate':URI,'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)
     def open_rfd4_studio() -> dict:
         """Open AtomWorks Studio inline in this conversation. The user may expand it beside the chat. Call this when asked to open RFD4, view a structure, or start the PD-L1 demo."""
         return {'ok':True}
@@ -43,13 +38,13 @@ if mode == 'app':
     def load_demo() -> dict:
         """Load the PD-L1 example supplied by the user's Studio deployment."""
         result=service.load_demo()
-        return {k:result[k] for k in ('session_id','editor_url','description')}
+        return service.viewer_payload(result)
 
     @mcp.tool(meta=APP, annotations=WRITE)
     def import_structure(cif: str) -> dict:
         """Load an annotated molecular CIF into Studio."""
         result=service.import_cif(cif)
-        return {k:result[k] for k in ('session_id','editor_url')}
+        return service.viewer_payload(result)
 
     @mcp.tool(meta=APP, annotations=WRITE)
     def prepare_design(session_id: str, note: str='', samples: int=1, seed: int=42, image_base64: str | None=None) -> dict:
@@ -61,7 +56,17 @@ if mode == 'app':
         """Retrieve a completed result and open it for 3D inspection."""
         service.collect(job_id)
         result=service.open_result(job_id)
-        return {k:result[k] for k in ('session_id','editor_url','result_file')}
+        return service.viewer_payload(result)
+    @mcp.tool(meta=APP, annotations=READ)
+    def resolve_selection(session_id: str, atom_indices: list[int], scope: str='residue') -> dict:
+        """Expand picked atoms using Studio's canonical residue/chain interpretation."""
+        return service.resolve_selection(session_id, atom_indices, scope)
+
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def set_condition(session_id: str, atom_indices: list[int], condition: str, enabled: bool, expected_revision: int) -> dict:
+        """Update selected atom conditions only at the displayed document revision."""
+        return service.set_condition(session_id, atom_indices, condition, enabled, expected_revision)
+
 else:
     @mcp.tool(annotations=WRITE)
     def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42) -> dict:

@@ -1,0 +1,51 @@
+"""Local development host for the SAME self-contained MCP app HTML."""
+import asyncio
+import json
+from pathlib import Path
+import secrets
+import uvicorn
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, JSONResponse
+from starlette.routing import Route
+from service import Service
+
+service = Service()
+TOKEN = secrets.token_urlsafe(32)
+ORIGIN = 'http://127.0.0.1:8766'
+# Mirrors the no-iframe, no-external-script environment of the embedded app.
+CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'; frame-src 'none'; worker-src blob:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+
+def load_demo(): return service.viewer_payload(service.load_demo())
+def import_structure(cif): return service.viewer_payload(service.import_cif(cif))
+def open_result(job_id):
+    service.collect(job_id)
+    return service.viewer_payload(service.open_result(job_id))
+ALLOWED = {'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
+           'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
+           'set_condition':service.set_condition,'prepare_design':service.prepare,
+           'execute_rfd4_plan':service.execute,'check_rfd4_job':service.status}
+
+async def index(request):
+    html=(Path(__file__).parents[1]/'assets/studio.html').read_text()
+    return HTMLResponse(html.replace('/*LOCAL_CONFIG*/',f'window.localToken={json.dumps(TOKEN)};'),
+        headers={'Cache-Control':'no-store','Content-Security-Policy':CSP,'X-Content-Type-Options':'nosniff'})
+
+async def call(request: Request):
+    if request.headers.get('origin') != ORIGIN or request.headers.get('x-rfd4-token') != TOKEN:
+        return JSONResponse({'isError':True,'error':'Invalid local request'},status_code=403)
+    try:
+        body=await request.body()
+        if len(body)>30000000: raise ValueError('Request too large')
+        payload=json.loads(body)
+        if payload['name'] not in ALLOWED: raise ValueError('Unknown tool')
+        result=await asyncio.to_thread(ALLOWED[payload['name']],**payload.get('arguments',{}))
+        return JSONResponse({'structuredContent':result})
+    except Exception as error:
+        return JSONResponse({'isError':True,'content':[{'type':'text','text':str(error)}]})
+
+app=Starlette(routes=[Route('/',index),Route('/api/tools',call,methods=['POST'])],
+    middleware=[Middleware(TrustedHostMiddleware,allowed_hosts=['127.0.0.1'])])
+if __name__=='__main__': uvicorn.run(app,host='127.0.0.1',port=8766)

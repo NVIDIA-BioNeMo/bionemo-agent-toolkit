@@ -47,7 +47,7 @@ SOURCE_ROOTS = ["nim-skills", "library-skills", "open-models-skills", "workflows
 EXCLUDE_SEGMENTS = {"plugins", "vendor", "evals", "node_modules", ".git"}
 # Files/dirs ignored when copying/comparing (never part of the payload).
 # `.skillsource.json` is skills.sh metadata that the generator strips from the payload.
-JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
+JUNK = {".DS_Store", "__pycache__", ".skillsource.json", "node_modules"}
 # Subdirectories of a skill that are stripped from the aggregate payload.
 # Empty: the aggregate is a full copy. ``evals/`` is intentionally kept because
 # NVCARPS Tier 3 (live agent eval) validates the aggregate and requires the
@@ -155,7 +155,7 @@ def sync_studio_runtime(write_files: bool) -> list[str]:
     if write_files:
         if dst.exists():
             shutil.rmtree(dst)
-        shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.venv'))
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.venv', 'node_modules'))
         return []
     return ['[studio runtime] ' + d for d in compare(src, dst)]
 
