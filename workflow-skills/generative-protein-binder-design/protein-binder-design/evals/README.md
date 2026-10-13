@@ -22,14 +22,18 @@ inputs are staged in both conditions; equivalent implementations are accepted.
 
 Every case stages identical inputs for the with/without-skill conditions.
 `harbor.pre_agent_setup` in `config.yml` runs the staged `setup_eval_env.py` in
-both conditions. It selects an installed Python 3.12+, creates the writable
+both conditions. It selects an installed Python 3.10-3.13, creates the writable
 `/workspace/pbd-eval-venv` virtual environment, installs the same pinned NumPy
-2.5.1 and Biotite 1.7.1 wheels, and checks their imports before the agent starts.
+2.2.6 and Biotite 1.2.0 wheels, and checks their imports before the agent starts.
+These releases provide wheels for Python 3.10 and 3.11 as well as 3.12 and 3.13;
+the previous NumPy 2.5.1/Biotite 1.7.1 pins required Python 3.12+. Managed sandbox
+images may provide older Python versions, so requiring 3.12 prevented preflight
+from reaching dependency installation. The same pins apply to both conditions.
 Every prompt specifies `/workspace/pbd-eval-venv/bin/python` for Python commands.
 Setup leaves system Python packages untouched and needs no root privileges.
 There is no custom `evals/environment/Dockerfile`, so Astra uses its existing
 sandbox image without invoking the managed image builder or requiring its token.
-The standard sandbox must provide Python 3.12+ with venv/ensurepip, a writable
+The standard sandbox must provide Python 3.10-3.13 with venv/ensurepip, a writable
 workspace, and package-index access
 for setup. Setup downloads packages; the subsequent exercises
 make no network calls. Normal sandbox and agent API access are still required.
@@ -40,7 +44,7 @@ as `Healthcheck failed (rc=...)`. The setup helper uses distinct failure codes:
 
 | Exit code | Failed phase | Check |
 | --- | --- | --- |
-| 10 | Interpreter selection | An installed Python 3.12+ is discoverable. |
+| 10 | Interpreter selection | An installed Python 3.10-3.13 is discoverable. |
 | 11 | Virtual environment creation | venv/ensurepip is installed and the workspace is writable. |
 | 12 | Dependency installation | pip can reach the package index and install the pinned wheels within the timeout. |
 | 13 | Import verification | The installed NumPy and Biotite versions import successfully. |

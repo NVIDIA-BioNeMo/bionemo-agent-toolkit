@@ -28,7 +28,7 @@ design campaign. Offline bookkeeping stays offline.
 
 ## Prerequisites
 
-- Python 3.12+; install [requirements.txt](requirements.txt) for RMSD, mmCIF,
+- Python 3.10-3.13; install [requirements.txt](requirements.txt) for RMSD, mmCIF,
   cache recovery, and Python HTTP examples. Manifest and PDB-only helpers use
   the standard library. Install [requirements-dev.txt](requirements-dev.txt)
   to run `python3 -m pytest tests` with coverage.

@@ -3,7 +3,7 @@
 """Install the same isolated CPU environment before either evaluation condition.
 
 Usage: python3 /workspace/input/setup_eval_env.py
-Arguments: none. Requires an installed Python 3.12+ with venv/ensurepip and index access.
+Arguments: none. Requires Python 3.10-3.13 with venv/ensurepip and index access.
 Output: /workspace/pbd-eval-venv; diagnostics in /logs/artifacts/pbd-eval-setup.log.
 Exit codes: 0 ready; 10 interpreter; 11 venv; 12 installation; 13 imports.
 """
@@ -16,7 +16,8 @@ import sys
 
 ENVIRONMENT = Path("/workspace/pbd-eval-venv")
 SETUP_LOG = Path("/logs/artifacts/pbd-eval-setup.log")
-DEPENDENCIES = ("numpy==2.5.1", "biotite==1.7.1")
+# Both wheels support the older Python interpreters in managed sandboxes.
+DEPENDENCIES = ("numpy==2.2.6", "biotite==1.2.0")
 # Harbor logs the exit code even when healthcheck stdout/stderr is unavailable.
 EXIT_INTERPRETER = 10
 EXIT_VENV = 11
@@ -24,26 +25,29 @@ EXIT_INSTALL = 12
 EXIT_IMPORT = 13
 IMPORT_CHECK = (
     "import numpy, biotite; "
-    "assert numpy.__version__ == '2.5.1'; "
-    "assert biotite.__version__ == '1.7.1'; "
+    "assert numpy.__version__ == '2.2.6'; "
+    "assert biotite.__version__ == '1.2.0'; "
     "print('Evaluation imports verified:', numpy.__version__, biotite.__version__)"
 )
 
 
 def select_python():
     """Use an installed compatible interpreter without downloading Python."""
-    if sys.version_info >= (3, 12):
+    if (3, 10) <= sys.version_info[:2] < (3, 14):
         return sys.executable
-    for name in ("python3.12", "python3.13", "python3.14"):
+    for name in ("python3.13", "python3.12", "python3.11", "python3.10"):
         executable = shutil.which(name)
         if executable:
-            result = subprocess.run(
-                [executable, "-c", "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)"],
-                shell=False, check=False, timeout=5,
-            )
+            try:
+                result = subprocess.run(
+                    [executable, "-c", "import sys; sys.exit(0 if (3, 10) <= sys.version_info[:2] < (3, 14) else 1)"],
+                    shell=False, check=False, timeout=5,
+                )
+            except (OSError, subprocess.SubprocessError):
+                continue
             if result.returncode == 0:
                 return executable
-    raise RuntimeError("An installed Python 3.12+ is required for the pinned evaluation wheels")
+    raise RuntimeError("An installed Python 3.10-3.13 is required for the pinned evaluation wheels")
 
 
 def setup(environment=ENVIRONMENT, log=None):

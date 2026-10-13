@@ -30,7 +30,7 @@ protein-binder-design/
 - Access to the BioNeMo NIMs you intend to use (RFdiffusion, ProteinMPNN, Boltz2
   and/or OpenFold3, optional MSA-Search) — hosted at
   [build.nvidia.com](https://build.nvidia.com) or self-hosted via NGC.
-- Python ≥ 3.12 for the pinned helper environment. Install dependencies with
+- Python 3.10-3.13 for the pinned helper environment. Install dependencies with
   `python3 -m pip install -r requirements.txt`; mmCIF parsing and cached refold
   recovery require Biotite. Manifest and PDB-only helpers use the standard library.
 

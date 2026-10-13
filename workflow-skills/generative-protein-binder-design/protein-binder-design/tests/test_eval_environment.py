@@ -36,7 +36,7 @@ class EvaluationEnvironmentTests(unittest.TestCase):
     def test_interpreter_failure_is_distinct_and_runs_no_install_commands(self):
         errors = io.StringIO()
         with (
-            patch.object(setup, "select_python", side_effect=RuntimeError("Python 3.12+ unavailable")),
+            patch.object(setup, "select_python", side_effect=RuntimeError("Python 3.10-3.13 unavailable")),
             patch.object(setup.subprocess, "run") as run,
             contextlib.redirect_stderr(errors),
         ):
@@ -67,12 +67,36 @@ class EvaluationEnvironmentTests(unittest.TestCase):
         self.assertEqual(run.call_count, 3)
         self.assertEqual(run.call_args.args[0][-1], setup.IMPORT_CHECK)
 
+    def test_supported_default_python_does_not_require_a_newer_interpreter(self):
+        for version in ((3, 10), (3, 11), (3, 12), (3, 13)):
+            with (
+                self.subTest(version=version),
+                patch.object(setup.sys, "version_info", version),
+                patch.object(setup.shutil, "which") as find_python,
+                patch.object(setup.subprocess, "run") as run,
+            ):
+                self.assertEqual(setup.select_python(), sys.executable)
+                find_python.assert_not_called()
+                run.assert_not_called()
+
     def test_old_default_python_uses_an_installed_compatible_one(self):
-        with patch.object(setup.sys, "version_info", (3, 10)), patch.object(setup.shutil, "which", return_value="/opt/bin/python3.12"), patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)):
+        with patch.object(setup.sys, "version_info", (3, 9)), patch.object(setup.shutil, "which", return_value="/opt/bin/python3.12"), patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)):
+            self.assertEqual(setup.select_python(), "/opt/bin/python3.12")
+
+    def test_newer_python_without_pinned_wheels_uses_a_supported_interpreter(self):
+        with patch.object(setup.sys, "version_info", (3, 14)), patch.object(setup.shutil, "which", return_value="/opt/bin/python3.13"), patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)):
+            self.assertEqual(setup.select_python(), "/opt/bin/python3.13")
+
+    def test_broken_candidate_does_not_hide_an_available_interpreter(self):
+        with (
+            patch.object(setup.sys, "version_info", (3, 9)),
+            patch.object(setup.shutil, "which", side_effect=["/broken/python3.13", "/opt/bin/python3.12"]),
+            patch.object(setup.subprocess, "run", side_effect=[OSError("unavailable"), subprocess.CompletedProcess([], 0)]),
+        ):
             self.assertEqual(setup.select_python(), "/opt/bin/python3.12")
 
     def test_no_compatible_python_is_an_explicit_failure(self):
-        with patch.object(setup.sys, "version_info", (3, 10)), patch.object(setup.shutil, "which", return_value=None), self.assertRaisesRegex(RuntimeError, "Python 3.12"):
+        with patch.object(setup.sys, "version_info", (3, 9)), patch.object(setup.shutil, "which", return_value=None), self.assertRaisesRegex(RuntimeError, "Python 3.10-3.13"):
             setup.select_python()
 
     def test_failed_install_retains_real_child_stdout_and_stderr(self):
@@ -110,13 +134,13 @@ class EvaluationEnvironmentTests(unittest.TestCase):
             log_path = Path(directory) / "setup.log"
             with (
                 patch.object(setup, "SETUP_LOG", log_path),
-                patch.object(setup, "select_python", side_effect=RuntimeError("Python 3.12+ unavailable")),
+                patch.object(setup, "select_python", side_effect=RuntimeError("Python 3.10-3.13 unavailable")),
                 patch.object(setup.subprocess, "run") as run,
                 contextlib.redirect_stdout(io.StringIO()),
                 contextlib.redirect_stderr(io.StringIO()),
             ):
                 self.assertEqual(setup.main(), setup.EXIT_INTERPRETER)
-            self.assertIn("Python 3.12+ unavailable", log_path.read_text())
+            self.assertIn("Python 3.10-3.13 unavailable", log_path.read_text())
         run.assert_not_called()
 
     def test_unwritable_log_does_not_replace_the_setup_failure(self):
