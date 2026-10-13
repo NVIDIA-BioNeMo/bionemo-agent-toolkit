@@ -4,17 +4,24 @@
 
 Usage: python3 /workspace/input/setup_eval_env.py
 Arguments: none. Requires an installed Python 3.12+ with venv/ensurepip and index access.
-Output: /workspace/pbd-eval-venv; setup diagnostics on stdout/stderr.
-Exit codes: 0 for verified imports; 1 for failed setup.
+Output: /workspace/pbd-eval-venv; diagnostics in /logs/artifacts/pbd-eval-setup.log.
+Exit codes: 0 ready; 10 interpreter; 11 venv; 12 installation; 13 imports.
 """
 
+from contextlib import ExitStack
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 
 ENVIRONMENT = Path("/workspace/pbd-eval-venv")
+SETUP_LOG = Path("/logs/artifacts/pbd-eval-setup.log")
 DEPENDENCIES = ("numpy==2.5.1", "biotite==1.7.1")
+# Harbor logs the exit code even when healthcheck stdout/stderr is unavailable.
+EXIT_INTERPRETER = 10
+EXIT_VENV = 11
+EXIT_INSTALL = 12
+EXIT_IMPORT = 13
 IMPORT_CHECK = (
     "import numpy, biotite; "
     "assert numpy.__version__ == '2.5.1'; "
@@ -39,30 +46,65 @@ def select_python():
     raise RuntimeError("An installed Python 3.12+ is required for the pinned evaluation wheels")
 
 
-def setup(environment=ENVIRONMENT):
+def setup(environment=ENVIRONMENT, log=None):
     """Create a writable venv; never modify the sandbox's system site-packages."""
+    def report(message, *, error=False):
+        print(message, file=sys.stderr if error else sys.stdout, flush=True)
+        if log is not None:
+            try:
+                print(message, file=log, flush=True)
+            except OSError as exc:
+                print(f"Could not write setup diagnostic: {exc}", file=sys.stderr, flush=True)
+
     phase = "interpreter selection"
+    exit_code = EXIT_INTERPRETER
     try:
+        report(f"Bootstrap interpreter: {sys.executable} (Python {sys.version.split()[0]})")
         executable = select_python()
-        print(f"Evaluation base interpreter: {executable}", flush=True)
+        report(f"Evaluation base interpreter: {executable}")
         phase = "virtual environment creation (requires venv/ensurepip)"
-        subprocess.run([executable, "-m", "venv", str(environment)], shell=False, check=True, timeout=30)
+        exit_code = EXIT_VENV
+        report(f"Starting {phase}")
+        subprocess.run(
+            [executable, "-m", "venv", str(environment)], shell=False, check=True, timeout=30,
+            stdout=log, stderr=subprocess.STDOUT if log is not None else None,
+        )
         python = environment / "bin/python"
         phase = "dependency installation"
+        exit_code = EXIT_INSTALL
+        report(f"Starting {phase}")
         subprocess.run(
             [str(python), "-m", "pip", "install", "--disable-pip-version-check",
              "--no-input", "--only-binary=:all:", "--timeout", "15", "--retries", "1",
              *DEPENDENCIES],
             shell=False, check=True, timeout=70,
+            stdout=log, stderr=subprocess.STDOUT if log is not None else None,
         )
         phase = "dependency import verification"
-        subprocess.run([str(python), "-c", IMPORT_CHECK], shell=False, check=True, timeout=10)
-        print(f"Use {python} for Python commands in this evaluation.", flush=True)
+        exit_code = EXIT_IMPORT
+        report(f"Starting {phase}")
+        subprocess.run(
+            [str(python), "-c", IMPORT_CHECK], shell=False, check=True, timeout=10,
+            stdout=log, stderr=subprocess.STDOUT if log is not None else None,
+        )
+        report(f"Use {python} for Python commands in this evaluation.")
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
-        print(f"Evaluation setup failed during {phase}: {exc}", file=sys.stderr, flush=True)
-        return 1
+        report(f"Evaluation setup failed during {phase}: {exc}", error=True)
+        return exit_code
     return 0
 
 
+def main():
+    """Retain subprocess output even when Harbor omits healthcheck output."""
+    with ExitStack() as stack:
+        try:
+            SETUP_LOG.parent.mkdir(parents=True, exist_ok=True)
+            log = stack.enter_context(SETUP_LOG.open("w", encoding="utf-8"))
+        except OSError as exc:
+            print(f"Could not create setup log {SETUP_LOG}: {exc}", file=sys.stderr, flush=True)
+            log = None
+        return setup(log=log)
+
+
 if __name__ == "__main__":
-    sys.exit(setup())
+    sys.exit(main())

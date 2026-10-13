@@ -34,12 +34,30 @@ workspace, and package-index access
 for setup. Setup downloads packages; the subsequent exercises
 make no network calls. Normal sandbox and agent API access are still required.
 Installation or import failures stop environment preflight before agent trials.
-Setup reports the chosen interpreter and the phase that failed. If preflight
-fails, inspect its healthcheck stdout and
-stderr to distinguish a missing pip module, an installation-permission error,
-package-index access, an incompatible wheel, or an import error. The summary's
-`HealthcheckError` alone does not identify which condition failed. Preserve this
-diagnostic evidence before retrying; changing model settings cannot repair setup.
+Setup reports the chosen interpreter and the phase that failed. Harbor may omit
+healthcheck stdout/stderr from its job trace, but it logs the command's exit code
+as `Healthcheck failed (rc=...)`. The setup helper uses distinct failure codes:
+
+| Exit code | Failed phase | Check |
+| --- | --- | --- |
+| 10 | Interpreter selection | An installed Python 3.12+ is discoverable. |
+| 11 | Virtual environment creation | venv/ensurepip is installed and the workspace is writable. |
+| 12 | Dependency installation | pip can reach the package index and install the pinned wheels within the timeout. |
+| 13 | Import verification | The installed NumPy and Biotite versions import successfully. |
+
+All four failures stop preflight; only verified imports return zero. These codes
+identify the failing phase, not the underlying cause. The setup helper saves the
+bootstrap interpreter version, phase messages, and child-process stdout/stderr
+to `/logs/artifacts/pbd-eval-setup.log`. Harbor collects that directory into the
+trial's `artifacts/` directory, including on preflight failure. Inspect this file
+under the retained `_harbor-preflight/environment-preflight-*/<trial>/artifacts/`
+directory to distinguish permissions, index access, wheel compatibility and
+import errors. The CI service must retain these Harbor artifacts separately from
+the summary report; the summary does not embed the setup transcript. If artifact
+storage is unwritable, setup still runs with console diagnostics and the same
+failure codes. A generic `rc=1` may mean the helper did not
+start or an unexpected error occurred; do not infer a dependency failure from
+that code alone. Changing model settings cannot repair environment setup.
 These offline cases need no GPU, NIM credentials, or changes to the CI service.
 The task requests and fixtures are preserved; the interpreter instruction,
 environment and verifier changes must be recorded in historical comparisons.
