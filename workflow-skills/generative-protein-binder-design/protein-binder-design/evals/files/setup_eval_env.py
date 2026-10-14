@@ -3,13 +3,14 @@
 """Install the same isolated CPU environment before either evaluation condition.
 
 Usage: python3 /workspace/input/setup_eval_env.py
-Arguments: none. Requires Python 3.10-3.13 with venv/ensurepip and index access.
+Arguments: none. Requires Python 3.10-3.13, uv or venv/ensurepip, and index access.
 Output: /workspace/pbd-eval-venv; diagnostics in /logs/artifacts/pbd-eval-setup.log.
 Exit codes: 0 ready; 10 interpreter; 11 venv; 12 installation; 13 imports.
 """
 
 from contextlib import ExitStack
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -66,22 +67,36 @@ def setup(environment=ENVIRONMENT, log=None):
         report(f"Bootstrap interpreter: {sys.executable} (Python {sys.version.split()[0]})")
         executable = select_python()
         report(f"Evaluation base interpreter: {executable}")
-        phase = "virtual environment creation (requires venv/ensurepip)"
+        python = environment / "bin/python"
+        uv = shutil.which("uv")
+        if uv:
+            report(f"Environment installer: {uv} (does not require venv/ensurepip)")
+            create = [uv, "venv", "--python", executable, "--no-python-downloads",
+                      "--no-config", "--no-cache", "--allow-existing", str(environment)]
+            install = [uv, "pip", "install", "--python", str(python),
+                       "--no-python-downloads", "--no-config", "--no-cache",
+                       "--only-binary=:all:", *DEPENDENCIES]
+            process_env = {**os.environ, "UV_HTTP_TIMEOUT": "15", "UV_HTTP_RETRIES": "1",
+                           "UV_NO_PROGRESS": "1"}
+        else:
+            report("Environment installer: Python venv/ensurepip and pip (uv not installed)")
+            create = [executable, "-m", "venv", str(environment)]
+            install = [str(python), "-m", "pip", "install", "--disable-pip-version-check",
+                       "--no-input", "--only-binary=:all:", "--timeout", "15", "--retries", "1",
+                       *DEPENDENCIES]
+            process_env = None
+        phase = "virtual environment creation"
         exit_code = EXIT_VENV
         report(f"Starting {phase}")
         subprocess.run(
-            [executable, "-m", "venv", str(environment)], shell=False, check=True, timeout=30,
+            create, shell=False, check=True, timeout=30, env=process_env,
             stdout=log, stderr=subprocess.STDOUT if log is not None else None,
         )
-        python = environment / "bin/python"
         phase = "dependency installation"
         exit_code = EXIT_INSTALL
         report(f"Starting {phase}")
         subprocess.run(
-            [str(python), "-m", "pip", "install", "--disable-pip-version-check",
-             "--no-input", "--only-binary=:all:", "--timeout", "15", "--retries", "1",
-             *DEPENDENCIES],
-            shell=False, check=True, timeout=70,
+            install, shell=False, check=True, timeout=70, env=process_env,
             stdout=log, stderr=subprocess.STDOUT if log is not None else None,
         )
         phase = "dependency import verification"

@@ -31,11 +31,17 @@ images may provide older Python versions, so requiring 3.12 prevented preflight
 from reaching dependency installation. The same pins apply to both conditions.
 Every prompt specifies `/workspace/pbd-eval-venv/bin/python` for Python commands.
 Setup leaves system Python packages untouched and needs no root privileges.
+When `uv` is already installed on `PATH`, setup uses it to create the environment
+and install wheels without requiring Python's `venv`, `ensurepip`, or `pip`
+modules. It selects the installed interpreter explicitly and disables Python
+downloads. Without `uv`, setup uses `python -m venv` and the environment's pip.
+Both paths use the same package pins and import checks, bounded network retries,
+and subprocess timeouts. Setup does not download or install `uv`.
 There is no custom `evals/environment/Dockerfile`, so Astra uses its existing
 sandbox image without invoking the managed image builder or requiring its token.
-The standard sandbox must provide Python 3.10-3.13 with venv/ensurepip, a writable
-workspace, and package-index access
-for setup. Setup downloads packages; the subsequent exercises
+The standard sandbox must provide Python 3.10-3.13 plus either `uv` or
+`venv`/`ensurepip`, a writable workspace, and package-index access for setup.
+Setup downloads packages; the subsequent exercises
 make no network calls. Normal sandbox and agent API access are still required.
 Installation or import failures stop environment preflight before agent trials.
 Setup reports the chosen interpreter and the phase that failed. Harbor may omit
@@ -45,8 +51,8 @@ as `Healthcheck failed (rc=...)`. The setup helper uses distinct failure codes:
 | Exit code | Failed phase | Check |
 | --- | --- | --- |
 | 10 | Interpreter selection | An installed Python 3.10-3.13 is discoverable. |
-| 11 | Virtual environment creation | venv/ensurepip is installed and the workspace is writable. |
-| 12 | Dependency installation | pip can reach the package index and install the pinned wheels within the timeout. |
+| 11 | Virtual environment creation | The workspace is writable; either uv is on PATH or Python has venv/ensurepip. |
+| 12 | Dependency installation | The selected installer can reach the package index and install the pinned wheels within the timeout. |
 | 13 | Import verification | The installed NumPy and Biotite versions import successfully. |
 
 All four failures stop preflight; only verified imports return zero. These codes

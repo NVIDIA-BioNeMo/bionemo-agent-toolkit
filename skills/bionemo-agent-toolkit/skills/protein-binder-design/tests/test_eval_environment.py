@@ -19,6 +19,12 @@ spec.loader.exec_module(setup)
 
 
 class EvaluationEnvironmentTests(unittest.TestCase):
+    def setUp(self):
+        # Exercise the stdlib fallback independently of tools on the test host.
+        self.find_tool = patch.object(setup.shutil, "which", return_value=None)
+        self.find_tool.start()
+        self.addCleanup(self.find_tool.stop)
+
     def test_install_failure_stops_before_import_check(self):
         errors = io.StringIO()
         with patch.object(setup, "select_python", return_value="/python3.12"), patch.object(setup.subprocess, "run", side_effect=[None, subprocess.CalledProcessError(1, ["pip"])]) as run, contextlib.redirect_stderr(errors), contextlib.redirect_stdout(io.StringIO()):
@@ -31,7 +37,57 @@ class EvaluationEnvironmentTests(unittest.TestCase):
         with patch.object(setup, "select_python", return_value="/python3.12"), patch.object(setup.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["venv"])) as run, contextlib.redirect_stderr(errors), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(setup.setup(), setup.EXIT_VENV)
         run.assert_called_once()
-        self.assertIn("venv/ensurepip", errors.getvalue())
+        self.assertIn("virtual environment creation", errors.getvalue())
+
+    def test_uv_installs_into_the_isolated_environment_without_python_bootstrap(self):
+        environment = Path("/workspace/test-venv")
+        python = str(environment / "bin/python")
+        with (
+            patch.object(setup, "select_python", return_value="/python3.11"),
+            patch.object(setup.shutil, "which", return_value="/usr/local/bin/uv"),
+            patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(setup.setup(environment), 0)
+        create, install, verify = run.call_args_list
+        self.assertEqual(create.args[0][0:2], ["/usr/local/bin/uv", "venv"])
+        self.assertEqual(create.args[0][-1], str(environment))
+        self.assertEqual(install.args[0][0:5], ["/usr/local/bin/uv", "pip", "install", "--python", python])
+        for command in (create, install):
+            self.assertIn("--no-python-downloads", command.args[0])
+            self.assertIn("--no-cache", command.args[0])
+            self.assertFalse(command.kwargs["shell"])
+            self.assertEqual(command.kwargs["env"]["UV_HTTP_RETRIES"], "1")
+            self.assertEqual(command.kwargs["env"]["UV_HTTP_TIMEOUT"], "15")
+        self.assertIn("--only-binary=:all:", install.args[0])
+        self.assertEqual(install.args[0][-2:], list(setup.DEPENDENCIES))
+        self.assertEqual(verify.args[0], [python, "-c", setup.IMPORT_CHECK])
+
+    def test_uv_creation_failure_stops_before_install(self):
+        errors = io.StringIO()
+        with (
+            patch.object(setup, "select_python", return_value="/python3.11"),
+            patch.object(setup.shutil, "which", return_value="/usr/local/bin/uv"),
+            patch.object(setup.subprocess, "run", side_effect=PermissionError("workspace is not writable")) as run,
+            contextlib.redirect_stderr(errors),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(setup.setup(), setup.EXIT_VENV)
+        run.assert_called_once()
+        self.assertIn("workspace is not writable", errors.getvalue())
+
+    def test_uv_install_failure_stops_before_import_check(self):
+        output = io.StringIO()
+        with (
+            patch.object(setup, "select_python", return_value="/python3.11"),
+            patch.object(setup.shutil, "which", return_value="/usr/local/bin/uv"),
+            patch.object(setup.subprocess, "run", side_effect=[None, subprocess.CalledProcessError(1, ["uv", "pip"])]) as run,
+            contextlib.redirect_stdout(output),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(setup.setup(), setup.EXIT_INSTALL)
+        self.assertEqual(run.call_count, 2)
+        self.assertNotIn("Starting dependency import verification", output.getvalue())
 
     def test_interpreter_failure_is_distinct_and_runs_no_install_commands(self):
         errors = io.StringIO()
