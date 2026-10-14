@@ -72,12 +72,12 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 77.5% — baseline ran, but no comparable score was available; uplift unavailable | 77.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 86.4% — baseline ran, but no comparable score was available; uplift unavailable | 71.8% — baseline ran, but no comparable score was available; uplift unavailable |
 | Security | 100.0% → 100.0% (±0.0 points) | 75.0% → 100.0% (+25.0 points) |
-| Correctness | 60.0% → 80.0% (+20.0 points) | 75.0% → 75.0% (±0.0 points) |
-| Discoverability | 91.7% — baseline ran, but no comparable score was available; uplift unavailable | 90.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 61.9% → 58.8% (-3.1 points) | 53.8% → 55.0% (+1.2 points) |
-| Efficiency | 57.3% — baseline ran, but no comparable score was available; uplift unavailable | 66.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Correctness | 65.0% → 95.0% (+30.0 points) | 45.0% → 60.0% (+15.0 points) |
+| Discoverability | 93.3% — baseline ran, but no comparable score was available; uplift unavailable | 86.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 53.8% → 74.4% (+20.6 points) | 37.5% → 50.6% (+13.1 points) |
+| Efficiency | 69.3% — baseline ran, but no comparable score was available; uplift unavailable | 61.5% — baseline ran, but no comparable score was available; uplift unavailable |
 
 ## Skill Version(s): <br>
 1.1.0 (source: frontmatter) <br>

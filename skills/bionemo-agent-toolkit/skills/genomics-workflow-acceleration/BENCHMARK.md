@@ -9,7 +9,7 @@ Recommended for publication based on the completed evaluation evidence in this r
 ## Evaluation Metadata
 
 - Skill: `genomics-workflow-acceleration`
-- Evaluation date: 2026-10-12
+- Evaluation date: 2026-10-14
 - Evaluator version: `1.5.6`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`), Codex (`openai/openai/gpt-5.5`)
 - Tasks: 4 evaluation tasks (3 positive, 1 negative)
@@ -35,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 77.5% — baseline ran, but no comparable score was available; uplift unavailable | 77.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 86.4% — baseline ran, but no comparable score was available; uplift unavailable | 71.8% — baseline ran, but no comparable score was available; uplift unavailable |
 | Security | 100.0% → 100.0% (±0.0 points) | 75.0% → 100.0% (+25.0 points) |
-| Correctness | 60.0% → 80.0% (+20.0 points) | 75.0% → 75.0% (±0.0 points) |
-| Discoverability | 91.7% — baseline ran, but no comparable score was available; uplift unavailable | 90.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 61.9% → 58.8% (-3.1 points) | 53.8% → 55.0% (+1.2 points) |
-| Efficiency | 57.3% — baseline ran, but no comparable score was available; uplift unavailable | 66.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Correctness | 65.0% → 95.0% (+30.0 points) | 45.0% → 60.0% (+15.0 points) |
+| Discoverability | 93.3% — baseline ran, but no comparable score was available; uplift unavailable | 86.7% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 53.8% → 74.4% (+20.6 points) | 37.5% → 50.6% (+13.1 points) |
+| Efficiency | 69.3% — baseline ran, but no comparable score was available; uplift unavailable | 61.5% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -54,17 +54,17 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 805,777 | 585,352 | N/A | N/A | skill 1/4; base 1/4 |
-| claude-code | genomics-workflow-acceleration-001 | 805,777 | N/A | N/A | N/A | skill 1/1; base 0/1 |
-| claude-code | genomics-workflow-acceleration-002 | N/A | 585,352 | N/A | N/A | skill 0/1; base 1/1 |
-| claude-code | genomics-workflow-acceleration-003 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
+| claude-code | All cases | 682,259 | 619,316 | N/A | N/A | skill 1/4; base 1/4 |
+| claude-code | genomics-workflow-acceleration-001 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
+| claude-code | genomics-workflow-acceleration-002 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
+| claude-code | genomics-workflow-acceleration-003 | 682,259 | 619,316 | +62,943 | +10.16% | skill 1/1; base 1/1 |
 | claude-code | genomics-workflow-acceleration-004 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
-| codex | All cases | 458,591 | 1,644,990 | N/A | N/A | skill 1/4; base 1/4 |
-| codex | genomics-workflow-acceleration-001 | 458,591 | N/A | N/A | N/A | skill 1/1; base 0/1 |
-| codex | genomics-workflow-acceleration-002 | N/A | 1,644,990 | N/A | N/A | skill 0/1; base 1/1 |
-| codex | genomics-workflow-acceleration-003 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
+| codex | All cases | 646,962 | 628,795 | N/A | N/A | skill 1/4; base 1/4 |
+| codex | genomics-workflow-acceleration-001 | 646,962 | N/A | N/A | N/A | skill 1/1; base 0/1 |
+| codex | genomics-workflow-acceleration-002 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
+| codex | genomics-workflow-acceleration-003 | N/A | 628,795 | N/A | N/A | skill 0/1; base 1/1 |
 | codex | genomics-workflow-acceleration-004 | N/A | N/A | N/A | N/A | skill 0/1; base 0/1 |
-| ALL AGENTS | Dataset aggregate | 1,264,368 | 2,230,342 | N/A | N/A | skill 2/8; base 2/8 |
+| ALL AGENTS | Dataset aggregate | 1,329,221 | 1,248,111 | N/A | N/A | skill 2/8; base 2/8 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -72,7 +72,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 11 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 12 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
 | Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 4 task(s) |
 
@@ -86,7 +86,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/genomics-workflow-acceleration`)
 - **MEDIUM** SCHEMA/author_missing: Author not specified in metadata (`skills/bionemo-agent-toolkit/skills/genomics-workflow-acceleration/SKILL.md`)
 - **MEDIUM** SECURITY/Unknown (RP1): MCP Rug Pull: Docker image references without a specific tag (:latest is implicit) or digest (@sha256:...) can be silently replaced by (`SKILL.md:190`)
-- 6 additional finding(s) are available in the full evaluation artifacts.
+- 7 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 
