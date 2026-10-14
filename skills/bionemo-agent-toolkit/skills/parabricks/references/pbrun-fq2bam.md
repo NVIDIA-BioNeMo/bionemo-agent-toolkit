@@ -1,7 +1,5 @@
 # Parabricks fq2bam
 
-Use this reference for NVIDIA Parabricks `pbrun fq2bam` — paired short-read FASTQ to aligned BAM/CRAM with sort and optional markdup/BQSR.
-
 ## First Steps
 
 1. Identify the execution context:
@@ -26,9 +24,6 @@ Use this reference for NVIDIA Parabricks `pbrun fq2bam` — paired short-read FA
 
 Prefer Docker commands shaped like:
 
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
-
 ```bash
 pbrun fq2bam \
   --ref /workdir/<reference.fa> \
@@ -47,89 +42,49 @@ For multiple FASTQ pairs from the same sample, repeat `--in-fq`. If read groups 
 
 ## Performance Guidance
 
-BWA-stream tuning (`--bwa-nstreams`) is shared with `fq2bam_meth`; see
-[performance.md](performance.md).
+See [performance.md](performance.md) for BWA stream defaults and optional
+`fq2bam` tuning flags.
 
 ## BWA-MEM/GATK Option Mapping
 
-Use this mapping when translating a baseline BWA-MEM plus GATK/Picard
-alignment workflow to `pbrun fq2bam`. Parabricks v4.7.0 documents `fq2bam` as
-a GPU BWA-MEM workflow that can sort, mark duplicates, and optionally generate
-a BQSR report, so the CLI maps to several upstream commands rather than one
-single tool.
+Use this when translating BWA-MEM plus GATK/Picard preprocessing to
+`pbrun fq2bam`. Parabricks folds alignment, coordinate sorting, duplicate
+marking, and optional BQSR report generation into one workflow. Repeated
+baseline mappings for `fq2bam` (--ref, FASTQ inputs, BWA pass-through,
+markdup/BQSR, intervals, GPU write controls, and similar) are in
+[shared-options.md](shared-options.md).
 
 | Baseline option | `pbrun fq2bam` equivalent | Notes |
 | --- | --- | --- |
-| `bwa mem <reference>` / GATK `--reference`, `-R` | `--ref` | Required reference FASTA path. |
-| `bwa mem <read1> <read2>` | `--in-fq <read1> <read2>` | Paired-end FASTQ input. Repeat for multiple pairs. |
-| Single-end FASTQ input | `--in-se-fq` | Parabricks single-end FASTQ input. |
-| FASTQ manifest or file list | `--in-fq-list`, `--in-se-fq-list` | Parabricks manifest form; no direct BWA-MEM flag. |
-| `bwa mem -R <read-group>` | read group string after `--in-fq`/`--in-se-fq`, or `--read-group-*` flags | Do not invent read group values. |
-| `bwa mem -t` | `--bwa-cpu-thread-pool`, `--num-cpu-threads-per-stage`, `--bwa-primary-cpus` | Partial equivalent; Parabricks splits CPU controls across pipeline stages. |
-| `bwa mem -M`, `-Y`, `-C`, `-T`, `-B`, `-U`, `-L`, `-I`, `-K` | `--bwa-options` | Pass supported BWA-MEM options as one string. |
-| `bwa mem` alignment-only output | `--align-only` | Stops after BWA-MEM output; does not coordinate-sort or mark duplicates. |
-| GATK/Picard `SortSam --OUTPUT`, `-O` | `--out-bam` | Final BAM/CRAM output path. |
+| `bwa mem <read1> <read2>` | `--in-fq <read1> <read2>` | Paired-end FASTQ; repeat for multiple pairs. |
+| Single-end FASTQ input | `--in-se-fq` | Single-end FASTQ input. |
+| FASTQ manifest or file list | `--in-fq-list`, `--in-se-fq-list` | Parabricks manifest; no direct BWA-MEM flag. |
+| `bwa mem -t` | `--bwa-cpu-thread-pool`, `--num-cpu-threads-per-stage`, `--bwa-primary-cpus` | Partial; CPU controls split across stages. |
+| `bwa mem` alignment-only output | `--align-only` | Stops after BWA-MEM; no sort/markdup. |
 | GATK/Picard `SortSam --SORT_ORDER coordinate` | Default `fq2bam` behavior | Coordinate sorting is part of the normal workflow. |
-| GATK/Picard `MarkDuplicates -I` | Implicit sorted intermediate | `fq2bam` feeds its sorted alignment output into duplicate marking unless disabled. |
-| GATK/Picard `MarkDuplicates -O` | `--out-bam` | Final output after duplicate marking unless `--no-markdups` or `--align-only` is used. |
-| GATK/Picard `MarkDuplicates -M` | `--out-duplicate-metrics` | Duplicate metrics output. |
-| GATK/Picard `MarkDuplicates --OPTICAL_DUPLICATE_PIXEL_DISTANCE` | `--optical-duplicate-pixel-distance` | Used when duplicate metrics are requested. |
-| GATK/Picard queryname duplicate behavior | `--markdups-assume-sortorder-queryname` | Parabricks compatibility control for duplicate marking. |
-| GATK/Picard single-end duplicate behavior | `--markdups-single-ended-start-end`, `--ignore-rg-markdups-single-ended` | Single-end duplicate-marking controls. |
-| GATK/Picard `MarkDuplicates` version behavior | `--markdups-picard-version-2182` | Compatibility flag for Picard 2.18.2-like marking. |
-| Skip GATK/Picard `MarkDuplicates` | `--no-markdups` | Returns BAM after sorting. |
-| GATK `BaseRecalibrator --known-sites` | `--knownSites` | Repeatable known-sites VCF input. |
-| GATK `BaseRecalibrator --output` | `--out-recal-file` | BQSR report output. |
-| GATK `BaseRecalibrator --intervals`, `-L` | `--interval`, `--interval-file` | Parabricks separates inline intervals from interval files. |
-| GATK `BaseRecalibrator --interval-padding`, `-ip` | `--interval-padding`, `-ip` | Same padding role. |
-| GATK/Picard `--TMP_DIR` | `--tmp-dir` | Same temporary-directory role, but Parabricks treats it as a wrapper/runtime path. |
-| GATK/Picard `--VERBOSITY` | `--verbose` | Partial equivalent only: Parabricks exposes a boolean verbose flag. |
-| GATK/Picard `--version` | `--version` | Same version-reporting role. |
-| GATK/Picard `--java-options` | No direct equivalent | Java runtime settings do not apply to the Parabricks containerized GPU pipeline. |
-| GATK/Picard `--arguments_file`, validation, compression, and cloud-auth common flags | No direct equivalent | Not exposed by current Parabricks docs for `fq2bam`. |
-
-If a BWA-MEM, SortSam, MarkDuplicates, or BaseRecalibrator option is not listed
-above, assume there is no direct `pbrun fq2bam` flag until the selected
-Parabricks version's tool reference says otherwise.
+| GATK/Picard `MarkDuplicates -I` | Implicit sorted intermediate | Sorted alignments feed duplicate marking unless disabled. |
+| GATK/Picard `MarkDuplicates -O` | `--out-bam` | Final output unless `--no-markdups` or `--align-only`. |
+| GATK/Picard `--arguments_file`, validation, compression, and cloud-auth common flags | No direct equivalent | Not exposed for `fq2bam` in current docs. |
 
 ## fq2bam Options Without BWA-MEM/GATK Equivalents
 
-These options are Parabricks workflow, filtering, performance, runtime, or
-filesystem wrapper controls and are not baseline BWA-MEM/GATK/Picard CLI
-options already covered in the mapping above.
+Parabricks-only pipeline, filtering, and performance flags for `fq2bam` are in
+[shared-options.md](shared-options.md) (**Duplicate marking**, **Execution
+controls**, and related rows where **Tools** includes `fq2bam`). BWA stream and
+multi-GPU partition guidance is in [performance.md](performance.md).
 
 | `pbrun fq2bam` option | Why it has no direct baseline equivalent |
 | --- | --- |
-| `--in-se-bam` | Parabricks can convert single-ended BAM/CRAM back to FASTQ as pipeline input. |
-| `--out-qc-metrics-dir` | Parabricks workflow output for QC metrics. |
-| `--max-read-length`, `--min-read-length` | Parabricks FASTQ filtering/alignment bounds. |
-| `--no-warnings` | Parabricks warning suppression. |
-| `--filter-flag` | Parabricks SAM flag-based filtering during output generation. |
-| `--skip-multiple-hits` | Parabricks SA-tag-based output filtering. |
-| `--fix-mate` | Parabricks mate-tag addition within this workflow. |
-| `--monitor-usage` | Parabricks runtime resource monitoring. |
-| `--standalone-bqsr` | Parabricks mode control for running BQSR as a standalone step inside this pipeline. |
-| `--bwa-nstreams`, `--bwa-normalized-queue-capacity` | GPU pipeline stream and queue controls. Prefer `--bwa-nstreams auto` for default guidance; use integer stream counts only for benchmarked/manual tuning. |
-| `--cigar-on-gpu` | Parabricks GPU offload for CIGAR generation. |
-| `--gpuwrite`, `--gpuwrite-deflate-algo`, `--gpusort`, `--use-gds` | GPU-accelerated write/sort/storage controls. |
-| `--memory-limit`, `--low-memory` | Parabricks host/GPU memory controls for the pipeline. |
-| `--logfile`, `--x3` | Parabricks wrapper logging and full-argument display. |
-| `--with-petagene-dir` | Parabricks/PetaGene integration. |
-| `--keep-tmp` | Parabricks temporary-file retention. |
-| `--no-seccomp-override` | Parabricks Docker/seccomp behavior. |
-| `--preserve-file-symlinks` | Parabricks path handling behavior. |
-| `--num-gpus` | Parabricks GPU count. |
+| `--in-se-bam` | Convert single-ended BAM/CRAM back to FASTQ as pipeline input. |
 
 ## Validation
 
 After generating or reviewing a command, help the user verify:
 
 - The reference FASTA and required indexes are present in the mounted path expected inside the container.
-- FASTQ paths resolve inside the container.
 - Output directory is writable and has enough free space.
 - BAM or CRAM output exists after completion.
 - BQSR report exists when `--knownSites` and `--out-recal-file` were requested.
-- Logs do not show CUDA, Docker runtime, mount, reference-index, read-group, or out-of-memory errors.
 
 ## Guardrails
 
@@ -144,7 +99,7 @@ After generating or reviewing a command, help the user verify:
 For GPU visibility errors:
 
 - Check `nvidia-smi` on the target host.
-- Check `docker run --rm --gpus all nvidia/cuda:<tag> nvidia-smi` if Docker runtime setup is in question.
+- For Docker GPU access, use the opt-in container probe in the runtime reference.
 - Confirm the host has NVIDIA drivers and NVIDIA Container Toolkit configured.
 
 For mount/path errors:
@@ -168,6 +123,5 @@ For slow runtime:
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/latest/gettingstarted/bestperformance.html>
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_fq2bam.html>
-- <https://docs.nvidia.com/clara/parabricks/latest/tutorials/fq2bam_tutorial.html>
+- <https://docs.nvidia.com/clara/parabricks/get-started/getting-the-best-performance>
+- <https://docs.nvidia.com/clara/parabricks/tutorials/step-by-step-tutorials/fq-2-bam-tutorial>

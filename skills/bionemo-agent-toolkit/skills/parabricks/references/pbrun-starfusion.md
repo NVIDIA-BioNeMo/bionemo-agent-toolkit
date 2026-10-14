@@ -1,27 +1,20 @@
 # Parabricks starfusion
 
-Use this reference for NVIDIA Parabricks `pbrun starfusion` — RNA fusion detection using STAR-Fusion-compatible inputs and resources.
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm the user has STAR `Chimeric.out.junction` input. If the user only
+1. Confirm the user has STAR `Chimeric.out.junction` input. If the user only
    has raw RNA FASTQs, route to `pbrun-rna_fq2bam.md` or ask how they will
    produce STAR-Fusion-compatible chimeric junction input.
-3. Collect required inputs:
+2. Collect required inputs:
    - Chimeric junction input path.
    - STAR-Fusion genome resource library directory.
    - Output directory.
-4. Ask about optional version-specific filters, logs, and runtime settings only
+3. Ask about optional version-specific filters, logs, and runtime settings only
    when relevant.
-5. For runtime readiness, see `runtime-environment.md`.
 
 ## Command Shape
 
 Fusion detection from chimeric junction input:
-
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
 
 ```bash
 pbrun starfusion \
@@ -36,12 +29,20 @@ selected version.
 ## STAR-Fusion Option Mapping
 
 Use this mapping when translating an upstream `STAR-Fusion` command to
-`pbrun starfusion`. Parabricks v4.7.0 exposes a focused subset of the
+`pbrun starfusion`. Parabricks exposes a focused subset of the
 STAR-Fusion CLI: the chimeric junction input, CTAT genome resource library,
 output directory, output prefix, and worker thread count. Many upstream
 STAR-Fusion filtering, STAR-alignment, FusionInspector, shared-memory, and
 single-cell options are not exposed by `pbrun starfusion`; if the selected
 Parabricks version does not document a flag, do not pass it through.
+
+If a requested upstream filter or FusionInspector mode is mandatory, explain
+that the supported `pbrun starfusion` command is only a partial migration.
+Retain the upstream stage, or plan a separately validated downstream stage;
+do not claim that dropping an unsupported option preserves the analysis.
+Upstream FusionInspector also needs the read inputs, not just the junction
+file. The CTAT/STAR-Fusion resource library is distinct from a plain STAR
+alignment index, even when both come from the same reference build.
 
 | STAR-Fusion option | `pbrun starfusion` equivalent | Notes |
 | --- | --- | --- |
@@ -101,10 +102,6 @@ Parabricks version does not document a flag, do not pass it through.
 | `--show_full_usage_info` | No direct equivalent | Upstream help/usage option not exposed by `pbrun starfusion`. |
 | `--help`, `-h` | No direct equivalent | Use `pbrun starfusion --help` or the selected Parabricks tool reference instead. |
 
-If a STAR-Fusion option is not listed above, assume there is no direct
-`pbrun starfusion` flag until the selected Parabricks version's tool reference
-says otherwise.
-
 ## starfusion Options Without STAR-Fusion Equivalents
 
 These options are Parabricks runtime, container, logging, or filesystem wrapper
@@ -114,20 +111,12 @@ above.
 | `pbrun starfusion` option | Why it has no STAR-Fusion equivalent |
 | --- | --- |
 | `--logfile` | Parabricks wrapper log file path; upstream STAR-Fusion writes to standard output/error and its output directory. |
-| `--x3` | Parabricks option to show full command-line arguments. |
-| `--with-petagene-dir` | Parabricks/PetaGene integration. |
 | `--keep-tmp` | Parabricks temporary-file retention. Upstream STAR-Fusion has `--tmpdir`, but not this wrapper cleanup flag. |
-| `--no-seccomp-override` | Parabricks Docker/seccomp behavior. |
-| `--preserve-file-symlinks` | Parabricks path handling behavior. |
 
 ## Validation
 
-- Chimeric junction input and genome resource library paths resolve inside the
-  container.
 - Input format is compatible with STAR-Fusion expectations.
 - Output directory contains expected STAR-Fusion result files.
-- Logs do not show missing genome resource library, malformed junction input,
-  mount, CUDA, or memory errors.
 
 ## Guardrails
 
@@ -138,5 +127,4 @@ above.
 
 ## Key References
 
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_starfusion.html>
 - <https://raw.githubusercontent.com/STAR-Fusion/STAR-Fusion/master/STAR-Fusion>
