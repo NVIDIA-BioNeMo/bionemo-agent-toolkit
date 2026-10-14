@@ -1,24 +1,16 @@
 # Parabricks markdup
 
-Use this reference for NVIDIA Parabricks `pbrun markdup` — marking duplicate reads in aligned BAM/CRAM data.
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Collect required inputs:
+1. Collect required inputs:
    - Input queryname-sorted BAM or CRAM path.
    - Output duplicate-marked BAM or CRAM path.
    - Reference FASTA when CRAM input or the selected version requires it.
-3. Ask whether duplicate metrics are needed.
-4. Ask about temporary directory, logs, and output index only when relevant and
+2. Ask whether duplicate metrics are needed.
+3. Ask about temporary directory, logs, and output index only when relevant and
    supported by the selected version.
-5. For runtime readiness or installation questions, use
-   `runtime-environment.md`.
 
 ## Command Shape
-
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
 
 ```bash
 pbrun markdup \
@@ -36,7 +28,7 @@ against the selected version before finalizing.
 ## MarkDuplicates Option Mapping
 
 Use this mapping when translating a GATK/Picard `MarkDuplicates` workflow to
-`pbrun markdup`. Parabricks v4.7.0 documents `markdup` as a duplicate-marking
+`pbrun markdup`. Parabricks documents `markdup` as a duplicate-marking
 tool that requires queryname-sorted input, while its default output behavior is
 compatible with a coordinate-sort-order `MarkDuplicates` baseline.
 
@@ -53,15 +45,9 @@ compatible with a coordinate-sort-order `MarkDuplicates` baseline.
 | Ignore read group for single-end duplicate marking | `--ignore-rg-markdups-single-ended` | Must be used with `--markdups-single-ended-start-end`. |
 | `SortSam --SORT_ORDER queryname` before marking | No direct `markdup` equivalent | Run `pbrun bamsort --sort-order queryname` first if input is not already queryname-sorted. |
 | `SortSam --SORT_ORDER coordinate` after queryname baseline marking | No direct `markdup` equivalent | Use `pbrun bamsort` after `markdup` if the selected workflow requires a separate coordinate-sort step. |
-| GATK/Picard `--TMP_DIR` | `--tmp-dir` | Same temporary-directory role, but Parabricks treats it as a wrapper/runtime path. |
-| GATK/Picard `--VERBOSITY` | `--verbose` | Partial equivalent only: Parabricks exposes a boolean verbose flag. |
 | GATK/Picard `--version` | `--version` | Same version-reporting role. |
 | GATK/Picard `--java-options` | No direct equivalent | Java runtime settings do not apply to the Parabricks containerized GPU tool. |
 | GATK/Picard `--arguments_file`, validation, compression, and cloud-auth common flags | No direct equivalent | Not exposed by current Parabricks docs for `markdup`. |
-
-If a GATK/Picard `MarkDuplicates` option is not listed above, assume there is
-no direct `pbrun markdup` flag until the selected Parabricks version's tool
-reference says otherwise.
 
 ## markdup Options Without MarkDuplicates Equivalents
 
@@ -70,11 +56,6 @@ reference says otherwise.
 | `--num-zip-threads`, `--num-worker-threads` | Parabricks CPU worker controls. |
 | `--mem-limit` | Parabricks memory limit for sorting/postsorting. |
 | `--gpuwrite`, `--gpuwrite-deflate-algo`, `--gpusort` | GPU-accelerated write/sort/marking controls. |
-| `--logfile`, `--x3` | Parabricks wrapper logging and full-argument display. |
-| `--with-petagene-dir` | Parabricks/PetaGene integration. |
-| `--keep-tmp` | Parabricks temporary-file retention. |
-| `--no-seccomp-override` | Parabricks Docker/seccomp behavior. |
-| `--preserve-file-symlinks` | Parabricks path handling behavior. |
 
 ## Validation
 
@@ -82,8 +63,6 @@ reference says otherwise.
   required.
 - Output duplicate-marked BAM/CRAM is created.
 - Metrics output is present when requested.
-- Logs do not show sort-order, CRAM reference, mount, temp-space, CUDA, or
-  out-of-memory errors.
 
 ## Guardrails
 
@@ -92,7 +71,3 @@ reference says otherwise.
 - Do not remove duplicates unless the user explicitly requests a tool/version
   option that does that.
 - Do not assume metrics are generated unless requested and supported.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_markdup.html>
