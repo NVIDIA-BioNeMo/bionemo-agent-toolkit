@@ -43,6 +43,20 @@ individually).
 
 ## Key Hydra overrides (`++key=value`)
 
+The wrapper accepts only the scalar keys in this table. Run/task names must be
+1-128 ASCII letters, digits, underscores or hyphens, starting with a letter or
+digit. Seeds are 0..2^32-1, sample counts 1..10000, and job counts 1..128; select
+counts within the campaign's agreed budget and available hardware. Checkpoint
+paths are literal paths relative to the checkout (or absolute), quoted for Hydra;
+interpolations and object-construction
+overrides are rejected. More specialized configuration belongs in a reviewed YAML
+under `COMPLEXA_REPO/configs/`. Use `--af2-bypass` for the supported fixed AF2 reward
+removal and single-pass algorithm. `--timeout` caps generation at 86400 seconds.
+
+`COMPLEXA_BIN`/`--cli-bin` must resolve to `complexa` installed in the active Python
+environment or the checkout's `.venv/bin`. Activate the intended environment
+before invoking this wrapper. The checkout, environment and YAML are trusted code.
+
 | Override | Meaning |
 |---|---|
 | `++run_name=<str>` | run label (appears in output paths) |

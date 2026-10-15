@@ -1,0 +1,153 @@
+# Reviewed 2026-10-12 against NVCARPS SkillSpector 2.11.2.
+# Exact fingerprints bind file contents, location, emitted evidence and scanner version.
+# PE3 rules match exact file/evidence pairs because LLM annotations change fingerprint fields.
+# Existing guards are unchanged; affected file hashes were re-reviewed after ranking/docs changes.
+# New test-only exceptions bind mock imports and bounded, fixed-CLI subprocess calls.
+# Re-review these exceptions after changing guarded call sites or execution.py.
+# No rule-wide or cache/bytecode suppressions.
+version: 2
+scanner_version: 2.11.2
+rules:
+- id: PE3
+  path: references/complexa-cli.md
+  message: '.env
+
+    '
+  reason: The matched text is the comment describing complexa init writing its own configuration file.
+    This exception is limited to that literal evidence in this setup reference; it does not allow credential-file
+    access elsewhere. LLM annotations change exact fingerprints for the same comment.
+- id: PE3
+  path: references/setup.md
+  message: '.env '
+  reason: The matched text is the comment describing complexa init writing its own configuration file.
+    This exception is limited to that literal evidence in this setup reference; it does not allow credential-file
+    access elsewhere. LLM annotations change exact fingerprints for the same comment.
+- id: PE3
+  path: scripts/validate_binders.py
+  message: .env"
+  reason: The matched text is the comment documenting optional dotenv configuration. The reader accepts
+    only NVIDIA_API_KEY or NGC_API_KEY as text, with environment precedence and no shell evaluation or
+    logging. Local mode never loads credentials; hosted credentials go only to the validated NVIDIA HTTPS
+    host with redirects blocked. This exception matches only this file and literal evidence, including
+    when LLM annotations change the finding fingerprint. Re-review if credential handling changes.
+fingerprints:
+- hash: sha256:551b4fe6ad88369046dd4ebd868cd1f86f5117fb9598d8e07e0a57ba4dca2629
+  rule_id: AST4
+  file: scripts/boltz2_refold.py
+  reason: Executes only the bundled validate_binders.py with the running Python interpreter and a separated
+    argument list, shell=False, and a finite batch timeout. The validator path, endpoint and budgets are
+    checked before prediction or writes. Tests reject an arbitrary validator and credential-bearing endpoint
+    redirection.
+- hash: sha256:04766952a93ee52e5205d666b238def6c198ed65483b990a4afdda994464e21b
+  rule_id: AST4
+  file: scripts/complexa_design.py
+  reason: Executes complexa only after validating its installation prefix, YAML containment, scalar override
+    allowlist, task/run identifiers and finite timeout. The argument list uses shell=False; Hydra paths
+    are literal quoted values and interpolations/object-construction overrides are rejected. Regression
+    tests reject binary/config redirection and traversal before execution.
+- hash: sha256:5e50e6dde13ab9b4984b94b999b3f217333b5c8ebab010022873221fc4171c28
+  rule_id: AST4
+  file: scripts/pipeline.py
+  reason: Internal callers use separated argument lists for fixed Python helpers, the optional operator-installed
+    paperclip CLI, or the validated Complexa installation. shell=False and a bounded timeout are explicit.
+    Complexa executable/config/environment settings and names are validated at submit_complexa before
+    this helper; trusted installed code is not a sandbox boundary.
+- hash: sha256:f79e6bae772b299632c64df38382d1320d642c8d6660f452b89f9d74283e9565
+  rule_id: AST4
+  file: scripts/validate_binders.py
+  reason: Runs only the expected vendor/ipsae/ipsae.py after checking the same SHA-256 pin as fetch_ipsae.sh,
+    with fixed Python, a list of arguments, shell=False and a 300-second timeout. Cutoffs are bounded
+    integers. Tests cover tampering, failed process status, output parsing and preservation of both interface
+    directions.
+- hash: sha256:6b2054693b09dc1fc57d6ea98abcc41002fac76dd316f7630027a7b78fe6f971
+  rule_id: TT2
+  file: scripts/pipeline.py
+  reason: 'The reported environment-to-process path is validated in submit_complexa by execution.py: complexa
+    must reside in the active environment or checkout .venv/bin and the YAML must remain under checkout/configs.
+    Names, search algorithm and counts are checked; no shell or unrestricted Hydra override is used. A
+    regression test verifies arbitrary executable rejection before _run.'
+- hash: sha256:26a173e0f1156ddf1ffb203c0545b7aaf7dcf5679403a5d9d20b6cb8d48813a5
+  rule_id: RP1
+  file: references/setup.md
+  reason: The launch block rejects every value except the expected NGC repository and a 64-hex SHA-256
+    digest before login or launch. Profile inspection explicitly reuses that validated digest. The static
+    Docker parser cannot resolve the checked variable. Five mocked Bash cases verify rejection before
+    side effects and no credential logging.
+- hash: sha256:e59c00da233d48f011f1b209c1cfbb369ae54228e322135ad763a09ac3e3b2ed
+  rule_id: RP1
+  file: references/setup.md
+  reason: The launch block rejects every value except the expected NGC repository and a 64-hex SHA-256
+    digest before login or launch. Profile inspection explicitly reuses that validated digest. The static
+    Docker parser cannot resolve the checked variable. Five mocked Bash cases verify rejection before
+    side effects and no credential logging.
+- hash: sha256:954341ff645dfe6201f440a3c6a7813a000a339a6ede7064f37bcd765d577249
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:7b5ba124e406e7d4045470b3ae9bea0c2ff2ff7ff5b5cde47ac4c288a873baf1
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:c61895144809fb9bd8a3286d851a558893517e41aa4eaf50d47e23956062a47f
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:1e4e353fa14ff468045e9e176cfb7ab73a1756b0f1b777fbe41d880bcded7a61
+  rule_id: AS3
+  file: BENCHMARK.md
+  reason: Generated historical evaluation quotes this skill's own manifest path in diagnostic rows. No
+    code or instruction reads peer skills. Historical evidence is retained unchanged.
+- hash: sha256:2f231d95a4ca0cc5f350f8a4b519c9fcafcbc01a4d3a8c0b4f7fce9800342ebf
+  rule_id: PE2
+  file: references/setup.md
+  reason: chmod 700 restricts one named user-owned cache and grants no elevated privilege. The container
+    runs with the caller's UID/GID. No sudo, recursive chmod or wildcard is used.
+- hash: sha256:ae849b8bb8e48da0384c64aab743866d4134d440eb79cb05251b9d4861db31ad
+  rule_id: RA1
+  file: tests/test_tier3_offline.py
+  reason: The matched text spans a unittest.mock.patch import and the SKILL path constant. No patch modifies
+    the skill; patch.dict only supplies test environment paths to the standalone verifier. All generated
+    artifacts and intentional corruption stay in a TemporaryDirectory. Exact source/evidence fingerprint;
+    re-review any writes or patch targets.
+- hash: sha256:ea264426a96b7ef2f2f9be90ba5287f3a7d9ecf4286fd9db6820457b99a13422
+  rule_id: AST4
+  file: tests/test_check_setup.py
+  reason: The regression test executes either the bundled check_setup.sh or an unchanged copy under its
+    TemporaryDirectory with a list of arguments, shell=False and a 30-second timeout. The environment
+    is constructed explicitly for the CPU/GPU-presence tests; synthetic credentials are not printed, and
+    the fake CLI/torch inventory is isolated to that temporary directory. No runtime input chooses an
+    executable.
+- hash: sha256:ae0cd3b39b004cb74d8937d02f1e24552daaa0a893c4857c0778c3013b5c275e
+  rule_id: AST4
+  file: tests/test_check_setup.py
+  reason: The regression test executes either the bundled check_setup.sh or an unchanged copy under its
+    TemporaryDirectory with a list of arguments, shell=False and a 30-second timeout. The environment
+    is constructed explicitly for the CPU/GPU-presence tests; synthetic credentials are not printed, and
+    the fake CLI/torch inventory is isolated to that temporary directory. No runtime input chooses an
+    executable.
+- hash: sha256:19bd4be3893bc731f4c608b8af7e487f32ac88c8f5e7eb4bf5c3f762bb93d158
+  rule_id: AST4
+  file: tests/test_tier3_offline.py
+  reason: The test executes bundled CLIs selected by literal calls in this test class using sys.executable,
+    separated arguments, shell=False and a 30-second timeout. A constant child guard disables socket connections.
+    Output and input fixture paths stay in the test TemporaryDirectory; no model or user-supplied executable
+    runs.
+- hash: sha256:e4a2a4686ee3de5b31cee47ce0b1ebb3b8145213b9b334955334293f0064f96a
+  rule_id: OH1
+  file: tests/test_campaign_planning.py
+  reason: This test invokes the fixed bundled plan_campaign.py using sys.executable, a constant child
+    Python guard, a separated argument list, shell=False and a 15-second timeout. The source/output paths
+    are created inside its TemporaryDirectory. No model output supplies code or commands. The guard prevents
+    socket connections and -S verifies the planner works without scientific site-packages. Exact test-only
+    source/evidence exception; re-review the command and data sources if this file changes.
+- hash: sha256:5680918b6583f92a3e26eab4950fa5869da8d815cb7832a0d98819f75b11c83b
+  rule_id: AST4
+  file: tests/test_campaign_planning.py
+  reason: This test invokes the fixed bundled plan_campaign.py using sys.executable, a constant child
+    Python guard, a separated argument list, shell=False and a 15-second timeout. The source/output paths
+    are created inside its TemporaryDirectory. No model output supplies code or commands. The guard prevents
+    socket connections and -S verifies the planner works without scientific site-packages. Exact test-only
+    source/evidence exception; re-review the command and data sources if this file changes.

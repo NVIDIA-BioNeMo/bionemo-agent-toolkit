@@ -1,0 +1,74 @@
+{
+  "skill_name": "complexa-binder-design",
+  "evals": [
+    {
+      "id": "offline-interface-preflight",
+      "prompt": "Use the complexa-binder-design workflow to prepare the local co-complex /workspace/input/target_prep/complex.pdb. Target chain B; use only partner chain A to define the interface. Follow /workspace/input/CONTRACT.md and write the preparation under /workspace/output/interface. These are synthetic CPU-only fixtures. Work offline; no generation or refolding.",
+      "files": [
+        "evals/files/target_prep/",
+        "evals/files/CONTRACT.md"
+      ],
+      "expected_output": "Prepared target contains B10 ALA, B20 GLY and B30 SER only, retaining original coordinates/numbering. Hotspots are B10(ALA) and B20(GLY), derived from partner A; C contacts are excluded. All target geometry checks pass. No model execution claim.",
+      "assertions": [
+        "[interface] Computes contacts from the selected B/A interface rather than pooling contacts to C or guessing residues.",
+        "[geometry] Retains chain B, original residue identities/numbering/coordinates, excludes partner chains, and saves target_prepared.pdb, hotspots.json and preflight.json.",
+        "[preflight] Reports three conditioned residues and two aligned compact hotspots; READY means geometry only.",
+        "[coverage] Executes the preparation and reports synthetic offline coverage, without inference or downloads."
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "preflight_design.py"
+    },
+    {
+      "id": "offline-missing-epitope",
+      "prompt": "Use the complexa-binder-design workflow to check /workspace/input/target_prep/complex.pdb, target chain B, with the explicitly supplied patch /workspace/input/target_prep/missing_patch.json. Follow /workspace/input/CONTRACT.md and save preparation under /workspace/output/missing-patch. Determine whether generation may proceed. These are synthetic CPU-only fixtures; work offline and preserve the supplied epitope choice.",
+      "files": [
+        "evals/files/target_prep/",
+        "evals/files/CONTRACT.md"
+      ],
+      "expected_output": "The supplied B999 is absent, is documented as dropped, and leaves zero conditioned hotspots. Saves target/preflight/hotspot artifacts with a failed >=1_hotspots check; reports NEEDS ATTENTION and does not invent replacements or generate binders.",
+      "assertions": [
+        "[identity] Checks B999 against coordinates and records the missing residue.",
+        "[epitope] Does not replace the explicitly supplied patch with contacts to A/C or nearby residues.",
+        "[blocked] Saves the failed preflight and empty hotspots and stops dependent generation.",
+        "[coverage] Reports synthetic offline preparation only, not a scientific binder NO-GO or an inference result."
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "preflight_design.py"
+    },
+    {
+      "id": "offline-independent-ranking",
+      "prompt": "Use the complexa-binder-design gate to re-rank the saved metric export /workspace/input/saved_scores.json under /workspace/output/ranking. Follow /workspace/input/CONTRACT.md. Apply every unchanged gate, rank by independent interface confidence, retain failed/incomplete designs, and write a ranked report with requested versus achieved counts. All metrics are synthetic software fixtures. Work offline; do not run or claim model inference.",
+      "files": [
+        "evals/files/saved_scores.json",
+        "evals/files/CONTRACT.md"
+      ],
+      "expected_output": "All eight candidates retained; exactly three pass, ordered tie_higher, tie_lower, boundary. Generator reward, invalid/string values and an explicit prediction failure cannot rescue a design. Request five is unmet: NO-GO, passed=3, delivered=5, evaluated=8, stop_reason=saved_scores_exhausted. The missing apo metric remains null. JSON/CSV/report and provenance summary label synthetic offline coverage.",
+      "assertions": [
+        "[gate] Applies all seven original thresholds, including apo stability and hotspot contact; rejects missing or invalid numbers and explicit failures.",
+        "[rank] Ranks passers first, then numeric ipTM and ipSAE_min; generator reward cannot override independent validation.",
+        "[audit] Keeps every candidate and failure reason, including the incomplete apo result, in matching JSON and CSV artifacts.",
+        "[quota] Reports requested 5 versus passed 3, NO-GO and exhaustion of saved scores without relaxing criteria.",
+        "[coverage] Labels results synthetic with no new generation, refolding or verified scientific validation."
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "binder_ranking.py"
+    },
+    {
+      "id": "offline-interrupted-validation",
+      "prompt": "Use the complexa-binder-design workflow to recover the audit for /workspace/input/interrupted_run. Copy the supplied run to /workspace/output/interrupted, preserve its raw evidence, and rebuild the rankings from the authoritative current batch. Follow /workspace/input/CONTRACT.md. Keep missing/failed candidates in the audit and report what remains blocked. These are synthetic saved responses; make no inference calls or retries.",
+      "files": [
+        "evals/files/interrupted_run/",
+        "evals/files/CONTRACT.md"
+      ],
+      "expected_output": "Rebuilt JSON/CSV contain exactly stale, timeout and missing, all failed with null unmeasured gate scores. stale is rejected for the wrong batch, timeout retains its failure and missing has a missing-response reason. Orphan and previous derived success cannot enter current rankings. Raw input evidence is unchanged and report discloses zero validated designs and synthetic offline coverage.",
+      "assertions": [
+        "[batch] Uses the current batch candidate list and checks response batch identity; stale and orphan cannot contribute scores.",
+        "[recovery] Retains the timeout and missing response as failed rows without retries or invented metrics.",
+        "[artifacts] Replaces stale JSON/CSV exports while preserving every original raw response and batch record.",
+        "[coverage] Writes a report with the three failures, zero passers and synthetic offline coverage; no live validation claim."
+      ],
+      "expected_skill": "complexa-binder-design",
+      "expected_script": "validate_binders.py"
+    }
+  ]
+}

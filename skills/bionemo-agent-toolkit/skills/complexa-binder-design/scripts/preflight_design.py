@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-"""Pre-flight design planner / validator — run BEFORE app.py to see, per target,
+"""Pre-flight design planner / validator — run BEFORE generation to see, per target,
 exactly what would be conditioned on and whether it satisfies the design rules.
 No GPU, no Slurm: just fetch the structure + UniProt, choose hotspots, re-align
 them to the (possibly cropped) structure, and check every constraint.
@@ -12,16 +12,18 @@ For each target it reports and validates:
     preserved through any truncation)
   * size budget:    target + longest binder  <=  MAX_COMPLEX_RESIDUES (500)
   * compactness:    hotspot pairwise diameter <=  30 Å  (else pick a compact subset)
-  * count:          2 <= n_hotspots <= 15
+  * count:          1 <= n_hotspots <= 15 (prefer at least 2)
 
 Usage:
   python3 scripts/preflight_design.py IL1R1 HER2 PIN1 TNFL9 EFNB1 CEACAM1 AHSP
   python3 scripts/preflight_design.py P04626                 # by accession
+  python3 scripts/preflight_design.py 1BRS --chain A --partner-chain D --out prepared
+  python3 scripts/preflight_design.py target.pdb --chain A    # local structure
 """
 from __future__ import annotations
 
+import argparse
 import json
-import math
 import sys
 import tempfile
 from pathlib import Path
@@ -31,189 +33,80 @@ sys.path.insert(0, str(HERE))   # Stage-1 modules live alongside this script
 import pipeline as P            # noqa: E402
 import hotspot_strategy as HS   # noqa: E402
 
-MAX_DIAMETER_A = 30.0           # hotspot epitope must fit within this pairwise diameter
 
+def plan(target: str, binder_max: int = None, *, chain: str | None = None,
+         partner_chain: str | None = None, out_dir: str | Path | None = None,
+         hotspots: str | Path | None = None) -> dict:
+    """Resolve evidence, then run generation's shared preparation on real geometry.
 
-# ----------------------------------------------------------------- structure helpers
-# The model is a biotite AtomArray (first model, PDB author chain/residue numbering),
-# loaded via pipeline's shared reader so .pdb and .cif are both handled.
-def _model(structure_path: Path):
-    arr = P._read_first_model(structure_path)
-    return arr if arr.array_length() else None
-
-
-def _residue_index(model):
-    """(chain, pos) -> 3-letter residue name, for alignment/identity checks."""
-    import biotite.structure as struc
-    idx = {}
-    for s in struc.get_residue_starts(model):
-        idx[(str(model.chain_id[s]), int(model.res_id[s]))] = str(model.res_name[s])
-    return idx
-
-
-def _cb_coords(model, hotspots):
-    """{position: (x,y,z)} using Cβ (Cα fallback) for the hotspot chain."""
-    want = {(str(h.get("chain", "A")), int(h["position"])) for h in hotspots}
-    out = {}
-    for name in ("CA", "CB"):   # insert Cα first, let Cβ overwrite when present
-        m = model.atom_name == name
-        for c, r, xyz in zip(model.chain_id[m], model.res_id[m], model.coord[m]):
-            if (str(c), int(r)) in want:
-                out[int(r)] = (float(xyz[0]), float(xyz[1]), float(xyz[2]))
-    return out
-
-
-def _dist(a, b):
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
-
-
-def _pairwise_diameter(coords: dict):
-    pts = list(coords.values())
-    return max((_dist(p, q) for i, p in enumerate(pts) for q in pts[i + 1:]), default=0.0)
-
-
-def _compact_subset(positions, coords, max_d=MAX_DIAMETER_A):
-    """Largest spatially compact subset with pairwise diameter <= max_d.
-    Greedy: seed the residue with the most neighbours within max_d, then add the
-    nearest residue that keeps the whole set's diameter <= max_d."""
-    pos = [p for p in positions if p in coords]
-    if len(pos) <= 1:
-        return pos
-    nbr = {p: sum(1 for q in pos if _dist(coords[p], coords[q]) <= max_d) for p in pos}
-    seed = max(pos, key=lambda p: nbr[p])
-    chosen = [seed]
-    while True:
-        best, bestd = None, None
-        for p in pos:
-            if p in chosen:
-                continue
-            if all(_dist(coords[p], coords[c]) <= max_d for c in chosen):
-                d = min(_dist(coords[p], coords[c]) for c in chosen)
-                if bestd is None or d < bestd:
-                    best, bestd = p, d
-        if best is None:
-            break
-        chosen.append(best)
-    return sorted(chosen)
-
-
-def _accessible_residue_count(model, segs):
-    """How many residues fall inside the accessible (extracellular) segments."""
-    import biotite.structure as struc
-    starts = struc.get_residue_starts(model)
-    if not segs:
-        return len(starts)
-    return sum(1 for st in starts
-               if any(s <= int(model.res_id[st]) <= e for s, e in segs))
-
-
-# ----------------------------------------------------------------- per-target plan
-def plan(target: str, binder_max: int = None) -> dict:
+    ``out_dir`` preserves target_prepared.pdb, hotspots.json and preflight.json for
+    the generation handoff. Without it this is a preview; a direct full run uses
+    the same preparation and requires the same chain/partner selection.
+    """
     binder_max = binder_max if binder_max is not None else P.BINDER_LENGTH[1]
-    cap_target = P.MAX_COMPLEX_RESIDUES - binder_max
-    rep = {"target": target, "checks": {}}
-    spec = P.resolve_target_spec(target)
+    rep = {"target": target}
+    path = Path(target)
+    if path.is_file() and path.suffix.lower() in (".pdb", ".cif", ".mmcif"):
+        spec = {"pdb_path" if path.suffix.lower() == ".pdb" else "cif_path": str(path),
+                "resolved_from": str(path)}
+    else:
+        spec = P.resolve_target_spec(target)
     acc = spec.get("uniprot")
     rep["uniprot"] = acc
     rep["resolved_from"] = spec.get("resolved_from")
-    if not acc:
-        rep["error"] = "could not resolve to a UniProt accession"
-        return rep
-
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
-        # fetch AFDB structure
-        P._run([sys.executable, str(P.FETCH_STRUCTURE), acc, "-o", str(td)], timeout=600)
-        cif = next(iter(sorted(td.glob(f"AF-{acc}-*model*.cif"))), None)
-        if cif is None:
-            rep["error"] = "no AFDB model"
-            return rep
-        import biotite.structure as struc
-        model = _model(cif)
-        full_len = struc.get_residue_count(model)
-        rep["full_length"] = full_len
-
-        # UniProt entry -> accessibility + functional hotspots
-        p = P._run([sys.executable, str(P.UNIPROT_TOOLS), "get", acc], timeout=300)
-        entry = json.loads(p.stdout)
-        entry = entry if "features" in entry else entry.get("results", [entry])[0]
-        # Same resolver the live pipeline uses: PDB co-complex interface (gold) ->
-        # UniProt functional, restricted to the accessible/extracellular range.
-        hs, segs, provenance, hmsgs = HS.resolve_hotspots(entry)
-        acc_info = HS.accessibility(entry)
-        rep["topology"] = acc_info["note"]
-        rep["accessible_residues"] = _accessible_residue_count(model, segs)
-        rep["source"] = provenance
-        rep["uniprot_messages"] = hmsgs
-        rep["raw_hotspots"] = [f"{h['chain']}{h['position']}({h.get('source', '?')})" for h in hs]
-
-        # align to structure: keep only residues present, attach identity
-        idx = _residue_index(model)
-        aligned = []
-        for h in hs:
-            key = (str(h.get("chain", "A")), int(h["position"]))
-            if key in idx:
-                aligned.append({**h, "residue": idx[key]})
-        rep["aligned_hotspots"] = [f"{h['chain']}{h['position']}({h['residue']})" for h in aligned]
-
-        # compactness: pairwise diameter; subset if too sparse
-        coords = _cb_coords(model, aligned)
-        positions = [h["position"] for h in aligned if h["position"] in coords]
-        diam = _pairwise_diameter(coords)
-        rep["diameter_A_raw"] = round(diam, 1)
-        if diam > MAX_DIAMETER_A and len(positions) > 1:
-            keep = set(_compact_subset(positions, coords))
-            dropped = [p for p in positions if p not in keep]
-            aligned = [h for h in aligned if h["position"] in keep]
-            rep["compaction"] = f"diameter {diam:.0f} Å > {MAX_DIAMETER_A:.0f} → kept {sorted(keep)}, dropped {sorted(dropped)}"
-            coords = {p: coords[p] for p in keep}
-            diam = _pairwise_diameter(coords)
-        rep["diameter_A_final"] = round(diam, 1)
-
-        # count: max 15 (closest to centroid), min 2
-        if len(aligned) > P.HOTSPOT_MAX_RESIDUES and coords:
-            cx = tuple(sum(coords[h["position"]][k] for h in aligned if h["position"] in coords) / len(coords) for k in range(3))
-            aligned = sorted(aligned, key=lambda h: _dist(coords.get(h["position"], cx), cx))[:P.HOTSPOT_MAX_RESIDUES]
-        rep["final_hotspots"] = [f"{h['chain']}{h['position']}({h.get('residue','?')})" for h in aligned]
-        n = len(aligned)
-        rep["n_hotspots"] = n
-
-        # conditioning length: accessible region, then epitope crop to fit the cap
-        cond_len = rep["accessible_residues"] if segs else full_len
-        crop_note = (f"extracellular {segs}" if segs else "whole chain")
-        if cond_len > cap_target and aligned:
-            hot_pos = sorted(h["position"] for h in aligned)
-            lo, hi = hot_pos[0], hot_pos[-1]
-            pad = max(0, (cap_target - (hi - lo + 1)) // 2)
-            w_lo, w_hi = lo - pad, hi + pad
-            # count residues kept inside the window AND accessible segments
-            kept = [int(model.res_id[st]) for st in struc.get_residue_starts(model)
-                    if w_lo <= int(model.res_id[st]) <= w_hi
-                    and (not segs or any(s <= int(model.res_id[st]) <= e for s, e in segs))]
-            cond_len = len(kept)
-            crop_note = f"epitope crop A{min(kept)}-{max(kept)} within {('ECD ' if segs else '')}cap"
-        rep["conditioned_length"] = cond_len
-        rep["conditioning"] = crop_note
-
-        # ---- validations ----
-        rep["checks"]["size<=500"] = (cond_len + binder_max <= P.MAX_COMPLEX_RESIDUES,
-                                      f"{cond_len}+{binder_max}={cond_len + binder_max}")
-        rep["checks"]["compact<=30A"] = (diam <= MAX_DIAMETER_A, f"{diam:.0f} Å")
-        rep["checks"][">=2_hotspots"] = (n >= P.HOTSPOT_MIN_RESIDUES, str(n))
-        rep["checks"]["<=15_hotspots"] = (n <= P.HOTSPOT_MAX_RESIDUES, str(n))
+        hotspot_data = None
+        if acc:
+            P._run([sys.executable, str(P.FETCH_STRUCTURE), acc, "-o", str(td)], timeout=600)
+            structure = next(iter(sorted(td.glob(f"AF-{acc}-*model*.cif"))), None)
+            if structure is None:
+                rep["error"] = "no AFDB model"
+                return rep
+            result = P._run([sys.executable, str(P.UNIPROT_TOOLS), "get", acc], timeout=300)
+            entry = json.loads(result.stdout)
+            entry = entry if "features" in entry else entry.get("results", [entry])[0]
+            hs, segs, provenance, messages = HS.resolve_hotspots(entry)
+            hotspot_data = {"hotspot_residues": hs, "accessible_segments": segs,
+                            "source": provenance, "uniprot": acc}
+            rep["topology"] = HS.accessibility(entry)["note"]
+            rep["uniprot_messages"] = messages
+        else:
+            for _ in P.resolve_target(spec, td):
+                pass
+            structure = td / ("target.cif" if spec.get("cif_path") else "target.pdb")
+            rep["pdb"] = spec.get("pdb")
+        if hotspots is not None:
+            hotspot_data = json.loads(Path(hotspots).read_text())
+        output = Path(out_dir).expanduser().resolve() if out_dir is not None else td / "prepared"
+        rep.update(P.prepare_design_target(structure, output, chain=chain,
+                                          partner_chain=partner_chain,
+                                          hotspot_data=hotspot_data, binder_max=binder_max))
+        if not acc:
+            rep["topology"] = f"PDB author chain {rep['chain']}; accessibility not annotated"
+            if rep["partner_chain"] is not None:
+                rep["topology"] += f"; interface partner {rep['partner_chain']}"
+            rep["uniprot_messages"] = [] if rep["n_hotspots"] else [
+                "No protein partner contacts found; supply an evidence-based surface patch before generation."]
+        if out_dir is not None:
+            (output / "preflight.json").write_text(json.dumps(rep, indent=2) + "\n")
+        else:
+            # Preview paths would point into a deleted temporary directory.
+            rep.pop("prepared_target")
+            rep.pop("hotspots_path")
     return rep
 
 
 def _fmt(rep: dict) -> str:
     L = []
-    head = f"━━━ {rep['target']} ({rep.get('uniprot','?')}) ━━━"
+    head = f"━━━ {rep['target']} ({rep.get('uniprot') or rep.get('pdb') or 'local structure'}) ━━━"
     L.append(head)
     if rep.get("error"):
         L.append(f"  ERROR: {rep['error']}")
         return "\n".join(L)
     L.append(f"  full length: {rep['full_length']} aa | {rep['topology']}")
     L.append(f"  conditioned on: {rep['conditioned_length']} aa  ({rep['conditioning']})")
-    L.append(f"  hotspots (UniProt): raw={rep['raw_hotspots']}")
+    L.append(f"  hotspots ({rep['source']}): raw={rep['raw_hotspots']}")
     if rep.get("compaction"):
         L.append(f"  compaction: {rep['compaction']}")
     L.append(f"  FINAL hotspots ({rep['n_hotspots']}): {rep['final_hotspots'] or '— NONE (needs PDB-interface/Paperclip)'}")
@@ -224,18 +117,37 @@ def _fmt(rep: dict) -> str:
         L.append(f"  [{ok(passed)}] {name}: {detail}")
     ready = all(p for p, _ in rep["checks"].values())
     L.append(f"  => {'READY' if ready else 'NEEDS ATTENTION'}")
+    if rep.get("prepared_target"):
+        L.append(f"  prepared target: {rep['prepared_target']}")
+        L.append(f"  hotspots: {rep['hotspots_path']}")
     return "\n".join(L)
 
 
-def main():
-    targets = sys.argv[1:] or ["IL1R1", "HER2", "PIN1", "TNFL9", "EFNB1", "CEACAM1", "AHSP"]
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("targets", nargs="*", help="protein names, UniProt accessions, PDB IDs, or local PDB/mmCIF paths")
+    parser.add_argument("--chain", help="target author chain (required for multichain PDB structures)")
+    parser.add_argument("--partner-chain", help="one protein partner defining the interface (required when ambiguous)")
+    parser.add_argument("--hotspots", help="explicit hotspot JSON, overriding automatic interface selection")
+    parser.add_argument("--out", help="preserve the prepared target, hotspots and report for one target")
+    args = parser.parse_args(argv)
+    targets = args.targets or ["IL1R1", "HER2", "PIN1", "TNFL9", "EFNB1", "CEACAM1", "AHSP"]
+    if args.out and len(targets) != 1:
+        parser.error("--out requires exactly one target")
+    status = 0
     for t in targets:
         try:
-            print(_fmt(plan(t)))
+            report = plan(t, chain=args.chain, partner_chain=args.partner_chain,
+                          hotspots=args.hotspots, out_dir=args.out)
+            print(_fmt(report))
+            if report.get("error") or not all(passed for passed, _ in report["checks"].values()):
+                status = 1
         except Exception as e:  # noqa: BLE001
             print(f"━━━ {t} ━━━\n  EXCEPTION: {type(e).__name__}: {e}")
+            status = 1
         print()
+    return status
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

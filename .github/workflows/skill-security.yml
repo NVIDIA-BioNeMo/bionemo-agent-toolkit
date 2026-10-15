@@ -11,6 +11,7 @@ on:
       - "library-skills/**"
       - "open-models-skills/**"
       - "workflows/**"
+      - "workflow-skills/**"
       - ".github/workflows/skill-security.yml"
       - "scripts/scan_skills.py"
       - "scripts/plugin_sync.py"
