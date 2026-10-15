@@ -4,7 +4,7 @@ Pretrains a fresh KERMT model from scratch on a user-provided corpus — buildin
 This skill is ready for commercial/non-commercial use. <br>
 
 ## Owner
-NVIDIA (evax@nvidia.com) <br>
+NVIDIA BioNeMo <bionemofeedback@nvidia.com> <br>
 
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
