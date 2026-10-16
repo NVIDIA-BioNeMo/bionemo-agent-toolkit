@@ -4,7 +4,7 @@ description: >
   Run RFDiffusion protein backbone design via NVIDIA NIM. Use for de novo protein backbones, motif scaffolding, binder design, hotspot residues, contigs syntax, diffusion steps, hosted NVIDIA API calls, local Docker deployment, and PDB backbone outputs for ProteinMPNN sequence design.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # RFDiffusion NIM

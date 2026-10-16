@@ -14,7 +14,7 @@ description: >
   ColabFold MSA, AlphaFold3 pipeline, protein structure, homology search, a3m alignment,
   UniRef30, NIM microservice. This pipeline chains MSA-Search and OpenFold3.
 license: Apache-2.0 AND CC-BY-4.0
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # MSA Structure Prediction Pipeline

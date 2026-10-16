@@ -12,7 +12,7 @@ description: >
   diversity from one command. Drives the complexa design pipeline from target
   picking to manifest emission and reports how many designs passed.
 compatibility: "complexa CLI installed (pip install -e .); environment file populated; 1x CUDA GPU >=40GB VRAM (A100/H100/L40S); 24 CPUs; ~50GB disk"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # Complexa Design Skill

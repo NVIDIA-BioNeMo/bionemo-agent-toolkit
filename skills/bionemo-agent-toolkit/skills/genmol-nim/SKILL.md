@@ -4,7 +4,7 @@ description: >
   Generate novel drug-like molecules using the GenMol NIM microservice. Use for de novo generation, scaffold decoration, motif extension, lead optimization, SAFE notation, QED or LogP ranking, hosted NVIDIA API calls, or local Docker deployment. GenMol takes SAFE notation in the smiles field, not ordinary SMILES.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "safe-mol>=0.1.14; requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # GenMol NIM

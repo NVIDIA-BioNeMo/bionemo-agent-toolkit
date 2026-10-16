@@ -4,7 +4,7 @@ description: >
   Use Boltz2 NIM for biomolecular structure prediction and binding affinity. Invoke for Boltz2, protein structures, protein-ligand/DNA/RNA complexes, SMILES or CCD ligands, pIC50/IC50 affinity scoring, mmCIF output, hosted NVIDIA API calls, or local Docker deployment.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # Boltz2 NIM

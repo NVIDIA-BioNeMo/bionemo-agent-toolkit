@@ -4,7 +4,7 @@ description: >
   Run ProteinMPNN inverse folding via NVIDIA NIM to design protein sequences for a target backbone. Sends user-provided PDB files and design parameters to NVIDIA's hosted API, authenticated with an environment API key, or to a user-selected local NIM. Use for sequence design, backbone redesign, fixed chains and residues, omit_AAs, sampling temperature, soluble model, local Docker, and multi-FASTA output.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "Python >=3.10; requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 permissions:
   - network
   - env

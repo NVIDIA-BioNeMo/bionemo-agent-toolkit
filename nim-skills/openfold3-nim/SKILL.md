@@ -4,7 +4,7 @@ description: >
   Use this skill for OpenFold3, NVIDIA's BioNeMo NIM microservice for biomolecular structure prediction. Invoke whenever the user mentions OpenFold3 or needs protein, protein-ligand, protein-DNA/RNA, or multi-chain complex prediction with the hosted NVIDIA API or local Docker NIM. Covers endpoint choice, auth, request payloads, output artifacts, confidence scores, and local container setup.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # OpenFold3 NIM

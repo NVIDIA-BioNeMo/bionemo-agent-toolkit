@@ -1,7 +1,7 @@
 ---
 name: complexa-target
 description: Use this skill whenever the user wants to add, register, edit, list, show, or validate a Proteina-Complexa design target for any pipeline — protein binder (default), ligand binder, or AME / enzyme scaffolding. Triggers include "add a target", "define a new target for binder design", "register a hotspot", "set up a PDL1 binder target", "ligand binder pocket", "SMILES target", "AME task", "enzyme motif", "M0024_1nzy", "complexa target add", "complexa target show", "configure target X", "what targets are available", "where do hotspots live", "what does target_input mean", "chain-spec syntax", "binder length range", or any question about `configs/targets/{,ligand_}targets_dict.yaml` and `configs/design_tasks/ame_dict_v2.yaml`. Also covers `complexa validate target`. This is the only skill that touches the three targets dict files.
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # complexa-target

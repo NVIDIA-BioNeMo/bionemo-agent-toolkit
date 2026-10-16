@@ -4,7 +4,7 @@ description: >
   Use this skill for MolMIM, NVIDIA's BioNeMo NIM microservice for small-molecule latent-space generation and optimization. Invoke for MolMIM, molecular embeddings, hidden states, latent decoding, sampling around a seed SMILES, CMA-ES guided molecule generation, QED or plogP optimization, hosted NVIDIA API calls, or local Docker deployment.
 license: Apache-2.0 AND CC-BY-4.0
 compatibility: "requests>=2.28; rdkit"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash Read Write AskUserQuestion
 ---
 
 # MolMIM NIM
