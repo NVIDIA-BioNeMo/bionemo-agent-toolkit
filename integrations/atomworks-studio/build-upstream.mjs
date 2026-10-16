@@ -55,8 +55,8 @@ const js = result.outputFiles.find((f) => f.path.endsWith(".js")).text.replace(/
 const css = result.outputFiles.filter((f) => f.path.endsWith(".css")).map((f) => f.text).join("\n") + "\n" + await readFile("node_modules/molstar/build/viewer/molstar.css", "utf8");
 let html = await readFile(path.join(web, "index.html"), "utf8");
 html = html.replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "").replace(/<link[^>]*>/g, "");
-const nvidiaLogo = (await readFile("host/nvidia-logo.png")).toString("base64");
-html = replaceOnce(html, '<img src="./annotation-studio.svg" alt="" class="header-logo" />', `<img src="data:image/png;base64,${nvidiaLogo}" alt="NVIDIA" class="header-logo" />`);
+const nvidiaLogo = (await readFile("host/nvidia-logo.svg")).toString("base64");
+html = replaceOnce(html, '<img src="./annotation-studio.svg" alt="" class="header-logo" />', `<img src="data:image/svg+xml;base64,${nvidiaLogo}" alt="NVIDIA" class="header-logo" />`);
 html = replaceOnce(html, '<h1>AtomWorks <span>Studio</span></h1>', '<div class="rfd-brand"><h1>RFD4-Proteína</h1><span>Powered by AtomWorks Studio</span></div>');
 html = replaceOnce(html, '<title>AtomWorks Studio</title>', '<title>RFD4-Proteína · NVIDIA BioNeMo</title>');
 html = html.replace('<option value="patinae">', '<option disabled value="patinae">');
