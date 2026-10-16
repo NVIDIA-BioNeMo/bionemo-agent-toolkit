@@ -219,6 +219,15 @@ async function initialize() {
       if (result?.isError) throw Error('Could not open GitHub. Use the Get help link to copy its address.');
     } catch (error) { message(error.message); }
   };
+  const studioCredit = document.getElementById('guide-link');
+  studioCredit.onclick = async event => {
+    if (local || !hostCapabilities.openLinks) return;
+    event.preventDefault();
+    try {
+      const result = await rpc('ui/open-link', {url: studioCredit.href});
+      if (result?.isError) throw Error('Could not open the AtomWorks Studio repository.');
+    } catch (error) { message(error.message); }
+  };
   const bar = document.createElement("section");
   bar.id = "rfd-host";
   bar.innerHTML = `<span id="rfd-draft-status" role="status"></span><details id="rfd-saved-drafts" open><summary>Saved drafts</summary><button id="rfd-drafts-refresh">Refresh drafts</button><div id="rfd-drafts"></div></details><details id="rfd-design-notes"><summary>Design notes</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details id="rfd-run-history"><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
