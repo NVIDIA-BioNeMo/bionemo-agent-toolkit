@@ -65,9 +65,9 @@ if mode == 'app':
         return service.viewer_payload(result)
 
     @mcp.tool(meta=APP, annotations=WRITE)
-    def prepare_design(session_id: str, note: str='', samples: int=1, seed: int=42, image_base64: str | None=None) -> dict:
+    def prepare_design(session_id: str, note: str='', samples: int=1, seed: int=42, image_base64: str | None=None, generation: dict | None=None) -> dict:
         """Freeze and validate the editor state for review; never starts compute."""
-        return service.prepare(session_id,note,samples,seed,image_base64)
+        return service.prepare(session_id,note,samples,seed,image_base64,generation)
 
     @mcp.tool(meta=APP, annotations=WRITE)
     def open_result(job_id: str) -> dict:
@@ -75,6 +75,21 @@ if mode == 'app':
         service.collect(job_id)
         result=service.open_result(job_id)
         return service.viewer_payload(result)
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def open_run_structure(job_id: str, index: int | None=None) -> dict:
+        """Open the saved input (no index) or a numbered generated design in Studio."""
+        return service.open_run_structure(job_id,index)
+
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def list_results(job_id: str) -> dict:
+        """Retrieve and enumerate completed designs without running inference."""
+        return service.results(job_id)
+
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def download_results(job_id: str) -> dict:
+        """Return a bounded ZIP of generated CIFs and the saved input."""
+        return service.download_results(job_id)
+
     @mcp.tool(meta=APP, annotations=READ)
     def resolve_selection(session_id: str, atom_indices: list[int], scope: str='residue') -> dict:
         """Expand picked atoms using Studio's canonical residue/chain interpretation."""
@@ -92,9 +107,9 @@ else:
         return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths)
 
     @mcp.tool(annotations=WRITE)
-    def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42) -> dict:
+    def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42, generation: dict | None=None) -> dict:
         """Export an immutable annotated structure and checksum-bound compute plan."""
-        return service.prepare(session_id,note,samples,seed)
+        return service.prepare(session_id,note,samples,seed,generation=generation)
 
     @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False,destructiveHint=False,openWorldHint=True))
     def execute_rfd4_plan(plan_id: str, plan_checksum: str) -> dict:

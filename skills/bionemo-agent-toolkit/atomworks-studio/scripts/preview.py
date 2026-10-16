@@ -1,5 +1,6 @@
 """Local development host for the SAME self-contained MCP app HTML."""
 import asyncio
+import os
 import json
 from pathlib import Path
 import secrets
@@ -14,7 +15,8 @@ from service import Service
 
 service = Service()
 TOKEN = secrets.token_urlsafe(32)
-ORIGIN = 'http://127.0.0.1:8766'
+PORT = int(os.environ.get('RFD4_PREVIEW_PORT', '8766'))
+ORIGIN = f'http://127.0.0.1:{PORT}'
 # Mirrors the no-iframe, no-external-script environment of the embedded app.
 CSP = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'; frame-src 'none'; worker-src blob:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
@@ -23,7 +25,7 @@ def import_structure(cif): return service.viewer_payload(service.import_cif(cif)
 def open_result(job_id):
     service.collect(job_id)
     return service.viewer_payload(service.open_result(job_id))
-ALLOWED = {'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
+ALLOWED = {'open_run_structure':service.open_run_structure,'list_results':service.results,'download_results':service.download_results,'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
            'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
            'set_condition':service.set_condition,'prepare_design':service.prepare,
            'studio_request':lambda **kw: __import__('studio_bridge').request(service,**kw),'get_compute_status':service.compute_status,'check_compute':service.check_compute,'execute_rfd4_plan':service.execute,'check_rfd4_job':service.status}
@@ -49,4 +51,4 @@ async def call(request: Request):
 
 app=Starlette(routes=[Route('/',index),Route('/api/tools',call,methods=['POST'])],
     middleware=[Middleware(TrustedHostMiddleware,allowed_hosts=['127.0.0.1'])])
-if __name__=='__main__': uvicorn.run(app,host='127.0.0.1',port=8766)
+if __name__=='__main__': uvicorn.run(app,host='127.0.0.1',port=PORT)

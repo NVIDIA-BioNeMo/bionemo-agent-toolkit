@@ -2,17 +2,19 @@
 import hashlib
 import json
 import fcntl
+from generation import options
 from core import Backend, safe_id, safe_session
 
 class Service(Backend):
     def plans(self):
         return [json.loads(p.read_text()) for p in sorted(self.state.glob('*/plan.json'), key=lambda p:p.stat().st_mtime, reverse=True)]
 
-    def prepare(self, session_id, note='', samples=1, seed=42, image_base64=None):
+    def prepare(self, session_id, note='', samples=1, seed=42, image_base64=None, generation=None):
         if type(samples) is not int or not 1 <= samples <= 16 or type(seed) is not int or not 0 <= seed < 2**31:
             raise ValueError('Use 1–16 designs and a nonnegative 31-bit seed')
+        generation = options(generation)
         snapshot = self.snapshot(session_id, note, {'image_base64': image_base64} if image_base64 else None)
-        plan = dict(snapshot, samples=samples, seed=seed, target=self.config())
+        plan = dict(snapshot, samples=samples, seed=seed, generation=generation, target=self.config())
         plan['plan_checksum'] = self.checksum(plan)
         (self.state / plan['snapshot_id'] / 'plan.json').write_text(json.dumps(plan, indent=2))
         return self.public_plan(plan)
@@ -37,7 +39,7 @@ class Service(Backend):
         # One stable job per approved plan, even across separate MCP processes.
         with (self.state / 'submission.lock').open('a') as handle:
             fcntl.flock(handle, fcntl.LOCK_EX)
-            return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id, target=plan['target'])
+            return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id, target=plan['target'], generation=plan.get('generation'))
 
     def overview(self):
         jobs = [json.loads(p.read_text()) for p in self.state.glob('*/job.json')]
@@ -77,3 +79,39 @@ class Service(Backend):
         return self.studio('POST', f'sessions/{session_id}/conditions', json={
             'atom_indices':atom_indices, 'condition':condition, 'enabled':enabled,
             'expected_revision':expected_revision, 'scope':'atom'})
+
+    def result_files(self, job_id):
+        job = self.read(job_id, 'job.json')
+        if job['status'] != 'completed':
+            raise ValueError('Complete the job before retrieving results')
+        directory = self.state / safe_id(job_id) / 'results'
+        if not list(directory.rglob('*.cif*')):
+            self.collect(job_id)
+        return sorted(directory.rglob('*.cif*'))
+
+    def results(self, job_id):
+        files = self.result_files(job_id)
+        return {'job_id': job_id, 'designs': [{'index': i, 'name': p.name} for i,p in enumerate(files)]}
+
+    def open_run_structure(self, job_id, index=None):
+        job = self.read(job_id, 'job.json')
+        if index is None:
+            snapshot = self.state / safe_id(job['snapshot_id']) / 'input.cif'
+            return self.viewer_payload(self.import_cif(snapshot.read_text()))
+        self.result_files(job_id)
+        return self.viewer_payload(self.open_result(job_id, index))
+
+    def download_results(self, job_id):
+        import base64
+        import io
+        import zipfile
+        files = self.result_files(job_id)
+        if not files or sum(p.stat().st_size for p in files) > 20_000_000:
+            raise ValueError('Result archive unavailable or too large for inline transfer')
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for i,p in enumerate(files):
+                archive.write(p, f'design-{i+1}/{p.name}')
+            archive.write(self.state / safe_id(job_id) / 'input.cif', 'input.cif')
+        return {'filename': f'rfd4-{safe_id(job_id)}.zip', 'mime_type': 'application/zip',
+                'base64': base64.b64encode(data.getvalue()).decode()}

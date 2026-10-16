@@ -44,6 +44,7 @@ async function studioFetch(path, init = {}) {
 }
 function studioEvent(type, session) {
   activeSession = session;
+  if (type === "ready") { document.getElementById("rfd-chat-prompt").hidden = true; message(""); }
   if (type === "changed" || type === "ready") invalidate();
   document.getElementById("rfd-review").disabled = !session;
 }
@@ -96,12 +97,12 @@ async function initialize() {
   storage.setItem("annotation-studio-pending-example", "protein_binder");
   const bar = document.createElement("section");
   bar.id = "rfd-host";
-  bar.innerHTML = `<div class="rfd-row"><strong id="rfd-compute">Checking registration\u2026</strong><button id="rfd-setup">Set up compute in chat</button><button id="rfd-check">Check readiness</button><button id="rfd-refresh">Refresh registration</button><button id="rfd-review" disabled>Review design</button></div><div id="rfd-compute-detail"></div><details><summary>Design notes and generation settings</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><label>Designs <input id="rfd-samples" type="number" min="1" max="16" value="1"></label><label>Seed <input id="rfd-seed" type="number" min="0" value="42"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
+  bar.innerHTML = `<div class="rfd-row"><strong id="rfd-compute">Checking registration\u2026</strong><button id="rfd-setup">Set up compute in chat</button><button id="rfd-check">Check readiness</button><button id="rfd-refresh">Refresh registration</button><button id="rfd-review" disabled>Review design</button></div><div id="rfd-compute-detail"></div><details><summary>Design notes and generation settings</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><label>Thinking <select id="rfd-thinking"><option>low</option><option selected>medium</option><option>high</option></select></label><label>Backbone noise <input id="rfd-backbone-noise" type="number" min="0.01" max="1" step="0.01" value="0.3"></label><label>Sequence / side-chain latent noise <input id="rfd-latent-noise" type="number" min="0.01" max="1" step="0.01" value="0.1"></label><label>Designs <input id="rfd-samples" type="number" min="1" max="16" value="1"></label><label>Seed <input id="rfd-seed" type="number" min="0" value="42"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
   document.querySelector(".app-shell").append(bar);
   action("rfd-setup", () => ask("Help me set up compute to run RFD4. First check the registered target and existing access. Offer a local Linux GPU, an existing SSH host (including a connected Brev machine), or a new Brev machine. Use the Brev CLI skill for Brev provisioning, showing the machine and hourly cost before creation. Use the existing upstream RFD4 setup skill; do not create a new skill. Register the chosen target with register_rfd4_compute, then run check_compute and report any remaining setup."));
   action("rfd-check", () => compute(true));
   action("rfd-refresh", () => compute());
-  for (const id of ["rfd-note", "rfd-samples", "rfd-seed"]) document.getElementById(id).oninput = invalidate;
+  for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = invalidate;
   document.getElementById("rfd-image").onchange = async (e) => {
     invalidate();
     imageNote = null;
@@ -118,10 +119,10 @@ async function initialize() {
   };
   action("rfd-review", async () => {
     const epoch = editEpoch;
-    const p = await tool("prepare_design", { session_id: activeSession, note: document.getElementById("rfd-note").value, samples: Number(document.getElementById("rfd-samples").value), seed: Number(document.getElementById("rfd-seed").value), image_base64: imageNote });
+    const p = await tool("prepare_design", { session_id: activeSession, note: document.getElementById("rfd-note").value, samples: Number(document.getElementById("rfd-samples").value), seed: Number(document.getElementById("rfd-seed").value), image_base64: imageNote, generation: { thinking: document.getElementById("rfd-thinking").value, backbone_noise: Number(document.getElementById("rfd-backbone-noise").value), latent_noise: Number(document.getElementById("rfd-latent-noise").value) } });
     if (epoch !== editEpoch) throw Error("The design changed during review; review it again.");
     plan = p;
-    document.getElementById("rfd-plan-text").textContent = `${p.samples} design(s), seed ${p.seed}, ${p.instance}. Saved input ${p.sha256.slice(0, 12)}. ${(p.issues || []).map((x) => x.message).join(" ")}`;
+    document.getElementById("rfd-plan-text").textContent = `${p.samples} design(s), seed ${p.seed}, thinking ${p.generation.thinking}, noise ${p.generation.backbone_noise} / ${p.generation.latent_noise}, ${p.instance}. Saved input ${p.sha256.slice(0, 12)}. ${(p.issues || []).map((x) => x.message).join(" ")}`;
     document.getElementById("rfd-plan").hidden = false;
   });
   action("rfd-generate", () => {
@@ -142,8 +143,7 @@ async function refreshRuns() {
       button.disabled = true;
       try {
         if (job.status === "completed") {
-          const value = await tool("open_result", { job_id: job.job_id });
-          dispatchEvent(new CustomEvent("rfd-open-session", { detail: value.session_id }));
+          await showResults(job.job_id, row);
         } else {
           await tool("check_rfd4_job", { job_id: job.job_id });
           await refreshRuns();
@@ -166,3 +166,52 @@ export {
   studioFetch,
   tool
 };
+
+async function showResults(jobId, row) {
+  row.querySelector('[data-results]')?.remove();
+  const data = await tool('list_results', {job_id: jobId});
+  const controls = document.createElement('span');
+  controls.dataset.results = 'true';
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', 'Input or generated design');
+  select.add(new Option('Input', ''));
+  for (const design of data.designs) select.add(new Option(`Design ${design.index + 1}`, String(design.index)));
+  async function open() {
+    select.disabled = true;
+    try {
+      const value = await tool('open_run_structure', {job_id: jobId, index: select.value === '' ? null : Number(select.value)});
+      await openStudioSession(value.session_id);
+    } catch(e) { message(e.message); }
+    finally { select.disabled = false; }
+  }
+  select.onchange = open;
+  const download = document.createElement('button');
+  download.textContent = 'Download all';
+  download.onclick = async () => {
+    download.disabled = true;
+    try {
+      const file = await tool('download_results', {job_id: jobId});
+      const blob = new Blob([Uint8Array.from(atob(file.base64), c => c.charCodeAt(0))], {type: file.mime_type});
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = file.filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch(e) { message(e.message); }
+    finally { download.disabled = false; }
+  };
+  controls.append(select, download); row.append(controls);
+  if (data.designs.length) select.value = String(data.designs[0].index);
+  await open();
+}
+
+function openStudioSession(id) {
+  return new Promise((resolve,reject) => {
+    const done = event => {
+      if (event.detail.id !== id) return;
+      clearTimeout(timer); removeEventListener('rfd-session-opened',done);
+      event.detail.error ? reject(Error(event.detail.error)) : resolve();
+    };
+    const timer = setTimeout(() => { removeEventListener('rfd-session-opened',done); reject(Error('Studio did not finish opening the structure')); }, 120000);
+    addEventListener('rfd-session-opened',done);
+    dispatchEvent(new CustomEvent('rfd-open-session',{detail:id}));
+  });
+}

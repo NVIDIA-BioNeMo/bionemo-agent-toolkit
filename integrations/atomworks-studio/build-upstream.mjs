@@ -26,14 +26,19 @@ const adapter = { name: "studio-host-adapter", setup(b) {
 ` + s;
       s = replaceOnce(s, "await fetch(versionedApiPath(path),", "await studioFetch(versionedApiPath(path),");
     }
+    if (a.path === path.join(web, "src/studio/session-file-controller.ts")) {
+      s = replaceOnce(s, "      URL.revokeObjectURL(anchor.href);", "      setTimeout(() => URL.revokeObjectURL(anchor.href), 60000);");
+    }
     if (a.path === path.join(web, "src/main.ts")) {
       s = `import {studioEvent} from ${JSON.stringify(bridge)};
 ` + s;
       s = replaceOnce(s, '  const parentOrigin = query.get("parent_origin");', '  studioEvent(type, sessionId);\n  const parentOrigin = query.get("parent_origin");');
+      s = replaceOnce(s, '    onOpened: (response) => runViewerUpdate(async () => {', '    onOpened: openSessionFromHost = (response) => runViewerUpdate(async () => {');
+      s = 'let openSessionFromHost: ((response: SessionResponse) => Promise<void>) | null = null;\n' + s;
       s = replaceOnce(s, "await initCifCore();", `await initCifCore({module_or_path:Uint8Array.from(atob('${wasm}'), c=>c.charCodeAt(0))});`);
     }
     if (a.path === path.join(web, "src/main.ts")) s += `
-window.addEventListener('rfd-open-session', (event) => { const id = (event as CustomEvent<string>).detail; void (async()=>{ const response = await api<SessionResponse>('/api/sessions/'+id); sessionId=id; currentName=response.structure.name; persistSession(response); await refreshFromServer(response.structure,false); enableSessionControls(true); notifyHost('ready'); })().catch(error=>log(String(error))); });`;
+window.addEventListener('rfd-open-session', (event) => { const id = (event as CustomEvent<string>).detail; void (async()=>{ const response = await api<SessionResponse>('/api/sessions/'+id); if (!openSessionFromHost) throw Error('Studio is still starting'); element('analysis-results').replaceChildren(); await openSessionFromHost(response); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id}})); })().catch(error=>{log(String(error)); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id,error:String(error)}}));}); });`;
     if (/\b(localStorage|sessionStorage)\b/.test(s)) {
       s = `import {storage as embeddedStorage} from ${JSON.stringify(bridge)};
 ` + s;
@@ -55,7 +60,7 @@ html = html.replace("</head>", () => `<style>${css}
 #rfd-host{flex:none;padding:8px 12px;border-top:1px solid #555;font:12px system-ui;max-height:38vh;overflow:auto}.rfd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#rfd-compute-detail,#rfd-message{font-size:11px;margin:4px 0;color:#bac1cc}#rfd-host input{max-width:220px}#rfd-host label{display:inline-flex;gap:6px;margin:5px}#rfd-chat-prompt{width:100%;height:90px}#rfd-host [hidden]{display:none}</style></head>`);
 html = html.replace("</body>", () => `<script>/*LOCAL_CONFIG*/<\/script><script>${js}<\/script></body>`);
 await writeFile("assets/studio-upstream.html", html);
-await writeFile("assets/studio-upstream.provenance.json", JSON.stringify({ repository: "https://github.com/RosettaCommons/atomworks-studio", tag: "v0.1.0", commit: pin, hooks: ["API transport", "session events", "in-memory storage", "inline CIF WASM", "Molstar-only renderer", "disable PWA"], sourceEdited: false }, null, 2) + "\n");
+await writeFile("assets/studio-upstream.provenance.json", JSON.stringify({ repository: "https://github.com/RosettaCommons/atomworks-studio", tag: "v0.1.0", commit: pin, hooks: ["API transport", "session events", "in-memory storage", "inline CIF WASM", "Molstar-only renderer", "disable PWA", "reuse upstream file opening", "defer download URL cleanup"], sourceEdited: false }, null, 2) + "\n");
 await writeFile("assets/STUDIO_LICENSE.md", await readFile(path.join(root, "LICENSE.md")));
 console.log(`Built upstream Studio ${(html.length / 1024 / 1024).toFixed(2)} MiB from ${pin}. Source unmodified.`);
 const packages = /* @__PURE__ */ new Map();

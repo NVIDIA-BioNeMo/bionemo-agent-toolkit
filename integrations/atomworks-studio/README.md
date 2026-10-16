@@ -4,7 +4,7 @@ This adapter packages the actual Studio v0.1.0 browser editor as a self-containe
 MCP App. It reuses the upstream sequence strip, annotation forms, selection,
 analysis, structure editing and undo. There is no second molecular editor to maintain.
 The BioNeMo additions are compute registration/status, design notes, immutable
-run review, and result retrieval. Existing RFD4 skills supply setup and inference
+run review, upstream RFD4 sampling options, and result retrieval. Existing RFD4 skills supply setup and inference
 instructions; this integration does not introduce an RFD4 skill.
 
 ## Upstream maintenance and building
@@ -94,7 +94,7 @@ routes and accepts neither arbitrary URLs nor execution commands. Studio's
 revision and confirmation behavior is preserved. Image/text notes accompany the
 input; they are not automatically converted into model constraints.
 
-Review freezes the exported CIF, checksum, seed, count and exact target. Generate
+Review freezes the exported CIF, checksum, seed, count, thinking preset, backbone/latent noise and exact target. Generate
 sends that review to the conversation for agent execution. Jobs use detached
 workers and durable records. Ambiguous submission is never automatically retried.
 This is a single-user adapter. Inference completion is not scientific validation;
@@ -124,3 +124,32 @@ selection, annotation, undo and compute status. Local and SSH execution transpor
 have unit coverage; live inference has only been exercised on the configured Brev
 machine. Patinae, MP4, trajectory playback and host download behavior are not
 qualified in this embedded build.
+
+## Recorded-demo qualification
+
+The adapter supports the recorded binder workflow: choose an upstream example,
+realize its variable-length segment, review thinking (low/medium/high), backbone
+noise and sequence/side-chain latent noise, submit through chat, and inspect the
+result using upstream Style and Analyze controls. Noise defaults are 0.3/0.1;
+Hydra mappings are documented in `scripts/generation.py`. These small host controls
+mirror the upstream RFD4 generation provider; no sampling algorithm lives here.
+
+Runs offers saved Input / Design selectors and Download all (ZIP). Studio's own
+Save CIF exports the active structure and retains upstream validation prompts.
+Switching run structures uses Studio's existing file-opening lifecycle, clearing
+old selections, trajectories and contact visuals. Run files are loaded from saved
+artifacts, not the current mutable editor document.
+
+2026-10-16: HTML replay on the existing A100 completed a single binder design,
+reopened 1,453 atoms, and displayed 57 inter-chain contacts using upstream analysis.
+The input realization sampled 72 residues (the recording sampled 85); this is the
+same variable-length operation, not a claim of identical generated coordinates.
+The ZIP was downloaded and its input/design contents and CRC verified. Individual
+CIF export was downloaded and preserved Studio's missing-atoms confirmation. These are execution and
+UI checks, not scientific validation of the generated binder.
+
+For manual embedded-host acceptance, open Studio from the plugin in chat, repeat
+this workflow, verify that Generate in chat delivers the exact reviewed plan,
+and check Save CIF / Download all in the host sandbox. Those host-specific checks
+remain manual; the HTML preview and MCP app use the same generated frontend.
+Set `RFD4_PREVIEW_PORT` to use a different localhost port during development.

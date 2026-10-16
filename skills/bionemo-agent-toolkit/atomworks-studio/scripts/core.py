@@ -1,5 +1,6 @@
 """Local, single-user Brev execution and immutable Studio export adapter."""
 from __future__ import annotations
+from generation import options, overrides
 import hashlib
 import base64
 import json
@@ -142,9 +143,10 @@ class Backend(Compute):
     def read(self, item_id, filename):
         return json.loads((self.state / safe_id(item_id) / filename).read_text())
 
-    def launch(self, snapshot_id, samples=1, seed=42, request_id=None, target=None):
+    def launch(self, snapshot_id, samples=1, seed=42, request_id=None, target=None, generation=None):
         if type(samples) is not int or not 1 <= samples <= 16 or type(seed) is not int or not 0 <= seed < 2**31:
             raise ValueError('samples must be 1–16 and seed a nonnegative 31-bit integer')
+        generation = options(generation)
         cfg = target if target is not None else self.config()
         safe_id(snapshot_id)
         snap = self.read(snapshot_id, 'snapshot.json')
@@ -154,10 +156,10 @@ class Backend(Compute):
         job_id = safe_id(request_id or uuid.uuid4().hex)
         with self.lock:
             jobdir = self.state / job_id
-            record = {'job_id': job_id, 'snapshot_id': snapshot_id, 'samples': samples, 'seed': seed, 'instance': cfg['instance'], 'status': 'queued', 'target': cfg}
+            record = {'job_id': job_id, 'snapshot_id': snapshot_id, 'samples': samples, 'seed': seed, 'generation': generation, 'instance': cfg['instance'], 'status': 'queued', 'target': cfg}
             if (jobdir / 'job.json').exists():
                 existing = self.read(job_id, 'job.json')
-                if any(existing[k] != record[k] for k in ('snapshot_id', 'samples', 'seed', 'instance', 'target')):
+                if options(existing.get('generation')) != generation or any(existing[k] != record[k] for k in ('snapshot_id', 'samples', 'seed', 'instance', 'target')):
                     raise ValueError('Request ID already used with different parameters')
                 return existing
             jobdir.mkdir(mode=0o700, exist_ok=True)
@@ -189,7 +191,7 @@ class Backend(Compute):
             self.target_exec(cfg, f'test -x {shlex.quote(root + "/model/.venv/bin/rfd4-generate")} && test "$(cat {root}/model-revision)" = {REVISION} && mkdir -p {shlex.quote(remote)}')
             self.target_copy(cfg, source, f"{remote}/input.cif", timeout=180)
             args = [root + '/model/.venv/bin/rfd4-generate', f'inputs={remote}/input.cif', f'out_dir={remote}/output',
-                    f'num_replicates={record["samples"]}', f'seed={record["seed"]}', 'batch_size=1', 'compile_lengths=null', 'prevalidate_inputs=true']
+                    f'num_replicates={record["samples"]}', f'seed={record["seed"]}', 'batch_size=1', 'compile_lengths=null', 'prevalidate_inputs=true'] + overrides(record.get('generation'))
             # The shell sees only fixed commands, validated paths, IDs and numeric options.
             script = f'#!/bin/bash\nset +e\n(cd {shlex.quote(root + "/model")} && {shlex.join(args)})\ncode=$?\nprintf "%s" "$code" > {shlex.quote(remote + "/exit_code")}\nexit "$code"\n'
             local_script = self.state / record['job_id'] / 'run.sh'
