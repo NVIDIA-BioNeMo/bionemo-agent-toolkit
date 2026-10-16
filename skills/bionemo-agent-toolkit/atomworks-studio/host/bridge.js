@@ -1,5 +1,6 @@
 let seq = 0, activeSession = null, plan = null, imageNote = null, editEpoch = 0;
 let hostCapabilities = {}, computeState = null, saving = Promise.resolve(), draftTimer, polling = false, setupPending = false, hintDismissed = false;
+const lastProbe = new Map();
 const pending = /* @__PURE__ */ new Map(), local = Boolean(window.localToken);
 const storage = { data: /* @__PURE__ */ new Map(), getItem(k) {
   return this.data.get(k) ?? null;
@@ -103,8 +104,8 @@ async function saveDraft() {
   return draft;
 }
 function renderCompute(c) {
-  const labels = {unregistered:'Not connected', registered:'Check needed', ready:'Ready', needs_setup:'Action needed', disconnected:'Disconnected', checking:'Checking', setting_up:'Setting up'};
-  const label = c.active_jobs?.length && c.state === 'ready' ? 'Running' : labels[c.state] || 'Check needed';
+  const labels = {unregistered:'Not connected', registered:'Configured', ready:'Ready', needs_setup:'Action needed', disconnected:'Disconnected', checking:'Checking', setting_up:'Setting up'};
+  const label = c.active_jobs?.length && c.state === 'ready' ? 'Running' : labels[c.state] || 'Status unavailable';
   document.getElementById('rfd-compute-label').textContent = label;
   document.getElementById('rfd-compute-box').dataset.state = c.state;
   document.getElementById('rfd-compute-name').textContent = c.name || 'Connect a GPU to generate designs';
@@ -112,24 +113,36 @@ function renderCompute(c) {
   document.getElementById('rfd-compute-route').textContent = c.name ? `${c.kind === 'local' ? 'On the tool-server computer' : 'Connected through '+c.kind.toUpperCase()} · ${c.source || 'RFD4'}` : 'You can keep editing while compute is set up.';
   document.getElementById('rfd-compute-detail').textContent = c.detail || '';
   document.getElementById('rfd-compute-checked').textContent = c.checked_at ? 'Last checked '+new Date(c.checked_at).toLocaleString() : '';
-  document.getElementById('rfd-setup').textContent = c.state === 'unregistered' ? 'Set up in chat' : ['needs_setup','disconnected'].includes(c.state) ? 'Continue setup in chat' : 'Manage in chat';
+  document.getElementById('rfd-setup').textContent = (local || !hostCapabilities.message) ? 'Show chat request' : c.state === 'unregistered' ? 'Set up in chat' : ['needs_setup','disconnected'].includes(c.state) ? 'Continue setup in chat' : 'Manage in chat';
   document.getElementById('rfd-check').hidden = !c.name;
   document.getElementById('rfd-compute-hint').hidden = hintDismissed || c.state !== 'unregistered';
   document.getElementById('rfd-setup-progress').textContent = c.setup && c.setup.stage !== 'complete' ? c.setup.detail + ' · Updated '+new Date(c.setup.updated_at).toLocaleTimeString() : '';
   document.getElementById('rfd-compute-running').textContent = c.active_jobs?.length ? `${c.active_jobs.length} active run(s). Closing Studio does not stop them.` : c.name ? 'Completing a run does not stop its machine.' : '';
 }
-async function compute(check = false) {
+export async function compute(check = false) {
   if (polling) return;
   polling = true;
   const session = activeSession;
+  let observed = computeState;
   if (check) renderCompute({...computeState, state:'checking'});
   try {
-    const c = await tool(check ? 'check_compute' : 'get_compute_status', {session_id: session});
+    let c = await tool(check ? 'check_compute' : 'get_compute_status', {session_id: session});
     if (session !== activeSession) return;
+    observed = c;
+    if (check) lastProbe.set(c.fingerprint, Date.now());
+    // Expired evidence is a refresh task, not a problem for the user to fix.
+    // Probe only configured targets and bound retries if the service is down.
+    if (!check && c.state === 'registered' && c.fingerprint &&
+        Date.now() - (lastProbe.get(c.fingerprint) || 0) > 60000) {
+      lastProbe.set(c.fingerprint, Date.now());
+      renderCompute({...c, state:'checking'});
+      c = await tool('check_compute', {session_id: session});
+      if (session !== activeSession) return;
+    }
     if (computeState?.fingerprint && computeState.fingerprint !== c.fingerprint) invalidate();
     computeState = c; renderCompute(c);
   } catch(e) {
-    renderCompute({...computeState, state:'disconnected', detail:e.message});
+    renderCompute({...observed, state:'disconnected', detail:e.message});
   } finally { polling = false; }
 }
 async function setupCompute(targetId = null) {
@@ -208,6 +221,7 @@ async function initialize() {
   const hint = document.createElement('div'); hint.id = 'rfd-compute-hint'; hint.hidden = true;
   hint.innerHTML = `Connect a GPU when you’re ready to generate. <button id="rfd-hint-setup">Set up in chat</button> <button id="rfd-hint-dismiss" aria-label="Dismiss compute reminder">×</button>`;
   generation.append(hint);
+  if (local || !hostCapabilities.message) document.getElementById('rfd-hint-setup').textContent = 'Show chat request';
   action('rfd-setup', () => setupCompute());
   action('rfd-hint-setup', () => setupCompute());
   action('rfd-check', () => compute(true));
@@ -217,6 +231,7 @@ async function initialize() {
   document.addEventListener('keydown', e => { if(e.key === 'Escape') computeBox.open = false; });
   document.addEventListener('click', e => { if(!computeBox.contains(e.target)) computeBox.open = false; });
   setInterval(() => { if (!document.hidden) void compute(); }, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void compute(); });
   for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = () => { invalidate(); queueDraft(); };
   document.getElementById("rfd-image").onchange = async (e) => {
     invalidate();

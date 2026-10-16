@@ -4,6 +4,7 @@ on:
     paths:
       - 'integrations/atomworks-studio/**'
       - 'tests/test_atomworks_*.py'
+      - 'tests/test_atomworks_*.mjs'
       - '.github/workflows/atomworks-studio.yml'
   push:
     branches: [main]
@@ -21,5 +22,6 @@ jobs:
       - run: npm install --global pnpm@11.25.0
       - run: pnpm install --frozen-lockfile --ignore-scripts && node --check host/bridge.js && node --check build-upstream.mjs
         working-directory: integrations/atomworks-studio
+      - run: node --test tests/test_atomworks_compute_ui.mjs
       - run: pip install -r integrations/atomworks-studio/requirements.txt
       - run: python -m unittest discover -s tests -p 'test_atomworks_*.py'
