@@ -206,7 +206,7 @@ async function initialize() {
   storage.setItem("annotation-studio-pending-example", "protein_binder");
   const help = document.createElement('a');
   help.id = 'rfd-help';
-  help.textContent = 'Help';
+  help.textContent = 'Get help';
   help.href = 'https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit/issues';
   help.target = '_blank';
   help.rel = 'noopener noreferrer';
@@ -216,24 +216,54 @@ async function initialize() {
     event.preventDefault();
     try {
       const result = await rpc('ui/open-link', {url: help.href});
-      if (result?.isError) throw Error('Could not open GitHub. Use the Help link to copy its address.');
+      if (result?.isError) throw Error('Could not open GitHub. Use the Get help link to copy its address.');
     } catch (error) { message(error.message); }
   };
-  document.getElementById('guide-link').after(help);
   const bar = document.createElement("section");
   bar.id = "rfd-host";
-  bar.innerHTML = `<span id="rfd-draft-status" role="status"></span><details><summary>Saved drafts</summary><button id="rfd-drafts-refresh">Refresh drafts</button><div id="rfd-drafts"></div></details><details><summary>Design notes</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
+  bar.innerHTML = `<span id="rfd-draft-status" role="status"></span><details id="rfd-saved-drafts" open><summary>Saved drafts</summary><button id="rfd-drafts-refresh">Refresh drafts</button><div id="rfd-drafts"></div></details><details id="rfd-design-notes"><summary>Design notes</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details id="rfd-run-history"><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
   document.querySelector(".app-shell").append(bar);
   const generation = document.createElement('section');
   generation.id = 'rfd-generation';
   generation.innerHTML = `<div class="rfd-generation-row"><fieldset id="rfd-thinking"><legend>Thinking</legend><label><input type="radio" name="thinking" value="low">low</label><label><input type="radio" name="thinking" value="medium" checked>medium</label><label><input type="radio" name="thinking" value="high">high</label></fieldset><label>Designs<input id="rfd-samples" type="number" min="1" max="16" value="1"></label><label>Seed<input id="rfd-seed" type="number" min="0" value="42"></label></div><details><summary>Sampling</summary><div class="rfd-sampling"><label>Backbone noise <output id="rfd-backbone-value">0.3</output><input aria-label="Backbone noise" id="rfd-backbone-noise" type="range" min="0.01" max="1" step="0.01" value="0.3"></label><label>Sequence / side-chain latent noise <output id="rfd-latent-value">0.1</output><input aria-label="Sequence / side-chain latent noise" id="rfd-latent-noise" type="range" min="0.01" max="1" step="0.01" value="0.1"></label></div></details><button id="rfd-review" disabled>Review design</button></section>`;
-  document.querySelector('.app-shell').prepend(generation);
+  const generateSection = document.createElement('details');
+  generateSection.id = 'rfd-generate-section';
+  generateSection.className = 'card';
+  generateSection.dataset.editorCard = 'main';
+  generateSection.innerHTML = '<summary>Generate</summary>';
+  generateSection.append(generation, document.getElementById('rfd-plan'));
+  document.querySelector('.editor-document').after(generateSection);
   for (const name of ['backbone','latent']) document.getElementById(`rfd-${name}-noise`).addEventListener('input', e => { document.getElementById(`rfd-${name}-value`).value = e.target.value; });
 
   const computeBox = document.createElement('details');
   computeBox.id = 'rfd-compute-box';
   computeBox.innerHTML = `<summary>Compute · <span id="rfd-compute-label">Checking</span></summary><div class="rfd-compute-panel"><strong id="rfd-compute-name"></strong><div id="rfd-compute-gpu"></div><p id="rfd-compute-route"></p><p id="rfd-compute-checked"></p><p id="rfd-compute-running"></p><p id="rfd-setup-progress" role="status"></p><div class="rfd-compute-actions"><button id="rfd-setup">Set up in chat</button><button id="rfd-check">Check connection</button></div><details id="rfd-existing"><summary>Use an existing machine</summary><div id="rfd-targets"></div></details><details><summary>Details</summary><p id="rfd-compute-detail"></p></details></div>`;
-  document.getElementById('download').after(computeBox);
+  const toolbar = document.querySelector('.header-actions');
+  const menu = (id, title) => {
+    const box = document.createElement('details');
+    box.id = id; box.className = 'rfd-toolbar-menu';
+    const summary = document.createElement('summary'); summary.textContent = title;
+    const panel = document.createElement('div'); panel.className = 'rfd-toolbar-panel';
+    box.append(summary, panel); return {box, panel};
+  };
+  const fileMenu = menu('rfd-file-menu', 'File');
+  // Move upstream controls intact, keeping their input IDs and event handlers.
+  fileMenu.panel.append(...toolbar.children);
+  const draftMenu = menu('rfd-draft-menu', 'Drafts');
+  draftMenu.panel.append(document.getElementById('rfd-draft-status'), document.getElementById('rfd-design-notes'), document.getElementById('rfd-saved-drafts'));
+  const runsMenu = menu('rfd-runs-menu', 'Runs');
+  runsMenu.panel.append(document.getElementById('rfd-runs-refresh'), document.getElementById('rfd-runs'));
+  document.getElementById('rfd-run-history').remove();
+  toolbar.append(fileMenu.box, draftMenu.box, runsMenu.box, computeBox, help);
+  const menus = [fileMenu.box, draftMenu.box, runsMenu.box, computeBox];
+  for (const box of menus) box.addEventListener('toggle', () => {
+    if (!box.open) return;
+    for (const other of menus) if (other !== box) other.open = false;
+    if (box === draftMenu.box) void drafts().catch(e => message(e.message));
+    if (box === runsMenu.box) void refreshRuns().catch(e => message(e.message));
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') for (const box of menus) box.open = false; });
+  document.addEventListener('click', e => { for (const box of menus) if (!box.contains(e.target)) box.open = false; });
   const hint = document.createElement('div'); hint.id = 'rfd-compute-hint'; hint.hidden = true;
   hint.innerHTML = `Connect a GPU when you’re ready to generate. <button id="rfd-hint-setup">Set up in chat</button> <button id="rfd-hint-dismiss" aria-label="Dismiss compute reminder">×</button>`;
   generation.append(hint);
@@ -244,8 +274,6 @@ async function initialize() {
   action('rfd-drafts-refresh', drafts);
   document.getElementById('rfd-hint-dismiss').onclick = () => { hintDismissed = true; hint.hidden = true; };
   document.getElementById('rfd-existing').ontoggle = e => { if (e.target.open) registeredTargets().catch(error => message(error.message)); };
-  document.addEventListener('keydown', e => { if(e.key === 'Escape') computeBox.open = false; });
-  document.addEventListener('click', e => { if(!computeBox.contains(e.target)) computeBox.open = false; });
   setInterval(() => { if (!document.hidden) void compute(); }, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void compute(); });
   for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = () => { invalidate(); queueDraft(); };
@@ -282,6 +310,7 @@ async function initialize() {
 async function refreshRuns() {
   const data = await tool("get_workspace"), host = document.getElementById("rfd-runs");
   host.replaceChildren();
+  if (!data.jobs.length) host.textContent = 'No runs yet. Review a design in Generate to get started.';
   for (const job of data.jobs) {
     const row = document.createElement("div"), label = document.createElement("span"), button = document.createElement("button");
     label.textContent = `${job.job_id.slice(0, 8)} \xB7 ${job.status} `;
