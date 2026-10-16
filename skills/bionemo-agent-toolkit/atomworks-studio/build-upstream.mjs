@@ -30,6 +30,8 @@ const adapter = { name: "studio-host-adapter", setup(b) {
       s = replaceOnce(s, "      URL.revokeObjectURL(anchor.href);", "      setTimeout(() => URL.revokeObjectURL(anchor.href), 60000);");
     }
     if (a.path === path.join(web, "src/main.ts")) {
+      s = replaceOnce(s, 'element("document-name").textContent = summary.name;', 'element("document-name").textContent = summary.name === "protein_binder" ? "PD-L1 binder demo" : summary.name;');
+      s = replaceOnce(s, '${escapeHtml(summary.name)}', '${escapeHtml(summary.name === "protein_binder" ? "PD-L1 binder demo" : summary.name)}');
       s = `import {studioEvent} from ${JSON.stringify(bridge)};
 ` + s;
       s = replaceOnce(s, '  const parentOrigin = query.get("parent_origin");', '  studioEvent(type, sessionId);\n  const parentOrigin = query.get("parent_origin");');
@@ -53,7 +55,10 @@ const js = result.outputFiles.find((f) => f.path.endsWith(".js")).text.replace(/
 const css = result.outputFiles.filter((f) => f.path.endsWith(".css")).map((f) => f.text).join("\n") + "\n" + await readFile("node_modules/molstar/build/viewer/molstar.css", "utf8");
 let html = await readFile(path.join(web, "index.html"), "utf8");
 html = html.replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "").replace(/<link[^>]*>/g, "");
-html = html.replaceAll("./annotation-studio.svg", "data:image/svg+xml;base64," + (await readFile(path.join(web, "public/annotation-studio.svg"))).toString("base64"));
+const nvidiaLogo = (await readFile("host/nvidia-logo.png")).toString("base64");
+html = replaceOnce(html, '<img src="./annotation-studio.svg" alt="" class="header-logo" />', `<img src="data:image/png;base64,${nvidiaLogo}" alt="NVIDIA" class="header-logo" />`);
+html = replaceOnce(html, '<h1>AtomWorks <span>Studio</span></h1>', '<div class="rfd-brand"><h1>RFD4-Proteína</h1><span>Powered by AtomWorks Studio</span></div>');
+html = replaceOnce(html, '<title>AtomWorks Studio</title>', '<title>RFD4-Proteína · NVIDIA BioNeMo</title>');
 html = html.replace('<option value="patinae">', '<option disabled value="patinae">');
 html = html.replace('href="/guide/"', 'href="https://github.com/RosettaCommons/atomworks-studio/blob/v0.1.0/docs/WEB.md" target="_blank" rel="noopener noreferrer"');
 const computeCss = await readFile("host/compute.css", "utf8");

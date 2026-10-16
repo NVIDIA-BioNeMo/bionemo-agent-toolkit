@@ -230,7 +230,7 @@ async function initialize() {
   generateSection.id = 'rfd-generate-section';
   generateSection.className = 'card';
   generateSection.dataset.editorCard = 'main';
-  generateSection.innerHTML = '<summary>Generate</summary>';
+  generateSection.innerHTML = '<summary>Generate with RFD4-Proteína</summary>';
   generateSection.append(generation, document.getElementById('rfd-plan'));
   document.querySelector('.editor-document').after(generateSection);
   for (const name of ['backbone','latent']) document.getElementById(`rfd-${name}-noise`).addEventListener('input', e => { document.getElementById(`rfd-${name}-value`).value = e.target.value; });

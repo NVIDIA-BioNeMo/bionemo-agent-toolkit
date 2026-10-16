@@ -25,3 +25,6 @@
 #rfd-generate-section>summary{margin:0;font-weight:600}#rfd-generate-section[open]>summary{margin-bottom:12px}
 #rfd-generation{padding:0;background:none;border:0}#rfd-generation .rfd-generation-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#rfd-generation fieldset{grid-column:1/-1;min-width:0}#rfd-generation fieldset label{padding:6px 8px;margin-right:4px}#rfd-generation .rfd-sampling{flex-direction:column;gap:12px}#rfd-generation details>summary{margin:0}#rfd-plan{margin-top:12px;font-size:12px}#rfd-generate{margin-top:10px;width:100%}
 #rfd-host:has(#rfd-message:empty):has(#rfd-chat-prompt[hidden]){display:none}
+.header-identity .header-logo{width:40px;height:40px;object-fit:contain;flex:none}
+.app-shell>header .header-identity{margin-right:auto}#document-name{display:none}
+.rfd-brand{display:grid;gap:3px}.rfd-brand h1{margin:0;font-size:17px;font-weight:600;line-height:1.15}.rfd-brand>span{font:10px/1.3 var(--font-ui);color:var(--text-muted);white-space:nowrap}
