@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.0",
+  "campaign": "protein-binder-design",
+  "mode": "offline-bookkeeping",
+  "run_dir": ".",
+  "provenance": "Synthetic offline software fixture. Toy coordinates and scores are invented; no live inference or biological validity.",
+  "target": {
+    "name": "synthetic target",
+    "structure": {
+      "path": "target.pdb",
+      "sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10"
+    }
+  },
+  "params": {
+    "rank_by": "boltz2_confidence"
+  },
+  "filters": {
+    "iptm_min": null,
+    "binder_plddt_min": 80,
+    "self_consistency_rmsd_max": null,
+    "boltz2_confidence_min": 0.8
+  },
+  "stages": [
+    {
+      "stage": "cofold",
+      "status": "interrupted",
+      "attempts": 1
+    }
+  ],
+  "candidates": [
+    {
+      "id": "valid",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "valid",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/valid.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "0c8bd86d48741f1b39a19688a25602a7a7c7dfdcea6b7154100f70895028adeb",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "candidate_swap",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "valid",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/candidate_swap.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "0c8bd86d48741f1b39a19688a25602a7a7c7dfdcea6b7154100f70895028adeb",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "target_swap",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "target_swap",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "response": {
+          "path": "responses/target_swap.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "0c8bd86d48741f1b39a19688a25602a7a7c7dfdcea6b7154100f70895028adeb",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "sequence_swap",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "sequence_swap",
+        "sequence_sha256": "4c573d7486ff3e432b9fcd07d5558134dfd4963eb541ea4ad688d42870548dfb",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/sequence_swap.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "0c8bd86d48741f1b39a19688a25602a7a7c7dfdcea6b7154100f70895028adeb",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "sample_swap",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "sample_swap",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/sample_swap.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "response_tampered",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "boltz2",
+        "candidate_id": "response_tampered",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/response_tampered.json",
+          "sha256": "b7529dacb3c5123b550074006b88536e17ead761ddb79b71d12c4a8a7bbf3d89"
+        },
+        "sample_index": 0,
+        "complex_sha256": "0c8bd86d48741f1b39a19688a25602a7a7c7dfdcea6b7154100f70895028adeb",
+        "binder_chain": "B",
+        "target_chain": "A",
+        "plddt_scale": "0-100",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    }
+  ]
+}
