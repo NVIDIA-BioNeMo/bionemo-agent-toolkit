@@ -40,12 +40,56 @@ is needed. The local CSP permits WASM compilation, not JavaScript eval. The
 actual embedded host must also support WASM; local browser success is not proof
 of host rendering. Requalify the host when updating Studio or its dependencies.
 
+## CPU editor and NGS registry reuse
+
+Compute appears beside Save CIF. Its panel shows registration, timestamped model
+readiness, active runs, and chat-based setup. The first-run reminder is dismissible.
+No provider lifecycle command runs from the app. Host messaging is capability
+checked; the standalone preview provides a copyable request.
+
+Set `RFD4_EDITOR_URL` to a CPU Studio loopback service independent of the GPU.
+Optionally set `RFD4_EDITOR_PYTHON` to an already-prepared Studio Python 3.12
+interpreter: the MCP server starts that CPU service once with upstream session
+persistence and an OS lock. This never installs dependencies or starts GPU compute.
+For a source installation of Studio v0.1.0, install its `packages/editing`,
+`providers/rfd4`, and editable root package in an isolated environment, then use
+that environment's Python. The embedded frontend is built separately above.
+The old compute-bound Studio URL remains a compatibility fallback.
+
+Drafts auto-save annotated CIF, notes, image notes, and sampling settings in the
+adapter's private state directory. Saved drafts can be reopened explicitly after
+reload. This avoids relying solely on upstream's two-hour session retention.
+Session-specific compute selection is captured independently; changing another
+session's selection does not retarget a draft or an existing job.
+
+To reuse the installed NGS Workbench registry, set `NGS_WORKBENCH_MCP_ROOT` to its
+`mcp` directory. The adapter imports its existing `ComputeTarget` schema and SSH
+identity resolver, and invokes its authenticated daemon client in the NGS-managed
+Python environment. It does not copy or modify registry JSON, implement another
+infrastructure catalog, or pass daemon tokens to the browser. The optional
+`NGS_ANALYSIS_WORKBENCH_STATE_DIR` and `CODEX_HOME` must match NGS's environment.
+This bridge is qualified against NGS Workbench 0.2.18 and fails visibly if unavailable.
+
+Register existing hosts using NGS's `configure_ssh_target`. In RFD4, agent-only
+`use_registered_compute` binds that target's ID, provider, configuration hash and
+SSH identity to actual runtime/checkpoint paths and the current `session_id`.
+Readiness reuses NGS's bounded host inspection before RFD4-specific checks.
+Slurm registrations remain visible but cannot be selected: this adapter currently
+supports direct local/SSH execution only, and must never run a Slurm workflow on
+the login node by substitution. Legacy direct SSH/Brev registration still works
+when NGS is absent. Credentials remain in the existing SSH/Brev environment.
+
+Setup requests have durable IDs. Repeated clicks resume the same unfinished
+request. The agent reports actual tool-derived steps through `update_compute_setup`;
+reporting completion cannot itself mark a GPU ready. Brev creation still requires
+the agent to reconcile existing machines before retrying an ambiguous CLI outcome.
+
 ## Compute user flow
 
 The editor shows the target name, transport, registration/readiness state, GPU
 information and check time. Registration is not readiness; checks expire after
 15 minutes. A readiness check establishes shell/GPU access, the pinned runtime
-entrypoint/revision, presence of registered weight files, and Studio API access.
+entrypoint/revision, and presence of registered weight files. Editor availability is separate.
 It does not establish that weights are compatible or that inference will succeed.
 
 **Set up compute in chat** sends a user message through `ui/message`. It does
@@ -63,7 +107,7 @@ RFD4 setup and Brev CLI skills, then registers and checks the selected target:
 `register_rfd4_compute` is an agent-only tool. `check_compute` and
 `get_compute_status` are available to the app. Registration doesn't install,
 provision, authenticate, or declare success. Switching the target invalidates
-previous run approvals. Existing jobs require their original target configuration.
+previous run approvals. Existing jobs retain their own immutable target configuration and remain inspectable after a target switch. New submissions recheck readiness; retrying a previously submitted plan returns the existing job.
 
 The runtime layout is `RUNTIME_ROOT/model/.venv/bin/rfd4-generate`, with the model
 checkout revision in `RUNTIME_ROOT/model-revision`. The pinned model revision is

@@ -33,7 +33,7 @@ def request(service, method, path, body=None, form=None):
             else: raise ValueError('Unsupported import option')
         kwargs={'files':files,'data':data}
     elif body is not None: kwargs={'json':body}
-    with httpx.Client(base_url=service.config()['studio_url'],timeout=60,trust_env=False,follow_redirects=False) as client:
+    with httpx.Client(base_url=service.studio_url(),timeout=60,trust_env=False,follow_redirects=False) as client:
         response=client.request(method,path,**kwargs)
         if len(response.content)>30000000: raise ValueError('Studio response too large')
         return {'status':response.status_code,'content_type':response.headers.get('content-type','text/plain'),'text':response.text}

@@ -13,6 +13,8 @@ class Plans(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.service = Service(self.tmp.name)
+        checker=patch.object(self.service,'check_compute',return_value={'state':'ready'})
+        checker.start(); self.addCleanup(checker.stop)
         self.cfg = {'instance':'demo', 'instance_id':'id-demo', 'remote_root':'/home/ubuntu/rfd4', 'studio_url':'http://127.0.0.1:18764'}
         (Path(self.tmp.name)/'config.json').write_text(json.dumps(self.cfg))
         self.export = {'cif':'data_demo\n_atom_site.id 1\n', 'revision':1, 'issues':[]}
@@ -58,7 +60,7 @@ class Plans(unittest.TestCase):
     def test_target_changes_rejected(self):
         plan=self.plan()
         self.cfg['instance_id']='different'
-        (Path(self.tmp.name)/'config.json').write_text(json.dumps(self.cfg))
+        self.service.compute_config_path('session').write_text(json.dumps(self.cfg))
         with self.assertRaisesRegex(ValueError,'configuration changed'):
             self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
     def test_validation_blocks_errors(self):
@@ -68,15 +70,16 @@ class Plans(unittest.TestCase):
     def test_upstream_missing_atoms_warning(self):
         self.export['issues']=[{'check':'missing_atoms','severity':'error'}]
         self.assertEqual(self.plan()['issues'][0]['severity'],'warning')
-    def test_collect_rejects_changed_target(self):
+    def test_collect_uses_original_target_after_switch(self):
         plan=self.plan()
         with patch('core.subprocess.Popen'):
             job=self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
-        job['status']='completed'; self.service.save_job(job)
+        job.update(status='completed',remote_dir='/srv/rfd4/runs/'+job['job_id']); self.service.save_job(job)
         self.cfg['instance_id']='different'
         (Path(self.tmp.name)/'config.json').write_text(json.dumps(self.cfg))
-        with self.assertRaisesRegex(ValueError,'original target'):
+        with patch.object(self.service,'verify_target'), patch.object(self.service,'target_copy') as copy:
             self.service.collect(job['job_id'])
+        self.assertEqual(copy.call_args.args[0]['instance_id'],'id-demo')
 
 if __name__ == '__main__':
     unittest.main()
@@ -115,7 +118,7 @@ class GenerationContract(unittest.TestCase):
         plan = self.plan()
         with patch('core.subprocess.Popen'):
             job = self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
-        job['status']='completed'; self.service.save_job(job)
+        job.update(status='completed',remote_dir='/srv/rfd4/runs/'+job['job_id']); self.service.save_job(job)
         directory = self.service.state/job['job_id']/'results'; directory.mkdir()
         (directory/'design1.cif').write_text('data_first')
         (directory/'design2.cif').write_text('data_second')

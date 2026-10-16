@@ -9,7 +9,12 @@
       "startup_timeout_sec": 120,
       "env_vars": [
         "RFD4_STUDIO_HOME",
-        "RFD4_STUDIO_PYTHON"
+        "RFD4_STUDIO_PYTHON",
+        "RFD4_EDITOR_URL",
+        "RFD4_EDITOR_PYTHON",
+        "NGS_WORKBENCH_MCP_ROOT",
+        "NGS_ANALYSIS_WORKBENCH_STATE_DIR",
+        "CODEX_HOME"
       ],
       "default_tools_approval_mode": "auto"
     },
@@ -22,7 +27,12 @@
       "startup_timeout_sec": 120,
       "env_vars": [
         "RFD4_STUDIO_HOME",
-        "RFD4_STUDIO_PYTHON"
+        "RFD4_STUDIO_PYTHON",
+        "RFD4_EDITOR_URL",
+        "RFD4_EDITOR_PYTHON",
+        "NGS_WORKBENCH_MCP_ROOT",
+        "NGS_ANALYSIS_WORKBENCH_STATE_DIR",
+        "CODEX_HOME"
       ],
       "tools": {
         "execute_rfd4_plan": {

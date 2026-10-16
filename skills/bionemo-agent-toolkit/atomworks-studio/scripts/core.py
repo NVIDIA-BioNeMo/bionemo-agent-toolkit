@@ -39,8 +39,17 @@ class Backend(Compute):
         self.runner = runner
         self.lock = threading.Lock()
 
-    def config(self):
-        path = self.root / 'config.json'
+    def config(self, session_id=None):
+        path = self.compute_config_path(session_id)
+        if session_id is not None and not path.exists():
+            # Capture a default once, using an OS lock across both MCP servers.
+            import fcntl
+            with (self.root/'selection.lock').open('a') as handle:
+                fcntl.flock(handle,fcntl.LOCK_EX)
+                default = self.root/'config.json'
+                if default.exists() and not path.exists():
+                    temp=path.with_name(uuid.uuid4().hex+'.tmp')
+                    temp.write_text(default.read_text());temp.chmod(0o600);temp.replace(path)
         if not path.exists():
             raise ValueError('No compute registered. Ask the agent to configure a local GPU, SSH host, or Brev machine.')
         cfg = json.loads(path.read_text())
@@ -62,6 +71,9 @@ class Backend(Compute):
         return output
 
     def verify_target(self, cfg):
+        if cfg.get('registry_target'):
+            import registry
+            registry.verify(cfg['registry_target'], require_registry=False)
         if cfg.get('kind','brev') == 'brev':
             rows=json.loads(self.brev(cfg, 'ls', '--json'))['workspaces']
             if not any(row['name']==cfg['instance'] and row['id']==cfg['instance_id'] for row in rows):
@@ -70,9 +82,18 @@ class Backend(Compute):
     def preflight(self):
         return self.check_compute()
 
+    def studio_url(self):
+        # Editor service can be CPU-only and independent of any GPU target.
+        url = os.environ.get('RFD4_EDITOR_URL')
+        if not url:
+            path=self.root/'editor.json'
+            if path.exists(): url=json.loads(path.read_text())['studio_url']
+        if not url: url=self.config()['studio_url']
+        self.validate_config({'kind':'local','instance':'editor','remote_root':'/tmp','studio_url':url})
+        return url
+
     def studio(self, method, path, **kwargs):
-        cfg = self.config()
-        with httpx.Client(base_url=cfg['studio_url'], timeout=60, trust_env=False) as client:
+        with httpx.Client(base_url=self.studio_url(), timeout=60, trust_env=False) as client:
             response = client.request(method, '/api/v1/' + path, **kwargs)
             response.raise_for_status()
             return response.json()
@@ -81,12 +102,12 @@ class Backend(Compute):
         if len(cif.encode()) > 20_000_000 or '_atom_site.' not in cif:
             raise ValueError('Supply a molecular CIF under 20 MB')
         result = self.studio('POST', 'sessions', files={'file': ('design.cif', cif, 'chemical/x-mmcif')})
-        result['editor_url'] = self.config()['studio_url'].rstrip('/') + result['editor_path'] + '&viewer=molstar'
+        result['editor_url'] = self.studio_url().rstrip('/') + result['editor_path'] + '&viewer=molstar'
         return result
 
     def load_demo(self):
         with httpx.Client(timeout=60, trust_env=False) as client:
-            response = client.get(self.config()['studio_url'].rstrip('/') + '/api/examples/protein_binder/cif')
+            response = client.get(self.studio_url().rstrip('/') + '/api/v1/examples/protein_binder/cif')
             response.raise_for_status()
         result = self.import_cif(response.text)
         result.update(demo='pdl1-binder', title='Design a binder for PD-L1', samples=1, seed=42,
@@ -211,9 +232,7 @@ class Backend(Compute):
         record = self.read(job_id, 'job.json')
         if record['status'] not in ('submitted', 'submitting', 'submission_unknown', 'running'):
             return record
-        cfg = self.config()
-        if record.get('target') != cfg:
-            raise ValueError("Restore this job's original target configuration before polling")
+        cfg = self.validate_config(record['target'])
         self.verify_target(cfg)
         if cfg['instance'] != record['instance']:
             raise ValueError('Restore the original instance in config before polling this job')
@@ -231,9 +250,7 @@ class Backend(Compute):
         record = self.status(job_id)
         if record['status'] != 'completed':
             raise ValueError('Job has not completed successfully')
-        cfg = self.config()
-        if record.get('target') != cfg:
-            raise ValueError("Restore this job's original target configuration before collecting")
+        cfg = self.validate_config(record['target'])
         self.verify_target(cfg)
         destination = self.state / safe_id(job_id) / 'results'
         destination.mkdir(exist_ok=True)

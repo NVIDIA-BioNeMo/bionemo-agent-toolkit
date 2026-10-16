@@ -6,6 +6,9 @@ from mcp.types import ToolAnnotations
 from service import Service
 
 service = Service()
+if __name__ == '__main__':
+    from editor_runtime import ensure_editor
+    ensure_editor(service)
 URI = 'ui://bionemo-rfd4/studio.html'
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -26,16 +29,39 @@ def panel():
     return asset.read_text()
 
 @mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
-def get_compute_status() -> dict:
+def get_compute_status(session_id: str | None=None) -> dict:
     """Read registered target and timestamped readiness evidence. Does not provision or probe."""
-    return service.compute_status()
+    return service.compute_status(session_id)
 
 @mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
-def check_compute() -> dict:
+def check_compute(session_id: str | None=None) -> dict:
     """Probe existing target GPU, pinned runtime, registered weights and Studio; never provision."""
-    return service.check_compute()
+    return service.check_compute(session_id)
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
+def list_registered_compute() -> dict:
+    """List existing targets through the installed NGS Workbench registry; no provisioning."""
+    return service.available_compute()
 
 if mode == 'app':
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def begin_compute_setup(session_id: str | None=None) -> dict:
+        """Create or resume a setup conversation reference. Does not provision or connect."""
+        return service.begin_setup(session_id)
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def save_draft(session_id: str, note: str='', image_base64: str | None=None, settings: dict | None=None) -> dict:
+        """Persist the annotated CIF and notes before leaving the editor, including incomplete designs."""
+        return service.save_draft(session_id,note,image_base64,settings)
+
+    @mcp.tool(meta=APP, annotations=READ)
+    def list_drafts() -> dict:
+        """List locally saved drafts for explicit recovery after a reload."""
+        return service.list_drafts()
+
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def restore_draft(draft_id: str) -> dict:
+        """Reopen a saved draft as a new Studio session."""
+        return service.restore_draft(draft_id)
     @mcp.tool(meta=APP, annotations=WRITE)
     def studio_request(method: str, path: str, body: dict | None=None, form: list[dict] | None=None) -> dict:
         """Run an allowlisted Studio editor operation against the configured loopback service."""
@@ -102,9 +128,18 @@ if mode == 'app':
 
 else:
     @mcp.tool(annotations=WRITE)
-    def register_rfd4_compute(kind: str, name: str, runtime_root: str, studio_url: str, ssh_host: str='', instance_id: str='', weight_paths: list[str] | None=None) -> dict:
+    def update_compute_setup(request_id: str, stage: str, detail: str, session_id: str | None=None) -> dict:
+        """Record setup progress from actual tool results. Stages: connecting, installing, downloading, checking, action_needed, complete, cancelled. This does not establish readiness or provision. Reuse the setup request ID; inspect existing machines before retrying creation."""
+        return service.update_setup(request_id,stage,detail,session_id)
+    @mcp.tool(annotations=WRITE)
+    def register_rfd4_compute(kind: str, name: str, runtime_root: str, studio_url: str, ssh_host: str='', instance_id: str='', weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
         """Register a user-selected existing local, SSH, or Brev target. This does not provision or install. Use existing setup and Brev CLI skills first; tunnel Studio to loopback. Then call check_compute. Weight paths are actual checkpoint files. Never invent readiness."""
-        return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths)
+        return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths,session_id)
+
+    @mcp.tool(annotations=WRITE)
+    def use_registered_compute(target_id: str, runtime_root: str, studio_url: str, weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
+        """Reuse a user-selected NGS Workbench registry target. Supply the actual RFD4 runtime/checkpoint paths and the Studio session ID from the setup request. No provisioning or installation. Slurm targets are not supported yet. Check compute separately."""
+        return service.register_registry_compute(target_id,runtime_root,studio_url,weight_paths,session_id)
 
     @mcp.tool(annotations=WRITE)
     def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42, generation: dict | None=None) -> dict:

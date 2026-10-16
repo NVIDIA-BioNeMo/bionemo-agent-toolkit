@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import uuid
+import fcntl
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -23,15 +25,42 @@ class Compute:
             raise ValueError('Studio must be a loopback HTTP service; tunnel remote Studio first')
         return cfg
 
-    def register_compute(self, kind, name, runtime_root, studio_url, ssh_host='', instance_id='', weight_paths=None):
+    def register_compute(self, kind, name, runtime_root, studio_url, ssh_host='', instance_id='', weight_paths=None, session_id=None, registry_target=None):
         cfg = {'kind':kind,'instance':name,'remote_root':runtime_root,'studio_url':studio_url,'weight_paths':weight_paths or []}
         if kind == 'ssh': cfg['ssh_host'] = ssh_host
         if kind == 'brev': cfg['instance_id'] = instance_id
+        if registry_target: cfg['registry_target'] = registry_target
         self.validate_config(cfg)
-        path = self.root/'config.json'
-        temp = path.with_suffix('.tmp')
+        path = self.compute_config_path(session_id)
+        temp = path.with_name(uuid.uuid4().hex+'.tmp')
         temp.write_text(json.dumps(cfg,indent=2)); temp.chmod(0o600); temp.replace(path)
-        return self.compute_status()
+        return self.compute_status(session_id)
+
+    def compute_config_path(self, session_id=None):
+        if session_id is None: return self.root/'config.json'
+        from core import safe_session
+        directory = self.root/'sessions'
+        directory.mkdir(exist_ok=True, mode=0o700)
+        return directory/(safe_session(session_id)+'.compute.json')
+
+    def available_compute(self):
+        import registry
+        try:
+            values = registry.targets()
+            return {'available': True, 'targets': [dict(target_id=t['target_id'], provider=t['provider'], title=t['title'], executor=t['executor'], supported=t['executor']=='local_process') for t in values]}
+        except Exception as error:
+            return {'available': False, 'targets': [], 'detail': str(error)}
+
+    def register_registry_compute(self, target_id, runtime_root, studio_url, weight_paths=None, session_id=None):
+        import registry
+        target = registry.resolve(target_id)
+        registry.verify(target)
+        kind = 'ssh' if target['controller_transport']=='ssh' else 'local'
+        # Display IDs from NGS permit dots; the legacy runtime name does not.
+        name = re.sub(r'[^A-Za-z0-9_-]', '-', target_id)
+        return self.register_compute(kind, name, runtime_root, studio_url,
+            ssh_host=(target.get('host_access') or {}).get('alias',''), weight_paths=weight_paths,
+            session_id=session_id, registry_target=target)
 
     def target_exec(self,cfg,command,timeout=60):
         kind=cfg.get('kind','brev')
@@ -55,24 +84,70 @@ class Compute:
     def target_fingerprint(cfg):
         return hashlib.sha256(json.dumps(cfg,sort_keys=True).encode()).hexdigest()
 
-    def compute_status(self):
-        try: cfg=self.config()
-        except (ValueError,KeyError) as error: return {'state':'unregistered','detail':str(error)}
-        result={'state':'registered','kind':cfg.get('kind','brev'),'name':cfg['instance'],'detail':'Registered; readiness has not been checked.'}
-        path=self.root/'compute-check.json'
+    def compute_status(self, session_id=None):
+        try: cfg=self.config(session_id)
+        except (ValueError,KeyError) as error: return self.with_setup({'state':'unregistered','detail':str(error)}, session_id)
+        result={'state':'registered','kind':cfg.get('kind','brev'),'name':cfg.get('registry_target',{}).get('title',cfg['instance']),'detail':'Registered; readiness has not been checked.', 'fingerprint':self.target_fingerprint(cfg), 'source':'NGS Workbench' if cfg.get('registry_target') else 'RFD4 configuration'}
+        path=self.root/('compute-check-'+self.target_fingerprint(cfg)+'.json')
         if path.exists():
             check=json.loads(path.read_text())
             if check.get('fingerprint')==self.target_fingerprint(cfg):
                 result.update(check)
                 age=(datetime.now(timezone.utc)-datetime.fromisoformat(check['checked_at'])).total_seconds()
                 if age>900: result.update(state='registered',detail='Previous readiness check is over 15 minutes old; check again.')
+        jobs = [json.loads(p.read_text()) for p in self.state.glob('*/job.json')]
+        result['active_jobs'] = [j['job_id'] for j in jobs if j.get('target')==cfg and j['status'] in ('queued','submitting','submitted','submission_unknown','running')]
+        return self.with_setup(result,session_id)
+
+    def setup_path(self, session_id):
+        from core import safe_session
+        directory=self.root/'setup';directory.mkdir(exist_ok=True,mode=0o700)
+        return directory/(safe_session(session_id or 'workspace')+'.json')
+
+    def with_setup(self, result, session_id):
+        path=self.setup_path(session_id)
+        if path.exists():
+            record=json.loads(path.read_text())
+            result['setup']=record
+            if record['stage'] in ('connecting','installing','downloading','checking') and result['state']!='ready':
+                result['state']='setting_up'
+            if record['stage']=='action_needed' and result['state']!='ready': result['state']='needs_setup'
         return result
 
-    def check_compute(self):
+    def begin_setup(self, session_id=None):
+        path=self.setup_path(session_id)
+        with (self.root/'setup.lock').open('a') as handle:
+            fcntl.flock(handle,fcntl.LOCK_EX)
+            if path.exists():
+                previous=json.loads(path.read_text())
+                if previous['stage'] not in ('complete','cancelled'): return previous
+            record={'request_id':uuid.uuid4().hex,'session_id':session_id,'stage':'requested','detail':'Continue setup in chat. No machine has been started.', 'updated_at':datetime.now(timezone.utc).isoformat()}
+            temp=path.with_name(uuid.uuid4().hex+'.tmp');temp.write_text(json.dumps(record));temp.replace(path)
+            return record
+
+    def update_setup(self, request_id, stage, detail, session_id=None):
+        if stage not in ('connecting','installing','downloading','checking','action_needed','complete','cancelled'):
+            raise ValueError('Unsupported setup stage')
+        if len(detail)>2000: raise ValueError('Use a short setup status')
+        path=self.setup_path(session_id)
+        with (self.root/'setup.lock').open('a') as handle:
+            fcntl.flock(handle,fcntl.LOCK_EX)
+            record=json.loads(path.read_text())
+            if record['request_id']!=request_id: raise ValueError('Setup request changed; inspect it before continuing')
+            record.update(stage=stage,detail=detail,updated_at=datetime.now(timezone.utc).isoformat())
+            temp=path.with_name(uuid.uuid4().hex+'.tmp');temp.write_text(json.dumps(record));temp.replace(path)
+        return record
+
+    def check_compute(self, session_id=None):
         from core import REVISION
-        cfg=self.config(); checks={}; gpu=''
+        cfg=self.config(session_id); checks={}; gpu=''; connected=False
         try:
+            if cfg.get('registry_target'):
+                import registry
+                registry.verify(cfg['registry_target'])
+                if cfg['kind']=='ssh': registry.inspect(cfg['registry_target']['target_id'])
             self.verify_target(cfg)
+            self.target_exec(cfg,'true'); connected=True
             gpu=self.target_exec(cfg,'nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader').strip()
             checks['gpu']=bool(gpu)
             root=cfg['remote_root']
@@ -82,9 +157,9 @@ class Compute:
             if cfg.get('weight_paths'):
                 self.target_exec(cfg,' && '.join('test -s '+shlex.quote(p) for p in cfg['weight_paths']))
                 checks['weights']=True
-            self.studio('GET','schema'); checks['studio']=True
-            detail='GPU, runtime revision, registered weight files and Studio checked. No inference test was run.' if all(checks.values()) else 'GPU and runtime checked; register weight file paths to verify their presence.'
+            detail='GPU, runtime revision and registered weight files checked. No inference test was run.' if all(checks.values()) else 'GPU and runtime checked; register weight file paths to verify their presence.'
         except Exception as error: detail=str(error)
-        result={'state':'ready' if len(checks)==4 and all(checks.values()) else 'needs_setup','detail':detail,'checks':checks,'gpu':gpu,'checked_at':datetime.now(timezone.utc).isoformat(),'fingerprint':self.target_fingerprint(cfg)}
-        (self.root/'compute-check.json').write_text(json.dumps(result,indent=2))
-        return self.compute_status()
+        result={'state':'ready' if len(checks)==3 and all(checks.values()) else ('needs_setup' if connected else 'disconnected'),'detail':detail,'checks':checks,'gpu':gpu,'checked_at':datetime.now(timezone.utc).isoformat(),'fingerprint':self.target_fingerprint(cfg)}
+        path=self.root/('compute-check-'+self.target_fingerprint(cfg)+'.json')
+        temp=path.with_name(uuid.uuid4().hex+'.tmp'); temp.write_text(json.dumps(result,indent=2)); temp.replace(path)
+        return self.compute_status(session_id)

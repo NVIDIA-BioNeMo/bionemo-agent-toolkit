@@ -2,6 +2,7 @@
 import hashlib
 import json
 import fcntl
+import uuid
 from generation import options
 from core import Backend, safe_id, safe_session
 
@@ -14,7 +15,7 @@ class Service(Backend):
             raise ValueError('Use 1–16 designs and a nonnegative 31-bit seed')
         generation = options(generation)
         snapshot = self.snapshot(session_id, note, {'image_base64': image_base64} if image_base64 else None)
-        plan = dict(snapshot, samples=samples, seed=seed, generation=generation, target=self.config())
+        plan = dict(snapshot, session_id=session_id, samples=samples, seed=seed, generation=generation, target=self.config(session_id))
         plan['plan_checksum'] = self.checksum(plan)
         (self.state / plan['snapshot_id'] / 'plan.json').write_text(json.dumps(plan, indent=2))
         return self.public_plan(plan)
@@ -31,15 +32,50 @@ class Service(Backend):
         plan = self.read(plan_id, 'plan.json')
         if plan_checksum != plan['plan_checksum'] or self.checksum(plan) != plan_checksum:
             raise ValueError('Plan changed; prepare and review again')
-        if plan['target'] != self.config():
-            raise ValueError('Compute configuration changed; prepare and review again')
         source = self.state / safe_id(plan_id) / 'input.cif'
         if hashlib.sha256(source.read_bytes()).hexdigest() != plan['sha256']:
             raise ValueError('Snapshot was modified; prepare and review again')
         # One stable job per approved plan, even across separate MCP processes.
         with (self.state / 'submission.lock').open('a') as handle:
             fcntl.flock(handle, fcntl.LOCK_EX)
+            # Reopening/retrying an existing run must never submit it elsewhere.
+            if (self.state/plan_id/'job.json').exists():
+                return self.read(plan_id, 'job.json')
+            if plan['target'] != self.config(plan.get('session_id')):
+                raise ValueError('Compute configuration changed; prepare and review again')
+            status = self.check_compute(plan.get('session_id'))
+            if status['state'] != 'ready':
+                raise ValueError('Compute is not ready: '+status['detail'])
             return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id, target=plan['target'], generation=plan.get('generation'))
+
+    def save_draft(self, session_id, note='', image_base64=None, settings=None):
+        """Save even incomplete designs; validation is required only for review."""
+        safe_session(session_id)
+        if len(note)>20000 or len(json.dumps(settings))>10000: raise ValueError('Draft notes are too large')
+        import base64
+        if image_base64:
+            if len(image_base64)>14000000 or not base64.b64decode(image_base64,validate=True).startswith(b'\x89PNG\r\n\x1a\n'):
+                raise ValueError('Use a PNG under 10 MB')
+        exported=self.studio('POST',f'sessions/{session_id}/export')
+        from datetime import datetime, timezone
+        record={'draft_id':session_id,'revision':exported['revision'],'cif':exported['cif'],'note':note,'image_base64':image_base64,'settings':settings,'saved_at':datetime.now(timezone.utc).isoformat()}
+        try: record['target']=self.config(session_id)
+        except ValueError: pass
+        directory=self.root/'drafts'; directory.mkdir(exist_ok=True,mode=0o700)
+        path=directory/(session_id+'.json')
+        temp=directory/(uuid.uuid4().hex+'.tmp');temp.write_text(json.dumps(record));temp.chmod(0o600);temp.replace(path)
+        return {k:record[k] for k in ('draft_id','revision','saved_at')}
+
+    def list_drafts(self):
+        return {'drafts':[{k:v[k] for k in ('draft_id','revision','saved_at','note')} for p in sorted((self.root/'drafts').glob('*.json'),key=lambda p:p.stat().st_mtime,reverse=True) for v in [json.loads(p.read_text())]]}
+
+    def restore_draft(self, draft_id):
+        record=json.loads((self.root/'drafts'/(safe_session(draft_id)+'.json')).read_text())
+        result=self.import_cif(record['cif'])
+        if record.get('target'):
+            path=self.compute_config_path(result['session_id'])
+            path.write_text(json.dumps(record['target']));path.chmod(0o600)
+        return {'session_id':result['session_id'],'note':record['note'],'image_base64':record.get('image_base64'),'settings':record.get('settings')}
 
     def overview(self):
         jobs = [json.loads(p.read_text()) for p in self.state.glob('*/job.json')]

@@ -26,6 +26,7 @@ def open_result(job_id):
     service.collect(job_id)
     return service.viewer_payload(service.open_result(job_id))
 ALLOWED = {'open_run_structure':service.open_run_structure,'list_results':service.results,'download_results':service.download_results,'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
+           'begin_compute_setup':service.begin_setup,'save_draft':service.save_draft,'list_drafts':service.list_drafts,'restore_draft':service.restore_draft,'list_registered_compute':service.available_compute,
            'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
            'set_condition':service.set_condition,'prepare_design':service.prepare,
            'studio_request':lambda **kw: __import__('studio_bridge').request(service,**kw),'get_compute_status':service.compute_status,'check_compute':service.check_compute,'execute_rfd4_plan':service.execute,'check_rfd4_job':service.status}
