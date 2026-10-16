@@ -11,4 +11,5 @@
 .rfd-compute-panel button:disabled{opacity:.5;cursor:default}#rfd-setup{background:#285fd3;border-color:#5989ef}#rfd-targets button,#rfd-drafts button{display:block;width:100%;text-align:left;margin-top:6px}
 #rfd-compute-hint{padding:8px 0 0;color:#bfcada;font-size:12px}#rfd-compute-hint button{margin-left:7px}#rfd-compute-hint[hidden]{display:none}#rfd-draft-status{color:#b9c6bd;font-size:11px}
 .app-shell>header .header-actions{grid-template-columns:repeat(5,auto)}
+.status-bar #guide-link{margin-left:auto}.status-bar a{flex-shrink:0}
 @media(max-width:600px){.app-shell>header .header-actions{grid-template-columns:repeat(3,minmax(0,1fr))}#rfd-compute-box>summary{padding:7px 6px}.rfd-compute-panel{max-height:65vh;overflow:auto}}

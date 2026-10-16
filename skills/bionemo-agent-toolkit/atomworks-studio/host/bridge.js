@@ -204,6 +204,22 @@ async function initialize() {
   }
   storage.setItem("annotation-studio-viewer-v2", "molstar");
   storage.setItem("annotation-studio-pending-example", "protein_binder");
+  const help = document.createElement('a');
+  help.id = 'rfd-help';
+  help.textContent = 'Help';
+  help.href = 'https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit/issues';
+  help.target = '_blank';
+  help.rel = 'noopener noreferrer';
+  help.title = 'Get help or report an issue on GitHub';
+  help.onclick = async event => {
+    if (local || !hostCapabilities.openLinks) return;
+    event.preventDefault();
+    try {
+      const result = await rpc('ui/open-link', {url: help.href});
+      if (result?.isError) throw Error('Could not open GitHub. Use the Help link to copy its address.');
+    } catch (error) { message(error.message); }
+  };
+  document.getElementById('guide-link').after(help);
   const bar = document.createElement("section");
   bar.id = "rfd-host";
   bar.innerHTML = `<span id="rfd-draft-status" role="status"></span><details><summary>Saved drafts</summary><button id="rfd-drafts-refresh">Refresh drafts</button><div id="rfd-drafts"></div></details><details><summary>Design notes</summary><label>Notes <input id="rfd-note" placeholder="Describe what you want to design"></label><label>Image note (PNG) <input id="rfd-image" type="file" accept="image/png"></label><p>Image notes accompany the design. Molecular annotations determine the model's constraints.</p></details><div id="rfd-plan" hidden><span id="rfd-plan-text"></span> <button id="rfd-generate">Generate in chat</button></div><details><summary>Runs</summary><button id="rfd-runs-refresh">Refresh runs</button><div id="rfd-runs"></div></details><p id="rfd-message" role="status"></p><textarea id="rfd-chat-prompt" aria-label="Request to copy into chat" hidden readonly></textarea>`;
