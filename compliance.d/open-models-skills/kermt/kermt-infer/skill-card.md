@@ -4,7 +4,7 @@ Runs molecular property predictions with a finetuned KERMT checkpoint on a SMILE
 This skill is ready for commercial/non-commercial use. <br>
 
 ## Owner
-NVIDIA (evax@nvidia.com) <br>
+NVIDIA BioNeMo <bionemofeedback@nvidia.com> <br>
 
 ### License/Terms of Use: <br>
 Apache-2.0 <br>

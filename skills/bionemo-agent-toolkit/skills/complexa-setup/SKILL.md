@@ -3,8 +3,8 @@ name: complexa-setup
 description: >
   First-time setup, environment configuration, and model-weight installation for
   Proteina-Complexa. Reach for this skill whenever the user says "set up complexa",
-  "install complexa", "configure my environment file", "first-time setup", "what models do I
-  have installed", "what's in my environment file", "download model weights", "download
+  "install complexa", "configure my .env", "first-time setup", "what models do I
+  have installed", "what's in my .env", "download model weights", "download
   Complexa / AF2 / RF3 / ProteinMPNN / LigandMPNN / ESM2 / ESMFold checkpoints",
   "preflight my GPU", "verify environment", "complexa init", "complexa download",
   "complexa download --status", "complexa validate env", or any time a fresh
@@ -28,7 +28,7 @@ user (or a future agent) can re-read instead of re-deriving state.
 
 | Step | Preferred path | Why |
 |---|---|---|
-| `.env` creation (Step 2) | **File edit** (copying the env template + 3 line swaps) or `complexa init` | `complexa init` is a thin wrapper around `cp + 3 regex swaps` (`_swap_runtime_in_env` in `cli_runner.py`). Either path works; pick CLI for new humans, direct edit for agents. |
+| `.env` creation (Step 2) | **File edit** (`cp .env_example .env` + 3 line swaps) or `complexa init` | `complexa init` is a thin wrapper around `cp + 3 regex swaps` (`_swap_runtime_in_env` in `cli_runner.py`). Either path works; pick CLI for new humans, direct edit for agents. |
 | `.env` value edits (Step 3) | **File edit** (StrReplace `LOCAL_CODE_PATH=…` etc.) | No CLI for this — the values are user-specific paths. |
 | Download model weights (Step 4) | **CLI** (`complexa download --…`) | Dispatches to `env/download_startup.sh` (~1000 lines of bash with NGC URLs, retries, checksum-style skip-if-present). Don't try to replicate. |
 | Validate env (Step 5) | **CLI** (`complexa validate env`) or `test -f .env && test -d $DATA_PATH` | CLI prints a nicer report; the manual check is one-liner-safe. |

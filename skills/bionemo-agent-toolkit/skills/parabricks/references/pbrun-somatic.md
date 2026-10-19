@@ -1,25 +1,18 @@
 # Parabricks somatic
 
-Use this reference for NVIDIA Parabricks `pbrun somatic` — end-to-end tumor-normal or tumor-only somatic pipeline from FASTQ or BAM/CRAM inputs to a somatic VCF.
-
 ## First Steps
 
-1. Confirm the Parabricks version or container tag.
-2. Confirm tumor-normal or tumor-only workflow support for the selected version.
-3. Collect required inputs:
+1. Confirm tumor-normal or tumor-only workflow support for the selected version.
+2. Collect required inputs:
    - Reference FASTA.
    - Tumor BAM/CRAM or FASTQ inputs as supported.
    - Normal BAM/CRAM or FASTQ inputs when applicable.
    - Output VCF or output directory.
    - Somatic resources such as germline resource, panel of normals, known-sites,
      or intervals when required by the workflow.
-4. Ask for tumor and normal sample names explicitly.
-5. For runtime readiness, see `runtime-environment.md`.
+3. Ask for tumor and normal sample names explicitly.
 
 ## Command Shape
-
-Wrap this in the standard container invocation — see
-[`tool-index.md`](tool-index.md#container-invocation).
 
 ```bash
 pbrun somatic \
@@ -30,6 +23,20 @@ pbrun somatic \
 
 Verify exact input mode, resources, output, interval, and filtering flags
 against the selected version.
+
+Optional performance controls, inherited from the alignment and Mutect stages
+of the pipeline:
+
+- `--max-read-length-on-gpu`: keep the default 512 bp unless many reads are
+  longer than 512 bp. Valid values are 512 or 1024. Reads above the selected
+  value still use CPU recovery, and processing longer reads at all also requires
+  raising `--max-read-length`.
+- `--run-partition`: genome/Mutect partitions, not fq2bam GPU-process partitioning.
+- `--bwa-gpu-num-per-partition` (default: 2): BWA GPUs per worker when
+  `--run-partition` is set; must divide `--num-gpus`.
+- `--gpu-num-per-partition`: Mutect GPUs per partition.
+- `--num-streams-per-gpu` (default: 1): Mutect streams, not a partition flag.
+- `--mutect-low-memory` and `--low-memory` for memory-pressure troubleshooting.
 
 ## Somatic Pipeline Option Mapping
 
@@ -50,7 +57,6 @@ single-tool mapping.
 | Normal sample name | Normal sample-name flag documented for the selected version | Must match BAM read group sample names where applicable. |
 | BWA-MEM read group/options | Read group flags and `--bwa-options` where documented | Do not invent sample or read group values. |
 | GATK/Picard duplicate metrics | `--out-duplicate-metrics` or selected metrics flag | Verify output support for the selected version. |
-| GATK `BaseRecalibrator --known-sites` | `--knownSites` | Repeatable known-sites VCF input when BQSR is used. |
 | Mutect2 `--germline-resource` | `--mutect-germline-resource` | Germline resource VCF when used. |
 | Mutect2 `--panel-of-normals`, `--pon` | No direct `pbrun somatic` equivalent | Use a `mutectcaller` PON workflow with `prepon`/`postpon` when required. |
 | Mutect2/DeepSomatic output VCF | `--out-vcf` | Output somatic VCF. |
@@ -63,20 +69,21 @@ single-tool mapping.
 | --- | --- |
 | End-to-end tumor/normal input-mode flags | Parabricks combines preprocessing and somatic calling stages. |
 | `prepon`/`postpon` PON handoff flags | Parabricks-specific decomposition of PON processing. |
+| `--max-read-length`, `--min-read-length`, `--max-read-length-on-gpu` | Parabricks FASTQ filtering/alignment bounds and GPU read-length cap (512 or 1024 bp). |
+| `--run-partition` | Genome/Mutect partitions (one process per partition). Not fq2bam GPU-process partitioning. |
+| `--bwa-gpu-num-per-partition` | BWA GPUs per worker when `--run-partition` is set (default: 2; must divide `--num-gpus`). |
+| `--gpu-num-per-partition` | Mutect GPUs per partition. |
+| `--num-streams-per-gpu` | Mutect streams (default: 1). Not a partition flag. |
+| `--mutect-low-memory` | Parabricks low-memory mode for the Mutect stage. |
 | GPU alignment/calling stream, queue, and memory controls | Parabricks GPU runtime tuning. |
 | GPU write/sort/storage controls | Parabricks accelerated output pipeline. |
 | Caller-specific TensorRT/model flags where documented | Parabricks model deployment differs from CPU/GATK or Google runtimes. |
-| `--logfile`, `--x3` | Parabricks wrapper logging and full-argument display. |
-| `--with-petagene-dir`, `--keep-tmp`, `--no-seccomp-override`, `--preserve-file-symlinks` | Parabricks wrapper filesystem/container controls. |
-| `--num-gpus` | Parabricks GPU count. |
 
 ## Validation
 
 - Tumor/normal labels and sample relationships are correct.
 - Reference and resources match the same build.
 - Output VCF or output directory exists.
-- Logs do not show sample-label, resource, reference, read group, mount, CUDA,
-  or memory errors.
 
 ## Guardrails
 
@@ -84,7 +91,3 @@ single-tool mapping.
 - Do not invent tumor/normal relationships, panel-of-normals, or resource files.
 - If the user asks for a specific caller, consider `mutectcaller` or
   `deepsomatic` instead.
-
-## Key References
-
-- <https://docs.nvidia.com/clara/parabricks/latest/documentation/tooldocs/man_somatic.html>
