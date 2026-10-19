@@ -33,6 +33,8 @@
             "Write"
         ],
         "brandColor": "#76b900",
+        "composerIcon": "./assets/nvidia.png",
+        "logo": "./assets/nvidia.png",
         "defaultPrompt": [
             "Predict the structure of insulin with Boltz2",
             "Design a de novo binder for a target with RFdiffusion and ProteinMPNN",
