@@ -1,4 +1,4 @@
-"""Registry reuse, isolated selection, durable drafts and safe recovery."""
+"""Standalone registry, isolated selection, durable drafts and safe recovery."""
 import json
 import os
 from pathlib import Path
@@ -19,31 +19,62 @@ class RegistryContract(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.s=Service(self.tmp.name)
+        identity=patch('registry.effective_access',side_effect=lambda alias,run: {'alias':alias,'host':alias})
+        identity.start();self.addCleanup(identity.stop)
     def register(self, session=None, name='gpu'):
         return self.s.register_compute('ssh',name,'/srv/rfd4','http://127.0.0.1:18765',ssh_host=name,weight_paths=['/weights/model.ckpt'],session_id=session)
-    def test_reuses_registry_reference_and_does_not_provision(self):
-        with patch('registry.resolve',return_value=TARGET), patch('registry.verify'), patch.object(self.s,'run',side_effect=AssertionError('no provisioning')):
-            self.s.register_registry_compute('gpu.example','/srv/rfd4','http://127.0.0.1:18765',session_id='one')
-        cfg=self.s.config('one')
-        self.assertEqual(cfg['registry_target'],TARGET)
-        self.assertEqual(cfg['ssh_host'],'gpu')
-        self.assertEqual(self.s.compute_status('one')['source'],'NGS Workbench')
-        self.assertEqual(self.s.compute_status('two')['state'],'unregistered')
-    def test_slurm_is_not_silently_run_on_login_node(self):
-        with patch('registry.targets',return_value=[dict(TARGET,executor='slurm')]):
-            with self.assertRaisesRegex(ValueError,'Slurm'): registry.resolve('gpu.example')
-    def test_changed_registry_record_rejected(self):
-        with patch('registry.resolve',return_value=dict(TARGET,config_hash='changed')):
-            with self.assertRaisesRegex(ValueError,'configuration changed'): registry.verify(TARGET)
+    def test_owns_registry_and_selection_without_external_plugin(self):
+        self.register()
+        self.assertTrue(self.s.available_compute()['available'])
+        self.assertEqual(self.s.available_compute()['targets'][0]['target_id'],'gpu')
+        with patch.object(self.s,'target_exec',side_effect=AssertionError('no remote execution')):
+            self.s.register_registry_compute('gpu',session_id='one')
+        self.assertEqual(self.s.compute_status('one')['source'],'BioNeMo')
+        self.assertEqual(self.s.config('one')['ssh_host'],'gpu')
+    def test_changed_catalog_record_requires_reselection(self):
+        self.register();cfg=self.s.config('one')
+        self.s.register_compute('ssh','gpu','/other','http://127.0.0.1',ssh_host='gpu')
+        with self.assertRaisesRegex(ValueError,'configuration changed'): registry.Catalog(self.s.root).verify(cfg)
     def test_changed_ssh_alias_rejected_for_old_job(self):
-        from unittest.mock import Mock
-        inspection=Mock();inspection.effective_access.return_value={'alias':'gpu','host':'different'}
-        with patch('registry.modules',return_value=(None,inspection,None,None,None)):
-            with self.assertRaisesRegex(ValueError,'SSH identity changed'): registry.verify(TARGET,require_registry=False)
-    def test_missing_optional_registry_does_not_break_status(self):
-        with patch.dict(os.environ,{'NGS_WORKBENCH_MCP_ROOT':''}):
-            self.assertFalse(self.s.available_compute()['available'])
-        self.assertEqual(self.s.compute_status()['state'],'unregistered')
+        with patch('registry.effective_access',return_value={'alias':'gpu','host':'different'}):
+            with self.assertRaisesRegex(ValueError,'SSH identity changed'):
+                self.s.verify_target({'kind':'ssh','registry_target':{'host_access':{'alias':'gpu','host':'original'}}})
+    def test_empty_catalog_needs_no_external_environment(self):
+        with patch.dict(os.environ,{},clear=True):
+            self.assertEqual(self.s.available_compute(),{'available':True,'targets':[]})
+    def test_migrates_only_owned_config_and_preserves_immutable_job(self):
+        cfg={'kind':'ssh','instance':'gpu','remote_root':'/srv/rfd4','studio_url':'http://127.0.0.1',
+             'ssh_host':'gpu','registry_target':dict(TARGET,host_access={'alias':'gpu','host':'gpu'})}
+        path=self.s.root/'config.json';path.write_text(json.dumps(cfg))
+        jobdir=self.s.state/'old';jobdir.mkdir();job=jobdir/'job.json';job.write_text(json.dumps({'target':cfg}))
+        before=job.read_bytes()
+        migrated=self.s.config()
+        self.assertNotIn('registry_target',migrated)
+        self.assertEqual(migrated['ssh_access'],cfg['registry_target']['host_access'])
+        self.assertEqual(job.read_bytes(),before)
+        self.assertTrue(path.with_suffix('.json.before-standalone').exists())
+        self.assertEqual(self.s.config(),migrated)
+        self.assertEqual(self.s.compute_status()['state'],'registered')
+    def test_legacy_scheduler_target_cannot_migrate(self):
+        cfg={'instance':'gpu','registry_target':dict(TARGET,executor='slurm')}
+        (self.s.root/'config.json').write_text(json.dumps(cfg))
+        with self.assertRaisesRegex(ValueError,'scheduler'): self.s.config()
+    def test_migration_preserves_distinct_session_targets_with_same_name(self):
+        for name,host in [('a','host-a'),('b','host-b')]:
+            cfg={'kind':'ssh','instance':'gpu','remote_root':'/srv','studio_url':'http://127.0.0.1','ssh_host':host}
+            self.s.compute_config_path(name).write_text(json.dumps(cfg))
+        self.s.available_compute()
+        self.assertNotEqual(self.s.config('a')['target_id'],self.s.config('b')['target_id'])
+    def test_missing_editor_has_actionable_error(self):
+        with patch.dict(os.environ,{},clear=True):
+            with self.assertRaisesRegex(ValueError,'CPU editor is not configured'): self.s.studio_url()
+    def test_inspection_is_connection_only(self):
+        self.register()
+        with patch.object(self.s,'target_exec',return_value='') as execute:
+            self.assertTrue(self.s.inspect_compute_target('gpu')['connected'])
+            self.assertEqual(execute.call_args.args[1],'true')
+        with patch.object(self.s,'target_exec',side_effect=RuntimeError('offline')):
+            self.assertFalse(self.s.inspect_compute_target('gpu')['connected'])
     def test_session_selection_isolated_from_global_default(self):
         self.register()
         first=self.s.config('one')
@@ -109,3 +140,13 @@ class RegistryContract(unittest.TestCase):
         self.register('one',name='different')
         with patch.object(self.s,'check_compute',side_effect=AssertionError('Do not recheck or resubmit an existing job')):
             self.assertEqual(self.s.execute(plan['snapshot_id'],plan['plan_checksum']),job)
+
+class SSHIdentityContract(unittest.TestCase):
+    def test_resolution_is_local_and_tracks_transport_changes(self):
+        from unittest.mock import Mock
+        output='hostname gpu.example\nuser ubuntu\nport 22\nstricthostkeychecking true\nidentityfile /keys/one\n'
+        run=Mock(return_value=output)
+        first=registry.effective_access('gpu',run)
+        self.assertEqual(run.call_args.args[0],['ssh','-G','-o','BatchMode=yes','--','gpu'])
+        run.return_value=output.replace('/keys/one','/keys/two')
+        with self.assertRaisesRegex(ValueError,'SSH identity changed'): registry.verify_access(first,run)

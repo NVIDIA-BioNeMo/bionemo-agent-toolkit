@@ -40,9 +40,9 @@ is needed. The local CSP permits WASM compilation, not JavaScript eval. The
 actual embedded host must also support WASM; local browser success is not proof
 of host rendering. Requalify the host when updating Studio or its dependencies.
 
-## CPU editor and NGS registry reuse
+## CPU editor and self-contained compute
 
-Compute appears beside Save CIF. Its panel shows registration, timestamped model
+Compute appears in the top toolbar. Its panel shows registration, timestamped model
 readiness, active runs, and chat-based setup. The first-run reminder is dismissible.
 No provider lifecycle command runs from the app. Host messaging is capability
 checked; the standalone preview provides a copyable request.
@@ -62,22 +62,20 @@ reload. This avoids relying solely on upstream's two-hour session retention.
 Session-specific compute selection is captured independently; changing another
 session's selection does not retarget a draft or an existing job.
 
-To reuse the installed NGS Workbench registry, set `NGS_WORKBENCH_MCP_ROOT` to its
-`mcp` directory. The adapter imports its existing `ComputeTarget` schema and SSH
-identity resolver, and invokes its authenticated daemon client in the NGS-managed
-Python environment. It does not copy or modify registry JSON, implement another
-infrastructure catalog, or pass daemon tokens to the browser. The optional
-`NGS_ANALYSIS_WORKBENCH_STATE_DIR` and `CODEX_HOME` must match NGS's environment.
-This bridge is qualified against NGS Workbench 0.2.18 and fails visibly if unavailable.
+BioNeMo owns `compute-targets.json` in its private state directory. It has no
+external plugin, registry daemon, Python environment or authentication dependency.
+Agent tools register existing local, SSH or Brev targets, list and inspect them,
+and select a saved target for a Studio session. Registration resolves SSH identity
+locally; inspection tests connectivity; readiness separately checks GPU, runtime
+and weights. Credentials stay in SSH/Brev configuration. Local means the tool-server
+machine. Brev creation remains in chat through the existing CLI/setup skills.
 
-Register existing hosts using NGS's `configure_ssh_target`. In RFD4, agent-only
-`use_registered_compute` binds that target's ID, provider, configuration hash and
-SSH identity to actual runtime/checkpoint paths and the current `session_id`.
-Readiness reuses NGS's bounded host inspection before RFD4-specific checks.
-Slurm registrations remain visible but cannot be selected: this adapter currently
-supports direct local/SSH execution only, and must never run a Slurm workflow on
-the login node by substitution. Legacy direct SSH/Brev registration still works
-when NGS is absent. Credentials remain in the existing SSH/Brev environment.
+The catalog uses versioned JSON, atomic writes, restrictive permissions and process
+locks. Existing selected configurations migrate from plugin-owned files, retaining
+a backup; migration never reads another plugin's registry. Old plans and jobs remain
+unchanged and continue checking their pinned SSH identity. New plans require fresh
+readiness evidence after migration. Changing a catalog target requires reselecting
+and reviewing it; existing jobs remain attached to their original target.
 
 Setup requests have durable IDs. Repeated clicks resume the same unfinished
 request. The agent reports actual tool-derived steps through `update_compute_setup`;

@@ -153,15 +153,16 @@ async function setupCompute(targetId = null) {
     const draft = await saveDraft();
     const setup = await tool('begin_compute_setup', {session_id:activeSession});
     const context = activeSession ? `For Studio session_id ${activeSession}${draft ? ', saved draft '+draft.draft_id : ''}. ` : '';
-    await ask(`Setup request_id ${setup.request_id}. Report progress using update_compute_setup with this request_id and session_id, based on actual tool results. ` + context + (targetId ? `Help me use NGS registry target ${targetId} for RFD4. ` : 'Help me connect or manage compute for RFD4 Studio. ') + 'Use the NGS Workbench compute registry first: list_compute_targets, inspect_compute_target, and configure_ssh_target for an existing host. Reuse the selected target with use_registered_compute and this session_id; keep RFD4 runtime and checkpoint readiness separate. If no suitable target exists, offer the tool-server GPU, an existing SSH machine, or Brev. Use the existing Brev CLI and upstream RFD4 setup skills. Before creating a Brev machine, show its organization, GPU, and available price; do not create a duplicate on retry. Never stop a shared machine without discussing its active jobs. Finish with check_compute for this session. Preserve the draft and resume this session.');
+    await ask(`Setup request_id ${setup.request_id}. Report progress using update_compute_setup with this request_id and session_id, based on actual tool results. ` + context + (targetId ? `Help me use saved BioNeMo compute target ${targetId} for RFD4. ` : 'Help me connect or manage compute for RFD4 Studio. ') + 'Use this plugin’s list_registered_compute and inspect_compute_target tools. Register an existing host with register_rfd4_compute. Reuse the selected target with use_registered_compute and this session_id; keep RFD4 runtime and checkpoint readiness separate. If no suitable target exists, offer the tool-server GPU, an existing SSH machine, or Brev. Use the existing Brev CLI and upstream RFD4 setup skills. Before creating a Brev machine, show its organization, GPU, and available price; do not create a duplicate on retry. Never stop a shared machine without discussing its active jobs. Finish with check_compute for this session. Preserve the draft and resume this session.');
   } finally { setupPending = false; }
 }
 async function registeredTargets() {
   const box = document.getElementById('rfd-targets');
-  box.textContent = 'Checking NGS Workbench registry…';
+  box.textContent = 'Checking saved compute…';
   const data = await tool('list_registered_compute');
   box.replaceChildren();
   if (!data.available) { box.textContent = data.detail; return; }
+  if (!data.targets.length) box.textContent = 'No machines saved yet. Choose Set up in chat to connect one.';
   for (const t of data.targets) {
     const b = document.createElement('button');
     b.textContent = `${t.title}${t.supported ? '' : ' · Slurm not supported yet'}`;
@@ -239,7 +240,7 @@ async function initialize() {
   generateSection.id = 'rfd-generate-section';
   generateSection.className = 'card';
   generateSection.dataset.editorCard = 'main';
-  generateSection.innerHTML = '<summary>Generate with RFD4-Proteína</summary>';
+  generateSection.innerHTML = '<summary>Generate with RFD4-Proteina</summary>';
   generateSection.append(generation, document.getElementById('rfd-plan'));
   document.querySelector('.editor-document').after(generateSection);
   for (const name of ['backbone','latent']) document.getElementById(`rfd-${name}-noise`).addEventListener('input', e => { document.getElementById(`rfd-${name}-value`).value = e.target.value; });

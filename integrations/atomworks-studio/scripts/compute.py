@@ -29,8 +29,11 @@ class Compute:
         cfg = {'kind':kind,'instance':name,'remote_root':runtime_root,'studio_url':studio_url,'weight_paths':weight_paths or []}
         if kind == 'ssh': cfg['ssh_host'] = ssh_host
         if kind == 'brev': cfg['instance_id'] = instance_id
-        if registry_target: cfg['registry_target'] = registry_target
+        if registry_target: raise ValueError('External registry references are no longer accepted')
         self.validate_config(cfg)
+        import registry
+        if kind == 'ssh': cfg['ssh_access'] = registry.effective_access(ssh_host, self.run)
+        cfg = registry.Catalog(self.root).put(cfg)
         path = self.compute_config_path(session_id)
         temp = path.with_name(uuid.uuid4().hex+'.tmp')
         temp.write_text(json.dumps(cfg,indent=2)); temp.chmod(0o600); temp.replace(path)
@@ -45,22 +48,34 @@ class Compute:
 
     def available_compute(self):
         import registry
-        try:
-            values = registry.targets()
-            return {'available': True, 'targets': [dict(target_id=t['target_id'], provider=t['provider'], title=t['title'], executor=t['executor'], supported=t['executor']=='local_process') for t in values]}
-        except Exception as error:
-            return {'available': False, 'targets': [], 'detail': str(error)}
+        catalog = registry.Catalog(self.root)
+        for path in [self.root/'config.json', *sorted((self.root/'sessions').glob('*.compute.json'))]:
+            if path.exists(): catalog.migrate(path)
+        return {'available': True, 'targets': [dict(target_id=k, provider='BioNeMo',
+            title=v.get('title',v['instance']), executor='local_process', supported=True, kind=v['kind'])
+            for k,v in catalog.read()['targets'].items()]}
 
-    def register_registry_compute(self, target_id, runtime_root, studio_url, weight_paths=None, session_id=None):
+    def register_registry_compute(self, target_id, runtime_root=None, studio_url=None, weight_paths=None, session_id=None):
         import registry
-        target = registry.resolve(target_id)
-        registry.verify(target)
-        kind = 'ssh' if target['controller_transport']=='ssh' else 'local'
-        # Display IDs from NGS permit dots; the legacy runtime name does not.
-        name = re.sub(r'[^A-Za-z0-9_-]', '-', target_id)
-        return self.register_compute(kind, name, runtime_root, studio_url,
-            ssh_host=(target.get('host_access') or {}).get('alias',''), weight_paths=weight_paths,
-            session_id=session_id, registry_target=target)
+        cfg = registry.Catalog(self.root).resolve(target_id)
+        # Selection reuses saved settings; changing them requires explicit registration.
+        if any(value is not None and value != cfg[key] for key,value in
+               [('remote_root',runtime_root),('studio_url',studio_url),('weight_paths',weight_paths)]):
+            raise ValueError('Register updated runtime paths before selecting this target')
+        self.validate_config(cfg)
+        self.verify_target(cfg)
+        registry.atomic(self.compute_config_path(session_id), cfg)
+        return self.compute_status(session_id)
+
+    def inspect_compute_target(self, target_id):
+        import registry
+        cfg = registry.Catalog(self.root).resolve(target_id)
+        try:
+            self.verify_target(cfg)
+            self.target_exec(cfg, 'true', timeout=15)
+            return {'target_id':target_id, 'connected':True, 'detail':'Connection checked; model readiness is checked separately.'}
+        except Exception as error:
+            return {'target_id':target_id, 'connected':False, 'detail':str(error)}
 
     def target_exec(self,cfg,command,timeout=60):
         kind=cfg.get('kind','brev')
@@ -87,7 +102,7 @@ class Compute:
     def compute_status(self, session_id=None):
         try: cfg=self.config(session_id)
         except (ValueError,KeyError) as error: return self.with_setup({'state':'unregistered','detail':str(error)}, session_id)
-        result={'state':'registered','kind':cfg.get('kind','brev'),'name':cfg.get('registry_target',{}).get('title',cfg['instance']),'detail':'Registered; readiness has not been checked.', 'fingerprint':self.target_fingerprint(cfg), 'source':'NGS Workbench' if cfg.get('registry_target') else 'RFD4 configuration'}
+        result={'state':'registered','kind':cfg.get('kind','brev'),'name':cfg.get('title',cfg['instance']),'detail':'Registered; readiness has not been checked.', 'fingerprint':self.target_fingerprint(cfg), 'source':'BioNeMo'}
         path=self.root/('compute-check-'+self.target_fingerprint(cfg)+'.json')
         if path.exists():
             check=json.loads(path.read_text())
@@ -142,10 +157,8 @@ class Compute:
         from core import REVISION
         cfg=self.config(session_id); checks={}; gpu=''; connected=False
         try:
-            if cfg.get('registry_target'):
-                import registry
-                registry.verify(cfg['registry_target'])
-                if cfg['kind']=='ssh': registry.inspect(cfg['registry_target']['target_id'])
+            import registry
+            registry.Catalog(self.root).verify(cfg)
             self.verify_target(cfg)
             self.target_exec(cfg,'true'); connected=True
             gpu=self.target_exec(cfg,'nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader').strip()

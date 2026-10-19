@@ -1,80 +1,98 @@
-"""Optional adapter to the installed NGS Workbench registry, never a copied catalog.
-
-Set NGS_WORKBENCH_MCP_ROOT to that plugin's mcp directory. Use its own
-authenticated client, target schema and SSH identity resolver. No registry
-files, tokens or credentials are exposed to the app.
-"""
-import os
-from pathlib import Path
-import sys
-import subprocess
+"""BioNeMo-owned, process-safe compute catalog. No external plugin or daemon."""
+import fcntl
+import hashlib
 import json
+from pathlib import Path
+import re
+import uuid
 
 
-def request(path, payload):
-    """Let NGS start its daemon using its own complete runtime dependencies."""
-    if path not in ('/targets', '/targets/inspect'): raise ValueError('Unsupported registry operation')
-    root=Path(os.environ['NGS_WORKBENCH_MCP_ROOT']).expanduser().resolve()
-    version=(root/'PLUGIN_VENV_VERSION').read_text().strip()
-    if not version or '/' in version or '..' in version: raise ValueError('Invalid NGS runtime version')
-    codex=Path(os.environ.get('CODEX_HOME',str(Path.home()/'.codex')))
-    python=codex/'cache/ngs-analysis-workbench/venvs'/version/'bin/python'
-    if not python.is_file(): raise ValueError('Open NGS Workbench once to initialize its compute registry runtime')
-    env=dict(os.environ, PYTHONPATH=str(root))
-    code="import json,sys; from ngs_workbench_daemon import client; v=json.load(sys.stdin); print(json.dumps(client.request(v['path'],v['payload'],role='compute',timeout=25)))"
-    result=subprocess.run([str(python),'-c',code],input=json.dumps({'path':path,'payload':payload}),capture_output=True,text=True,timeout=50,env=env,cwd=root)
-    if result.returncode: raise ValueError('NGS registry unavailable: '+result.stderr[-1500:])
-    return json.loads(result.stdout)
+def atomic(path, value):
+    temp = path.with_name(uuid.uuid4().hex + '.tmp')
+    try:
+        temp.write_text(json.dumps(value, indent=2))
+        temp.chmod(0o600)
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
-def modules():
-    root = os.environ.get('NGS_WORKBENCH_MCP_ROOT')
-    if not root:
-        raise ValueError('NGS Workbench registry is not connected. Existing SSH and Brev setup remain available in chat.')
-    path = Path(root).expanduser().resolve()
-    if not (path / 'ngs_workbench_daemon/client.py').is_file():
-        raise ValueError('NGS Workbench MCP directory is unavailable')
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
-    from ngs_workbench_daemon import client, inspection
-    from ngs_workbench_daemon.protocol import LOCAL_TARGET_PAYLOAD
-    from ngs_workbench_daemon.state import daemon_directory
-    from ngs_workbench_mcp.compute_targets import ComputeTarget
-    return client, inspection, LOCAL_TARGET_PAYLOAD, daemon_directory, ComputeTarget
+def effective_access(alias, run):
+    # ssh -G resolves configuration without contacting the remote machine.
+    output = run(['ssh', '-G', '-o', 'BatchMode=yes', '--', alias], timeout=10)
+    values = {}
+    for line in output.splitlines():
+        key, _, value = line.partition(' ')
+        values.setdefault(key, []).append(value)
+    one = lambda key, default='': values.get(key, [default])[0]
+    if not one('hostname') or not one('user') or not one('port'):
+        raise ValueError('Cannot resolve SSH configuration; reconnect this target in chat')
+    digest = lambda value: 'sha256:' + hashlib.sha256(value.encode()).hexdigest()
+    return dict(alias=alias, host=one('hostname'), user=one('user'), port=int(one('port')),
+        host_key_policy=one('stricthostkeychecking', 'unknown'),
+        proxy_fingerprint=digest(one('proxycommand', 'none') + '\0' + one('proxyjump', 'none')),
+        identity_fingerprint=digest(json.dumps({k: values.get(k, []) for k in
+            ['identityfile', 'certificatefile', 'identityagent', 'identitiesonly', 'userknownhostsfile', 'globalknownhostsfile']})))
 
 
-def targets():
-    client, _, local, directory, model = modules()
-    # Match NGS's own list_compute_targets: an absent registry is not an error.
-    values = ([local] if client.healthy_daemon() is None and
-              not (directory(create=False) / 'targets.json').is_file()
-              else request('/targets', {})['targets'])
-    return [model.model_validate(value).model_dump(mode='json') for value in values]
+def verify_access(expected, run):
+    current = effective_access(expected['alias'], run)
+    # Historical job records have fewer fields. Validate every field they pinned.
+    if any(current.get(k) != v for k, v in expected.items()):
+        raise ValueError('SSH identity changed since registration; reconnect in chat and review again')
 
 
-def resolve(target_id):
-    for target in targets():
-        if target['target_id'] == target_id:
-            if target['executor'] != 'local_process':
-                raise ValueError('This target uses Slurm; RFD4 direct execution does not support it yet. Choose a direct GPU host in chat.')
-            if target['controller_transport'] not in ('ssh', 'local_process'):
-                raise ValueError('Unsupported compute transport')
-            return target
-    raise ValueError('The selected NGS compute target no longer exists')
+class Catalog:
+    def __init__(self, root):
+        self.root = Path(root)
+        self.path = self.root / 'compute-targets.json'
 
+    def read(self):
+        if not self.path.exists(): return {'version': 1, 'targets': {}}
+        data = json.loads(self.path.read_text())
+        if data.get('version') != 1 or not isinstance(data.get('targets'), dict):
+            raise ValueError('Unsupported BioNeMo compute catalog; preserve it and check the plugin version')
+        return data
 
-def verify(reference, *, require_registry=True):
-    # New submissions must resolve the current catalog. Existing jobs stay bound
-    # to their saved target even if a different target is selected or removed.
-    if require_registry:
-        current = resolve(reference['target_id'])
-        if current != reference:
-            raise ValueError('NGS compute configuration changed; select the target and review again')
-    if reference['controller_transport'] == 'ssh':
-        _, inspection, _, _, _ = modules()
-        if inspection.effective_access(reference['host_access']['alias']) != reference['host_access']:
-            raise ValueError('SSH identity changed since this target was registered. Reconnect in chat before continuing.')
+    def put(self, cfg, target_id=None, preserve=False):
+        clean = {k:v for k,v in cfg.items() if k != 'target_id'}
+        target_id = target_id or cfg['instance']
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,95}', target_id):
+            raise ValueError('Invalid compute target ID')
+        with (self.root / 'compute-targets.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            data = self.read()
+            if preserve and target_id in data['targets'] and data['targets'][target_id] != clean:
+                suffix = hashlib.sha256(json.dumps(clean, sort_keys=True).encode()).hexdigest()[:12]
+                target_id = target_id[:80] + '-' + suffix
+            data['targets'][target_id] = clean
+            atomic(self.path, data)
+        return dict(clean, target_id=target_id)
 
+    def resolve(self, target_id):
+        value = self.read()['targets'].get(target_id)
+        if value is None: raise ValueError('Compute target is no longer registered; select another in chat')
+        return dict(value, target_id=target_id)
 
-def inspect(target_id):
-    return request('/targets/inspect', {'target_id': target_id, 'executable_paths': []})
+    def verify(self, cfg):
+        if cfg.get('target_id') and self.resolve(cfg['target_id']) != cfg:
+            raise ValueError('Compute configuration changed; select the target and review again')
+
+    def migrate(self, path):
+        # Only plugin-owned selected configs; immutable plans/jobs are never rewritten.
+        with (self.root / 'compute-migration.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            cfg = json.loads(path.read_text())
+            if cfg.get('target_id'): return cfg
+            old = cfg.pop('registry_target', None)
+            if old:
+                if old.get('executor') != 'local_process':
+                    raise ValueError('This saved target requires a scheduler; direct GPU execution is required')
+                cfg['title'] = old.get('title', cfg['instance'])
+                if old.get('host_access'): cfg['ssh_access'] = old['host_access']
+            cfg = self.put(cfg, preserve=True)
+            backup = path.with_suffix(path.suffix + '.before-standalone')
+            if not backup.exists():
+                backup.write_bytes(path.read_bytes()); backup.chmod(0o600)
+            atomic(path, cfg)
+            return cfg

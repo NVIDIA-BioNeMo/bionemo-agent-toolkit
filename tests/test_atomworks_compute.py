@@ -12,6 +12,8 @@ class ComputeContract(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.s=Service(self.tmp.name)
+        identity=patch('registry.effective_access',side_effect=lambda alias,run: {'alias':alias,'host':alias})
+        identity.start();self.addCleanup(identity.stop)
     def register(self,kind='ssh',**kw):
         return self.s.register_compute(kind,'gpu','/srv/rfd4','http://127.0.0.1:18764',ssh_host='gpu-alias',instance_id='id123',**kw)
     def test_registration_does_not_probe_or_provision(self):

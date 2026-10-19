@@ -52,7 +52,8 @@ class Backend(Compute):
                     temp.write_text(default.read_text());temp.chmod(0o600);temp.replace(path)
         if not path.exists():
             raise ValueError('No compute registered. Ask the agent to configure a local GPU, SSH host, or Brev machine.')
-        cfg = json.loads(path.read_text())
+        import registry
+        cfg = registry.Catalog(self.root).migrate(path)
         return self.validate_config(cfg)
 
     def run(self, args, timeout=60):
@@ -71,9 +72,9 @@ class Backend(Compute):
         return output
 
     def verify_target(self, cfg):
-        if cfg.get('registry_target'):
-            import registry
-            registry.verify(cfg['registry_target'], require_registry=False)
+        import registry
+        expected = cfg.get('ssh_access') or cfg.get('registry_target', {}).get('host_access')
+        if expected: registry.verify_access(expected, self.run)
         if cfg.get('kind','brev') == 'brev':
             rows=json.loads(self.brev(cfg, 'ls', '--json'))['workspaces']
             if not any(row['name']==cfg['instance'] and row['id']==cfg['instance_id'] for row in rows):
@@ -88,7 +89,10 @@ class Backend(Compute):
         if not url:
             path=self.root/'editor.json'
             if path.exists(): url=json.loads(path.read_text())['studio_url']
-        if not url: url=self.config()['studio_url']
+        if not url:
+            default = self.root/'config.json'
+            if default.exists(): url=json.loads(default.read_text()).get('studio_url')
+        if not url: raise ValueError('CPU editor is not configured. Set RFD4_EDITOR_URL or configure editor.json; GPU registration is separate.')
         self.validate_config({'kind':'local','instance':'editor','remote_root':'/tmp','studio_url':url})
         return url
 

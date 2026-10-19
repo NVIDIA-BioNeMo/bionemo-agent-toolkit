@@ -1,4 +1,4 @@
-"""Embedded Studio app and agent-only execution, following NGS Workbench boundaries."""
+"""Embedded Studio app and agent-only execution, with self-contained BioNeMo compute management."""
 import sys
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
@@ -40,8 +40,13 @@ def check_compute(session_id: str | None=None) -> dict:
 
 @mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
 def list_registered_compute() -> dict:
-    """List existing targets through the installed NGS Workbench registry; no provisioning."""
+    """List saved BioNeMo compute targets; no external registry or provisioning."""
     return service.available_compute()
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
+def inspect_compute_target(target_id: str) -> dict:
+    """Check the connection to a saved BioNeMo target, separately from model readiness."""
+    return service.inspect_compute_target(target_id)
 
 if mode == 'app':
     @mcp.tool(meta=APP, annotations=WRITE)
@@ -137,8 +142,8 @@ else:
         return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths,session_id)
 
     @mcp.tool(annotations=WRITE)
-    def use_registered_compute(target_id: str, runtime_root: str, studio_url: str, weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
-        """Reuse a user-selected NGS Workbench registry target. Supply the actual RFD4 runtime/checkpoint paths and the Studio session ID from the setup request. No provisioning or installation. Slurm targets are not supported yet. Check compute separately."""
+    def use_registered_compute(target_id: str, runtime_root: str | None=None, studio_url: str | None=None, weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
+        """Select an existing BioNeMo compute target for this Studio session. Saved runtime/checkpoint paths are reused. No provisioning or installation. Check compute separately."""
         return service.register_registry_compute(target_id,runtime_root,studio_url,weight_paths,session_id)
 
     @mcp.tool(annotations=WRITE)

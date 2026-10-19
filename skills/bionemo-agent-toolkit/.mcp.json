@@ -12,8 +12,6 @@
         "RFD4_STUDIO_PYTHON",
         "RFD4_EDITOR_URL",
         "RFD4_EDITOR_PYTHON",
-        "NGS_WORKBENCH_MCP_ROOT",
-        "NGS_ANALYSIS_WORKBENCH_STATE_DIR",
         "CODEX_HOME"
       ],
       "default_tools_approval_mode": "auto"
@@ -30,8 +28,6 @@
         "RFD4_STUDIO_PYTHON",
         "RFD4_EDITOR_URL",
         "RFD4_EDITOR_PYTHON",
-        "NGS_WORKBENCH_MCP_ROOT",
-        "NGS_ANALYSIS_WORKBENCH_STATE_DIR",
         "CODEX_HOME"
       ],
       "tools": {
