@@ -1,6 +1,6 @@
 # Sweep Axes Reference
 
-Catalogue of swept keys for Proteina-Complexa design pipelines, grouped by pipeline stage. Every key is a config dot-path you can put in a `configs/sweeps/*.yaml` file as a sweep axis (list value) or as an `--override KEY=VAL` pin.
+Catalogue of swept keys for Proteina-Complexa design pipelines, grouped by pipeline stage. Every key is a Hydra dot-path you can put in a `configs/sweeps/*.yaml` file as a sweep axis (list value) or as an `--override KEY=VAL` pin.
 
 Defaults are read from `configs/pipeline/binder/binder_generate.yaml`, `configs/pipeline/binder/binder_evaluate.yaml`, and `configs/pipeline/model_sampling.yaml`. Verify against your actual base pipeline config before launching — different pipelines (e.g. `search_ligand_binder_local_pipeline`, `search_ame_local_pipeline`) inherit different defaults.
 
@@ -82,7 +82,7 @@ Annotated example based on `configs/sweeps/example.yaml`:
 
 ```yaml
 # --- Sweep axes (lists, cartesian-producted) ---
-# Each key is a config dot-path. Each list value becomes one dimension.
+# Each key is a Hydra dot-path. Each list value becomes one dimension.
 # Total configs = product of list lengths. Here 2 × 2 = 4.
 generation.search.beam_search.beam_width:
   - 2
@@ -140,7 +140,7 @@ For an irregular set of `(key1, key2)` pairs (not a full cartesian product), the
 | Column | Source | Notes |
 |---|---|---|
 | `config_id` | The index in `inf_{idx}_{run_name}.yaml` | 0-based, sequential, set by `apply_sweeper_and_save_configs`. |
-| `<axis_name>` (one per axis) | Read from the per-config `inf_*.yaml` at the swept config path | Strip the dot-path to a short column header (e.g. `beam_width`). |
+| `<axis_name>` (one per axis) | Read from the per-config `inf_*.yaml` at the swept Hydra path | Strip the dot-path to a short column header (e.g. `beam_width`). |
 | `n_samples` | `len(results_csv)` | Rows in the analyze CSV for this config. |
 | `success_rate` | `mean(passes_filter)` if column present, else thresholded `mean((i_pae < 10) & (i_plddt > 0.7) & (sc_rmsd < 2.0))` | Confirm thresholds with the user. |
 | `mean_i_pae` | `i_pae.mean()` | Lower = better. AF2 interface PAE. |
