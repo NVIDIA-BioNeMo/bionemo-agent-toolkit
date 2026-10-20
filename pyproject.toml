@@ -27,16 +27,24 @@ requires-python = ">=3.10"
 #   numpy   -> */complexa-binder-design/scripts/validate_binders.py, */protein-binder-design/scripts/metrics.py
 #   pyyaml  -> */complexa-binder-design/scripts/pipeline.py
 #   requests -> */evo2-nim/scripts/generate.py, */proteinmpnn-nim/scripts/design.py
-# Everything else the scripts import is Python standard library.
+#   fire, matplotlib, pandas, scipy -> */rfd4-proteina-commitment-curves/scripts/
+#   fire, biotite, numpy -> */rfd4-proteina-{annotated-cif,package}/scripts/
+# RFProteina's native helpers also import atomworks, rfproteina, and torch
+# from the separately provisioned model environment. This catalog manifest
+# does not install or resolve that model runtime.
 dependencies = [
     "biotite>=1.0",
+    "fire",
+    "matplotlib",
     "numpy>=1.26",
+    "pandas",
     "pyyaml>=6.0",
     "requests>=2.28",
+    "scipy",
 ]
 
 [project.license]
-text = "Apache-2.0 AND CC-BY-4.0"
+text = "Apache-2.0 AND CC-BY-4.0 AND BSD-3-Clause"
 
 [[project.authors]]
 name = "NVIDIA Corporation"

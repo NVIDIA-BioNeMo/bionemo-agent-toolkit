@@ -1,0 +1,18 @@
+{
+  "skill_name": "rfd4-proteina-package",
+  "evals": [
+    {
+      "id": "package-on-off-target-passers",
+      "prompt": "Package the final-v2 passers so collaborators can browse each design with all on-target and off-target refolds without SQLite.",
+      "expected_output": "A delivery TAR for final-v2 passers grouped by exact annotated input, containing each design, all linked aligned on/off-target refolds and available confidence JSON, actual criterion values in metrics.csv, and overall and per-input waterfall tables without excluded database or duplicate artifacts.",
+      "files": [],
+      "assertions": [
+        "Groups designs by exact annotated-CIF input",
+        "Includes one design CIF and all linked aligned refolds with available confidence JSON",
+        "Writes actual criterion values in metrics.csv",
+        "Writes exact overall and per-input waterfall tables",
+        "Does not add a database, manifest, duplicate aligned design, oracle input copy, or alignment JSON"
+      ]
+    }
+  ]
+}

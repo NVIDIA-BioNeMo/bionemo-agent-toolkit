@@ -1,9 +1,9 @@
 # Python authoring workflow
 
 Use this reference when creating or modifying an annotated CIF. Source of truth:
-[Python API tutorial](../../../docs/examples/python_api_tutorial.ipynb),
-[input documentation](../../../docs/how-to/input_prep/index.md), and
-[parse presets](../../../src/rfproteina/utils/parse_presets.py).
+[annotated-CIF tutorial](upstream-sources.md#parser-presets-and-tutorial),
+[input documentation](upstream-sources.md#conditions-and-interactions), and
+[parse presets](upstream-sources.md#parser-presets-and-tutorial).
 
 ## Pick the parser deliberately
 
@@ -24,7 +24,7 @@ including missing-atom addition, water/aid removal, MSE conversion, and altloc
 selection when applicable.
 
 Import `rfproteina.conditions` before parsing any annotated CIF to register its
-condition classes; otherwise RFProteina-specific columns can be lost.
+condition classes; otherwise RFProteína-specific columns can be lost.
 
 ## Load and edit a benchmark target
 
@@ -180,7 +180,7 @@ Choose the representation using the task and workspace policy:
   is required. Save a distinct child as required by the workspace, retaining
   source provenance and the sampled lengths/seed. Its length will not resample.
 
-Read the canonical [expandable-segment semantics](../../../docs/concepts/conditioning.md#expandable-segments)
+Read the canonical [expandable-segment semantics](upstream-sources.md#chemistry-and-expandable-segments)
 before choosing index conditioning: an unindexed segment samples residue-index
 spacing, not additional conditioning tokens. Follow that documentation for its
 flanking residues and index group; check the installed implementation supports

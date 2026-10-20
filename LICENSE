@@ -1,4 +1,5 @@
-BioNeMo Agent Toolkit is dual-licensed:
+BioNeMo Agent Toolkit uses the following default licenses, except for
+separately licensed bundled content:
 
 - Source code (scripts, tests, build tooling) is licensed under the
   Apache License, Version 2.0. See LICENSE-APACHE-2.0 for the full text.
@@ -8,6 +9,12 @@ BioNeMo Agent Toolkit is dual-licensed:
   the Creative Commons Attribution 4.0 International License (CC-BY-4.0).
   See LICENSE-CC-BY-4.0 for the full text.
 
-SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
+- Imported RFD4-Proteina Rosetta workflow helpers and regression tests retain
+  their upstream BSD-3-Clause declaration. Their skill text and documentation
+  retain CC-BY-4.0. See open-models-skills/rfd4-proteina/README.md for the
+  imported bundles and attribution, and each bundle's SKILL.md and
+  skill-card.md for its declaration.
+
+SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0 AND BSD-3-Clause
 
 Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.

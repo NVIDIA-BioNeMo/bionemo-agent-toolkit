@@ -5,12 +5,12 @@ Use this reference when translating structural intent into an atom mask.
 ## Check installed annotation support
 
 The implementation and lazy registry live in
-`atomworks.io.utils.annotator` in the installed AtomWorks package.
+[annotator.py](upstream-sources.md#annotation-registries-and-validation).
 `ensure_annotations()` mutates the array in place, retaining existing annotations
 and computing missing dependencies. If a name is absent from `ANNOTATOR_REGISTRY`,
 its `_resolve_standard_annotation()` fallback matches canonical names or aliases
-in the StandardAnnotation registry (`atomworks.io.utils.standard_annotations.base`).
-Import RFProteina conditions before using that fallback.
+in the [StandardAnnotation registry](upstream-sources.md#conditions-and-interactions).
+Import RFProteína conditions before using that fallback.
 
 Inspect these installed registries instead of relying on a copied catalog:
 
@@ -40,11 +40,11 @@ ensure_annotations(aa, *sorted(requested))
 If generation itself fails, report the requested name and underlying error;
 do not silently substitute another annotation or an all-false mask. Standard
 annotation defaults are not evidence that the model consumes the condition;
-consult the [condition reference](../../../docs/reference/annotations.md#supported-annotations).
+consult the [condition reference](upstream-sources.md#conditions-and-interactions).
 
 ## Backbone conditioning
 
-`is_protein_backbone` includes `OXT`. For RFProteina backbone-only coordinate
+`is_protein_backbone` includes `OXT`. For RFProteína backbone-only coordinate
 conditioning, select exactly `N`, `CA`, `C`, and `O`, and require finite xyz:
 
 ```python
@@ -79,7 +79,7 @@ C_SEQ.set_annotation(aa, known)
 
 Only when the request explicitly calls for target-sequence redesign, set
 `known[target] = C_SEQ.default_annotation(aa)[target]` instead, after checking the
-[interaction rules](../../../docs/concepts/conditioning.md#conditions-are-not-independent)
+[interaction rules](upstream-sources.md#conditions-and-interactions)
 for other conditions on that target. Outside-target conditions remain unchanged.
 
 ## AtomWorks query syntax

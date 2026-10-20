@@ -1,24 +1,18 @@
 ---
 name: rfd4-proteina-generate
-description: >
-  Run RFD4-Proteina (RFD4-Proteina) single-shot generation across every design
-  task — the scientific anchor of the skill set. Reach for this skill for "design
-  a protein", "generate a monomer", "run rfproteina inference", "scaffold a
-  motif", "design an enzyme", "design a small molecule binder", "design a
-  protein binder", "design a DNA binder", "fold / inverse-fold this backbone",
-  "partial diffusion", "refine this structure", "make my designs more diverse",
-  "deterministic (ODE) sampling", or "compute refolding metrics inline". It first
-  runs the setup preflight, then routes by design case to the right benchmark
-  example + overrides, and drives `rfd4-generate`. It hands off to
-  rfd4-proteina-annotated-cif to build or edit an annotated CIF, to
-  rfd4-proteina-search for reward-guided / beam search, and to rfd4-proteina-evaluate
-  for deep metric analysis (the AF3 oracle).
-license: See the RFD4-Proteina repository (Baker Lab x NVIDIA collaboration)
+description: Use when generating RFD4-Proteina designs from annotated inputs with task, sampling, batch, and inline-metric choices.
+license: CC-BY-4.0
+allowed-tools: Bash, Read, Write
+metadata:
+  author: Ohad Mosafi <omosafi@nvidia.com>
+  tags: [protein-design, rfd4, generate]
 ---
 
-# RFD4-Proteina Generate
+# RFD4-Proteína Generate
 
-Single-shot generation for RFD4-Proteina. One entry point drives every design task —
+## Purpose
+
+Single-shot generation for RFD4-Proteína. One entry point drives every design task —
 unconditional monomers/complexes, folding & inverse folding, motif scaffolding,
 enzyme design, small-molecule binders, protein binders, and DNA binders. The
 skill's job is to **route** the request to the right example input and the right
@@ -28,17 +22,32 @@ and oracle metrics live in sibling skills; this skill points at them.
 Run everything from the repository root (the directory containing `.project-root`). All model arguments
 are Hydra `key=value`, **never** `--key value`.
 
-## Step 1 — Preflight
+## Prerequisites
+
+A model environment that passes setup preflight, supported GPU, checkpoints, and a validated annotated input or benchmark example.
+
+Use the user-selected model checkout at `RFPROTEINA_ROOT` for model commands,
+configs, and upstream manuals. This catalog contains the skills, not that checkout.
+In helper examples, resolve `open-models-skills/rfd4-proteina/<name>/...` to its absolute installed path
+when the catalog and model checkout are separate.
+
+## Inputs
+
+Required: the user's task, input CIF or benchmark path, output directory, and design count. Optional: batch size, seed, sampling overrides, and metric tags. Preserve explicit choices and use the documented defaults only for unspecified values.
+
+## Instructions
+
+### Step 1 — Preflight
 
 Never launch a long run against a broken environment. Confirm venv, GPU, and
 checkpoints first:
 
 ```bash
-bash skills/rfd4-proteina-setup/scripts/preflight.sh
+bash open-models-skills/rfd4-proteina/rfd4-proteina-setup/scripts/preflight.sh
 ```
 
 Fix every `FAIL` (see **rfd4-proteina-setup**) before generating.
-`scripts/download_assets.sh` fetches the release pair composed by
+`scripts/download_example_data.sh` fetches the release pair composed by
 `configs/inference.yaml`, so the default run needs no checkpoint override.
 
 ## Step 2 — Route the task
@@ -71,7 +80,7 @@ rfd4-generate inputs=<file> num_replicates=<N> out_dir=<dir> [overrides...]
 ```
 
 Use the Python environment activated during setup. The installed command runs
-in that environment; see the [installation guide](../../docs/installation.rst)
+in that environment; see the [installation guide](../rfd4-proteina-setup/references/environment.md)
 for environment and scheduler settings.
 
 **The four parameters you almost always set** (defaults are only right for a
@@ -109,11 +118,12 @@ when validating the workflow.
 Full cheat sheet: [references/overrides.md](references/overrides.md). The knobs
 that matter most:
 
-- **Temperature / diversity.** Use
-  `generation.model.bb_ca.simulation_step_params.tsr_k` (default 16) and
-  `generation.model.local_latents.simulation_step_params.tsr_k` (default 4).
-  Higher `k` lowers temperature; lower `k` raises it. `tsr_sigma` provides secondary
-  control over when sharpening takes effect (defaults: backbone 3, latent 12).
+- **Diversity (stochasticity).** Backbone temperature
+  `generation.model.bb_ca.simulation_step_params.sc_scale_noise` (default 0.3)
+  and sidechain/sequence temperature
+  `generation.model.local_latents.simulation_step_params.sc_scale_noise`
+  (default 0.1). Roughly: `(0.1,0.1)` = high designability, `(0.5,0.5)` =
+  natural UniProt-like sequences, `(0.9,0.9)` = maximum diversity.
 - **Partial diffusion (refine an existing structure).** Simple:
   `generation.args.partial_trajectory_fraction_steps=<f>` (fraction of `nsteps`).
   Advanced: `generation.args.partial_t_backbone=<t>` /
@@ -135,7 +145,7 @@ land in `per_example_metrics.csv` alongside the CIFs. Common tags include `desig
 `dna_refolding`, `motif_scaffold_refolding`, `sm_binder_refolding`,
 `ame_refolding`, `disco_refolding`, `hotspot_conditioning`,
 `3d_coordinate_conditioning`, `rasa_conditioning`, and
-`interchain_interactions`. Check `docs/how-to/evaluate-with-metrics.md` and the composed
+`interchain_interactions`. Check `docs/workflow/metrics.md` and the composed
 metric configs before treating any list as exhaustive.
 
 > [!NOTE]
@@ -179,13 +189,21 @@ table and how to read annotations: [references/outputs.md](references/outputs.md
 | Out of memory | Lower `batch_size`; confirm your longest input fits at `batch_size=1` first |
 | `--inputs`/`--out_dir` not recognized / Hydra config error | Use `=` not `--`: `inputs=file.cif`, never `--inputs file.cif` |
 | checkpoint not found | Confirm `DATA_PATH`, then compare `ckpt_name` and `ckpt_path` with `configs/inference.yaml`; override only when intentionally using another checkpoint |
-| `DATA_PATH` / checkpoint not found | `export DATA_PATH=...` then `./scripts/download_assets.sh "$DATA_PATH"` |
+| `DATA_PATH` / checkpoint not found | `export DATA_PATH=...` then `./scripts/download_example_data.sh "$DATA_PATH"` |
 | `atomworks not found` | Re-run `make setup` to install the public AtomWorks dependency |
 | `hydra not found` / import errors | `source .venv/bin/activate` |
-| `No .env file found for cluster '<name>'` | `export CLUSTER=local` and create `.env.local` |
+| Missing runtime data-path or cluster configuration | Follow the setup environment reference for the selected checkout; preserve the requested cluster and scheduler settings. Export `DATA_PATH` in the process environment for local use. |
 | AF3 / `*_refolding` errors | Refolding metrics need an AF3 container — see rfd4-proteina-setup + rfd4-proteina-evaluate |
-| Segfault in rdkit/posebusters | uv's Python needs `LD_PRELOAD` set to the bundled `libstdc++.so.6` (see `Makefile`) |
+| Segfault in rdkit/posebusters | Verify the supported Python and C++ runtime versions using the setup environment reference. Use the checkout-maintained launcher for any required ABI workaround. |
 
 For deeper detail: [overrides](references/overrides.md) ·
 [outputs](references/outputs.md) · per-task guides under
 [references/tasks/](references/tasks/).
+
+## Limitations
+
+A generated CIF verifies the inference path, not folding, binding, or experimental function. Checkpoints, available conditions, and metrics depend on the selected model revision.
+
+## Examples
+
+The Step 3 command generates 80 designs per monomer example. The task table links to conditioned examples; use the user-requested count and validate a single input before scaling.

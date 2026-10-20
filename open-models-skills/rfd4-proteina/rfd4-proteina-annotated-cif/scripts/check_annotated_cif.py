@@ -8,9 +8,14 @@ any error (``--strict`` also fails on warnings).
 
 Usage::
 
-    export PYTHONPATH=$PWD/src
+    # Use the model environment selected during setup.
     export ALLOW_BIOTITE_CCD=True
-    python skills/rfd4-proteina-annotated-cif/scripts/check_annotated_cif.py <file.cif> [--strict] [--quiet]
+    python open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif/scripts/check_annotated_cif.py <file.cif> [--strict] [--quiet]
+
+Usage: python check_annotated_cif.py input.cif [--strict] [--quiet]
+Arguments: CIF path; --strict also fails on warnings; --skip_pipeline explicitly omits pipeline validation.
+Output: Read-only validation findings and verdict on stdout.
+Exit codes: 0 for a passing check, 1 for validation/runtime failure, 2 for invalid CLI arguments.
 """
 
 from __future__ import annotations

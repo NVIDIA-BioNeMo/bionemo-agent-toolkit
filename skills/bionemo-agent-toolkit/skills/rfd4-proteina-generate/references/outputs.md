@@ -59,4 +59,4 @@ foldseek clustering is run, a `foldseek_cluster_id` and `chain_of_interest`
 column are added.
 
 For aggregating multi-job runs and the full metrics catalog, see
-**rfd4-proteina-evaluate** and `docs/how-to/evaluate-with-metrics.md`.
+**rfd4-proteina-evaluate** and `docs/workflow/metrics.md`.

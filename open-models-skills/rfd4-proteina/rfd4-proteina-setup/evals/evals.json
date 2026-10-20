@@ -1,20 +1,30 @@
 {
-  "schema_version": "1.0",
-  "skill": "rfd4-proteina-setup",
-  "cases": [
+  "skill_name": "rfd4-proteina-setup",
+  "evals": [
     {
       "id": "preflight-then-smoke-monomer",
-      "prompt": "Set up RFProteina on this machine and confirm it can run. Install the environment, download the example checkpoints into a local DATA_PATH, run the setup preflight, and then run a single-design smoke test on the short monomer benchmark.",
+      "prompt": "Set up RFProteína on this machine and confirm it can run. Install the environment, download the example checkpoints into a local DATA_PATH, run the setup preflight, and then run a single-design smoke test on the short monomer benchmark. Use the model checkout identified by RFPROTEINA_ROOT and preserve existing workspace files and Git metadata.",
+      "expected_output": "An installed RFProteina environment with released checkpoints in DATA_PATH, preflight exit code 0 and PREFLIGHT PASSED, and at least one annotated monomer-short CIF under ./runs/smoke using the configured release checkpoint pair.",
+      "files": [],
       "setup": {
-        "cwd": "repository root",
-        "requires": ["NVIDIA GPU", "git", "curl", "~10GB disk"]
+        "cwd": "model checkout identified by RFPROTEINA_ROOT",
+        "requires": [
+          "Approved model source revision staged in a separate writable checkout per trial; RFPROTEINA_ROOT names its absolute sandbox path",
+          "NVIDIA GPU",
+          "git",
+          "curl",
+          "~10GB disk"
+        ]
       },
-      "expected_behavior": [
-        "Runs bash setup.sh and activates .venv",
-        "Sets DATA_PATH in .env.local and obtains released checkpoints if needed",
-        "Runs skills/rfd4-proteina-setup/scripts/preflight.sh and it exits 0 (PREFLIGHT PASSED)",
+      "assertions": [
+        "Runs the selected model checkout's documented installer (make setup or bash setup.sh) and activates or explicitly selects its Python environment",
+        "Resolves DATA_PATH from the exported environment or active .env.local/.env file, preserves existing settings, and obtains both released checkpoints if needed",
+        "Runs the installed setup skill's preflight.sh against the selected model checkout and it exits 0 (PREFLIGHT PASSED), including native .venv installations without a dispatcher",
         "Runs rfd4-generate inputs=data/benchmarks/monomer subset_to_examples=monomer-short num_replicates=1 out_dir=./runs/smoke",
-        "Uses the release checkpoint pair selected by configs/inference.yaml without a checkpoint override"
+        "Uses the release checkpoint pair selected by configs/inference.yaml without a checkpoint override",
+        "Preserves existing workspace files, Git metadata, data, and environments; does not delete or reset a checkout to make room for a clone",
+        "Uses the supplied RFD4-Proteina source and reports actual failures without substituting a different Proteina model, disabling TLS verification, or fabricating dependencies or results",
+        "Confirms a successful generation command and a nonempty annotated CIF at the reported output path; preflight alone is not reported as completed generation"
       ],
       "success_criteria": {
         "preflight_exit_code": 0,

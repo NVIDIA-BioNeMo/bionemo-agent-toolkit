@@ -3,8 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-cd "$REPO_ROOT"
+REPO_ROOT="${RFPROTEINA_ROOT:-$PWD}"
 
 if [ "$#" -lt 1 ]; then
     echo "usage: check_annotated_cif.sh <file.cif> [--strict] [--quiet] [--skip_pipeline]" >&2
@@ -18,4 +17,4 @@ if [ -z "${RFPROTEINA_PYTHON:-}" ]; then
         RFPROTEINA_PYTHON="python"
     fi
 fi
-exec "$RFPROTEINA_PYTHON" skills/rfd4-proteina-annotated-cif/scripts/check_annotated_cif.py "$@"
+exec "$RFPROTEINA_PYTHON" "$SCRIPT_DIR/check_annotated_cif.py" "$@"

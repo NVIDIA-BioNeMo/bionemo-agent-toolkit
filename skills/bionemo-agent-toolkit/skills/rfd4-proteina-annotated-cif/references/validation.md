@@ -1,8 +1,8 @@
 # Annotated-CIF validation
 
 Use this reference before accepting a newly authored or modified annotated CIF.
-The [condition documentation](../../../docs/concepts/conditioning.md#conditions-are-not-independent),
-and [reporting checks](../../../src/rfproteina/conditions_reporting.py) define the
+The [condition documentation](upstream-sources.md#conditions-and-interactions),
+and [reporting checks](upstream-sources.md#annotation-registries-and-validation) define the
 invariants. Run the checked-out implementation and report unsupported conditions
 rather than silently dropping them.
 
@@ -11,8 +11,8 @@ rather than silently dropping them.
 Run these helpers from the repository root:
 
 ```bash
-bash skills/rfd4-proteina-annotated-cif/scripts/inspect_cif.sh input.cif
-bash skills/rfd4-proteina-annotated-cif/scripts/check_annotated_cif.sh input.cif
+bash open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif/scripts/inspect_cif.sh input.cif
+bash open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif/scripts/check_annotated_cif.sh input.cif
 ```
 
 The inspector reports structure, chemistry, conditions, and expandable segments.
@@ -28,7 +28,7 @@ ligand pose, metal coordination, or unusual component is scientifically appropri
 
 ## Chemistry and component completeness
 
-Read the canonical [charges and bonds guidance](../../../docs/reference/annotations.md#charges-and-bonds)
+Read the canonical [charges and bonds guidance](upstream-sources.md#chemistry-and-expandable-segments)
 for chemistry consumed by the model and aromatic bond representation.
 
 - Preserve authored bonds, formal charges, and atom identities. Do not infer
@@ -54,7 +54,7 @@ for chemistry consumed by the model and aromatic bond representation.
   relative sequence offsets are intentionally tied. Use the bond graph to
   determine connectivity, not residue-number adjacency.
 - Review residue-ID gaps within each group. Preserve intentional offsets,
-  including [sampled unindexed-segment spacing](../../../docs/concepts/conditioning.md#expandable-segments),
+  including [sampled unindexed-segment spacing](upstream-sources.md#chemistry-and-expandable-segments),
   rather than renumbering them to satisfy a check. If the installed validator
   rejects required semantics, report the version conflict.
 

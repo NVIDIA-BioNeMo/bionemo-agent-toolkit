@@ -27,11 +27,11 @@ rfd4-generate \
 
 ## Task-specific overrides & metrics
 
-- **Temperature / diversity.** Sweep
-  `generation.model.bb_ca.simulation_step_params.tsr_k` (default 16) and
-  `generation.model.local_latents.simulation_step_params.tsr_k` (default 4).
-  Lower `k` raises temperature. Use `tsr_sigma` as a secondary schedule control
-  (see [overrides](../overrides.md)).
+- **Diversity.** The main dial for unconditional work. Sweep
+  `generation.model.bb_ca.simulation_step_params.sc_scale_noise` and
+  `generation.model.local_latents.simulation_step_params.sc_scale_noise`
+  together — `(0.1,0.1)` high designability, `(0.5,0.5)` UniProt-like,
+  `(0.9,0.9)` max diversity (see [overrides](../overrides.md)).
 - **Metrics.** `metrics_tags='[unconditional_refolding]'` for AF3 refolding +
   pLDDT/scRMSD (needs an AF3 container — see **rfd4-proteina-evaluate**).
 - **Length** is defined by the input. Use **rfd4-proteina-annotated-cif** to

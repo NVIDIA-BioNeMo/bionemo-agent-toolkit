@@ -1,5 +1,11 @@
 #!/usr/bin/env python
-"""Print a read-only inventory of structure, chemistry, and RFProteina conditions."""
+"""Print a read-only inventory of structure, chemistry, and RFProteína conditions.
+
+Usage: python inspect_cif.py input.cif
+Arguments: One source CIF path.
+Output: Read-only inventory of atoms, chains, chemistry, conditions, and segments on stdout.
+Exit codes: 0 for success, 1 for parse/runtime failure, 2 for invalid CLI arguments.
+"""
 
 from __future__ import annotations
 

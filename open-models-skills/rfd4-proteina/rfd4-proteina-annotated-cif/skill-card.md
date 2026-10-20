@@ -2,23 +2,23 @@
 
 ## Description
 
-`rfd4-proteina-annotated-cif` creates, inspects, modifies, combines, and validates RFProteina annotated CIF inputs with Python-first AtomWorks workflows. It covers parser selection, derived masks, conditions, safe unindexing, expandable segments, chemistry preservation, input-validation invariants, and save/reload validation.
+`rfd4-proteina-annotated-cif` creates, inspects, modifies, combines, and validates RFProteína annotated CIF inputs with Python-first AtomWorks workflows. It covers parser selection, derived masks, conditions, safe unindexing, expandable segments, chemistry preservation, input-validation invariants, and save/reload validation.
 
 This skill is for research and development only.
 
 ## Owner
 
-RFProteina maintainers — Baker Lab x NVIDIA GenAI collaboration.
+RFProteína maintainers — Baker Lab x NVIDIA GenAI collaboration.
 
 ## License/Terms of Use
 
-See the RFProteina repository. Skill text follows the NVIDIA agent-skills documentation convention (CC-BY-4.0); repository source follows its stated source license.
+See the RFProteína repository. Skill text follows the NVIDIA agent-skills documentation convention (CC-BY-4.0); repository source follows its stated source license.
 
 ## Use Case
 
-Anyone asking about or authoring an annotated CIF for RFProteina, including coordinate/sequence/index conditioning, hotspots, RASA, H-bonds, secondary structure, internal coordinates, centroids, expandable segments, ligands, metals, PTMs, charges, and bonds.
+Anyone asking about or authoring an annotated CIF for RFProteína, including coordinate/sequence/index conditioning, hotspots, RASA, H-bonds, secondary structure, internal coordinates, centroids, expandable segments, ligands, metals, PTMs, charges, and bonds.
 
-Workspace and campaign rules govern shared inputs, length materialization, generation, and database accounting; see the [skill boundary](SKILL.md#rfproteina-annotated-cif-authoring).
+Workspace and campaign rules govern shared inputs, length materialization, generation, and database accounting; see the [skill boundary](SKILL.md#rfproteína-annotated-cif-authoring).
 
 ## Deployment Geography for Use
 
@@ -34,13 +34,13 @@ Depends on: a completed `rfd4-proteina-setup` (venv plus the AtomWorks package).
 
 ## Known Risks and Mitigations
 
-Risk: Loading an annotated CIF before importing `rfproteina.conditions` can silently discard RFProteina-specific conditions.
+Risk: Loading an annotated CIF before importing `rfproteina.conditions` can silently discard RFProteína-specific conditions.
 Mitigation: The skill requires registry import before parsing and a save/reload comparison.
 
 Risk: PDB or poorly prepared ligand inputs may lack charges, bond orders, aromaticity, or connectivity used by the model.
 Mitigation: The skill flags PDB provenance, avoids inferred chemistry, and requires visual review when chemistry fidelity is uncertain.
 
-Risk: A syntactically valid condition can violate RFProteina interaction rules or be attached at the wrong structural level.
+Risk: A syntactically valid condition can violate RFProteína interaction rules or be attached at the wrong structural level.
 Mitigation: The skill uses condition APIs, explicit selection counts, and all three input-validation pre-save checks.
 
 Risk: Incorrect unindexing can mix indexed and unindexed residues in one group, unindex atomized tokens, or accidentally tie disconnected motif islands together.
@@ -51,14 +51,14 @@ Mitigation: The skill uses `concatenate_atom_array_plus()`, requires unique chai
 
 ## References
 
-- `docs/examples/python_api_tutorial.ipynb`
-- `docs/how-to/input_prep/index.md`
+- `docs/examples/annotated_cif_tutorial.ipynb`
+- `docs/workflow/inputs.md`
 - `src/rfproteina/utils/parse_presets.py`
 - `src/rfproteina/conditions_reporting.py`
-- `skills/rfd4-proteina-annotated-cif/references/validation.md`
-- AtomWorks annotators (`atomworks.io.utils.annotator`)
-- StandardAnnotation fallback registry (`atomworks.io.utils.standard_annotations.base`)
-- [Expandable-segment semantics](../../docs/concepts/conditioning.md#expandable-segments)
+- `open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif/references/validation.md`
+- [Locate the installed AtomWorks annotators](references/upstream-sources.md#annotation-registries-and-validation)
+- [Locate the installed StandardAnnotation registry](references/upstream-sources.md#annotation-registries-and-validation)
+- [Resolve the expandable-segment contract](references/upstream-sources.md#chemistry-and-expandable-segments)
 
 ## Skill Output
 

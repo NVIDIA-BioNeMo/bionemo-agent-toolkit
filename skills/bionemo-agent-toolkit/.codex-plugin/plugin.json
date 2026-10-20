@@ -8,7 +8,7 @@
     },
     "homepage": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
     "repository": "https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit",
-    "license": "Apache-2.0",
+    "license": "Apache-2.0 AND CC-BY-4.0 AND BSD-3-Clause",
     "keywords": [
         "bionemo",
         "life-sciences",

@@ -16,6 +16,7 @@
         "openfold2-nim",
         "openfold3-nim",
         "proteinmpnn-nim",
+        "rfd4-proteina-nim",
         "rfdiffusion-nim"
       ]
     },
@@ -49,7 +50,13 @@
         "kermt-pretrain-scratch",
         "kermt-setup",
         "rfd4-proteina-annotated-cif",
+        "rfd4-proteina-autoresearch",
+        "rfd4-proteina-campaign",
+        "rfd4-proteina-commitment-curves",
+        "rfd4-proteina-evaluate",
         "rfd4-proteina-generate",
+        "rfd4-proteina-package",
+        "rfd4-proteina-search",
         "rfd4-proteina-setup"
       ]
     },

@@ -1,0 +1,37 @@
+{
+  "skill_name": "rfd4-proteina-autoresearch",
+  "evals": [
+    {
+      "id": "two-wave-monomer-campaign",
+      "prompt": "Run a small two-wave autoresearch campaign to improve monomer designability. Define an explicit reward (maximize oracle.plddt_coi), seed four branches varying diversity noise and nsteps, score them, then apply the freeze/promote/allocate rules to pick and mutate one branch for wave 2. Keep the campaign inspectable on disk.",
+      "expected_output": "An inspectable two-wave campaign with at least three single-knob wave-1 branches and exactly one single-parameter wave-2 mutation, recorded in campaign/program.md, campaign/wave1.json, campaign/decisions.md, and campaign/results.tsv with reward scores and allocation reasoning.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "rfd4-proteina-setup complete",
+          "AF3 oracle container for reward scoring (or substitute a non-refolding design metric for a container-free dry run)"
+        ]
+      },
+      "assertions": [
+        "Writes campaign/program.md with the objective, reward (weights: {oracle.plddt_coi: 1.0}), and freeze/promote/allocate rules",
+        "Seeds >=3 branches in campaign/wave1.json that each vary exactly one knob (e.g. sc_scale_noise, nsteps)",
+        "Runs each branch via rfd4-proteina-search (or rfd4-proteina-generate + rfd4-proteina-evaluate for a container-free dry run)",
+        "Computes branch health as median of top-3 scores and records per-branch outcomes in campaign/results.tsv",
+        "Applies freeze (bottom quartile) / promote (global top-k) / allocate (~70/30) and records reasoning in campaign/decisions.md",
+        "Creates exactly one wave-2 child mutating a single parameter",
+        "Never presents muni Complexa/TREM2 numbers as RFProteina defaults and never proposes MCTS/best-of-n"
+      ],
+      "success_criteria": {
+        "artifacts": [
+          "campaign/program.md",
+          "campaign/wave1.json",
+          "campaign/decisions.md",
+          "campaign/results.tsv"
+        ],
+        "branches_wave1_min": 3,
+        "single_param_mutation_per_child": true
+      }
+    }
+  ]
+}

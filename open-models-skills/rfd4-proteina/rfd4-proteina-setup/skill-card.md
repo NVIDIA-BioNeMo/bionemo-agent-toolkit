@@ -2,21 +2,21 @@
 
 ## Description
 
-`rfd4-proteina-setup` prepares a Linux + NVIDIA-GPU host to run RFD4-Proteina (RFD4-Proteina) by installing the uv/Python-3.12 environment and AtomWorks dependency, wiring `DATA_PATH` and optional runtime settings, downloading the model checkpoints, and running a GPU/checkpoint preflight.
+`rfd4-proteina-setup` prepares a Linux + NVIDIA-GPU host to run RFD4-Proteína (RFD4-Proteína) by installing the uv/Python-3.12 environment and AtomWorks dependency, wiring `DATA_PATH` and optional runtime settings, downloading the model checkpoints, and running a GPU/checkpoint preflight.
 
 This skill is for research and development only.
 
 ## Owner
 
-RFD4-Proteina maintainers — Baker Lab x NVIDIA GenAI collaboration.
+RFD4-Proteína maintainers — Baker Lab x NVIDIA GenAI collaboration.
 
 ## License/Terms of Use
 
-See the RFD4-Proteina repository. Skill text and documentation follow the NVIDIA agent-skills documentation convention (CC-BY-4.0); helper scripts follow the repository's source license.
+See the RFD4-Proteína repository. Skill text and documentation follow the NVIDIA agent-skills documentation convention (CC-BY-4.0); helper scripts follow the repository's source license.
 
 ## Use Case
 
-Anyone standing up RFD4-Proteina on a new machine or cluster before generating, evaluating, or searching. Run this first; it is a prerequisite for `rfd4-proteina-generate`, `rfd4-proteina-search`, and `rfd4-proteina-evaluate`.
+Anyone standing up RFD4-Proteína on a new machine or cluster before generating, evaluating, or searching. Run this first; it is a prerequisite for `rfd4-proteina-generate`, `rfd4-proteina-search`, and `rfd4-proteina-evaluate`.
 
 ## Deployment Geography for Use
 
@@ -40,14 +40,17 @@ Mitigation: Keep the downloader aligned with `configs/inference.yaml`; preflight
 Risk: Running the model before its environment and AtomWorks are installed produces confusing import errors.
 Mitigation: Preflight checks imports through the configured runtime and exits non-zero before any run.
 
-Risk: Private setup can edit the user's shell rc file.
-Mitigation: Private setup appends a marked block only when absent and offers an "other / set manually" choice. Public setup does not edit shell startup files.
+Risk: Confusing the skill catalog with the model checkout can cause failed
+installation attempts or destructive workspace cleanup.
+Mitigation: Resolve the model source and installed skill separately, preserve
+existing files and Git metadata, and clone only into an unused destination.
+Preflight accepts native model environments without requiring a dispatcher.
 
 ## References
 
-- `docs/how-to/run-the-model.md`, `docs/how-to/input_prep/index.md`
-- `setup.sh`, `scripts/download_assets.sh`, `configs/inference.yaml`
-- RFD4-Proteina website: https://rosettacommons.github.io/RFD4-Proteina/
+- `docs/workflow/running.md`, `docs/workflow/inputs.md`
+- `setup.sh`, `scripts/download_example_data.sh`, `configs/inference.yaml`
+- RFD4-Proteína website: https://rosettacommons.github.io/RFD4-Proteina/
 - NVIDIA agent skills: https://docs.nvidia.com/skills
 
 ## Skill Output
@@ -58,7 +61,10 @@ Output format: console PASS/FAIL report; created files on disk.
 
 Output parameters: `.venv/`, `$DATA_PATH/{flow_checkpoints,ae_checkpoints}/`, `.env.local` or the selected cluster profile.
 
-Other properties: `preflight.sh` is read-only (no writes); exits non-zero on any failed check. `setup.sh` and the download step modify the filesystem. Only private setup may modify the shell rc.
+Other properties: `preflight.sh` checks the selected checkout without replacing
+or deleting its files, and exits non-zero on failed checks. `setup.sh` and the
+download step modify the model environment and data directory according to that
+revision's installer. Successful installation still requires the GPU smoke test.
 
 ## Skill Version
 
@@ -66,4 +72,4 @@ Other properties: `preflight.sh` is read-only (no writes); exits non-zero on any
 
 ## Ethical Considerations
 
-RFD4-Proteina is a de novo protein/complex design model with dual-use potential. Setup does not itself design anything, but it enables generation; downstream use is governed by the design-task skills' ethical notes and the repository's usage terms. Do not use to design hazardous biomolecules.
+RFD4-Proteína is a de novo protein/complex design model with dual-use potential. Setup does not itself design anything, but it enables generation; downstream use is governed by the design-task skills' ethical notes and the repository's usage terms. Do not use to design hazardous biomolecules.

@@ -264,9 +264,10 @@ python scripts/plugin_sync.py --write
 python scripts/stage_rfd4_plugin.py --output /local/plugin
 ```
 
-The public upstream setup, annotation and generation skills are already synchronized
-into this bundle with their BSD licenses. No model weights, private source or local
-state are included. Commands in upstream references expect the model checkout root.
+The toolkit's canonical RFD4 skills are synchronized into this bundle. Their skill
+text retains CC-BY-4.0 and imported helpers retain BSD-3-Clause; see the canonical
+skill README and root NOTICE for attribution. No model weights, private source or
+local state are included. Commands in skill references expect the model checkout root.
 
 ## Verification
 

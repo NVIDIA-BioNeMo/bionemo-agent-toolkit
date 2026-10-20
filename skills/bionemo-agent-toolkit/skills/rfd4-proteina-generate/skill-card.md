@@ -2,8 +2,8 @@
 
 ## Description
 
-`rfd4-proteina-generate` drives single-shot generation for RFD4-Proteina
-(RFD4-Proteina) across every design task — unconditional monomers and complexes,
+`rfd4-proteina-generate` drives single-shot generation for RFD4-Proteína
+(RFD4-Proteína) across every design task — unconditional monomers and complexes,
 folding / inverse folding, motif scaffolding, enzyme design, small-molecule
 binders, protein binders, and DNA binders. It preflights the environment,
 routes the request to the correct benchmark example and Hydra overrides, runs
@@ -15,19 +15,19 @@ This skill is for research and development only.
 
 ## Owner
 
-RFD4-Proteina maintainers — Baker Lab x NVIDIA GenAI collaboration.
+RFD4-Proteína maintainers — Baker Lab x NVIDIA GenAI collaboration.
 
 ## License/Terms of Use
 
-See the RFD4-Proteina repository. Skill text and documentation follow the NVIDIA
+See the RFD4-Proteína repository. Skill text and documentation follow the NVIDIA
 agent-skills documentation convention (CC-BY-4.0); helper scripts follow the
 repository's source license.
 
 ## Use Case
 
-Researchers running RFD4-Proteina to generate protein designs after
+Researchers running RFD4-Proteína to generate protein designs after
 `rfd4-proteina-setup` is complete. Covers the full design-task matrix via one entry
-point plus per-task references; the scientific anchor of the RFD4-Proteina skill
+point plus per-task references; the scientific anchor of the RFD4-Proteína skill
 set.
 
 ## Deployment Geography for Use
@@ -73,11 +73,11 @@ Mitigation: Stated prominently and in the troubleshooting table.
 
 ## References
 
-- `docs/how-to/run-the-model.md`, `docs/how-to/run-the-model.md`, `configs/inference.yaml`
-- `docs/examples.rst` and `skills/rfd4-proteina-generate/references/tasks/`
+- `docs/workflow/running.md`, `docs/workflow/running.md`, `configs/inference.yaml`
+- `docs/examples.rst` and `open-models-skills/rfd4-proteina/rfd4-proteina-generate/references/tasks/`
 - Example inputs: `data/benchmarks/`
 - Sibling skills: `rfd4-proteina-setup`, `rfd4-proteina-annotated-cif`, `rfd4-proteina-search`, `rfd4-proteina-evaluate`
-- RFD4-Proteina website: https://rosettacommons.github.io/RFD4-Proteina/
+- RFD4-Proteína website: https://rosettacommons.github.io/RFD4-Proteina/
 - NVIDIA agent skills: https://docs.nvidia.com/skills
 
 ## Skill Output
@@ -101,7 +101,7 @@ model code under `src/`.
 
 ## Ethical Considerations
 
-RFD4-Proteina is a de novo protein/complex design model with dual-use potential.
+RFD4-Proteína is a de novo protein/complex design model with dual-use potential.
 This skill actively generates designs, so it is the primary point where dual-use
 risk is realized. Do not use it to design hazardous biomolecules (e.g. toxins,
 pathogen-enhancing sequences); comply with the repository's usage terms and

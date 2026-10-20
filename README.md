@@ -52,7 +52,9 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **OpenFold2** | Monomer protein structure prediction (NIM). | [`openfold2-nim`](nim-skills/openfold2-nim) |
 | **OpenFold3** | Biomolecular complex structure prediction (NIM). | [`openfold3-nim`](nim-skills/openfold3-nim) |
 | **ProteinMPNN** | Inverse folding / sequence design for a target backbone (NIM). | [`proteinmpnn-nim`](nim-skills/proteinmpnn-nim) |
+| **RFD4-Proteina** | Joint protein structure and sequence design, conditioned generation, and reward-guided search through internal staging or a local release-candidate NIM. | [`rfd4-proteina-nim`](nim-skills/rfd4-proteina-nim) |
 | **RFdiffusion** | De novo protein backbone and binder design (NIM). | [`rfdiffusion-nim`](nim-skills/rfdiffusion-nim) |
+| **RFD4-Proteina (open model)** | Native model setup, annotated-CIF authoring, generation, search, evaluation, campaign tracking, and delivery. Requires a separate RFProteina model checkout. | [`rfd4-proteina-setup`](open-models-skills/rfd4-proteina/rfd4-proteina-setup), [`rfd4-proteina-annotated-cif`](open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif), [`rfd4-proteina-generate`](open-models-skills/rfd4-proteina/rfd4-proteina-generate), [`rfd4-proteina-search`](open-models-skills/rfd4-proteina/rfd4-proteina-search), [`rfd4-proteina-evaluate`](open-models-skills/rfd4-proteina/rfd4-proteina-evaluate), [`rfd4-proteina-autoresearch`](open-models-skills/rfd4-proteina/rfd4-proteina-autoresearch), [`rfd4-proteina-commitment-curves`](open-models-skills/rfd4-proteina/rfd4-proteina-commitment-curves), [`rfd4-proteina-campaign`](open-models-skills/rfd4-proteina/rfd4-proteina-campaign), [`rfd4-proteina-package`](open-models-skills/rfd4-proteina/rfd4-proteina-package) |
 | **Proteina-Complexa** | Protein binder design for protein and small molecule targets. Combines a pretrained flow-based generative model (built on La-Proteina) with inference-time optimization for high-quality binder generation. | [`complexa-setup`](open-models-skills/proteina-complexa/complexa-setup), [`complexa-target`](open-models-skills/proteina-complexa/complexa-target), [`complexa-design`](open-models-skills/proteina-complexa/complexa-design), [`complexa-sweep`](open-models-skills/proteina-complexa/complexa-sweep), [`complexa-evaluate-pdbs`](open-models-skills/proteina-complexa/complexa-evaluate-pdbs) |
 | **KERMT** | Pretrained graph neural network for molecular property prediction (ADMET). Multi-task extension of GROVER with accelerated data loading via cuik-molmaker. SOTA on real-world ADMET data. | [`kermt-setup`](open-models-skills/kermt/skills/kermt-setup), [`kermt-infer`](open-models-skills/kermt/skills/kermt-infer), [`kermt-embed`](open-models-skills/kermt/skills/kermt-embed), [`kermt-finetune`](open-models-skills/kermt/skills/kermt-finetune), [`kermt-continue-pretrain`](open-models-skills/kermt/skills/kermt-continue-pretrain), [`kermt-pretrain-scratch`](open-models-skills/kermt/skills/kermt-pretrain-scratch), [`kermt-add-cmim-pretrain`](open-models-skills/kermt/skills/kermt-add-cmim-pretrain), [`kermt-monitor`](open-models-skills/kermt/skills/kermt-monitor) |
 | **CodonFM** | Open codon foundation models: set up public Encodon checkpoints, extract coding-sequence embeddings, score masked-codon variants, and fine-tune on labeled data. | [`codonfm-setup`](open-models-skills/codonfm/codonfm-setup), [`codonfm-embed`](open-models-skills/codonfm/codonfm-embed), [`codonfm-score`](open-models-skills/codonfm/codonfm-score), [`codonfm-finetune`](open-models-skills/codonfm/codonfm-finetune) |
@@ -64,7 +66,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 
 NIM skill evaluation has two levels:
 
-1. **Hosted skill lift with ACES/SkillEvaluator.** Each NIM skill ships a
+1. **Hosted skill lift with ACES/SkillEvaluator.** The hosted skills listed below ship a
    single, bounded `evals/evals.json` case plus `evals/config.yml`.
    `astra-skill-eval` converts the case into Harbor tasks and runs the same
    prompt both with and without the skill. The task requires a call to the real
@@ -78,7 +80,7 @@ NIM skill evaluation has two levels:
    coverage. These tasks will live under `evals/harbor/` and provide their own
    verifier.
 
-The hosted lift evaluations require `NGC_API_KEY` in the invoking shell; each
+The hosted lift commands below require `NGC_API_KEY` in the invoking shell; each
 skill's `evals/config.yml` passes it into the Harbor tasks. No local NIM
 deployment is required. The commands below disable the optional Astra viewer
 upload, allow up to twice the default agent runtime, and write reports under
@@ -87,6 +89,14 @@ upload, allow up to twice the default agent runtime, and write reports under
 OpenFold3 and the MSA-Search to OpenFold3 workflow are pending validation. Their
 current hosted runs timed out and should not yet be used for pass/fail or model
 comparison.
+
+The RFD4-Proteina NIM skill uses a separate five-case dataset covering internal staging,
+local deployment instructions, offline preparation, and result interpretation.
+Its imported [NV-CARPS benchmark](nim-skills/rfd4-proteina-nim/BENCHMARK.md) and
+[validation evidence](nim-skills/rfd4-proteina-nim/evals/validation-results.json)
+retain the source evaluation results. See the
+[RFD4 bundle notes](nim-skills/README.md#rfd4-proteina) for provenance,
+access requirements, and offline client tests.
 
 - **Evo 2**
 
@@ -160,6 +170,16 @@ comparison.
   ASTRA_HARBOR_VIEWER_UPLOAD=0 astra-skill-eval evaluate nim-skills/meta-skills/drug-discovery-pipeline --agent-eval -a claude-code --n-attempts 1 --n-concurrent 1 --timeout-multiplier 2.0 --results-dir "$PWD/.nv-aces-verify"
   ```
 
+## Evaluating RFD4-Proteina Open-Model Skills
+
+The nine [RFD4-Proteina open-model skills](open-models-skills/rfd4-proteina/README.md)
+carry their own evaluation datasets and are imported unsigned. Their native
+model tasks require the runtime and inputs described in each dataset. In
+particular, the [setup smoke evaluation](open-models-skills/rfd4-proteina/rfd4-proteina-setup/evals/EVAL.md)
+needs a writable model checkout at `RFPROTEINA_ROOT` inside each sandbox and GPU
+access. Installing these skills or running their offline helper tests does not
+provision that environment or establish a live Tier 3 pass.
+
 Every skill is a directory with a `SKILL.md` (YAML frontmatter + instructions),
 optional `references/`, and optional `scripts/`. The generated aggregate lives in
 [`skills/bionemo-agent-toolkit/`](skills/bionemo-agent-toolkit). For compatibility
@@ -168,10 +188,15 @@ symlink to `skills`.
 
 ## License
 
-This project is dual-licensed:
+The toolkit uses these default licenses, with separately licensed bundles
+retaining their source terms:
 
 - **Source code** (scripts, tests, build tooling): [Apache-2.0](LICENSE-APACHE-2.0)
 - **Skills and documentation** (SKILL.md, workflows, READMEs): [CC-BY-4.0](LICENSE-CC-BY-4.0)
+- **Imported RFD4-Proteina Rosetta helpers and regression tests**: BSD-3-Clause,
+  with CC-BY-4.0 for their skill text and documentation. See the
+  [bundle attribution](open-models-skills/rfd4-proteina/README.md).
 
-See [LICENSE](LICENSE) for the full dual-license statement. Individual skills may reference third-party
-data sources with their own terms; consult each skill's references and the [NOTICE](NOTICE) file.
+See [LICENSE](LICENSE) for the license statement. Individual skills may reference
+third-party data sources with their own terms; consult each skill's references
+and the [NOTICE](NOTICE) file.

@@ -31,3 +31,7 @@ exceptions:
     reason: Upstream (NVIDIA/cuEquivariance) exposes only an embedded SKILL.md inside a package dir, no clean skill folder to rsync; native until upstream ships a skill dir.
     owner: trvachov
     component: cuEquivariance
+  - dir: open-models-skills/rfd4-proteina
+    reason: Imported from bionemo/rfd4-skill branch omosafi/skills-rosetta and maintained here with toolkit path adaptations; no public GitHub sync source is configured.
+    owner: omosafi
+    component: RFD4-Proteina

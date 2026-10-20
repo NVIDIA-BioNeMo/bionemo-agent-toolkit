@@ -1,7 +1,7 @@
 # Overrides cheat sheet
 
 Every generation parameter you are likely to touch, mirroring
-`docs/how-to/run-the-model.md`. **All arguments are Hydra `key=value`, never
+`docs/workflow/running.md`. **All arguments are Hydra `key=value`, never
 `--key value`.** Run from the repo root. Back to the [skill](../SKILL.md).
 
 Entry point:
@@ -10,7 +10,7 @@ Entry point:
 rfd4-generate inputs=<file> num_replicates=<N> out_dir=<dir> [overrides...]
 ```
 
-Activate the environment where you installed RFD4-Proteina before running these
+Activate the environment where you installed RFD4-Proteína before running these
 commands. `rfd4-generate` uses that environment's Python.
 
 ## Essential (defaults rarely right for a real run)
@@ -40,8 +40,8 @@ rfd4-generate \
 | `ckpt_path` / `ckpt_name` | Override the checkpoint dir / filename for a one-off. Read from `$DATA_PATH` otherwise. | from `$DATA_PATH` |
 
 > **Checkpoints.** `configs/inference.yaml` composes the current release pair, which is exactly
-> what `scripts/download_assets.sh` downloads — so no override is needed. Native
-> checkpoints go into `DATA_PATH`; a configured HF bundle uses `HF_HOME`. Point at a different
+> what `scripts/download_example_data.sh` fetches from the public bucket
+> `rfd4-proteina-public-e04a` — so no override is needed. Point at a different
 > checkpoint with `ckpt_path=<dir> ckpt_name=<file.ckpt>`.
 >
 > See **rfd4-proteina-setup** for full checkpoint detail.
@@ -67,26 +67,26 @@ stochastic because `sc_scale_noise`/`gt` defaults are nonzero; `tsr_k` /
 `tsr_sigma` (pre-tuned in `inference_base`) control the end-of-trajectory
 temperature drop.
 
-## Temperature and diversity
+## Diversity (stochasticity)
 
-Use `tsr_k` as the main temperature parameter for each flow. Higher `k` means lower
-temperature and stronger score sharpening; lower `k` raises temperature.
-`tsr_sigma` provides secondary control over the schedule: larger values apply sharpening earlier.
+Two flows (product-space flow matching): backbone alpha-carbon coordinates and sidechain latents.
+Higher temperatures increase diversity but may reduce designability.
 
 | Parameter | Controls | Default |
 | --- | --- | --- |
-| `generation.model.bb_ca.simulation_step_params.tsr_k` | Backbone temperature | 16 |
-| `generation.model.local_latents.simulation_step_params.tsr_k` | Sidechain / sequence temperature | 4 |
-| `generation.model.bb_ca.simulation_step_params.tsr_sigma` | Backbone sharpening schedule | 3 |
-| `generation.model.local_latents.simulation_step_params.tsr_sigma` | Latent sharpening schedule | 12 |
+| `generation.model.bb_ca.simulation_step_params.sc_scale_noise` | Backbone / structural diversity | 0.3 |
+| `generation.model.local_latents.simulation_step_params.sc_scale_noise` | Sidechain / sequence diversity | 0.1 |
 
-`sc_scale_noise` remains configurable and defaults to 1.0 for both modalities.
+Rough guide:
+- `(0.1, 0.1)` — stays close to the MPNN baseline, high designability.
+- `(0.5, 0.5)` — shifts sequences toward the natural UniProt distribution.
+- `(0.9, 0.9)` — maximizes diversity.
 
 ```bash
 rfd4-generate \
-    inputs=data/benchmarks/monomer out_dir=./runs/higher_temperature \
-    generation.model.bb_ca.simulation_step_params.tsr_k=8 \
-    generation.model.local_latents.simulation_step_params.tsr_k=2
+    inputs=data/benchmarks/monomer out_dir=./runs/diverse \
+    generation.model.bb_ca.simulation_step_params.sc_scale_noise=0.5 \
+    generation.model.local_latents.simulation_step_params.sc_scale_noise=0.5
 ```
 
 ## Partial diffusion (refine an existing structure)
@@ -129,7 +129,7 @@ Pass as a bracket-quoted Hydra list; results go to `per_example_metrics.csv`.
 
 All `*_refolding` tags run the AF3 oracle (needs an apptainer/docker container).
 Metrics that require a tag are silently skipped if the tag is absent. Deep detail
-lives in **rfd4-proteina-evaluate** and `docs/how-to/evaluate-with-metrics.md`.
+lives in **rfd4-proteina-evaluate** and `docs/workflow/metrics.md`.
 
 ## Reusable configs and search
 
