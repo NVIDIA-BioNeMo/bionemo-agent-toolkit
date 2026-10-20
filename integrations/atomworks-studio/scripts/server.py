@@ -13,7 +13,7 @@ APP = {'ui':{'visibility':['app']}}
 REVIEW = {'ui':{'resourceUri':URI,'visibility':['app','model']}}
 mode = sys.argv[1] if len(sys.argv)>1 else 'app'
 mcp = FastMCP('rfd4-studio-' + mode)
-@mcp.resource(URI, name='rfd4-studio', title='AtomWorks Studio', mime_type='text/html;profile=mcp-app', meta={
+@mcp.resource(URI, name='rfd4-studio', title='RFD4-Proteina Studio', mime_type='text/html;profile=mcp-app', meta={
     'ui':{'csp':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[]},'supportsFullscreen':True},
     'openai/ui':{'availableDisplayModes':['inline','fullscreen']},
     'openai/widgetCSP':{'connectDomains':[], 'resourceDomains':[], 'frameDomains':[]},
@@ -102,7 +102,7 @@ if mode == 'app':
         from studio_bridge import request
         return request(service,method,path,body,form)
 
-    @mcp.tool(title='Open AtomWorks Studio in chat', meta={'ui/resourceUri':URI,'openai/outputTemplate':URI,'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)
+    @mcp.tool(title='RFD4-Proteina Studio', meta={'ui/resourceUri':URI,'openai/outputTemplate':URI,'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)
     def open_rfd4_studio() -> dict:
         """Open AtomWorks Studio inline in this conversation. The user may expand it beside the chat. Call this when asked to open RFD4, view a structure, or start the PD-L1 demo."""
         return {'ok':True}
