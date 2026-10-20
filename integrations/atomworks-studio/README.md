@@ -1,336 +1,136 @@
-# AtomWorks Studio in the conversation
+# RFD4-Proteina Studio
 
-This adapter packages the actual Studio v0.0.1 browser editor as a self-contained
-MCP App. It reuses the upstream sequence strip, annotation forms, selection,
-analysis, structure editing and undo. There is no second molecular editor to maintain.
-The BioNeMo additions are compute registration/status, design notes, immutable
-run review, upstream RFD4 sampling options, and result retrieval. Existing RFD4 skills supply setup and inference
-instructions; this integration does not introduce an RFD4 skill.
+An embedded MCP App for BioNeMo Agent Toolkit. It packages AtomWorks Studio's
+existing molecular editor with a preloaded PD-L1 example, 3D annotations, saved
+drafts, reviewed RFD4 generation, results and self-contained compute management.
+Image notes accompany the input; they do not become model constraints automatically.
+The app uses a bundled frontend rather than an HTTP iframe. No NGS plugin is required.
 
-## Upstream maintenance and building
+## Install and open
 
-The source of truth is [Studio v0.0.1](https://github.com/RosettaCommons/atomworks-studio/releases/tag/v0.0.1),
-commit `4b419ebd327405035c8cf6ccde7f333d0878888e`. `build-upstream.mjs` checks
-that revision and rejects tracked frontend modifications. It applies narrow
-build-time adapters without changing upstream files: API transport, session events,
-in-memory browser storage, inline CIF-parser WASM, and disabled PWA installation.
-Mol* is the supported renderer. Patinae and optional MP4 encoding are excluded.
-The build emits provenance, Studio's license, and notices for bundled dependencies.
-
-Studio is public under its upstream license. The generated HTML, provenance,
-Studio license and dependency notices are tracked in Git, both here and in the
-synced aggregate plugin, so Git installations include the browser editor. Rebuild
-from the pinned public source when changing the frontend, then run
-`python scripts/plugin_sync.py --write` from the repository root. CI checks that
-both copies contain identical assets and that provenance matches the build pin.
-The adapter does not ship model weights; the CPU editor environment described
-below is still required.
-
-With Node 24, pnpm 11.25, Rust and wasm-pack installed, check out the pinned
-public Studio commit. In that checkout, run `pnpm install --frozen-lockfile`
-and `pnpm --dir packages/web build:core` to create `packages/web/src/wasm/`.
-Then build this adapter:
+Install the toolkit plugin from this repository's `skills/bionemo-agent-toolkit`
+directory. Its `.mcp.json` starts separate app and agent servers using `uv` and
+Python 3.12. Prepare an independent CPU editor environment:
 
 ```sh
-cd integrations/atomworks-studio
+uv venv --python 3.12 /absolute/path/to/editor-env
+uv pip install --python /absolute/path/to/editor-env/bin/python -r integrations/atomworks-studio/editor-requirements.txt
+```
+
+Set `RFD4_EDITOR_PYTHON` to that environment's Python before starting the host.
+The server starts the editor service with session persistence and an OS lock;
+this does not install dependencies or start GPU compute. Alternatively, set
+`RFD4_EDITOR_URL` to an existing CPU Studio loopback service. Gradio is not required.
+`RFD4_STUDIO_PYTHON` optionally selects an already prepared MCP environment using
+`requirements.txt`. `RFD4_STUDIO_HOME` selects persistent state (default
+`~/.local/share/bionemo-rfd4`). Credentials stay in SSH/Brev configuration.
+
+Ask chat to open **RFD4-Proteina Studio**, then:
+
+1. Load the PD-L1 example, realize its editable segment and annotate residues.
+2. Open **Compute**, select an existing machine and click **Connect**. The app
+   checks connectivity, GPU, pinned runtime and weights before displaying Ready.
+   If no machine is registered, **Manage in chat** requests setup assistance.
+3. Choose thinking, design count, seed and optional sampling settings. Review
+   freezes the annotated CIF and settings; approve execution in chat.
+4. Open the completed design from **Runs**. Use **File → Save CIF** or the run's
+   ZIP export. When Codex cannot download directly, chat retrieves the verified
+   local export and returns a file link.
+
+Drafts preserve annotations, notes and settings. Disconnect detaches the session
+without stopping its machine or jobs; reconnect reuses the saved target. Opening
+a result saves the current draft and does not reconnect compute. Unsupported host
+messaging or failed exports produce an error instead of silently succeeding.
+
+## Compute and runtime
+
+Agent tools can register local Linux GPU, existing SSH and Brev targets. Registration
+is separate from connection and model readiness; readiness expires after 15 minutes.
+Switching targets invalidates run reviews, while existing jobs retain their original
+machine and frozen inputs. Ambiguous dispatch is never automatically repeated.
+
+Brev uses immutable organization/instance identity and direct SSH/SCP. Explicit
+access refresh can remember a first-use key with OpenSSH `accept-new`; changed
+keys are refused. Subsequent execution/copies and generic SSH use strict checking.
+Refresh does not start or provision machines. Dedicated Brev setup/design uses
+`dedicated_brev_user` scope without a privileged ownership marker; existing protected
+owners and historical ownership-bound jobs retain their checks. Existing creation,
+Start/Stop, setup and queued-job recovery remain agent-only reviewed operations.
+Stop requires its existing activity/ownership checks; do not bypass a refusal.
+
+Public model source is pinned to `RosettaCommons/RFD4-Proteina` at
+`c7c6cacbc617ab074b4e234448bed6581840949f`; the Hugging Face bundle is pinned at
+`a06e2509c7033b010fc43614e9fd840303588502`. `scripts/runtime_recipe.json` and
+`runtime_dependencies.lock` define the verified Python 3.12.10/Linux x86_64/CUDA
+13.2 runtime, AtomWorks 3.0.4 and TMol 0.1.64. Setup checks source, dependency and
+bundle hashes. Generation uses the local bundle in Hub offline mode. The public
+setup path requires no APT/compiler installation. Use a separate runtime root for
+this release; setup refuses to replace a different checkout revision. Model weights,
+private source, credentials, local state and evaluation bundles are not packaged.
+
+Historical workspaces require the existing offline upgrade helper. Disable the old
+installation and stop its controllers/workers; finish or resolve outstanding work.
+Run `python scripts/upgrade_state.py --legacy /absolute/old-root --new /absolute/new-root --old-installation-disabled`,
+then point `RFD4_STUDIO_HOME` to the new root. The helper preserves old bytes and
+backups and refuses live writers/unresolved work. Resume an interrupted upgrade
+with the same arguments; never restore backups over newer state. Existing queued
+jobs require explicit recovery with their original accepted plan checksum.
+
+## Build and package
+
+Frontend source is public AtomWorks Studio v0.0.1, commit
+`4b419ebd327405035c8cf6ccde7f333d0878888e`. The CPU editor uses
+`atomworks-studio==0.0.1`. Narrow build-time adapters change transport, session
+coordination, storage and inline WASM without editing upstream source. Mol* is the
+renderer; Patinae, PWA installation and optional MP4 encoding are excluded.
+
+With Node 24, pnpm 11.25, Rust and wasm-pack, check out that Studio revision and
+run `pnpm install --frozen-lockfile` and `pnpm --dir packages/web build:core` there.
+Then, from this integration directory:
+
+```sh
 pnpm install --frozen-lockfile --ignore-scripts
 ATOMWORKS_STUDIO_SOURCE=/path/to/atomworks-studio pnpm build
-RFD4_STUDIO_HOME=/path/to/state RFD4_PREVIEW_PORT=8769 python scripts/preview.py
+ATOMWORKS_STUDIO_SOURCE=/path/to/atomworks-studio node test-public-import.mjs
+RFD4_STUDIO_HOME=/path/to/dev-state RFD4_PREVIEW_PORT=8769 python scripts/preview.py
 ```
 
-The same generated `assets/studio-upstream.html` serves the local preview at
-`http://127.0.0.1:8769` with the command above and the MCP app resource. No iframe or external JavaScript
-is needed. The local CSP permits WASM compilation, not JavaScript eval. The
-actual embedded host must also support WASM; local browser success is not proof
-of host rendering. Requalify the host when updating Studio or its dependencies.
-
-## CPU editor and self-contained compute
-
-Compute appears in the top toolbar. Its panel shows registration, timestamped model
-readiness, active runs, and chat-based setup. The first-run reminder is dismissible.
-No provider lifecycle command runs from the app. Host messaging is capability
-checked; the standalone preview provides a copyable request.
-
-In **Compute → Use an existing machine**, choose a saved target and click
-**Connect**. Studio saves the current draft, selects that exact machine, checks
-connectivity, then performs a fresh GPU/runtime/weights check. The toolbar shows
-Connecting, Checking readiness, and Ready only after the backend check succeeds.
-Cached GPU and readiness evidence are hidden during this attempt. A missing
-runtime, unavailable machine or failed connection never provisions, starts or
-refreshes a machine automatically. Existing setup and lifecycle actions remain
-available in chat. Disconnect detaches this session; the saved target remains
-available for reconnect and existing jobs are preserved.
-
-On an unsuccessful Brev connection, Connect can refresh access for the selected
-running machine through the existing reserved access-refresh operation. The MCP
-host retains the normal approval prompt for that local configuration change.
-Only this refresh probe uses OpenSSH `accept-new`: it remembers a first-use key
-in the user's normal trust store and refuses changed keys. The initial server
-key is trusted on first use, not independently authenticated by Brev metadata.
-Subsequent execution and copies use strict verification; generic SSH targets
-remain strict throughout. The operation preserves organization, immutable
-instance, physical identity, job reservations and revision checks. It never
-starts, provisions, installs on or claims a machine.
-
-New dedicated Brev runs use an explicit `dedicated_brev_user` execution binding,
-verified physical identity and the existing run reservations and remote execution
-locks. They do not create or require a privileged controller-ownership marker.
-Every reviewed payload records its execution scope. A protected ownership record
-already on the machine is respected; dedicated mode cannot adopt or replace it.
-Historical ownership-bound plans/jobs keep their original committed-owner checks.
-
-Set `RFD4_EDITOR_URL` to a CPU Studio loopback service independent of the GPU.
-Optionally set `RFD4_EDITOR_PYTHON` to an already-prepared Studio Python 3.12
-interpreter: the MCP server starts that CPU service once with upstream session
-persistence and an OS lock. This never installs dependencies or starts GPU compute.
-Prepare an isolated Python 3.12 environment with
-`pip install "atomworks-studio==0.0.1"`, then use that environment's Python.
-Gradio is optional and is not used by the MCP app. The embedded frontend is built separately above.
-The old compute-bound Studio URL remains a compatibility fallback.
-
-CIF and results-archive exports use the MCP host's advertised `downloadFile` capability and `ui/download-file` request. The host may ask the user to confirm. When download support is absent but chat messaging is available, the adapter saves the exact clicked bytes in its private local exports directory and sends the export ID to chat. The agent retrieves that checksum-verified export with `get_rfd4_export` and shares a clickable local file link. This needs no compute connection and preserves the current draft. Unsupported messaging, rejected downloads and failed transfers show an error. The standalone localhost preview retains normal browser downloads.
-
-Drafts auto-save annotated CIF, notes, image notes, and sampling settings in the
-adapter's private state directory. Saved drafts can be reopened explicitly after
-reload. This avoids relying solely on upstream's two-hour session retention.
-Session-specific compute selection is captured independently; changing another
-session's selection does not retarget a draft or an existing job.
-
-Opening a saved run input or result preserves the current draft, then restores
-that run's notes and generation settings from its verified input plan. These
-settings can be edited for a new run. Opening a run never reconnects compute.
-Legacy runs without verifiable metadata show new-draft defaults explicitly and
-clear unrelated notes and images. Unverified historical image notes are not
-presented as belonging to the run; new plans bind image bytes by checksum.
-
-BioNeMo owns `managed-v2/state.json` in its private state directory. It has no
-external plugin, registry daemon, Python environment or authentication dependency.
-Agent tools register existing local, SSH or Brev targets, list and inspect them,
-and select a saved target for a Studio session. Registration resolves SSH identity
-locally; inspection tests connectivity; readiness separately checks GPU, runtime
-and weights. Credentials stay in SSH/Brev configuration. Local means the tool-server
-machine. Brev creation remains in chat through the existing CLI/setup skills.
-
-The catalog uses versioned JSON, atomic writes, restrictive permissions and process
-locks. Legacy workspaces require an explicit offline upgrade into a separate
-directory. Disable the old installation and stop its controllers and workers first;
-finish or resolve outstanding runs and setup operations before upgrading. Run
-`python scripts/upgrade_state.py --legacy /absolute/old-root --new /absolute/new-root --old-installation-disabled`
-with the integration's Python environment, then point `RFD4_STUDIO_HOME` at the new
-root. The helper refuses live writers and unresolved work, quarantines the old tree
-read-only, retains its bytes and backups, and durably activates the imported tree.
-An interrupted upgrade resumes with the same arguments; do not unfreeze the old
-tree or restore backups over newer work. Backend and editor startup refuse legacy
-roots and incompletely activated imports before writing workspace state. This fence
-assumes the old installation remains disabled; it cannot constrain a same-user
-program deliberately changing permissions or redirecting an old binary to the new
-root. Migration never reads another plugin's registry. Old plans and jobs remain
-unchanged and continue checking their pinned SSH identity. New plans require fresh
-readiness evidence after migration. Changing a catalog target requires reselecting
-and reviewing it; existing jobs remain attached to their original target.
-
-A CPU-only directory containing drafts or editor sessions, with no saved compute,
-setup records or jobs, remains compatible without a compute-state import. Opening
-it preserves scientific files and starts with no compute selected. This does not
-quarantine that directory; do not run old and new installations against it at the
-same time. Any legacy compute or setup record requires the offline flow above.
-
-Setup requests have durable IDs. Repeated clicks resume the same unfinished
-request. The agent reports actual tool-derived steps through `update_compute_setup`;
-reporting completion cannot itself mark a GPU ready. Brev creation still requires
-the agent to reconcile existing machines before retrying an ambiguous CLI outcome.
-
-The runtime uses the public BSD-3-Clause [RFD4-Proteina release](https://github.com/RosettaCommons/RFD4-Proteina), pinned to commit `c7c6cacbc617ab074b4e234448bed6581840949f`. Its Linux x86_64 Python 3.12.10 recipe installs hash-pinned CUDA 13.2 wheels, AtomWorks 3.0.4 and TMol 0.1.64. It does not install an OS compiler or optional refolding/search engines. The read-only prerequisite check requires glibc 2.28 or later and a CUDA 13 compatible driver; the later CUDA and representative generation checks determine actual readiness.
-
-Setup downloads the anonymous Hugging Face bundle `nvidia/RFD4-Proteina` at revision `a06e2509c7033b010fc43614e9fd840303588502`: `config.json` and `model.safetensors`, 1,742,667,866 bytes total. Both file sizes and SHA-256 checksums, resolved configuration and a revision receipt must match. The bundle contains the autoencoder; no separate AE checkpoint is downloaded. Generation uses this local bundle with Hub offline mode, native inference and optional metrics disabled. Setup cannot mark a runtime ready without a successful representative GPU generation and a second integrity check.
-
-Use a separate runtime root when moving from the development recipe to this public release. Setup refuses to replace a checkout at another revision; existing runs and their inputs are retained. Previously issued run reviews require fresh readiness and review against the new runtime. A real Linux installation on the existing Brev A100, all nine live runtime checks, a short-monomer setup generation and an annotated PD-L1 design have passed. The PD-L1 result was retrieved and opened in the localhost viewer. Native Codex Connect/disconnect/reconnect, annotation draft restoration, CIF export and the new public-result ZIP export also passed on 20 October 2026; see `TESTING-2026-10-20.md` for the exact validation scope. ChatGPT.com is separately unqualified.
-
-## Compute user flow
-
-For an existing running dedicated Brev machine, select it and Connect. Access and
-physical identity are checked, then GPU/runtime/weights readiness. If the public
-runtime is missing, chat reviews setup in a separate user-owned runtime root and
-runs its representative inference check. This path requires no sudo ownership
-claim. The single-user controller keeps its existing per-machine reservations and
-remote execution lock; it does not claim machine-wide exclusion of other tools.
-
-Machines with an existing committed ownership contract, and historical plans/jobs
-bound to that contract, retain its receipt, publication and recovery checks. A
-missing or pending historical owner cannot be silently converted to dedicated
-mode. Keep an already-owned state root unchanged during upgrades. Explicit
-ownership tools remain available for those existing contracts; they are not part
-of the basic dedicated Brev connection/setup/design flow.
-
-A stopped Brev machine needs its previously verified local receipt bound to the
-immutable organization/instance identity before it can start. A newly registered
-stopped machine cannot acquire ownership through its name or provider inventory.
-After start, live identity, protected ownership and runtime checks are still required.
-SSH and Brev aliases share the physical machine owner; each saved connection must
-have its own verified local association. The root receipt binds executor/root/physical
-identity; the immutable Brev tuple is stored in the local association.
-
-The editor shows the target name, transport, registration/readiness state, GPU
-information and check time. Registration is not readiness; checks expire after
-15 minutes. A readiness check verifies the execution binding, shell/GPU access, the pinned
-runtime and checkpoint digests. Editor availability is separate. Setup has a separate
-representative inference check; an ordinary readiness check runs no inference.
-
-Runs retain their original machine and reviewed input after disconnect. Check status
-shows the backend's explanation, including unresolved transport or worker outcomes.
-For a run that remains queued because its controller stopped, chat can explicitly
-call `recover_queued_rfd4_job` with the original accepted plan checksum. The host
-must approve this action because it can perform the first GPU launch. It continues
-the same job and reservation; it does not create another design. Possibly submitted
-or legacy jobs without durable dispatch proof cannot be replayed through recovery.
-
-Reviewed scripts, helper modules and input are frozen before acceptance. Each upload
-uses a unique attempt directory. A checksum-bound isolated helper copies reviewed
-bytes into separate immutable payload inodes before launch; surviving SSH/SCP uploads
-cannot overwrite them. Logs, output and cancellation/package receipts remain outside
-that payload. Publication alone never authorizes execution or releases a reservation.
-
-**Set up compute in chat** sends a user message through `ui/message`. It does
-not run commands or provision infrastructure. In the standalone development
-preview it shows the equivalent text to copy into chat. The agent uses existing
-RFD4 setup and Brev CLI skills, then registers and checks the selected target:
-
-- `local`: a Linux GPU machine hosting the tool server; it need not be the
-  computer displaying ChatGPT.
-- `ssh`: a host already reachable with an SSH config alias or `user@host`, using
-  noninteractive SSH and the user's normal host-key verification.
-- `brev`: an existing Brev instance bound to its immutable ID in the active org.
-  New-instance provisioning belongs in chat, with machine and cost review.
-
-Brev execution and file transfers use direct SSH/SCP, never `brev exec` or
-`brev copy`: those CLI commands can implicitly start a stopped VM. Saved Brev
-access must first be refreshed explicitly in chat with `refresh_compute_access`
-for a connect operation. That tool verifies the saved organization and immutable
-instance before and after `brev refresh`, then checks physical identity over
-strict SSH. It can update local SSH/key/helper configuration, but never starts a
-machine or enrolls a host key. The Brev organization must already be selected.
-An unknown or changed host key blocks connection and requires independent key
-verification; scanning a key alone is not verification. Existing runs retain
-their original access snapshot. A changed endpoint requires explicit recovery,
-not silent rebinding of a run. Access refresh invalidates previous readiness and
-run reviews; check compute and review again afterward. If the controller crashes,
-use `recover_compute_access` to close the unaccepted attempt after its process
-lease is free, then request a new refresh. Recovery never repeats the CLI command.
-
-`register_rfd4_compute` is an agent-only tool. `check_compute` and
-`get_compute_status` are available to the app. Registration doesn't install,
-provision, authenticate, or declare success. Switching the target invalidates
-previous run approvals. Existing jobs retain their own immutable target configuration and remain inspectable after a target switch. New submissions recheck readiness; retrying a previously submitted plan returns the existing job.
-
-The runtime layout is `RUNTIME_ROOT/model/.venv/bin/rfd4-generate`, with the model
-checkout revision in `RUNTIME_ROOT/model-revision`. The pinned model revision is
-in `scripts/core.py`. Studio is independently served on a loopback HTTP port;
-forward remote Studio to that port. SSH credentials and Brev authentication stay
-on the tool-server machine, never in browser storage.
-
-Example existing SSH registration (after setup):
-
-```json
-{
-  "kind": "ssh",
-  "name": "lab-gpu",
-  "ssh_host": "lab-gpu",
-  "runtime_root": "/srv/rfd4",
-  "studio_url": "http://127.0.0.1:18764",
-  "weight_paths": ["/srv/rfd4/model-bundle/config.json", "/srv/rfd4/model-bundle/model.safetensors"]
-}
-```
-
-The old Brev `config.json` format still works. Keep state outside the repository
-using `RFD4_STUDIO_HOME`; the default is `~/.local/share/bionemo-rfd4`.
-
-## Scientific and execution boundaries
-
-Studio owns molecular state and validation. The tool bridge allowlists editor
-routes and accepts neither arbitrary URLs nor execution commands. Studio's
-revision and confirmation behavior is preserved. Image/text notes accompany the
-input; they are not automatically converted into model constraints.
-
-Review freezes the exported CIF, checksum, seed, count, thinking preset, backbone/latent noise and exact target. Generate
-sends that review to the conversation for agent execution. Jobs use detached
-workers and durable records. Ambiguous submission is never automatically retried.
-This is a single-user adapter. Inference completion is not scientific validation;
-use the existing upstream evaluation skill.
-
-Stage the local plugin with the existing model skills unchanged:
+The tracked HTML, provenance, Studio license and dependency notices make Git
+installations self-contained. The installed payload includes only the server,
+Python helpers/profiles/locks, runtime requirements, this README and bundled
+assets/attribution. Frontend source, build tooling and the localhost preview stay
+in the development integration directory. From the repository root:
 
 ```sh
 python scripts/plugin_sync.py --write
-python scripts/stage_rfd4_plugin.py --output /local/plugin
-```
-
-The toolkit's canonical RFD4 skills are synchronized into this bundle. Their skill
-text retains CC-BY-4.0 and imported helpers retain BSD-3-Clause; see the canonical
-skill README and root NOTICE for attribution. No model weights, private source or
-local state are included. Commands in skill references expect the model checkout root.
-
-## Verification
-
-```sh
-python -m unittest discover -s tests -p 'test_atomworks_*.py'
 python scripts/plugin_sync.py --check
+python scripts/stage_rfd4_plugin.py --output /absolute/path/to/new-plugin
+python -m unittest discover -s tests -p 'test_atomworks_*.py'
+python -m unittest discover -s tests -p test_studio_distribution.py
 ```
 
-The generated-HTML test is skipped when authorized upstream assets have not been
-built. CI checks the bridge/compute/protocol contracts without private source.
-Local qualification additionally covers the real upstream bundle, demo loading,
-selection, annotation, undo and compute status. Local and SSH execution transports
-have unit coverage; live inference has only been exercised on the configured Brev
-machine. Patinae, MP4, trajectory playback and host download behavior are not
-qualified in this embedded build.
+Canonical RFD4 skills retain their CC-BY-4.0 text and BSD-3-Clause helper attribution;
+see the root NOTICE and canonical skill README. The header embeds NVIDIA's official
+transparent green-eye/white-wordmark SVG; NVIDIA branding remains subject to trademark
+terms (source attribution in the development integration's `host/BRANDING.md`). Build provenance and third-party notices must
+remain with the bundled viewer.
 
-## Recorded-demo qualification
+## Validation scope
 
-The adapter supports the recorded binder workflow: choose an upstream example,
-realize its variable-length segment, review thinking (low/medium/high), backbone
-noise and sequence/side-chain latent noise, submit through chat, and inspect the
-result using upstream Style and Analyze controls. Noise defaults are 0.3/0.1;
-Hydra mappings are documented in `scripts/generation.py`. These small host controls
-mirror the upstream RFD4 generation provider; no sampling algorithm lives here.
+Real Codex testing passed on the existing Brev A100: connect/readiness,
+disconnect/reconnect, annotation/draft preservation, one annotated public PD-L1
+design, result viewing and CIF/ZIP exports. The result contained 1,403 atoms with
+finite coordinates. A separate short-monomer setup smoke passed all nine checks
+before and after inference. A real expired Brev login blocked readiness and normal
+CLI sign-in restored it. Other unavailable-machine/dependency/stale-response cases
+have regression coverage; isolated OpenSSH testing verifies first-use persistence
+and changed-key refusal. CI covers Python/JavaScript contracts, packaging, upstream
+imports and canonical RFD4 helpers.
 
-Runs offers saved Input / Design selectors and Download all (ZIP). Studio's own
-Save CIF exports the active structure and retains upstream validation prompts.
-Switching run structures uses Studio's existing file-opening lifecycle, clearing
-old selections, trajectories and contact visuals. Run files are loaded from saved
-artifacts, not the current mutable editor document.
-
-2026-10-16: HTML replay on the existing A100 completed a single binder design,
-reopened 1,453 atoms, and displayed 57 inter-chain contacts using upstream analysis.
-The input realization sampled 72 residues (the recording sampled 85); this is the
-same variable-length operation, not a claim of identical generated coordinates.
-The ZIP was downloaded and its input/design contents and CRC verified. Individual
-CIF export was downloaded and preserved Studio's missing-atoms confirmation. These are execution and
-UI checks, not scientific validation of the generated binder.
-
-For manual embedded-host acceptance, open Studio from the plugin in chat, repeat
-this workflow, verify that Generate in chat delivers the exact reviewed plan,
-and check Save CIF / Download all in the host sandbox. Those host-specific checks
-remain manual; the HTML preview and MCP app use the same generated frontend.
-Set `RFD4_PREVIEW_PORT` to use a different localhost port during development.
-
-### Managed Brev provisioning contract
-
-The managed adapter uses the organization-scoped catalog and control-plane endpoints used by Brev CLI v0.6.332 (source commit `6b111e1f041d354d682541cc489375431f195fcf`). The old `brev start --gpu` path rejects current catalog types; `brev create` uses ambient organization state. Neither is used for managed creation. Authentication remains the executor's existing Brev login; credentials never enter reviews or exported plans.
-
-Call `list_compute_creation_options` with the explicit organization ID, then `prepare_compute_creation` with an exact returned instance type. The initial recipe accepts one stoppable A100 80 GB x86_64 VM, with 120 GiB storage and no Jupyter installation. The review includes provider account reference, location, hardware, catalog base price and available storage rates; these are estimates, not a total billing quote. Execution rechecks that specification and requires a fresh review if it changes. No automatic substitution or setup follows creation.
-
-Power requests use an immutable provider ID, verify its organization through the provider, and never use CLI ambient organization. Cloud requests are not automatically retried. Lost acknowledgments retain the original operation for reconciliation. These interfaces remain under qualification; local tests are not proof of live provisioning, safe shutdown or installed-host acceptance.
-
-Managed stop needs noninteractive privileged process visibility (`sudo -n`) on the dedicated Linux executor. The probe performs read-only inspection and does not install or change sudo policy. It refuses restricted/container process views, GPU work, held execution locks, user workloads and unrecognized processes. Only the main processes of a short set of known OS services may be exempted after checking their system control group and root-owned, non-writable executable. Child processes are not exempted. A machine with an unrecognized provider agent can therefore remain blocked until its supported-image behavior is qualified; do not bypass this by disabling the check. The lock path is expanded in the original executor user's shell before privilege elevation.
-
-The upstream Close structure control is hidden in the embedded app: it deletes
-the editor session and reloads its page, which cannot navigate the MCP resource.
-Use File → Open CIF to replace the structure; the current draft is saved first.
-The app preserves upstream inferred/custom import settings and temporary-session
-cleanup without adding arbitrary HTTP or filesystem access.
-
-Before changing the upstream pin, run
-`ATOMWORKS_STUDIO_SOURCE=/checkout node test-public-import.mjs` from this directory.
-It compiles the actual adapted upstream file controller and checks delayed
-inspection, an expired import dialog, and a successful subsequent import. These
-API/DOM fault fixtures supplement browser checks; they do not execute a model.
+This establishes the tested Codex/A100 workflow, not every GPU, preset, provisioning
+or shutdown path. The broad runtime profile remains `candidate_not_qualified`;
+ChatGPT.com deployment is separately unqualified. Legacy privileged prerequisite
+qualification applies only to its pinned Ubuntu/A100 profile, not other images.
+Recheck the actual embedded host after frontend/host changes: localhost rendering
+alone does not prove WASM, chat messaging or download support in that host.
+Inference success is not scientific validation; use the canonical evaluation skills.

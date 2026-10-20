@@ -37,6 +37,22 @@ class StudioDistributionTests(unittest.TestCase):
         self.assertIn("<script>", html)
         self.assertIn("BSD 3-Clause", (SOURCE / "assets/STUDIO_LICENSE.md").read_text())
 
+    def test_plugin_contains_runtime_without_development_files(self):
+        self.assertEqual({p.name for p in AGGREGATE.iterdir()}, {
+            'README.md', 'start_server', 'requirements.txt',
+            'editor-requirements.txt', 'assets', 'scripts',
+        })
+        self.assertEqual({p.name for p in (AGGREGATE / 'assets').iterdir()}, set(ASSETS))
+        expected = {p.name for p in (SOURCE / 'scripts').iterdir()
+                    if p.suffix in {'.py', '.json', '.lock'} and p.name != 'preview.py'}
+        actual = {p.name for p in (AGGREGATE / 'scripts').iterdir()
+                  if p.name != '__pycache__'}
+        self.assertEqual(actual, expected)
+        for name in expected:
+            self.assertEqual((SOURCE / 'scripts' / name).read_bytes(),
+                             (AGGREGATE / 'scripts' / name).read_bytes(), name)
+        self.assertTrue((AGGREGATE / 'start_server').stat().st_mode & 0o111)
+
     def test_provenance_matches_public_source_build_pin(self):
         provenance = json.loads((SOURCE / "assets/studio-upstream.provenance.json").read_text())
         build = (SOURCE / "build-upstream.mjs").read_text()

@@ -9,9 +9,11 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 class Protocol(unittest.IsolatedAsyncioTestCase):
-    async def check_mode(self, mode):
+    async def check_mode(self, mode, packaged=False):
         with tempfile.TemporaryDirectory() as root:
-            server=Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts/server.py'
+            repo=Path(__file__).resolve().parents[1]
+            base='skills/bionemo-agent-toolkit/atomworks-studio' if packaged else 'integrations/atomworks-studio'
+            server=repo/base/'scripts/server.py'
             params=StdioServerParameters(command=sys.executable,args=[str(server),mode],env={**os.environ,'RFD4_STUDIO_HOME':root})
             async with stdio_client(params) as (reader,writer):
                 async with ClientSession(reader,writer) as session:
@@ -26,7 +28,7 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                         self.assertIn('refresh_selected_compute_access',names)
                         refresh=next(t for t in tools if t.name=='refresh_selected_compute_access')
                         self.assertFalse(refresh.annotations.readOnlyHint)
-                        config=json.loads((server.parents[3]/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
+                        config=json.loads((repo/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
                         app=next(value for value in config['mcpServers'].values() if value.get('args')==['app'])
                         self.assertEqual(app['tools']['refresh_selected_compute_access']['approval_mode'],'prompt')
                         exported=await session.call_tool('save_rfd4_export',{'filename':'uat.cif','mime_type':'chemical/x-mmcif','text':'data_preserved\n'})
@@ -58,10 +60,12 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(execute.meta['ui']['visibility'],['model'])
                         recovery=next(t for t in tools if t.name=='recover_queued_rfd4_job')
                         self.assertEqual(recovery.meta['ui']['visibility'],['model'])
-                        config=json.loads((server.parents[3]/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
+                        config=json.loads((repo/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
                         agent=next(value for value in config['mcpServers'].values() if 'execute_rfd4_plan' in value.get('tools',{}))
                         self.assertEqual(agent['tools']['recover_queued_rfd4_job']['approval_mode'],'prompt')
     async def test_app(self): await self.check_mode('app')
     async def test_agent(self): await self.check_mode('agent')
+    async def test_packaged_app(self): await self.check_mode('app', packaged=True)
+    async def test_packaged_agent(self): await self.check_mode('agent', packaged=True)
 
 if __name__=='__main__': unittest.main()
