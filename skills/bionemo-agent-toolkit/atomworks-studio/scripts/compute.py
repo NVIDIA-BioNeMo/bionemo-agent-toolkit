@@ -41,6 +41,11 @@ class Compute:
                 raise ValueError('Brev registration requires an explicit organization ID')
             cfg['organization_id'] = organization_id
             identity = {'provider': 'brev', 'organization_id': organization_id, 'instance_id': instance_id}
+            # Updating only runtime paths must not discard this same machine's
+            # verified access snapshot. Transport drift is still checked on use.
+            prior=[m for m in state.snapshot()['machines'].values() if m['identity']==identity]
+            if len(prior)==1 and prior[0]['config'].get('instance')==name and prior[0]['config'].get('ssh_access'):
+                cfg['ssh_access']=prior[0]['config']['ssh_access']
         else:
             identity = registry.linux_machine_identity(cfg, self.run)
         session = session_id or 'workspace'
@@ -150,11 +155,13 @@ class Compute:
         result.update(self.machine_jobs(cfg['target_id']))
         if self.runtime_setup_incomplete(cfg['target_id']):
             result.update(state='needs_setup',detail='Runtime setup has not passed acceptance. Complete or recover setup before running a design.')
-        from ownership_operation import OwnershipRequired
+        from ownership_operation import OwnershipRequired, ConnectionRequired
         try:
-            proof=self.local_ownership_proof(cfg)
+            proof=self.local_execution_scope(cfg)
             if result.get('state')=='ready' and result.get('executor_ownership')!=proof:
                 result.update(state='registered',detail='Executor ownership or readiness evidence changed; check again before running.')
+        except ConnectionRequired as error:
+            result.update(state='registered',detail=str(error),provider_error=error.code)
         except OwnershipRequired as error:
             result.update(state='ownership_required',detail=str(error),provider_error=error.code)
         return self.with_setup(result,session_id)
@@ -213,9 +220,9 @@ class Compute:
         op = self.managed.operation(operation_id)
         # Context is authoritative data, not instructions or approval.
         return {'operation': op, 'selection': self.managed.selection(op['session_id']),
-                'choices': ['connect_existing', 'review_executor_ownership', 'start_previous_brev', 'create_brev'],
+                'choices': ['connect_existing', 'start_previous_brev', 'create_brev'],
                 'requires_user_choice': True,
-                'detail': 'Inspect saved machines and ask which action is intended. A prior shutdown does not cancel a new request. Registration or SSH refresh does not establish ownership: a running accessible machine needs an explicit prepare_executor_claim review and approved execute_executor_claim before setup or generation. A stopped machine can start only with its prior bound ownership receipt; provider visibility or a reused name is insufficient. This request does not authorize claiming, provisioning or stopping.'}
+                'detail': 'Inspect the selected saved machine and continue the intended connection/setup action. A prior shutdown does not cancel a new request. A running dedicated Brev machine can use dedicated-user execution without a privileged ownership claim; verify its physical identity and live runtime. Existing ownership-bound machines and historical jobs keep their committed-owner checks. Stopped-machine lifecycle safeguards are unchanged; provider visibility or a reused name is insufficient. This request does not authorize claiming, provisioning or stopping.'}
 
     def check_compute(self, session_id=None):
         from core import REVISION
@@ -232,7 +239,7 @@ class Compute:
                 power = observation['power']
                 if power != 'running':
                     raise ValueError('Brev reports ' + power + '; resolve compute in chat before connecting')
-            ownership=self.require_executor_ownership(cfg)
+            ownership=self.require_execution_scope(cfg)
             self.target_exec(cfg,'true'); connected=True
             from runtime_recipe import inspect
             evidence = inspect(self, cfg)

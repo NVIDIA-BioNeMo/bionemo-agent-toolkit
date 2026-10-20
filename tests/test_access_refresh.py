@@ -42,7 +42,9 @@ class AccessRefreshTests(unittest.TestCase):
         self.assertEqual(cfg['ssh_access'],self.access)
         self.assertGreater(cfg['machine_revision'],before_cfg['machine_revision'])
         # Refreshing transport does not establish a machine ownership claim.
-        self.assertEqual(self.s.compute_status('session')['state'],'ownership_required')
+        self.assertEqual(self.s.compute_status('session')['state'],'registered')
+        self.assertEqual(self.s.local_execution_scope(cfg)['scope'],'dedicated_brev_user')
+        self.assertNotIn('executor_ownership',self.s.managed.machine(self.machine))
         self.assertEqual(self.s.managed.selection('session'),self.before['sessions']['session'])
         self.assertEqual(self.commands[0],['brev','refresh'])
         self.assertEqual([c[0] for c in self.commands],['brev','ssh'])

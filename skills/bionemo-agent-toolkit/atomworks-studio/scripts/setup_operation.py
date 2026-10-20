@@ -11,8 +11,8 @@ CHECKSUM_TOKEN='__RFD4_REVIEW_CHECKSUM__'
 def setup_template(scripts, review, remote):
     import shlex
     import ownership_adapter
-    guard=ownership_adapter.command('require',review['executor_ownership']['owner'],
-                                    files=review['ownership_guard_files'],scripts=scripts)
+    guard=ownership_adapter.command('require_execution_scope',review['executor_ownership']['owner'],
+                                    proof=review['executor_ownership'],files=review['ownership_guard_files'],scripts=scripts)
     return '#!/bin/bash\nset -e\nexport PYTHONDONTWRITEBYTECODE=1\n'+guard+'\nexec '+shlex.join([
         'python3','-B',remote+'/runtime_setup.py',review['remote_root'],
         review['operation_id'],remote+'/setup-review.json',CHECKSUM_TOKEN])+'\n'
@@ -76,7 +76,7 @@ class SetupOperation:
             try:
                 if not op['review'].get('executor_ownership'):
                     raise ValueError('Legacy setup has no ownership proof; inspect its outcome without delivering a new remote cancellation.')
-                self.require_executor_ownership(cfg,op['review']['executor_ownership'])
+                self.require_execution_scope(cfg,op['review']['executor_ownership'])
                 self.target_exec(cfg,shlex.join(['python3','-c',code,path]))
                 return dict(op,detail='Cancellation delivered. The active stage may finish; subsequent setup stages will stop. Reconcile before releasing the machine.')
             except Exception as error:
@@ -89,7 +89,7 @@ class SetupOperation:
         op=state.choose(operation_id,'setup',machine_id)
         scripts=Path(__file__).parent
         cfg=dict(machine['config'],target_id=machine_id)
-        ownership=self.require_executor_ownership(cfg)
+        ownership=self.require_execution_scope(cfg)
         prerequisites=self.review_prerequisites(machine)
         preparation=prerequisites.get('status')=='preparation_required'
         files=['runtime_setup.py','runtime_install.py','runtime_install_profile.json','runtime_dependencies.lock','runtime_bootstrap.py','source_stage.py','source_integrity.py','runtime_recipe.py','runtime_recipe.json','runtime_download.py','runtime_smoke.py','generation.py','public_model_bundle.py','remote_job.py','toolchain_paths.py','executor_ownership.py','ownership_adapter.py','execution_payload.py']
@@ -192,7 +192,7 @@ class SetupOperation:
                 raise ValueError('Active or unresolved jobs block runtime mutation')
             if not review.get('executor_ownership'):
                 raise ValueError('Setup review predates executor ownership; prepare a new review.')
-            self.require_executor_ownership(cfg,review['executor_ownership'])
+            self.require_execution_scope(cfg,review['executor_ownership'])
             if self.review_prerequisites(state.machine(op['machine_id']))!=review['prerequisites']:
                 raise ValueError('Machine prerequisites changed; obtain a new setup review')
             jobs=self.machine_jobs(op['machine_id'])
@@ -275,7 +275,7 @@ class SetupOperation:
         cfg=dict(self.managed.machine(op['machine_id'])['config'],target_id=op['machine_id'])
         if action!='observe':
             if not review.get('executor_ownership'):raise ValueError('Setup recovery lacks executor ownership proof')
-            self.require_executor_ownership(cfg,review['executor_ownership'])
+            self.require_execution_scope(cfg,review['executor_ownership'])
         else:self.verify_target(cfg)
         remote=review['remote_root']+'/setup-operations/'+op['id']
         payload=remote+('/payload' if review.get('execution_script_template') else '')
@@ -292,7 +292,7 @@ class SetupOperation:
         if op['state'] in ('succeeded','failed','cancelled'):return op
         cfg=dict(self.managed.machine(op['machine_id'])['config'],target_id=op['machine_id'])
         if not op['review'].get('executor_ownership'):raise ValueError('Setup recovery lacks executor ownership proof')
-        self.require_executor_ownership(cfg,op['review']['executor_ownership'])
+        self.require_execution_scope(cfg,op['review']['executor_ownership'])
         remote=op['review']['remote_root']+'/setup-operations/'+operation_id
         if op['review'].get('prerequisites',{}).get('changes'):
             helper=remote+('/payload' if op['review'].get('execution_script_template') else '')+'/remote_job.py'

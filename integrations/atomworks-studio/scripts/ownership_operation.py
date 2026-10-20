@@ -7,6 +7,9 @@ import ownership_adapter
 class OwnershipRequired(ValueError):
     code='executor_ownership_required'
 
+class ConnectionRequired(ValueError):
+    code='connection_required'
+
 
 class OwnershipOperation:
     def ownership_identity(self, machine_id):
@@ -48,6 +51,30 @@ class OwnershipOperation:
         observed=self.ownership_status(cfg['target_id'],cfg)
         if observed['state']!='owned':
             raise OwnershipRequired('Protected ownership is missing or publication is pending. Resolve the original claim in chat; no compute action was dispatched.')
+        return proof
+
+    def local_execution_scope(self, cfg):
+        machine_id=cfg.get('target_id')
+        if not machine_id:raise OwnershipRequired('Select a saved machine before running compute.')
+        machine=self.managed.machine(machine_id)
+        if machine.get('executor_ownership') or cfg['kind']!='brev':
+            return self.local_ownership_proof(cfg)
+        if not self.managed._physical(machine):
+            raise ConnectionRequired('Connect this saved Brev machine to verify its physical identity.')
+        owner=self.ownership_identity(machine_id)
+        return {'scope':'dedicated_brev_user','owner':owner,'owner_checksum':checksum(owner),
+                'brev':{'organization_id':cfg['organization_id'],'instance_id':cfg['instance_id']}}
+
+    def require_execution_scope(self, cfg, expected=None):
+        proof=self.local_execution_scope(cfg)
+        if proof.get('scope')!='dedicated_brev_user':
+            return self.require_executor_ownership(cfg,expected)
+        if expected is not None and proof!=expected:
+            raise OwnershipRequired('Execution scope changed since review; preserve the request and review again.')
+        self.verify_target(cfg)
+        observed=self.ownership_status(cfg['target_id'],cfg)
+        if observed['state']!='unclaimed':
+            raise OwnershipRequired('Execution scope differs from this machine. Preserve its existing ownership contract and inspect in chat.')
         return proof
 
     def prepare_executor_claim(self, operation_id, machine_id):

@@ -77,6 +77,7 @@ class RunPayloadTests(unittest.TestCase):
 def validate(value):return value
 def checksum(value):return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 def inspect(value):return {'state':'owned'}
+def require_execution_scope(value):return {'state':'owned'}
 '''
         files=execution_adapter.manifest(bundle)
         expected=execution_payload.validate_manifest(frozen['files'],{'kind':'run','id':self.snapshot['snapshot_id'],
@@ -90,6 +91,27 @@ def inspect(value):return {'state':'owned'}
         bundle['bootstrap']+='\nraise RuntimeError("changed")\n'
         with self.assertRaisesRegex(ValueError,'differs from accepted review'):
             execution_adapter.command(upload,destination,expected,self.snapshot['snapshot_id'],reviewed_bundle=bundle,reviewed_files=files)
+
+    def test_real_scope_verifier_in_isolated_dedicated_publication_refuses_new_owner(self):
+        self.proof=dict(self.proof,scope='dedicated_brev_user',brev={'organization_id':'org','instance_id':'immutable'})
+        frozen=self.freeze();upload=self.directory/'execution-payload'
+        expected=execution_payload.validate_manifest(frozen['files'],{'kind':'run','id':self.snapshot['snapshot_id'],
+            'review_checksum':'e'*64,'executor_ownership':self.proof})
+        for state in ('owned','pending','unclaimed'):
+            bundle=json.loads(json.dumps(frozen['publication_bundle']))
+            # Retain the actual scope verifier and replace only the remote reader.
+            bundle['sources']['executor_ownership']+='\ndef inspect(expected):return {"state":'+repr(state)+'}\n'
+            destination=self.root/('publication-'+state)/'payload'
+            command=execution_adapter.command(upload,destination,expected,self.snapshot['snapshot_id'],
+                reviewed_bundle=bundle,reviewed_files=execution_adapter.manifest(bundle))
+            args=shlex.split(command);args[0]=sys.executable
+            result=subprocess.run(args,capture_output=True,text=True)
+            if state=='unclaimed':
+                self.assertEqual(result.returncode,0,result.stderr)
+                execution_payload.verify_path(destination,expected)
+            else:
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse(destination.exists())
 
 
 if __name__=='__main__':unittest.main()

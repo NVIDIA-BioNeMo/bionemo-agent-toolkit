@@ -15,6 +15,7 @@ def assume_owned(test, service, *, skip_transport_identity=False):
                   if cfg.get('kind')=='brev' else None)
         return {'owner':owner,'owner_checksum':checksum(owner),'brev':provider}
     for name,kwargs in [('local_ownership_proof',{'side_effect':proof}),
+                        ('local_execution_scope',{'side_effect':proof}),
                         ('ownership_status',{'return_value':{'state':'owned'}})]:
         mocked=patch.object(service,name,**kwargs);mocked.start();test.addCleanup(mocked.stop)
     if skip_transport_identity:

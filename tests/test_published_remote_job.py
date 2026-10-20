@@ -67,6 +67,29 @@ class PublishedRemoteJobTests(unittest.TestCase):
             spawn.assert_not_called()
         self.assertFalse((self.directory / 'job-state.json').exists())
 
+    def test_dedicated_publication_runs_once_and_refuses_owner_claim_appearing_before_launch(self):
+        directory=self.root/'dedicated-job';directory.mkdir()
+        upload=self.root/'dedicated-upload';upload.mkdir()
+        script='#!/bin/bash\nprintf x >> '+shlex.quote(str(directory/'counter'))+'\n'
+        (upload/'run.sh').write_text(script)
+        proof=dict(self.proof,scope='dedicated_brev_user',brev={'organization_id':'org','instance_id':'immutable'})
+        binding={'kind':'run','id':self.id,'review_checksum':'e'*64,'executor_ownership':proof}
+        files={'run.sh':hashlib.sha256(script.encode()).hexdigest()}
+        expected=execution_payload.validate_manifest(files,binding)
+        execution_payload.publish_payload(upload,directory/'payload',files,binding)
+        with patch('executor_ownership.inspect',return_value={'state':'owned'}),patch('remote_job.subprocess.Popen') as spawn:
+            with self.assertRaisesRegex(ValueError,'cannot replace'):
+                remote_job.launch(directory,self.id,expected_payload=expected)
+            spawn.assert_not_called()
+        self.assertFalse((directory/'job-state.json').exists())
+        with patch('executor_ownership.inspect',return_value={'state':'unclaimed'}):
+            with patch('remote_job.subprocess.Popen') as spawn:
+                self.assertEqual(remote_job.launch(directory,self.id,expected_payload=expected)['state'],'accepted')
+                self.assertEqual(remote_job.launch(directory,self.id,expected_payload=expected)['state'],'unknown')
+                self.assertEqual(spawn.call_count,1)
+            remote_job.supervise(directory,self.id,expected_payload=expected)
+        self.assertEqual((directory/'counter').read_text(),'x')
+
     def test_legacy_dispatch_refuses_published_directory_but_reads_terminal_history(self):
         with patch('remote_job.subprocess.Popen') as spawn:
             with self.assertRaisesRegex(ValueError, 'legacy dispatch refused'):

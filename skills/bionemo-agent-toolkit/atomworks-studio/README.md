@@ -72,11 +72,12 @@ remain strict throughout. The operation preserves organization, immutable
 instance, physical identity, job reservations and revision checks. It never
 starts, provisions, installs on or claims a machine.
 
-The existing executor-ownership acceptance still gates readiness and generation.
-It is a plugin controller-ownership mechanism, not a Brev/RFD4 requirement. The
-live demo target has not passed that acceptance; no privileged ownership change
-has been made. Removing that prerequisite requires a separately reviewed targeted
-change to its setup/publication/run guards, not fabricated ownership evidence.
+New dedicated Brev runs use an explicit `dedicated_brev_user` execution binding,
+verified physical identity and the existing run reservations and remote execution
+locks. They do not create or require a privileged controller-ownership marker.
+Every reviewed payload records its execution scope. A protected ownership record
+already on the machine is respected; dedicated mode cannot adopt or replace it.
+Historical ownership-bound plans/jobs keep their original committed-owner checks.
 
 Set `RFD4_EDITOR_URL` to a CPU Studio loopback service independent of the GPU.
 Optionally set `RFD4_EDITOR_PYTHON` to an already-prepared Studio Python 3.12
@@ -147,21 +148,19 @@ Use a separate runtime root when moving from the development recipe to this publ
 
 ## Compute user flow
 
-Each machine belongs to one installation and canonical controller state directory.
-After registration and verified access, chat reviews `prepare_executor_claim` and
-requests approval for `execute_executor_claim`. This uses noninteractive administrator
-access only to establish a protected machine-wide ownership receipt; it installs
-nothing and starts no model. Ordinary ownership checks do not need sudo. Without
-administrator access, ask the machine administrator to complete the reviewed claim;
-do not request passwords in chat or fall back to a user-home ownership file.
+For an existing running dedicated Brev machine, select it and Connect. Access and
+physical identity are checked, then GPU/runtime/weights readiness. If the public
+runtime is missing, chat reviews setup in a separate user-owned runtime root and
+runs its representative inference check. This path requires no sudo ownership
+claim. The single-user controller keeps its existing per-machine reservations and
+remote execution lock; it does not claim machine-wide exclusion of other tools.
 
-The receipt survives disconnect, restart and completed runs. A second installation,
-copied state directory, missing receipt or incomplete publication cannot authorize
-setup, generation, recovery writes or stop. An uncertain claim is observed rather
-than repeated; an already-present matching receipt with incomplete publication has
-a separate approved, noncreating confirmation. Ownership transfer and state-directory
-relocation are unsupported. Keep an already-owned state root unchanged during plugin
-upgrades. Legacy imports claim only after the offline upgrade described above.
+Machines with an existing committed ownership contract, and historical plans/jobs
+bound to that contract, retain its receipt, publication and recovery checks. A
+missing or pending historical owner cannot be silently converted to dedicated
+mode. Keep an already-owned state root unchanged during upgrades. Explicit
+ownership tools remain available for those existing contracts; they are not part
+of the basic dedicated Brev connection/setup/design flow.
 
 A stopped Brev machine needs its previously verified local receipt bound to the
 immutable organization/instance identity before it can start. A newly registered
@@ -173,7 +172,7 @@ identity; the immutable Brev tuple is stored in the local association.
 
 The editor shows the target name, transport, registration/readiness state, GPU
 information and check time. Registration is not readiness; checks expire after
-15 minutes. A readiness check verifies committed ownership, shell/GPU access, the pinned
+15 minutes. A readiness check verifies the execution binding, shell/GPU access, the pinned
 runtime and checkpoint digests. Editor availability is separate. Setup has a separate
 representative inference check; an ordinary readiness check runs no inference.
 

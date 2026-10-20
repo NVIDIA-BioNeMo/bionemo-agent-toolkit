@@ -28,7 +28,7 @@ if set(b)!={'kind','id','review_checksum','executor_ownership'} or b['kind'] not
 import re
 if not isinstance(b['review_checksum'],str) or not re.fullmatch('[0-9a-f]{64}',b['review_checksum']):raise ValueError('Invalid publication review checksum')
 proof=b['executor_ownership'];owner=ownership.validate(proof['owner'])
-if proof.get('owner_checksum')!=ownership.checksum(owner) or ownership.inspect(owner).get('state')!='owned':raise ValueError('Protected executor ownership is not committed')
+ownership.require_execution_scope(proof)
 result=execution.publish_payload(p['upload'],p['destination'],e['files'],b)
 execution.verify_path(p['destination'],e)
 print(json.dumps(result))

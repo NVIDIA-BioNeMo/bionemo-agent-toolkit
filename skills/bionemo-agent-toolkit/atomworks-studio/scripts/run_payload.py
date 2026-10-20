@@ -46,7 +46,7 @@ def freeze(directory, target, snapshot, samples, seed, generation, proof, *, scr
                 'out_dir=' + remote + '/output', 'hydra.run.dir=' + remote + '/hydra',
                 'num_replicates=' + str(samples), 'seed=' + str(seed), 'batch_size=1',
                 'compile_lengths=null', 'prevalidate_inputs=true'] + runtime_overrides(root) + overrides(generation)
-        guard = ownership_adapter.command('require', proof['owner'], scripts=temporary)
+        guard = ownership_adapter.command('require_execution_scope', proof['owner'], proof=proof, scripts=temporary)
         script = ('#!/bin/bash\nset -e\n' + guard + '\nset +e\nexport PYTHONDONTWRITEBYTECODE=1 HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1\n(cd ' +
                   shlex.quote(root + '/model') + ' && ' + shlex.join(args) + ')\ncode=$?\nprintf "%s" "$code" > ' +
                   shlex.quote(remote + '/exit_code') + '\nexit "$code"\n')

@@ -228,7 +228,7 @@ class Backend(OwnershipOperation, Compute):
             # network I/O recursively inside that transaction. The detached
             # worker independently rechecks this proof before its first write.
             record['executor_ownership']=(executor_ownership if executor_ownership is not None
-                                          else self.require_executor_ownership(cfg))
+                                          else self.require_execution_scope(cfg))
             jobdir.mkdir(mode=0o700, exist_ok=True)
             self.save_job(record)
         import sys
@@ -262,7 +262,7 @@ class Backend(OwnershipOperation, Compute):
         try:
             if not record.get('executor_ownership'):
                 raise ValueError('Queued run has no reviewed executor ownership proof; preserve it and review a new run.')
-            self.require_executor_ownership(cfg,record['executor_ownership'])
+            self.require_execution_scope(cfg,record['executor_ownership'])
             from run_payload import verified
             import execution_adapter
             from execution_payload import canonical, validate_manifest

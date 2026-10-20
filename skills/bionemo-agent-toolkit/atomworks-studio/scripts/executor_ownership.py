@@ -116,6 +116,33 @@ def inspect(expected):
     return {'state': 'owned', 'owner': current, 'owner_checksum': checksum(current)}
 
 
+def require_execution_scope(proof):
+    """Verify an owned historical contract or an explicit dedicated-user binding.
+
+    Dedicated Brev execution never claims a machine-wide controller lock. It
+    verifies physical identity and refuses any existing/pending protected owner;
+    concurrency within this controller remains governed by run reservations.
+    """
+    if not isinstance(proof,dict):raise ValueError('Missing execution scope binding')
+    owner=validate(proof['owner'])
+    if proof.get('owner_checksum')!=checksum(owner):
+        raise ValueError('Execution scope identity checksum differs')
+    scope=proof.get('scope','machine_owner')
+    if scope not in ('machine_owner','dedicated_brev_user'):
+        raise ValueError('Unsupported execution scope')
+    if scope=='dedicated_brev_user':
+        provider=proof.get('brev')
+        if not isinstance(provider,dict) or set(provider)!={'organization_id','instance_id'} or any(
+                not isinstance(v,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',v) for v in provider.values()):
+            raise ValueError('Dedicated-user execution requires an immutable Brev identity')
+    observed=inspect(owner)
+    required='unclaimed' if scope=='dedicated_brev_user' else 'owned'
+    if observed.get('state')!=required:
+        raise ValueError('Dedicated-user execution cannot replace an existing ownership contract' if scope=='dedicated_brev_user'
+                         else 'Protected executor ownership is not committed')
+    return observed
+
+
 def _claim_directory(directory, expected, *, allow_initial, owner_uid=0):
     """Short local filesystem transaction; no network or slow process work."""
     descriptor = os.open('executor-owner.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o644, dir_fd=directory)

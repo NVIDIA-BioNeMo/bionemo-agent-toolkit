@@ -209,7 +209,7 @@ def verify_execution_payload(directory, job_id, expected):
     """New payload protocol; legacy history is never silently converted."""
     import re
     from execution_payload import verify_path
-    from executor_ownership import checksum, inspect, validate
+    from executor_ownership import checksum, require_execution_scope, validate
     verify_path(directory / 'payload', expected)
     binding = expected['binding']
     if (set(binding) != {'kind', 'id', 'review_checksum', 'executor_ownership'}
@@ -223,8 +223,7 @@ def verify_execution_payload(directory, job_id, expected):
     owner = validate(proof['owner'])
     if proof.get('owner_checksum') != checksum(owner):
         raise ValueError('Execution payload ownership checksum differs')
-    if inspect(owner).get('state') != 'owned':
-        raise ValueError('Protected executor ownership is not committed')
+    require_execution_scope(proof)
 
 
 def launch(directory, job_id, *, expected_payload=None):

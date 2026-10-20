@@ -22,7 +22,7 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
         selection, target = self.selected_compute(session_id)
         if target is None:
             raise ValueError('Connect compute before reviewing a run')
-        ownership=self.require_executor_ownership(target)
+        ownership=self.require_execution_scope(target)
         from run_payload import freeze
         execution=freeze(self.state/snapshot['snapshot_id'],target,snapshot,samples,seed,generation,ownership)
         plan = dict(snapshot, selection=selection, session_id=session_id, samples=samples, seed=seed, generation=generation, target=target, executor_ownership=ownership, execution_payload=execution)
@@ -69,7 +69,7 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
                     raise ValueError('Compute is not ready: '+status['detail'])
                 if not plan.get('executor_ownership'):
                     raise ValueError('Plan predates required executor ownership; review a new plan.')
-                ownership=self.require_executor_ownership(plan['target'],plan['executor_ownership'])
+                ownership=self.require_execution_scope(plan['target'],plan['executor_ownership'])
                 activity=self.machine_jobs(machine_id)
                 if activity['active_jobs'] or activity['unresolved_active_jobs']:
                     raise ValueError('Active or unresolved jobs on the verified host block submission')
