@@ -1,5 +1,10 @@
+import {navigationRequest} from './navigation-request.js';
 let seq = 0, activeSession = null, plan = null, imageNote = null, editEpoch = 0;
 let hostCapabilities = {}, computeState = null, saving = Promise.resolve(), draftTimer, polling = false, setupPending = false, hintDismissed = false;
+let watchedRun = null, checkingRun = false, uploadGeneration = 0;
+let navigationGeneration = 0, navigationCommitting = false;
+let freshDocumentRequest = null;
+let documentMetadataRequest = null;
 const lastProbe = new Map();
 const pending = /* @__PURE__ */ new Map(), local = Boolean(window.localToken);
 const storage = { data: /* @__PURE__ */ new Map(), getItem(k) {
@@ -29,6 +34,10 @@ addEventListener("message", (e) => {
   }
 });
 async function tool(name, args = {}) {
+  if (['begin_compute_setup', 'disconnect_compute', 'prepare_design'].includes(name)) {
+    const capabilities = await tool('get_compute_capabilities');
+    if (capabilities.protocol !== 3 || capabilities.schema !== 2) throw Error('Update and restart the RFD4 plugin before changing compute.');
+  }
   const r = local ? await fetch("/api/tools", { method: "POST", headers: { "Content-Type": "application/json", "X-RFD4-Token": window.localToken }, body: JSON.stringify({ name, arguments: args }) }).then((r2) => r2.json()) : await rpc("tools/call", { name, arguments: args });
   if (r.isError) throw Error(r.content?.find((x) => x.type === "text")?.text || r.error || "Tool failed");
   return r.structuredContent ?? JSON.parse(r.content?.find((x) => x.type === "text")?.text || "{}");
@@ -42,11 +51,21 @@ async function studioFetch(path, init = {}) {
   } else if (init.body) args.body = JSON.parse(init.body);
   const value = await tool("studio_request", args);
   if (init.signal?.aborted) throw new DOMException("Aborted", "AbortError");
-  return new Response(value.text, { status: value.status, headers: { "Content-Type": value.content_type } });
+  const body = [204, 205, 304].includes(value.status) ? null : value.text;
+  return new Response(body, { status: value.status, headers: { "Content-Type": value.content_type } });
 }
 function studioEvent(type, session) {
-  activeSession = session;
+  if (type === 'ready' && freshDocumentRequest?.state === 'committing') {
+    resetDocumentMetadata();
+    freshDocumentRequest = null;
+  }
   if (type === "ready") { document.getElementById("rfd-chat-prompt").hidden = true; message(""); }
+  if (type === 'ready' && documentMetadataRequest?.id === session && documentMetadataRequest.request.state === 'committing') {
+    applyDocumentMetadata(documentMetadataRequest.metadata);
+    documentMetadataRequest.applied = true;
+  }
+  if (activeSession !== session) uploadGeneration++;
+  activeSession = session;
   if (type === "changed" || type === "ready") { invalidate(); queueDraft(); }
   if (type === "ready") void compute().catch(e => message(e.message));
   document.getElementById("rfd-review").disabled = !session;
@@ -66,14 +85,25 @@ async function ask(text) {
     box.value = text;
     box.focus();
     box.select();
-    message("Copy this request into chat to continue setup. This preview cannot send a message to the conversation.");
+    message("Copy this request into chat to continue. This preview cannot send a message to the conversation.");
     return false;
   }
-  const result = await rpc("ui/message", { role: "user", content: [{ type: "text", text }] });
-  if (result?.isError) throw Error("Host did not accept the chat request");
-  message("Request sent to the conversation. Setup will continue there.");
-  return true;
+  return sendScopedChat(text);
 }
+export async function sendScopedChat(text, send = params => rpc('ui/message', params)) {
+  const session = activeSession;
+  try {
+    const result = await send({role:'user',content:[{type:'text',text}]});
+    if (session !== activeSession) return false;
+    if (result?.isError) throw Error('Host did not accept the chat request');
+    message('Request sent to the conversation. Continue there.');
+    return true;
+  } catch(error) {
+    if (session !== activeSession) return false;
+    throw error;
+  }
+}
+
 function action(id, fn) {
   document.getElementById(id).onclick = async () => {
     const button = document.getElementById(id);
@@ -90,21 +120,51 @@ function action(id, fn) {
 function settings() {
   return {samples: Number(document.getElementById('rfd-samples').value), seed: Number(document.getElementById('rfd-seed').value), generation: {thinking: document.querySelector('input[name="thinking"]:checked').value, backbone_noise: Number(document.getElementById('rfd-backbone-noise').value), latent_noise: Number(document.getElementById('rfd-latent-noise').value)}};
 }
+export async function attachImage(file) {
+  const generation = ++uploadGeneration, session = activeSession;
+  invalidate(); imageNote = null; queueDraft();
+  if (!file) return false;
+  if (file.size > 1e7 || file.type !== 'image/png') {
+    message('Use a PNG under 10 MB.'); return false;
+  }
+  let buffer;
+  try { buffer = await file.arrayBuffer(); }
+  catch(error) {
+    if (session === activeSession && generation === uploadGeneration) throw error;
+    return false;
+  }
+  if (session !== activeSession || generation !== uploadGeneration) return false;
+  let binary = '';
+  for (const value of new Uint8Array(buffer)) binary += String.fromCharCode(value);
+  imageNote = btoa(binary);
+  invalidate(); queueDraft();
+  return true;
+}
 function queueDraft() {
   clearTimeout(draftTimer);
-  draftTimer = setTimeout(() => saveDraft().catch(e => { document.getElementById('rfd-draft-status').textContent = 'Draft not saved: '+e.message; }), 1500);
+  const session = activeSession, epoch = editEpoch;
+  document.getElementById('rfd-draft-status').textContent = 'Unsaved changes';
+  draftTimer = setTimeout(() => {
+    if (session !== activeSession || epoch !== editEpoch) return;
+    saveDraft().catch(e => {
+      if (session === activeSession && epoch === editEpoch)
+        document.getElementById('rfd-draft-status').textContent = 'Draft not saved: '+e.message;
+    });
+  }, 1500);
 }
-async function saveDraft() {
+export async function saveDraft() {
   if (!activeSession) return null;
+  const session = activeSession, epoch = editEpoch;
   const args = {session_id: activeSession, note: document.getElementById('rfd-note').value, image_base64: imageNote, settings: settings()};
   // Serialize exports so an older response cannot replace the newest draft.
   saving = saving.catch(() => {}).then(() => tool('save_draft', args));
   const draft = await saving;
-  document.getElementById('rfd-draft-status').textContent = 'Draft saved';
+  if (session === activeSession && epoch === editEpoch)
+    document.getElementById('rfd-draft-status').textContent = 'Draft saved';
   return draft;
 }
 function renderCompute(c) {
-  const labels = {unregistered:'Not connected', registered:'Configured', ready:'Ready', needs_setup:'Action needed', disconnected:'Disconnected', checking:'Checking', setting_up:'Setting up'};
+  const labels = {unregistered:'Not connected', registered:'Configured', ready:'Ready', ownership_required:'Ownership needed', needs_setup:'Action needed', disconnected:'Disconnected', checking:'Checking', setting_up:'Setting up'};
   const label = c.active_jobs?.length && c.state === 'ready' ? 'Running' : labels[c.state] || 'Status unavailable';
   document.getElementById('rfd-compute-label').textContent = label;
   document.getElementById('rfd-compute-box').dataset.state = c.state;
@@ -113,10 +173,16 @@ function renderCompute(c) {
   document.getElementById('rfd-compute-route').textContent = c.name ? `${c.kind === 'local' ? 'On the tool-server computer' : 'Connected through '+c.kind.toUpperCase()} · ${c.source || 'RFD4'}` : 'You can keep editing while compute is set up.';
   document.getElementById('rfd-compute-detail').textContent = c.detail || '';
   document.getElementById('rfd-compute-checked').textContent = c.checked_at ? 'Last checked '+new Date(c.checked_at).toLocaleString() : '';
-  document.getElementById('rfd-setup').textContent = (local || !hostCapabilities.message) ? 'Show chat request' : c.state === 'unregistered' ? 'Set up in chat' : ['needs_setup','disconnected'].includes(c.state) ? 'Continue setup in chat' : 'Manage in chat';
+  document.getElementById('rfd-setup').textContent = (local || !hostCapabilities.message) ? 'Show chat request' : c.state === 'ownership_required' ? 'Review ownership in chat' : c.power === 'stopped' ? 'Start in chat' : c.state === 'unregistered' ? 'Connect compute' : ['needs_setup','disconnected'].includes(c.state) ? 'Continue setup in chat' : 'Manage in chat';
   document.getElementById('rfd-check').hidden = !c.name;
+  document.getElementById('rfd-disconnect').hidden = !c.selection?.machine_id;
+  const stop = document.getElementById('rfd-stop');
+  stop.hidden = !(c.selection?.machine_id && c.kind === 'brev' && c.power === 'running' && c.state !== 'ownership_required');
+  stop.disabled = Boolean(c.active_jobs?.length || c.unresolved_active_jobs?.length);
+  stop.textContent = (local || !hostCapabilities.message) ? 'Show stop request' : 'Review stop in chat';
+  stop.title = stop.disabled ? 'Resolve active or unknown runs before stopping.' : 'Review a separate stop action. Disconnecting does not stop the machine.';
   document.getElementById('rfd-compute-hint').hidden = hintDismissed || c.state !== 'unregistered';
-  document.getElementById('rfd-setup-progress').textContent = c.setup && c.setup.stage !== 'complete' ? c.setup.detail + ' · Updated '+new Date(c.setup.updated_at).toLocaleTimeString() : '';
+  document.getElementById('rfd-setup-progress').textContent = c.operation && !['succeeded','failed','cancelled'].includes(c.operation.state) ? (c.operation.detail || 'Waiting for your compute choice in chat.') : '';
   document.getElementById('rfd-compute-running').textContent = c.active_jobs?.length ? `${c.active_jobs.length} active run(s). Closing Studio does not stop them.` : c.name ? 'Completing a run does not stop its machine.' : '';
 }
 export async function compute(check = false) {
@@ -142,18 +208,26 @@ export async function compute(check = false) {
     if (computeState?.fingerprint && computeState.fingerprint !== c.fingerprint) invalidate();
     computeState = c; renderCompute(c);
   } catch(e) {
+    if (session !== activeSession) return;
     renderCompute({...observed, state:'disconnected', detail:e.message});
   } finally { polling = false; }
 }
-async function setupCompute(targetId = null) {
+async function setupCompute(targetId = null, intent = 'manage') {
   if (setupPending) return;
   setupPending = true;
+  const session = activeSession;
   try {
     clearTimeout(draftTimer);
     const draft = await saveDraft();
-    const setup = await tool('begin_compute_setup', {session_id:activeSession});
-    const context = activeSession ? `For Studio session_id ${activeSession}${draft ? ', saved draft '+draft.draft_id : ''}. ` : '';
-    await ask(`Setup request_id ${setup.request_id}. Report progress using update_compute_setup with this request_id and session_id, based on actual tool results. ` + context + (targetId ? `Help me use saved BioNeMo compute target ${targetId} for RFD4. ` : 'Help me connect or manage compute for RFD4 Studio. ') + 'Use this plugin’s list_registered_compute and inspect_compute_target tools. Register an existing host with register_rfd4_compute. Reuse the selected target with use_registered_compute and this session_id; keep RFD4 runtime and checkpoint readiness separate. If no suitable target exists, offer the tool-server GPU, an existing SSH machine, or Brev. Use the existing Brev CLI and upstream RFD4 setup skills. Before creating a Brev machine, show its organization, GPU, and available price; do not create a duplicate on retry. Never stop a shared machine without discussing its active jobs. Finish with check_compute for this session. Preserve the draft and resume this session.');
+    if (session !== activeSession) return;
+    const current = await tool('get_compute_status', {session_id: session});
+    if (session !== activeSession) return;
+    const setup = await tool('begin_compute_setup', {session_id: session,
+      expected_revision: current.selection.revision, target_id: targetId});
+    if (session !== activeSession) return;
+    const request = intent === 'stop' ? 'Please review stopping this dedicated RFD4 machine, including active work and ownership checks. Do not treat this app message as final shutdown approval.' : 'Please help me connect or manage RFD4 compute.';
+    const delivered = await ask(`${request} Inspect operation ${setup.id} with get_compute_operation and help me choose the next action. Studio session: ${setup.session_id}.`);
+    if (delivered && session === activeSession) message('Compute request sent to chat.');
   } finally { setupPending = false; }
 }
 async function registeredTargets() {
@@ -162,13 +236,104 @@ async function registeredTargets() {
   const data = await tool('list_registered_compute');
   box.replaceChildren();
   if (!data.available) { box.textContent = data.detail; return; }
-  if (!data.targets.length) box.textContent = 'No machines saved yet. Choose Set up in chat to connect one.';
+  if (!data.targets.length) box.textContent = `No machines saved yet. Choose ${document.getElementById('rfd-setup').textContent} to connect one.`;
   for (const t of data.targets) {
     const b = document.createElement('button');
     b.textContent = `${t.title}${t.supported ? '' : ' · Slurm not supported yet'}`;
     b.disabled = !t.supported;
     b.onclick = async () => { b.disabled = true; try { await setupCompute(t.target_id); } catch(e) { message(e.message); } finally { b.disabled = !t.supported; } };
     box.append(b);
+  }
+}
+export function beginNavigation() {
+  if (navigationCommitting) throw Error('Wait for the current structure to finish opening.');
+  const generation = ++navigationGeneration, session = activeSession, epoch = editEpoch;
+  return () => generation === navigationGeneration && session === activeSession && epoch === editEpoch;
+}
+function resetDocumentMetadata() {
+  document.getElementById('rfd-note').value = '';
+  document.getElementById('rfd-image').value = '';
+  imageNote = null;
+  uploadGeneration++;
+  document.getElementById('rfd-samples').value = '1';
+  document.getElementById('rfd-seed').value = '42';
+  for (const radio of document.querySelectorAll('input[name="thinking"]')) radio.checked = radio.value === 'medium';
+  for (const [name, value] of [['backbone', '0.3'], ['latent', '0.1']]) {
+    document.getElementById(`rfd-${name}-noise`).value = value;
+    document.getElementById(`rfd-${name}-value`).value = value;
+  }
+  const origin = document.getElementById('rfd-generation-origin');
+  if (origin) { origin.textContent = ''; origin.hidden = true; }
+}
+function normalizeDocumentMetadata(value) {
+  if (!value || typeof value.note !== 'string' || value.note.length > 20000 ||
+      (value.image_base64 != null && typeof value.image_base64 !== 'string')) throw Error('Saved document metadata is invalid; your current draft is preserved.');
+  const s = value.settings;
+  if (s != null && (!Number.isInteger(s.samples) || s.samples < 1 || s.samples > 16 ||
+      !Number.isInteger(s.seed) || s.seed < 0 || s.seed >= 2**31 ||
+      !['low','medium','high'].includes(s.generation?.thinking) ||
+      !['backbone_noise','latent_noise'].every(key => Number.isFinite(s.generation[key]) && s.generation[key] > 0 && s.generation[key] <= 1)))
+    throw Error('Saved generation settings are invalid; your current draft is preserved.');
+  return value;
+}
+function applyDocumentMetadata(value) {
+  resetDocumentMetadata();
+  document.getElementById('rfd-note').value = value.note;
+  imageNote = value.image_base64 || null;
+  if (value.settings) {
+    const s = value.settings;
+    document.getElementById('rfd-samples').value = s.samples;
+    document.getElementById('rfd-seed').value = s.seed;
+    for (const radio of document.querySelectorAll('input[name="thinking"]')) radio.checked = radio.value === s.generation.thinking;
+    for (const name of ['backbone','latent']) {
+      document.getElementById(`rfd-${name}-noise`).value = s.generation[name+'_noise'];
+      document.getElementById(`rfd-${name}-value`).value = s.generation[name+'_noise'];
+    }
+  }
+  const origin = document.getElementById('rfd-generation-origin');
+  origin.textContent = value.source === 'saved_run' ? 'Saved run settings; editable for a new run.' :
+    value.source === 'unavailable' ? 'This older run has no verified saved metadata. New draft defaults are shown.' : '';
+  if (value.image_note_unavailable) origin.textContent += ' The original image note could not be verified.';
+  origin.hidden = !origin.textContent;
+}
+export async function nativeFileNavigation(operation, {freshDocument = false} = {}) {
+  const request = navigationRequest(beginNavigation());
+  const abort = new AbortController();
+  navigationCommitting = true;
+  const previousInert = document.body.inert;
+  document.body.inert = true;
+  uploadGeneration++;
+  clearTimeout(draftTimer);
+  let timer;
+  try {
+    const work = (async () => {
+      const draft = await saveDraft();
+      if (!request.current()) throw Error('The design changed; open the structure again.');
+      const token = {current: request.current, signal: abort.signal, async copySavedSession() {
+        if (!request.current() || !draft?.draft_id || !draft.snapshot_checksum) throw Error('Save the current design with the latest plugin before combining.');
+        const copy = await tool('restore_draft', {draft_id: draft.draft_id, expected_checksum: draft.snapshot_checksum});
+        if (!request.current()) throw Error('The design changed; combine the structure again.');
+        return copy.session_id;
+      }, beginCommit() {
+        request.beginCommit();
+        if (freshDocument) freshDocumentRequest = request;
+      }};
+      return await operation(token);
+    })();
+    const deadline = new Promise((resolve, reject) => {
+      timer = setTimeout(() => {
+        if (request.expire()) { abort.abort(); reject(Error('Opening timed out before replacement. Your previous design is preserved; try opening again.')); }
+        else message('Studio is still replacing the structure. Editing remains locked; if it does not finish, reload and restore your saved draft.');
+      }, 120000);
+    });
+    return await Promise.race([work, deadline]);
+  } finally {
+    clearTimeout(timer);
+    abort.abort();
+    if (freshDocumentRequest === request) freshDocumentRequest = null;
+    request.settle();
+    document.body.inert = previousInert;
+    navigationCommitting = false;
   }
 }
 async function drafts() {
@@ -181,17 +346,13 @@ async function drafts() {
     button.onclick = async () => {
       button.disabled = true;
       try {
+        const current = beginNavigation();
         clearTimeout(draftTimer); await saveDraft();
+        if (!current()) return;
         const v = await tool('restore_draft',{draft_id:d.draft_id});
-        await openStudioSession(v.session_id);
-        document.getElementById('rfd-note').value = v.note; imageNote = v.image_base64;
-        if (v.settings) {
-          document.getElementById('rfd-samples').value = v.settings.samples;
-          document.getElementById('rfd-seed').value = v.settings.seed;
-          for (const radio of document.querySelectorAll('input[name="thinking"]')) radio.checked = radio.value === v.settings.generation.thinking;
-          for (const name of ['backbone','latent']) { document.getElementById(`rfd-${name}-noise`).value = v.settings.generation[name+'_noise']; document.getElementById(`rfd-${name}-value`).value = v.settings.generation[name+'_noise']; }
-        }
-        invalidate(); queueDraft(); await compute();
+        if (!current()) return;
+        await openStudioSession(v.session_id, current, {...v, source:'saved_draft'});
+        await compute();
       } catch(e) { message(e.message); } finally { button.disabled = false; }
     };
     box.append(button);
@@ -236,6 +397,7 @@ async function initialize() {
   const generation = document.createElement('section');
   generation.id = 'rfd-generation';
   generation.innerHTML = `<div class="rfd-generation-row"><fieldset id="rfd-thinking"><legend>Thinking</legend><label><input type="radio" name="thinking" value="low">low</label><label><input type="radio" name="thinking" value="medium" checked>medium</label><label><input type="radio" name="thinking" value="high">high</label></fieldset><label>Designs<input id="rfd-samples" type="number" min="1" max="16" value="1"></label><label>Seed<input id="rfd-seed" type="number" min="0" value="42"></label></div><details><summary>Sampling</summary><div class="rfd-sampling"><label>Backbone noise <output id="rfd-backbone-value">0.3</output><input aria-label="Backbone noise" id="rfd-backbone-noise" type="range" min="0.01" max="1" step="0.01" value="0.3"></label><label>Sequence / side-chain latent noise <output id="rfd-latent-value">0.1</output><input aria-label="Sequence / side-chain latent noise" id="rfd-latent-noise" type="range" min="0.01" max="1" step="0.01" value="0.1"></label></div></details><button id="rfd-review" disabled>Review design</button></section>`;
+  generation.insertAdjacentHTML('afterbegin', '<p id="rfd-generation-origin" role="status" hidden></p>');
   const generateSection = document.createElement('details');
   generateSection.id = 'rfd-generate-section';
   generateSection.className = 'card';
@@ -247,7 +409,7 @@ async function initialize() {
 
   const computeBox = document.createElement('details');
   computeBox.id = 'rfd-compute-box';
-  computeBox.innerHTML = `<summary>Compute · <span id="rfd-compute-label">Checking</span></summary><div class="rfd-compute-panel"><strong id="rfd-compute-name"></strong><div id="rfd-compute-gpu"></div><p id="rfd-compute-route"></p><p id="rfd-compute-checked"></p><p id="rfd-compute-running"></p><p id="rfd-setup-progress" role="status"></p><div class="rfd-compute-actions"><button id="rfd-setup">Set up in chat</button><button id="rfd-check">Check connection</button></div><details id="rfd-existing"><summary>Use an existing machine</summary><div id="rfd-targets"></div></details><details><summary>Details</summary><p id="rfd-compute-detail"></p></details></div>`;
+  computeBox.innerHTML = `<summary>Compute · <span id="rfd-compute-label">Checking</span></summary><div class="rfd-compute-panel"><strong id="rfd-compute-name"></strong><div id="rfd-compute-gpu"></div><p id="rfd-compute-route"></p><p id="rfd-compute-checked"></p><p id="rfd-compute-running"></p><p id="rfd-setup-progress" role="status"></p><div class="rfd-compute-actions"><button id="rfd-setup">Set up in chat</button><button id="rfd-check">Check connection</button><button id="rfd-disconnect">Disconnect this session</button></div><details id="rfd-existing"><summary>Use an existing machine</summary><div id="rfd-targets"></div></details><details><summary>Details</summary><p id="rfd-compute-detail"></p><button id="rfd-stop" hidden>Review stop in chat</button></details></div>`;
   const toolbar = document.querySelector('.header-actions');
   const menu = (id, title) => {
     const box = document.createElement('details');
@@ -272,7 +434,12 @@ async function initialize() {
     if (box === draftMenu.box) void drafts().catch(e => message(e.message));
     if (box === runsMenu.box) void refreshRuns().catch(e => message(e.message));
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') for (const box of menus) box.open = false; });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const activeMenu = menus.find(box => box.open && box.contains(document.activeElement));
+    for (const box of menus) box.open = false;
+    activeMenu?.querySelector('summary')?.focus();
+  });
   document.addEventListener('click', e => { for (const box of menus) if (!box.contains(e.target)) box.open = false; });
   const hint = document.createElement('div'); hint.id = 'rfd-compute-hint'; hint.hidden = true;
   hint.innerHTML = `Connect a GPU when you’re ready to generate. <button id="rfd-hint-setup">Set up in chat</button> <button id="rfd-hint-dismiss" aria-label="Dismiss compute reminder">×</button>`;
@@ -281,25 +448,24 @@ async function initialize() {
   action('rfd-setup', () => setupCompute());
   action('rfd-hint-setup', () => setupCompute());
   action('rfd-check', () => compute(true));
+  action('rfd-stop', () => setupCompute(computeState.selection?.machine_id, 'stop'));
+  action('rfd-disconnect', async () => {
+    const session = activeSession;
+    const result = await tool('disconnect_compute', {session_id: session, expected_revision: computeState.selection.revision});
+    if (session !== activeSession) return;
+    invalidate(); message(result.detail); await compute();
+  });
   action('rfd-drafts-refresh', drafts);
   document.getElementById('rfd-hint-dismiss').onclick = () => { hintDismissed = true; hint.hidden = true; };
   document.getElementById('rfd-existing').ontoggle = e => { if (e.target.open) registeredTargets().catch(error => message(error.message)); };
-  setInterval(() => { if (!document.hidden) void compute(); }, 15000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) void compute(); });
-  for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = () => { invalidate(); queueDraft(); };
-  document.getElementById("rfd-image").onchange = async (e) => {
-    invalidate();
-    imageNote = null; queueDraft();
-    const f = e.target.files[0];
-    if (!f) return;
-    if (f.size > 1e7 || f.type !== "image/png") {
-      message("Use a PNG under 10 MB.");
-      return;
-    }
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    let binary = "";
-    for (const v of bytes) binary += String.fromCharCode(v);
-    imageNote = btoa(binary); queueDraft();
+  setInterval(() => { if (!document.hidden) { void compute(); void pollRun(); } }, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { void compute(); void pollRun(); } });
+  for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = () => {
+    document.getElementById('rfd-generation-origin').hidden = true;
+    invalidate(); queueDraft();
+  };
+  document.getElementById("rfd-image").onchange = e => {
+    void attachImage(e.target.files[0]).catch(error => message(error.message));
   };
   action("rfd-review", async () => {
     if (!computeState?.name) { document.getElementById("rfd-compute-box").open = true; message("Connect compute before reviewing a run. You can keep editing and saving your draft."); return; }
@@ -312,10 +478,52 @@ async function initialize() {
   });
   action("rfd-generate", () => {
     if (!plan) throw Error("Review the current design first");
+    watchedRun = {jobId: plan.snapshot_id, session: activeSession, epoch: editEpoch};
     return ask(`Generate the reviewed RFD4 design using execute_rfd4_plan with plan_id ${plan.snapshot_id} and plan_checksum ${plan.plan_checksum}. Use this exact saved plan (${plan.samples} designs, seed ${plan.seed}, ${plan.instance}).`);
   });
   action("rfd-runs-refresh", refreshRuns);
   await compute().catch((e) => message(e.message));
+}
+// Only the most recently submitted plan may replace the current input.
+// Edits, navigation and another submission invalidate that permission.
+function canOpenRun(run) {
+  return watchedRun === run && activeSession === run.session && editEpoch === run.epoch;
+}
+async function pollRun() {
+  if (!watchedRun || checkingRun) return;
+  checkingRun = true;
+  const run = watchedRun;
+  try {
+    const workspace = await tool('get_workspace');
+    let job = workspace.jobs.find(job => job.job_id === run.jobId);
+    if (!job) return; // The chat may still be waiting for execution approval.
+    if (['queued', 'submitted', 'submitting', 'submission_unknown', 'running'].includes(job.status)) {
+      job = await tool('check_rfd4_job', {job_id: run.jobId});
+    }
+    if (watchedRun !== run) return;
+    if (job.status === 'failed') {
+      watchedRun = null;
+      message('Generation failed. Open Runs for details.');
+      return;
+    }
+    if (job.status !== 'completed') return;
+    await refreshRuns();
+    if (watchedRun !== run) return;
+    if (!canOpenRun(run)) {
+      watchedRun = null;
+      message('Your design is ready in Runs. Your current edits have been kept.');
+      return;
+    }
+    // Keep the guard active across retrieval, draft saving and structure import.
+    const row = document.getElementById('rfd-runs').querySelector(`[data-job-id="${run.jobId}"]`);
+    const opened = await showResults(run.jobId, row, () => canOpenRun(run));
+    if (watchedRun === run) {
+      watchedRun = null;
+      message(opened ? 'Generation complete. Design 1 is now in the viewer.' : 'Your design is ready in Runs. Your current edits have been kept.');
+    }
+  } catch (error) {
+    message('Could not refresh the run: ' + error.message + '. Retrying automatically.');
+  } finally { checkingRun = false; }
 }
 async function refreshRuns() {
   const data = await tool("get_workspace"), host = document.getElementById("rfd-runs");
@@ -323,15 +531,18 @@ async function refreshRuns() {
   if (!data.jobs.length) host.textContent = 'No runs yet. Review a design in Generate to get started.';
   for (const job of data.jobs) {
     const row = document.createElement("div"), label = document.createElement("span"), button = document.createElement("button");
-    label.textContent = `${job.job_id.slice(0, 8)} \xB7 ${job.status} `;
+    row.dataset.jobId = job.job_id;
+    label.textContent = `${job.job_id.slice(0, 8)} \xB7 ${job.status} \xB7 ${job.machine_name || job.instance || 'Original machine'} `;
     button.textContent = job.status === "completed" ? "View result" : "Check status";
     button.onclick = async () => {
       button.disabled = true;
       try {
         if (job.status === "completed") {
+          watchedRun = null;
           await showResults(job.job_id, row);
         } else {
-          await tool("check_rfd4_job", { job_id: job.job_id });
+          const observed = await tool("check_rfd4_job", { job_id: job.job_id });
+          message(observed.detail || observed.error || `Run status: ${observed.status}`);
           await refreshRuns();
         }
       } catch (e) {
@@ -341,6 +552,11 @@ async function refreshRuns() {
       }
     };
     row.append(label, button);
+    if (job.detail || job.error) {
+      const detail = document.createElement('small');
+      detail.textContent = job.detail || job.error;
+      row.append(detail);
+    }
     host.append(row);
   }
   if (!data.jobs.length) host.textContent = "No runs yet.";
@@ -353,7 +569,7 @@ export {
   tool
 };
 
-async function showResults(jobId, row) {
+async function showResults(jobId, row, canOpen = () => true) {
   row.querySelector('[data-results]')?.remove();
   const data = await tool('list_results', {job_id: jobId});
   const controls = document.createElement('span');
@@ -363,14 +579,22 @@ async function showResults(jobId, row) {
   select.add(new Option('Input', ''));
   for (const design of data.designs) select.add(new Option(`Design ${design.index + 1}`, String(design.index)));
   async function open() {
+    if (!canOpen()) return false;
     select.disabled = true;
     try {
+      const navigation = beginNavigation();
+      const current = () => navigation() && canOpen();
+      clearTimeout(draftTimer);
+      await saveDraft();
+      if (!current()) return false;
       const value = await tool('open_run_structure', {job_id: jobId, index: select.value === '' ? null : Number(select.value)});
-      await openStudioSession(value.session_id);
-    } catch(e) { message(e.message); }
+      if (!current()) return false;
+      await openStudioSession(value.session_id, current, value.document_metadata || {source:'unavailable',note:'',image_base64:null,settings:null});
+      return true;
+    } catch(e) { message(e.message); throw e; }
     finally { select.disabled = false; }
   }
-  select.onchange = open;
+  select.onchange = () => { watchedRun = null; canOpen = () => true; void open().catch(e => message(e.message)); };
   const download = document.createElement('button');
   download.textContent = 'Download all';
   download.onclick = async () => {
@@ -386,18 +610,41 @@ async function showResults(jobId, row) {
   };
   controls.append(select, download); row.append(controls);
   if (data.designs.length) select.value = String(data.designs[0].index);
-  await open();
+  if (!data.designs.length) throw Error('The completed run has no generated structures');
+  return await open();
 }
 
-function openStudioSession(id) {
-  return new Promise((resolve,reject) => {
+export async function openStudioSession(id, current, metadata = null) {
+  if (!current()) throw Error('The design changed; open the structure again.');
+  if (metadata) normalizeDocumentMetadata(metadata);
+  navigationCommitting = true;
+  const request = navigationRequest(current), requestId = ++seq;
+  const metadataRequest = metadata ? {id,request,metadata,applied:false} : null;
+  documentMetadataRequest = metadataRequest;
+  const previousInert = document.body.inert;
+  document.body.inert = true;
+  uploadGeneration++;
+  try { return await new Promise((resolve,reject) => {
     const done = event => {
-      if (event.detail.id !== id) return;
+      if (event.detail.id !== id || event.detail.requestId !== requestId) return;
       clearTimeout(timer); removeEventListener('rfd-session-opened',done);
-      event.detail.error ? reject(Error(event.detail.error)) : resolve();
+      request.settle();
+      if (event.detail.error) reject(Error(event.detail.error));
+      else if (metadataRequest && !metadataRequest.applied) reject(Error('Structure did not confirm its saved metadata; reopen the saved draft.'));
+      else resolve();
     };
-    const timer = setTimeout(() => { removeEventListener('rfd-session-opened',done); reject(Error('Studio did not finish opening the structure')); }, 120000);
+    const timer = setTimeout(() => {
+      if (request.expire()) {
+        removeEventListener('rfd-session-opened',done);
+        reject(Error('Opening timed out before replacing the structure. You can try again.'));
+      } else {
+        message('Studio is still replacing the structure. Editing remains locked until it finishes. If it does not recover, reload Studio and reopen your saved draft.');
+      }
+    }, 120000);
     addEventListener('rfd-session-opened',done);
-    dispatchEvent(new CustomEvent('rfd-open-session',{detail:id}));
-  });
+    dispatchEvent(new CustomEvent('rfd-open-session',{detail:{id,requestId,current:request.current,beginCommit:request.beginCommit}}));
+  }); } finally {
+    if (documentMetadataRequest === metadataRequest) documentMetadataRequest = null;
+    document.body.inert = previousInert; navigationCommitting = false;
+  }
 }

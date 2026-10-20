@@ -1,5 +1,6 @@
 """Exercise the actual MCP stdio boundary without compute or network."""
 import os
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -20,6 +21,7 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     resources=(await session.list_resources()).resources
                     self.assertEqual(resources[0].meta['ui']['csp']['frameDomains'],[])
                     self.assertEqual('execute_rfd4_plan' in names,mode=='agent')
+                    self.assertEqual('recover_queued_rfd4_job' in names,mode=='agent')
                     if mode=='app':
                         result=await session.call_tool('get_workspace',{})
                         self.assertFalse(result.isError)
@@ -38,6 +40,11 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     else:
                         execute=next(t for t in tools if t.name=='execute_rfd4_plan')
                         self.assertEqual(execute.meta['ui']['visibility'],['model'])
+                        recovery=next(t for t in tools if t.name=='recover_queued_rfd4_job')
+                        self.assertEqual(recovery.meta['ui']['visibility'],['model'])
+                        config=json.loads((server.parents[3]/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
+                        agent=next(value for value in config['mcpServers'].values() if 'execute_rfd4_plan' in value.get('tools',{}))
+                        self.assertEqual(agent['tools']['recover_queued_rfd4_job']['approval_mode'],'prompt')
     async def test_app(self): await self.check_mode('app')
     async def test_agent(self): await self.check_mode('agent')
 

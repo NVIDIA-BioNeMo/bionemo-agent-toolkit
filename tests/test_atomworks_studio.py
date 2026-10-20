@@ -13,10 +13,12 @@ class Plans(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.service = Service(self.tmp.name)
+        from ownership_test_support import assume_owned
+        assume_owned(self,self.service,skip_transport_identity=True)
         checker=patch.object(self.service,'check_compute',return_value={'state':'ready'})
         checker.start(); self.addCleanup(checker.stop)
         self.cfg = {'instance':'demo', 'instance_id':'id-demo', 'remote_root':'/home/ubuntu/rfd4', 'studio_url':'http://127.0.0.1:18764'}
-        (Path(self.tmp.name)/'config.json').write_text(json.dumps(self.cfg))
+        self.service.register_compute('brev', 'demo', self.cfg['remote_root'], self.cfg['studio_url'], instance_id='id-demo', organization_id='org-test', session_id='session')
         self.export = {'cif':'data_demo\n_atom_site.id 1\n', 'revision':1, 'issues':[]}
     def plan(self):
         with patch.object(self.service, 'studio', return_value=self.export):
@@ -60,8 +62,8 @@ class Plans(unittest.TestCase):
     def test_target_changes_rejected(self):
         plan=self.plan()
         self.cfg['instance_id']='different'
-        self.service.compute_config_path('session').write_text(json.dumps(self.cfg))
-        with self.assertRaisesRegex(ValueError,'configuration changed'):
+        self.service.register_compute('brev', 'demo', self.cfg['remote_root'], self.cfg['studio_url'], instance_id='different', organization_id='org-test', session_id='session')
+        with self.assertRaisesRegex(ValueError,'selection changed'):
             self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
     def test_validation_blocks_errors(self):
         self.export['issues']=[{'check':'other','severity':'error'}]
@@ -75,9 +77,16 @@ class Plans(unittest.TestCase):
         with patch('core.subprocess.Popen'):
             job=self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
         job.update(status='completed',remote_dir='/srv/rfd4/runs/'+job['job_id']); self.service.save_job(job)
-        self.cfg['instance_id']='different'
-        (Path(self.tmp.name)/'config.json').write_text(json.dumps(self.cfg))
-        with patch.object(self.service,'verify_target'), patch.object(self.service,'target_copy') as copy:
+        self.service.register_compute('brev','different',self.cfg['remote_root'],self.cfg['studio_url'],
+            instance_id='different',organization_id='org-test',session_id='session')
+        import hashlib
+        manifest = {'version':1,'files':[{'path':'design.cif','size':9,'sha256':hashlib.sha256(b'data_test').hexdigest()}]}
+        def copied(cfg, source, destination, **kwargs):
+            # Direct SCP nests the source directory under its destination.
+            self.assertEqual(cfg['kind'],'brev')
+            (destination/'inference_samples').mkdir()
+            (destination/'inference_samples/design.cif').write_bytes(b'data_test')
+        with patch.object(self.service,'verify_target'), patch.object(self.service,'target_exec',return_value=json.dumps(manifest)), patch.object(self.service,'target_copy',side_effect=copied) as copy:
             self.service.collect(job['job_id'])
         self.assertEqual(copy.call_args.args[0]['instance_id'],'id-demo')
 
@@ -97,7 +106,7 @@ class GenerationContract(unittest.TestCase):
         self.assertEqual(job['generation'], chosen)
         with patch.object(self.service,'verify_target'), patch.object(self.service,'target_exec'), patch.object(self.service,'target_copy'):
             self.service._submit(job['target'],job,self.service.state/job['job_id']/'input.cif')
-        command = (self.service.state/job['job_id']/'run.sh').read_text()
+        command = (self.service.state/job['job_id']/'execution-payload/run.sh').read_text()
         for arg in overrides(chosen): self.assertIn(arg,command)
 
     def test_invalid_options_never_create_plan(self):
@@ -122,6 +131,9 @@ class GenerationContract(unittest.TestCase):
         directory = self.service.state/job['job_id']/'results'; directory.mkdir()
         (directory/'design1.cif').write_text('data_first')
         (directory/'design2.cif').write_text('data_second')
+        import hashlib
+        manifest = {'version':1,'files':[{'path':p.name,'size':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(directory.glob('*.cif'))]}
+        (directory/'.manifest.json').write_text(json.dumps(manifest))
         self.assertEqual(len(self.service.results(job['job_id'])['designs']),2)
         with patch.object(self.service,'import_cif',return_value={'session_id':'loaded'}) as imp, patch.object(self.service,'viewer_payload',side_effect=lambda x:x):
             self.service.open_run_structure(job['job_id'])

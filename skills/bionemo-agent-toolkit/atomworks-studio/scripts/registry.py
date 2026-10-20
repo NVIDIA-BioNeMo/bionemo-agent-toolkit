@@ -2,6 +2,7 @@
 import fcntl
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import uuid
@@ -10,9 +11,15 @@ import uuid
 def atomic(path, value):
     temp = path.with_name(uuid.uuid4().hex + '.tmp')
     try:
-        temp.write_text(json.dumps(value, indent=2))
-        temp.chmod(0o600)
+        with temp.open('w') as handle:
+            temp.chmod(0o600)
+            json.dump(value, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
         temp.replace(path)
+        descriptor = os.open(str(path.parent), os.O_RDONLY)
+        try: os.fsync(descriptor)
+        finally: os.close(descriptor)
     finally:
         temp.unlink(missing_ok=True)
 
@@ -96,3 +103,28 @@ class Catalog:
                 backup.write_bytes(path.read_bytes()); backup.chmod(0o600)
             atomic(path, cfg)
             return cfg
+
+
+def linux_machine_identity(cfg, run):
+    """Identify the Linux executor through its authenticated transport.
+
+    Host aliases and client key paths are mutable access settings, not identity.
+    A copied OS machine-id conservatively shares a reservation rather than
+    permitting two launches. No credentials or raw machine-id are persisted.
+    """
+    command = 'cat /etc/machine-id'
+    if cfg['kind'] == 'ssh':
+        from ssh_transport import execute
+        return machine_identity_from_output(execute(cfg, command, run, 15))
+    elif cfg['kind'] == 'local':
+        args = ['cat', '/etc/machine-id']
+    else:
+        raise ValueError('Resolve Brev identity through its explicit organization and instance')
+    return machine_identity_from_output(run(args, timeout=15))
+
+
+def machine_identity_from_output(output):
+    value = output.strip().lower()
+    if not re.fullmatch(r'[0-9a-f]{32}', value) or value == '0' * 32:
+        raise ValueError('Cannot verify Linux machine identity; connect to a supported Linux GPU host')
+    return {'linux_machine_id_sha256': hashlib.sha256(value.encode()).hexdigest()}

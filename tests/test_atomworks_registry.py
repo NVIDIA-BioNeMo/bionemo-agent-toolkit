@@ -19,73 +19,96 @@ class RegistryContract(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.s=Service(self.tmp.name)
+        from ownership_test_support import assume_owned
+        assume_owned(self,self.s,skip_transport_identity=False)
+        recipe=patch('runtime_recipe.inspect',side_effect=lambda backend,cfg: {'checks':dict.fromkeys(['platform','python','revision','source','dependencies','entrypoint','cuda','gpu'],True)|{'weights':bool(cfg['weight_paths'])},'gpus':[{'name':'A100','memory':80*1024**3}], 'details':[]})
+        recipe.start();self.addCleanup(recipe.stop)
+        machine_identity=patch('registry.linux_machine_identity', side_effect=lambda cfg, run: {'linux_machine_id_sha256': cfg.get('ssh_host', 'local-test-host')})
+        machine_identity.start(); self.addCleanup(machine_identity.stop)
         identity=patch('registry.effective_access',side_effect=lambda alias,run: {'alias':alias,'host':alias})
         identity.start();self.addCleanup(identity.stop)
     def register(self, session=None, name='gpu'):
         return self.s.register_compute('ssh',name,'/srv/rfd4','http://127.0.0.1:18765',ssh_host=name,weight_paths=['/weights/model.ckpt'],session_id=session)
+    def activate_legacy(self):
+        from upgrade_state import upgrade
+        old=self.s.root
+        destination=tempfile.TemporaryDirectory();self.addCleanup(destination.cleanup)
+        def writable():
+            for path in [old,*old.rglob('*')]:
+                path.chmod(0o700 if path.is_dir() else 0o600)
+        self.addCleanup(writable)
+        new=Path(destination.name)/'activated'
+        upgrade(old,new,old_installation_disabled=True,scan=lambda root:[])
+        self.s=Service(new)
     def test_owns_registry_and_selection_without_external_plugin(self):
         self.register()
         self.assertTrue(self.s.available_compute()['available'])
-        self.assertEqual(self.s.available_compute()['targets'][0]['target_id'],'gpu')
+        target_id = self.s.available_compute()['targets'][0]['target_id']
+        self.assertNotEqual(target_id, 'gpu')
         with patch.object(self.s,'target_exec',side_effect=AssertionError('no remote execution')):
-            self.s.register_registry_compute('gpu',session_id='one')
+            self.s.register_registry_compute(target_id,session_id='one')
         self.assertEqual(self.s.compute_status('one')['source'],'BioNeMo')
         self.assertEqual(self.s.config('one')['ssh_host'],'gpu')
     def test_changed_catalog_record_requires_reselection(self):
-        self.register();cfg=self.s.config('one')
+        self.register('one');cfg=self.s.config('one')
         self.s.register_compute('ssh','gpu','/other','http://127.0.0.1',ssh_host='gpu')
-        with self.assertRaisesRegex(ValueError,'configuration changed'): registry.Catalog(self.s.root).verify(cfg)
+        self.assertNotEqual(cfg['machine_revision'], self.s.config('one')['machine_revision'])
     def test_changed_ssh_alias_rejected_for_old_job(self):
         with patch('registry.effective_access',return_value={'alias':'gpu','host':'different'}):
             with self.assertRaisesRegex(ValueError,'SSH identity changed'):
                 self.s.verify_target({'kind':'ssh','registry_target':{'host_access':{'alias':'gpu','host':'original'}}})
     def test_empty_catalog_needs_no_external_environment(self):
         with patch.dict(os.environ,{},clear=True):
-            self.assertEqual(self.s.available_compute(),{'available':True,'targets':[]})
+            self.assertEqual(self.s.available_compute(),{'available':True,'targets':[],'unresolved':[]})
     def test_migrates_only_owned_config_and_preserves_immutable_job(self):
         cfg={'kind':'ssh','instance':'gpu','remote_root':'/srv/rfd4','studio_url':'http://127.0.0.1',
              'ssh_host':'gpu','registry_target':dict(TARGET,host_access={'alias':'gpu','host':'gpu'})}
         path=self.s.root/'config.json';path.write_text(json.dumps(cfg))
-        jobdir=self.s.state/'old';jobdir.mkdir();job=jobdir/'job.json';job.write_text(json.dumps({'target':cfg}))
+        jobdir=self.s.state/'old';jobdir.mkdir();job=jobdir/'job.json';job.write_text(json.dumps({'job_id':'old','status':'completed','target':cfg}))
         before=job.read_bytes()
-        migrated=self.s.config()
-        self.assertNotIn('registry_target',migrated)
-        self.assertEqual(migrated['ssh_access'],cfg['registry_target']['host_access'])
+        with self.assertRaisesRegex(ValueError,'requires offline upgrade'):self.s.available_compute()
+        self.activate_legacy()
+        available=self.s.available_compute()
+        self.assertEqual(len(available['targets']), 1)
         self.assertEqual(job.read_bytes(),before)
-        self.assertTrue(path.with_suffix('.json.before-standalone').exists())
-        self.assertEqual(self.s.config(),migrated)
-        self.assertEqual(self.s.compute_status()['state'],'registered')
+        self.assertTrue((self.s.managed.root/'legacy-backup/config.json').exists())
+        self.assertEqual(self.s.compute_status()['state'],'unregistered')
+        self.s.register_registry_compute(available['targets'][0]['target_id'])
+        self.assertEqual(self.s.config()['registry_target']['host_access'], cfg['registry_target']['host_access'])
     def test_legacy_scheduler_target_cannot_migrate(self):
         cfg={'instance':'gpu','registry_target':dict(TARGET,executor='slurm')}
         (self.s.root/'config.json').write_text(json.dumps(cfg))
-        with self.assertRaisesRegex(ValueError,'scheduler'): self.s.config()
+        self.activate_legacy()
+        self.assertIn('scheduler', self.s.available_compute()['unresolved'][0]['reason'])
     def test_migration_preserves_distinct_session_targets_with_same_name(self):
         for name,host in [('a','host-a'),('b','host-b')]:
-            cfg={'kind':'ssh','instance':'gpu','remote_root':'/srv','studio_url':'http://127.0.0.1','ssh_host':host}
+            cfg={'kind':'ssh','instance':'gpu','remote_root':'/srv','studio_url':'http://127.0.0.1','ssh_host':host,'ssh_access':{'alias':host,'host':host}}
             self.s.compute_config_path(name).write_text(json.dumps(cfg))
+        self.activate_legacy()
         self.s.available_compute()
-        self.assertNotEqual(self.s.config('a')['target_id'],self.s.config('b')['target_id'])
+        self.assertNotEqual(self.s.managed.selection('a')['previous_machine_id'], self.s.managed.selection('b')['previous_machine_id'])
+        self.assertIsNone(self.s.managed.selection('a')['machine_id'])
     def test_missing_editor_has_actionable_error(self):
         with patch.dict(os.environ,{},clear=True):
             with self.assertRaisesRegex(ValueError,'CPU editor is not configured'): self.s.studio_url()
     def test_inspection_is_connection_only(self):
         self.register()
         with patch.object(self.s,'target_exec',return_value='') as execute:
-            self.assertTrue(self.s.inspect_compute_target('gpu')['connected'])
+            self.assertTrue(self.s.inspect_compute_target(self.s.config()['target_id'])['connected'])
             self.assertEqual(execute.call_args.args[1],'true')
         with patch.object(self.s,'target_exec',side_effect=RuntimeError('offline')):
-            self.assertFalse(self.s.inspect_compute_target('gpu')['connected'])
+            self.assertFalse(self.s.inspect_compute_target(self.s.config()['target_id'])['connected'])
     def test_session_selection_isolated_from_global_default(self):
-        self.register()
+        self.register('one')
         first=self.s.config('one')
         self.register(name='different')
         self.assertEqual(self.s.config('one'),first)
-        self.assertEqual(self.s.config('two')['instance'],'different')
+        self.assertEqual(self.s.compute_status('two')['state'],'unregistered')
     def test_failed_connection_not_model_setup(self):
         self.register()
         with patch.object(self.s,'target_exec',side_effect=RuntimeError('Connection refused')):
             self.assertEqual(self.s.check_compute()['state'],'disconnected')
-        with patch.object(self.s,'target_exec',side_effect=['','A100',RuntimeError('Runtime missing')]):
+        with patch.object(self.s,'target_exec',return_value=''), patch('runtime_recipe.inspect',side_effect=RuntimeError('Runtime missing')):
             self.assertEqual(self.s.check_compute()['state'],'needs_setup')
     def test_gpu_readiness_independent_of_editor(self):
         self.register()
@@ -122,14 +145,14 @@ class RegistryContract(unittest.TestCase):
     def test_setup_requests_are_idempotent_and_cannot_claim_readiness(self):
         first=self.s.begin_setup('one')
         self.assertEqual(first,self.s.begin_setup('one'))
-        self.s.update_setup(first['request_id'],'downloading','Downloading weights','one')
-        self.assertEqual(self.s.compute_status('one')['state'],'setting_up')
-        with self.assertRaisesRegex(ValueError,'request changed'):
-            self.s.update_setup('different','complete','Done','one')
-        self.s.update_setup(first['request_id'],'complete','Done','one')
+        self.assertEqual(self.s.compute_operation(first['id'])['operation']['state'], 'requested')
         self.assertEqual(self.s.compute_status('one')['state'],'unregistered')
+        self.s.managed.cancel(first['id'])
+        second=self.s.begin_setup('one')
+        self.assertNotEqual(first['id'],second['id'])
+        self.assertEqual(second['state'],'requested')
     def test_submission_rechecks_readiness_and_retries_existing_job(self):
-        self.register()
+        self.register('one')
         exported={'cif':'data_draft\n_atom_site.id 1','revision':3,'issues':[]}
         with patch.object(self.s,'studio',return_value=exported): plan=self.s.prepare('one')
         with patch.object(self.s,'check_compute',return_value={'state':'disconnected','detail':'offline'}),patch('core.subprocess.Popen') as spawn:

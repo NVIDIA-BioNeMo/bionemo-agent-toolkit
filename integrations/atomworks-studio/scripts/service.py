@@ -6,7 +6,11 @@ import uuid
 from generation import options
 from core import Backend, safe_id, safe_session
 
-class Service(Backend):
+from lifecycle import Lifecycle
+from setup_operation import SetupOperation
+from create_operation import CreateOperation
+
+class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
     def plans(self):
         return [json.loads(p.read_text()) for p in sorted(self.state.glob('*/plan.json'), key=lambda p:p.stat().st_mtime, reverse=True)]
 
@@ -15,7 +19,13 @@ class Service(Backend):
             raise ValueError('Use 1–16 designs and a nonnegative 31-bit seed')
         generation = options(generation)
         snapshot = self.snapshot(session_id, note, {'image_base64': image_base64} if image_base64 else None)
-        plan = dict(snapshot, session_id=session_id, samples=samples, seed=seed, generation=generation, target=self.config(session_id))
+        selection, target = self.selected_compute(session_id)
+        if target is None:
+            raise ValueError('Connect compute before reviewing a run')
+        ownership=self.require_executor_ownership(target)
+        from run_payload import freeze
+        execution=freeze(self.state/snapshot['snapshot_id'],target,snapshot,samples,seed,generation,ownership)
+        plan = dict(snapshot, selection=selection, session_id=session_id, samples=samples, seed=seed, generation=generation, target=target, executor_ownership=ownership, execution_payload=execution)
         plan['plan_checksum'] = self.checksum(plan)
         (self.state / plan['snapshot_id'] / 'plan.json').write_text(json.dumps(plan, indent=2))
         return self.public_plan(plan)
@@ -26,7 +36,7 @@ class Service(Backend):
 
     @staticmethod
     def public_plan(plan):
-        return {k:v for k,v in plan.items() if k not in ('target', 'image_markup')} | {'instance':plan['target']['instance'], 'instance_id':plan['target'].get('instance_id', '')}
+        return {k:v for k,v in plan.items() if k not in ('target', 'image_markup', 'execution_payload')} | {'instance':plan['target']['instance'], 'instance_id':plan['target'].get('instance_id', '')}
 
     def execute(self, plan_id, plan_checksum):
         plan = self.read(plan_id, 'plan.json')
@@ -41,12 +51,47 @@ class Service(Backend):
             # Reopening/retrying an existing run must never submit it elsewhere.
             if (self.state/plan_id/'job.json').exists():
                 return self.read(plan_id, 'job.json')
+            if not plan.get('execution_payload'):
+                raise ValueError('This older plan has no frozen execution payload. Prepare and review a new plan; existing runs remain available.')
+            if plan.get('selection') != self.managed.selection(plan.get('session_id') or 'workspace'):
+                raise ValueError('Compute selection changed; prepare and review again')
             if plan['target'] != self.config(plan.get('session_id')):
                 raise ValueError('Compute configuration changed; prepare and review again')
-            status = self.check_compute(plan.get('session_id'))
-            if status['state'] != 'ready':
-                raise ValueError('Compute is not ready: '+status['detail'])
-            return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id, target=plan['target'], generation=plan.get('generation'))
+            state = self.managed
+            machine_id = plan['target']['target_id']
+            activity = self.compute_status(plan.get('session_id'))
+            if activity.get('active_jobs') or activity.get('unresolved_active_jobs'):
+                raise ValueError('Existing or unresolved run must be reconciled before another submission')
+            state.reserve(machine_id, plan_id, 'run')
+            try:
+                status = self.check_compute(plan.get('session_id'))
+                if status['state'] != 'ready':
+                    raise ValueError('Compute is not ready: '+status['detail'])
+                if not plan.get('executor_ownership'):
+                    raise ValueError('Plan predates required executor ownership; review a new plan.')
+                ownership=self.require_executor_ownership(plan['target'],plan['executor_ownership'])
+                activity=self.machine_jobs(machine_id)
+                if activity['active_jobs'] or activity['unresolved_active_jobs']:
+                    raise ValueError('Active or unresolved jobs on the verified host block submission')
+                # Linearization point: once the durable job is accepted, a later
+                # disconnect leaves it running. Before this point it invalidates approval.
+                with state.transaction() as data:
+                    if plan['selection'] != state._selection(data, plan.get('session_id') or 'workspace'):
+                        raise ValueError('Compute selection changed; prepare and review again')
+                    return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id,
+                                       target=plan['target'], generation=plan.get('generation'), executor_ownership=ownership, plan_checksum=plan['plan_checksum'], execution_payload=plan['execution_payload'])
+            except Exception:
+                job_path = self.state/plan_id/'job.json'
+                if not job_path.exists() or self.read(plan_id, 'job.json')['status'] == 'failed':
+                    state.release(machine_id, plan_id, 'No remote dispatch; submission preparation failed')
+                raise
+
+    def recover_queued_job(self, job_id, accepted_plan_checksum):
+        """Explicit continuation of an accepted job, never a new plan or run."""
+        if not isinstance(accepted_plan_checksum,str) or len(accepted_plan_checksum)!=64:
+            raise ValueError('Provide the original accepted plan checksum')
+        from worker import run_worker
+        return run_worker(self.root,safe_id(job_id),accepted_plan_checksum=accepted_plan_checksum)
 
     def save_draft(self, session_id, note='', image_base64=None, settings=None):
         """Save even incomplete designs; validation is required only for review."""
@@ -59,27 +104,53 @@ class Service(Backend):
         exported=self.studio('POST',f'sessions/{session_id}/export')
         from datetime import datetime, timezone
         record={'draft_id':session_id,'revision':exported['revision'],'cif':exported['cif'],'note':note,'image_base64':image_base64,'settings':settings,'saved_at':datetime.now(timezone.utc).isoformat()}
-        try: record['target']=self.config(session_id)
-        except ValueError: pass
+        selection = self.managed.selection(session_id)
+        record['previous_machine_id'] = selection['machine_id'] or selection['previous_machine_id']
         directory=self.root/'drafts'; directory.mkdir(exist_ok=True,mode=0o700)
         path=directory/(session_id+'.json')
-        temp=directory/(uuid.uuid4().hex+'.tmp');temp.write_text(json.dumps(record));temp.chmod(0o600);temp.replace(path)
-        return {k:record[k] for k in ('draft_id','revision','saved_at')}
+        serialized=json.dumps(record)
+        temp=directory/(uuid.uuid4().hex+'.tmp');temp.write_text(serialized);temp.chmod(0o600);temp.replace(path)
+        return dict({k:record[k] for k in ('draft_id','revision','saved_at')}, snapshot_checksum=hashlib.sha256(serialized.encode()).hexdigest())
 
     def list_drafts(self):
         return {'drafts':[{k:v[k] for k in ('draft_id','revision','saved_at','note')} for p in sorted((self.root/'drafts').glob('*.json'),key=lambda p:p.stat().st_mtime,reverse=True) for v in [json.loads(p.read_text())]]}
 
-    def restore_draft(self, draft_id):
-        record=json.loads((self.root/'drafts'/(safe_session(draft_id)+'.json')).read_text())
+    def restore_draft(self, draft_id, expected_checksum=None):
+        serialized=(self.root/'drafts'/(safe_session(draft_id)+'.json')).read_bytes()
+        if expected_checksum is not None and hashlib.sha256(serialized).hexdigest()!=expected_checksum:
+            raise ValueError('The saved draft changed; save and review the document again')
+        record=json.loads(serialized)
         result=self.import_cif(record['cif'])
-        if record.get('target'):
-            path=self.compute_config_path(result['session_id'])
-            path.write_text(json.dumps(record['target']));path.chmod(0o600)
+        # Restoring scientific work never reconnects compute, including legacy drafts.
+        previous = record.get('previous_machine_id')
+        if previous:
+            state = self.managed
+            with state.transaction() as data:
+                if previous in data['machines']:
+                    selection = state._selection(data, result['session_id'])
+                    data['sessions'][result['session_id']] = dict(selection, previous_machine_id=previous)
         return {'session_id':result['session_id'],'note':record['note'],'image_base64':record.get('image_base64'),'settings':record.get('settings')}
 
     def overview(self):
         jobs = [json.loads(p.read_text()) for p in self.state.glob('*/job.json')]
-        return {'plans':[self.public_plan(p) for p in self.plans()], 'jobs':[{k:v for k,v in j.items() if k != 'target'} for j in jobs]}
+        return {'plans':[self.public_plan(p) for p in self.plans()], 'jobs':[self.public_job(j) for j in jobs]}
+
+    def public_job(self, job):
+        """Expose run identity/status, not the frozen executable source bundle."""
+        result={k:v for k,v in job.items() if k not in ('target','execution_payload','published_payload')}
+        for field in ('error','detail'):
+            value=result.get(field)
+            if value is not None and (not isinstance(value,str) or len(value)>1000
+                    or ('Command ' in value and ' timed out' in value)):
+                result[field]='An earlier command failed or timed out. Ask chat to inspect the original operation; do not resubmit an uncertain run.'
+        result['machine_name']=job.get('instance') or 'Original machine'
+        if job.get('status')=='queued':
+            if job.get('execution_payload') and job.get('remote_dispatch_started') is False and job.get('plan_checksum'):
+                result['detail']='Waiting for the original worker. If this run stays queued, ask chat to continue this saved run; do not submit another design.'
+                result['recovery_action']='recover_queued_rfd4_job'
+            else:
+                result['detail']='This older run has no durable dispatch proof. Inspect its original executor in chat; do not replay it.'
+        return result
 
     def viewer_payload(self, result):
         session_id = safe_session(result['session_id'])
@@ -120,10 +191,8 @@ class Service(Backend):
         job = self.read(job_id, 'job.json')
         if job['status'] != 'completed':
             raise ValueError('Complete the job before retrieving results')
-        directory = self.state / safe_id(job_id) / 'results'
-        if not list(directory.rglob('*.cif*')):
-            self.collect(job_id)
-        return sorted(directory.rglob('*.cif*'))
+        from pathlib import Path
+        return [Path(p) for p in self.collect(job_id)['files']]
 
     def results(self, job_id):
         files = self.result_files(job_id)
@@ -131,11 +200,47 @@ class Service(Backend):
 
     def open_run_structure(self, job_id, index=None):
         job = self.read(job_id, 'job.json')
+        metadata = self.saved_run_metadata(job)
         if index is None:
             snapshot = self.state / safe_id(job['snapshot_id']) / 'input.cif'
-            return self.viewer_payload(self.import_cif(snapshot.read_text()))
+            return dict(self.viewer_payload(self.import_cif(snapshot.read_text())), document_metadata=metadata)
         self.result_files(job_id)
-        return self.viewer_payload(self.open_result(job_id, index))
+        return dict(self.viewer_payload(self.open_result(job_id, index)), document_metadata=metadata)
+
+    def saved_run_metadata(self, job):
+        """Restore provenance from the accepted input, never the currently open draft."""
+        snapshot_id = safe_id(job.get('snapshot_id', job['job_id']))
+        directory = self.state / snapshot_id
+        path = directory / 'plan.json'
+        if not path.exists():
+            return {'source':'unavailable', 'note':'', 'image_base64':None, 'settings':None}
+        plan = json.loads(path.read_text())
+        if (plan.get('snapshot_id') != snapshot_id
+                or self.checksum(plan) != plan.get('plan_checksum')
+                or hashlib.sha256((directory/'input.cif').read_bytes()).hexdigest() != plan.get('sha256')):
+            raise ValueError('Saved run plan or input changed; preserve the run and reconcile its provenance before opening')
+        generation = options(plan.get('generation'))
+        if (type(plan.get('samples')) is not int or not 1 <= plan['samples'] <= 16
+                or type(plan.get('seed')) is not int or not 0 <= plan['seed'] < 2**31
+                or job.get('snapshot_id') != snapshot_id
+                or any(job.get(key) != plan.get(key) for key in ('samples','seed','target'))
+                or options(job.get('generation')) != generation):
+            raise ValueError('Saved settings do not match the accepted run; reconcile its provenance before opening')
+        note = plan.get('note','')
+        if not isinstance(note,str) or len(note)>20000:raise ValueError('Invalid saved run note')
+        image = None
+        image_path = directory/'annotation.png'
+        image_unavailable = image_path.exists() and not plan.get('image_sha256')
+        if plan.get('image_sha256'):
+            import base64
+            raw = image_path.read_bytes()
+            if (len(raw)>10_500_000 or not raw.startswith(b'\x89PNG\r\n\x1a\n')
+                    or hashlib.sha256(raw).hexdigest()!=plan['image_sha256']):
+                raise ValueError('Saved run image note changed; reconcile its provenance before opening')
+            image = base64.b64encode(raw).decode()
+        return {'source':'saved_run','note':note,'image_base64':image,
+                'image_note_unavailable':image_unavailable,
+                'settings':{'samples':plan['samples'],'seed':plan['seed'],'generation':generation}}
 
     def download_results(self, job_id):
         import base64

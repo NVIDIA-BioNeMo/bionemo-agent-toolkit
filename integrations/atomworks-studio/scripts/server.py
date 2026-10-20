@@ -6,9 +6,6 @@ from mcp.types import ToolAnnotations
 from service import Service
 
 service = Service()
-if __name__ == '__main__':
-    from editor_runtime import ensure_editor
-    ensure_editor(service)
 URI = 'ui://bionemo-rfd4/studio.html'
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -48,11 +45,26 @@ def inspect_compute_target(target_id: str) -> dict:
     """Check the connection to a saved BioNeMo target, separately from model readiness."""
     return service.inspect_compute_target(target_id)
 
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
+def get_compute_capabilities() -> dict:
+    """Read protocol, schema and executor identity before mutating compute."""
+    return service.capabilities()
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=WRITE)
+def disconnect_compute(session_id: str, expected_revision: int) -> dict:
+    """Disconnect only this session. Does not stop machines or jobs or billing."""
+    return service.disconnect_compute(session_id, expected_revision)
+
+@mcp.tool(meta=APP if mode == 'app' else {}, annotations=WRITE)
+def select_compute(target_id: str, session_id: str, expected_revision: int) -> dict:
+    """Explicitly select a saved machine at the inspected session revision; never starts it."""
+    return service.register_registry_compute(target_id, session_id=session_id, expected_revision=expected_revision)
+
 if mode == 'app':
     @mcp.tool(meta=APP, annotations=WRITE)
-    def begin_compute_setup(session_id: str | None=None) -> dict:
+    def begin_compute_setup(session_id: str, expected_revision: int, target_id: str | None=None) -> dict:
         """Create or resume a setup conversation reference. Does not provision or connect."""
-        return service.begin_setup(session_id)
+        return service.begin_setup(session_id, target_id, expected_revision)
     @mcp.tool(meta=APP, annotations=WRITE)
     def save_draft(session_id: str, note: str='', image_base64: str | None=None, settings: dict | None=None) -> dict:
         """Persist the annotated CIF and notes before leaving the editor, including incomplete designs."""
@@ -64,9 +76,9 @@ if mode == 'app':
         return service.list_drafts()
 
     @mcp.tool(meta=APP, annotations=WRITE)
-    def restore_draft(draft_id: str) -> dict:
+    def restore_draft(draft_id: str, expected_checksum: str | None=None) -> dict:
         """Reopen a saved draft as a new Studio session."""
-        return service.restore_draft(draft_id)
+        return service.restore_draft(draft_id, expected_checksum)
     @mcp.tool(meta=APP, annotations=WRITE)
     def studio_request(method: str, path: str, body: dict | None=None, form: list[dict] | None=None) -> dict:
         """Run an allowlisted Studio editor operation against the configured loopback service."""
@@ -133,18 +145,119 @@ if mode == 'app':
 
 else:
     @mcp.tool(annotations=WRITE)
-    def update_compute_setup(request_id: str, stage: str, detail: str, session_id: str | None=None) -> dict:
-        """Record setup progress from actual tool results. Stages: connecting, installing, downloading, checking, action_needed, complete, cancelled. This does not establish readiness or provision. Reuse the setup request ID; inspect existing machines before retrying creation."""
-        return service.update_setup(request_id,stage,detail,session_id)
-    @mcp.tool(annotations=WRITE)
-    def register_rfd4_compute(kind: str, name: str, runtime_root: str, studio_url: str, ssh_host: str='', instance_id: str='', weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
-        """Register a user-selected existing local, SSH, or Brev target. This does not provision or install. Use existing setup and Brev CLI skills first; tunnel Studio to loopback. Then call check_compute. Weight paths are actual checkpoint files. Never invent readiness."""
-        return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths,session_id)
+    def prepare_executor_claim(operation_id: str, machine_id: str) -> dict:
+        """Review initial single-controller machine ownership. Verifies access and identity but does not claim, install, start or run anything. The reviewed claim requires administrator permission and persists after disconnect; ownership transfer is unsupported."""
+        return service.prepare_executor_claim(operation_id,machine_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def execute_executor_claim(operation_id: str, review_checksum: str) -> dict:
+        """After approval, establish exactly the reviewed protected machine ownership using sudo noninteractively. No credentials are requested in chat; no power change or inference. Retrying a dispatched request only inspects its outcome."""
+        return service.execute_executor_claim(operation_id,review_checksum)
+
+    @mcp.tool(annotations=READ)
+    def reconcile_executor_claim(operation_id: str) -> dict:
+        """Read the protected owner and publication marker after an uncertain claim. Never repeats the privileged action or replaces an owner."""
+        return service.reconcile_executor_claim(operation_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def confirm_executor_claim(operation_id: str, review_checksum: str) -> dict:
+        """After explicit approval, finish durability of an already-present matching reviewed owner. Uses sudo; cannot create a missing owner or replace another controller. No runtime, power or inference effects."""
+        return service.confirm_executor_claim(operation_id,review_checksum)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=WRITE)
+    def recover_compute_access(operation_id: str) -> dict:
+        """After a refresh controller crash, verify its process lease is free and close the unaccepted access attempt. Never reruns refresh or enrolls host keys. A new attempt requires a new explicitly approved operation."""
+        return service.recover_compute_access(operation_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def refresh_compute_access(operation_id: str, machine_id: str) -> dict:
+        """Explicitly refresh local Brev SSH/key/helper configuration for a saved running machine. Verifies organization, immutable instance and physical identity using existing trusted host keys. Never enrolls keys, starts a machine, installs RFD4 or submits inference. Unknown host keys require independent verification outside this tool."""
+        return service.refresh_compute_access(operation_id,machine_id)
+
+    @mcp.tool(annotations=READ)
+    def list_compute_creation_options(organization_id: str) -> dict:
+        """List available single-A100-80GB machine specifications and price estimates in an explicit Brev organization. Does not provision."""
+        return service.list_compute_creation_options(organization_id)
 
     @mcp.tool(annotations=WRITE)
-    def use_registered_compute(target_id: str, runtime_root: str | None=None, studio_url: str | None=None, weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
+    def prepare_compute_creation(operation_id: str, organization_id: str, instance_type: str) -> dict:
+        """Review one billable Brev A100 80 GB instance in an explicit organization. Does not create, install or run anything."""
+        return service.prepare_compute_creation(operation_id, organization_id, instance_type)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def execute_compute_creation(operation_id: str, review_checksum: str) -> dict:
+        """Create exactly the reviewed billable machine after approval. Retry only reconciles the original request; no automatic setup or inference."""
+        return service.execute_compute_creation(operation_id, review_checksum)
+
+    @mcp.tool(annotations=READ)
+    def reconcile_compute_creation(operation_id: str) -> dict:
+        """Observe a previously dispatched creation without requesting another machine."""
+        return service.reconcile_compute_creation(operation_id)
+
+    @mcp.tool(annotations=WRITE)
+    def prepare_runtime_setup(operation_id: str, machine_id: str) -> dict:
+        """Review setup on the selected machine. If package archives are missing, returns a download-only prepare_archives phase with bytes and effects. After that phase completes, obtain a new setup operation and installation review. Binds exact helper hashes and target; this tool neither downloads nor installs."""
+        return service.prepare_runtime_setup(operation_id, machine_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def execute_runtime_setup(operation_id: str, review_checksum: str) -> dict:
+        """After approval, execute exactly the reviewed setup phase once. prepare_archives only downloads and verifies packages; it never installs or establishes readiness. A subsequent installation requires a new review. Runtime setup fetches pinned source, installs checkpoints and verifies inference readiness."""
+        return service.execute_runtime_setup(operation_id, review_checksum)
+
+    @mcp.tool(annotations=READ)
+    def reconcile_runtime_setup(operation_id: str) -> dict:
+        """Inspect the original setup process without launching another installer."""
+        return service.reconcile_runtime_setup(operation_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=WRITE)
+    def recover_runtime_setup(operation_id: str) -> dict:
+        """Resolve an unknown setup by checking remote leases and fencing an orphaned dispatch. Never kills a process, repeats installation, or rolls back prior effects. Busy or unreachable machines retain their reservation. A new attempt requires a new review."""
+        return service.recover_runtime_setup(operation_id)
+
+    @mcp.tool(annotations=WRITE)
+    def prepare_compute_stop(operation_id: str, machine_id: str, dedicated_machine: bool=False) -> dict:
+        """Review stopping a dedicated single-user Brev machine. Requires user confirmation of dedicated ownership; no power change."""
+        return service.prepare_stop(operation_id, machine_id, dedicated_machine)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=True))
+    def execute_compute_stop(operation_id: str, review_checksum: str) -> dict:
+        """Stop exactly the reviewed dedicated machine after approval and fresh activity checks. Unknown activity blocks stop. No SSH shutdown fallback."""
+        return service.execute_stop(operation_id, review_checksum)
+
+    @mcp.tool(annotations=WRITE)
+    def prepare_compute_start(operation_id: str, machine_id: str) -> dict:
+        """Review starting one saved Brev instance. No provisioning or power change."""
+        return service.prepare_start(operation_id, machine_id)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def execute_compute_start(operation_id: str, review_checksum: str) -> dict:
+        """Start exactly the reviewed instance after user/host approval; resumes billing, never runs a design. App messages alone are not authorization. Retry the same operation to reconcile."""
+        return service.execute_start(operation_id, review_checksum)
+
+    @mcp.tool(annotations=READ)
+    def reconcile_compute_power(operation_id: str) -> dict:
+        """Observe a pending power operation without repeating it."""
+        return service.reconcile_power(operation_id)
+
+    @mcp.tool(annotations=READ)
+    def get_compute_operation(operation_id: str) -> dict:
+        """Inspect the authoritative action and session. App messages are not lifecycle authorization."""
+        return service.compute_operation(operation_id)
+
+    @mcp.tool(annotations=WRITE)
+    def cancel_compute_operation(operation_id: str) -> dict:
+        """Cancel future steps, retaining any unknown dispatched outcome for reconciliation."""
+        return service.cancel_compute_operation(operation_id)
+
+    @mcp.tool(annotations=WRITE)
+    def register_rfd4_compute(kind: str, name: str, runtime_root: str, studio_url: str, expected_revision: int, organization_id: str | None=None, ssh_host: str='', instance_id: str='', weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
+        """Register a user-selected existing local, SSH, or Brev target. This does not provision or install. Use existing setup and Brev CLI skills first; tunnel Studio to loopback. Then call check_compute. Weight paths are actual checkpoint files. Never invent readiness."""
+        return service.register_compute(kind,name,runtime_root,studio_url,ssh_host,instance_id,weight_paths,session_id,organization_id=organization_id,expected_revision=expected_revision)
+
+    @mcp.tool(annotations=WRITE)
+    def use_registered_compute(target_id: str, expected_revision: int, runtime_root: str | None=None, studio_url: str | None=None, weight_paths: list[str] | None=None, session_id: str | None=None) -> dict:
         """Select an existing BioNeMo compute target for this Studio session. Saved runtime/checkpoint paths are reused. No provisioning or installation. Check compute separately."""
-        return service.register_registry_compute(target_id,runtime_root,studio_url,weight_paths,session_id)
+        return service.register_registry_compute(target_id,runtime_root,studio_url,weight_paths,session_id,expected_revision)
 
     @mcp.tool(annotations=WRITE)
     def prepare_rfd4_design(session_id: str, note: str='', samples: int=1, seed: int=42, generation: dict | None=None) -> dict:
@@ -155,7 +268,13 @@ else:
     def execute_rfd4_plan(plan_id: str, plan_checksum: str) -> dict:
         """Run the reviewed plan on its exact Brev target. Requires host approval; costs GPU time. Reuse the same plan ID on retries."""
         result=service.execute(plan_id,plan_checksum)
-        return {k:v for k,v in result.items() if k != 'target'}
+        return service.public_job(result)
+
+    @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False,destructiveHint=False,openWorldHint=True))
+    def recover_queued_rfd4_job(job_id: str, accepted_plan_checksum: str) -> dict:
+        """Explicitly continue an accepted queued job with its original review/checksum. May use GPU time. Never retries possibly dispatched work or creates another job. For submitted/unknown jobs use check_rfd4_job."""
+        result=service.recover_queued_job(job_id,accepted_plan_checksum)
+        return service.public_job(result)
 
     @mcp.tool(annotations=WRITE)
     def annotate_rfd4_structure(session_id: str, expression: str, condition: str) -> dict:
@@ -165,7 +284,7 @@ else:
 @mcp.tool(meta=APP if mode == 'app' else {}, annotations=READ)
 def check_rfd4_job(job_id: str) -> dict:
     """Inspect a job, never resubmit an ambiguous run."""
-    return {k:v for k,v in service.status(job_id).items() if k != 'target'}
+    return service.public_job(service.status(job_id))
 
 if __name__=='__main__':
     mcp.run(transport='stdio')

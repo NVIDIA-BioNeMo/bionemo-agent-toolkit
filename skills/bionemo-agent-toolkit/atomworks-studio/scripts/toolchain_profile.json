@@ -1,0 +1,637 @@
+{
+  "id": "ubuntu22.04-cuda13.2-minimal-candidate-v7",
+  "status": "qualified",
+  "packages": {
+    "libc-dev-bin": {
+      "Package": "libc-dev-bin",
+      "Version": "2.35-0ubuntu3.15",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/glibc/libc-dev-bin_2.35-0ubuntu3.15_amd64.deb",
+      "Size": "20282",
+      "SHA256": "cd3e9a91ac20fbd978fa40be4e93716736c29a4619dcc1398343c2c1d1f67e10",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/glibc/libc-dev-bin_2.35-0ubuntu3.15_amd64.deb"
+    },
+    "linux-libc-dev": {
+      "Package": "linux-libc-dev",
+      "Version": "5.15.0-198.208",
+      "Architecture": "amd64",
+      "Filename": "pool/main/l/linux/linux-libc-dev_5.15.0-198.208_amd64.deb",
+      "Size": "1390974",
+      "SHA256": "d7ba314f1e0e79745f104eaeeb662723fb72b1d4ab45c923d93db32867dd11e7",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_5.15.0-198.208_amd64.deb"
+    },
+    "libcrypt-dev": {
+      "Package": "libcrypt-dev",
+      "Version": "1:4.4.27-1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxcrypt/libcrypt-dev_4.4.27-1_amd64.deb",
+      "Size": "111682",
+      "SHA256": "a79be2f6e45823dcc09e04d5e98c88ec88d07d5b8895d05b875a8ade8b345efa",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxcrypt/libcrypt-dev_4.4.27-1_amd64.deb"
+    },
+    "rpcsvc-proto": {
+      "Package": "rpcsvc-proto",
+      "Version": "1.4.2-0ubuntu6",
+      "Architecture": "amd64",
+      "Filename": "pool/main/r/rpcsvc-proto/rpcsvc-proto_1.4.2-0ubuntu6_amd64.deb",
+      "Size": "68494",
+      "SHA256": "447c6d8f7624a3d728a12232440d3f10e6e53bbf60cc202b7beb8a3bc9f7acc9",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/r/rpcsvc-proto/rpcsvc-proto_1.4.2-0ubuntu6_amd64.deb"
+    },
+    "libtirpc-dev": {
+      "Package": "libtirpc-dev",
+      "Version": "1.3.2-2ubuntu0.1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libt/libtirpc/libtirpc-dev_1.3.2-2ubuntu0.1_amd64.deb",
+      "Size": "192156",
+      "SHA256": "f4254aff5a32ef3c9fca06d3f4f2eff71c93b9393cc1ecc718f7478a5d6a83da",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libt/libtirpc/libtirpc-dev_1.3.2-2ubuntu0.1_amd64.deb"
+    },
+    "libnsl-dev": {
+      "Package": "libnsl-dev",
+      "Version": "1.3.0-2build2",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libn/libnsl/libnsl-dev_1.3.0-2build2_amd64.deb",
+      "Size": "71286",
+      "SHA256": "e93aa448fe708a4bbfcc40b2a8cab6f5f88896174a301caab2719f734e08a621",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libn/libnsl/libnsl-dev_1.3.0-2build2_amd64.deb"
+    },
+    "libc6-dev": {
+      "Package": "libc6-dev",
+      "Version": "2.35-0ubuntu3.15",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/glibc/libc6-dev_2.35-0ubuntu3.15_amd64.deb",
+      "Size": "2100232",
+      "SHA256": "ce51ae233a9f800a040de2d0cd5983ef86f558c623b342c80942301d7f453f48",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/glibc/libc6-dev_2.35-0ubuntu3.15_amd64.deb"
+    },
+    "gcc-11-base": {
+      "Package": "gcc-11-base",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/gcc-11-base_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "215826",
+      "SHA256": "a0445a3889fd4441cc3b3a125d6d1589de3d2628ca4e92a352170ed0fea4d18b",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/gcc-11-base_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libisl23": {
+      "Package": "libisl23",
+      "Version": "0.24-2build1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/i/isl/libisl23_0.24-2build1_amd64.deb",
+      "Size": "726854",
+      "SHA256": "4cb0faab32c896165cf4ebe3c3ebce3176bf869453636d7fe8be89dccc2ae5af",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/i/isl/libisl23_0.24-2build1_amd64.deb"
+    },
+    "libmpc3": {
+      "Package": "libmpc3",
+      "Version": "1.2.1-2build1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/m/mpclib3/libmpc3_1.2.1-2build1_amd64.deb",
+      "Size": "46868",
+      "SHA256": "6cd43b60ac14890737a3402a35350d6696bc1521de8731cdecc9e7ef10041446",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/m/mpclib3/libmpc3_1.2.1-2build1_amd64.deb"
+    },
+    "cpp-11": {
+      "Package": "cpp-11",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/cpp-11_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "10000304",
+      "SHA256": "5243177370b810cc40341801a3b8def6cdd7477ac765862f7727a868629947a3",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/cpp-11_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "cpp": {
+      "Package": "cpp",
+      "Version": "4:11.2.0-1ubuntu1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-defaults/cpp_11.2.0-1ubuntu1_amd64.deb",
+      "Size": "27700",
+      "SHA256": "44f881cf66bfaac163a6c45b4bfb5e79a40780b96af78bec6e9c58f973b8d7bd",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-defaults/cpp_11.2.0-1ubuntu1_amd64.deb"
+    },
+    "libcc1-0": {
+      "Package": "libcc1-0",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libcc1-0_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "48290",
+      "SHA256": "749e0fd1732df5d79af17c472dfa8f91a36fcc8d6dd5baff3f999192f7aa4357",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libcc1-0_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libgomp1": {
+      "Package": "libgomp1",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libgomp1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "126570",
+      "SHA256": "870c27299185a5dd4accad3b15bf82a7409fd7073cccaa8025875307da4d0ce2",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libgomp1_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libitm1": {
+      "Package": "libitm1",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libitm1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "30160",
+      "SHA256": "80f42953fa98d3ef9d49c2fd8c580bea40e1ace953eb8850bc961eef59f211c2",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libitm1_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libatomic1": {
+      "Package": "libatomic1",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libatomic1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "10470",
+      "SHA256": "56573c81b5dd84817882400cfea49fe671f5e6cfdd0f88b5d3a894c08b150462",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libatomic1_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libasan6": {
+      "Package": "libasan6",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/libasan6_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "2283168",
+      "SHA256": "eb98f62bf6c7234132beab59113c249db40acfbd1c9965308ee612de1a6e819e",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/libasan6_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "liblsan0": {
+      "Package": "liblsan0",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/liblsan0_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "1068998",
+      "SHA256": "c308b0e39678a00b3ad3a9653119af4a29156e2c385111bdbd4890c96d376fa4",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/liblsan0_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libtsan0": {
+      "Package": "libtsan0",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/libtsan0_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "2259536",
+      "SHA256": "2fc0cb78e86d4635c8ed17f4a2816762050c48cb928df739bbe145dfb472957a",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/libtsan0_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libubsan1": {
+      "Package": "libubsan1",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libubsan1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "976076",
+      "SHA256": "9e2669c014d5df3c486bf29cd18a6ec3cbed68355c366e32757fdc98d290f593",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libubsan1_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libquadmath0": {
+      "Package": "libquadmath0",
+      "Version": "12.3.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-12/libquadmath0_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "153976",
+      "SHA256": "c4c59e67e76674c8c494ce5e0415b71d770a759b48893c0d3cbabddceeb690b2",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-12/libquadmath0_12.3.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "libgcc-11-dev": {
+      "Package": "libgcc-11-dev",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/libgcc-11-dev_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "2517422",
+      "SHA256": "35ed68622daf796ac010f63c73abd8aff851fc6d862038461b053b55dbec93a6",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/libgcc-11-dev_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "gcc-11": {
+      "Package": "gcc-11",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/gcc-11_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "20143406",
+      "SHA256": "5422307110e695d62a2574c8b765bf38d48b2ed520206e5b7d2b9081a68008f3",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/gcc-11_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "gcc": {
+      "Package": "gcc",
+      "Version": "4:11.2.0-1ubuntu1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-defaults/gcc_11.2.0-1ubuntu1_amd64.deb",
+      "Size": "5112",
+      "SHA256": "be895c1a9611905254f818c41092f147f5f2a566f87f1817b5c36d977020bea7",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-defaults/gcc_11.2.0-1ubuntu1_amd64.deb"
+    },
+    "libstdc++-11-dev": {
+      "Package": "libstdc++-11-dev",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/libstdc++-11-dev_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "2100928",
+      "SHA256": "58e0cd2d1f758e75426eaa47a5e7228d1c86180500ed68d162bcbf7b0a1c5dd0",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/libstdc%2b%2b-11-dev_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "g++-11": {
+      "Package": "g++-11",
+      "Version": "11.4.0-1ubuntu1~22.04.3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-11/g++-11_11.4.0-1ubuntu1~22.04.3_amd64.deb",
+      "Size": "11424396",
+      "SHA256": "ddbaa04f056637caa11798750638bf4586c8b273719fd1bee70d0ecb3d872b94",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-11/g%2b%2b-11_11.4.0-1ubuntu1%7e22.04.3_amd64.deb"
+    },
+    "g++": {
+      "Package": "g++",
+      "Version": "4:11.2.0-1ubuntu1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/g/gcc-defaults/g++_11.2.0-1ubuntu1_amd64.deb",
+      "Size": "1412",
+      "SHA256": "693080e6d1648f521183c1fa5fcfdd2d357a87f5872511ec12792d9dfe1effdb",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/g/gcc-defaults/g%2b%2b_11.2.0-1ubuntu1_amd64.deb"
+    },
+    "make": {
+      "Package": "make",
+      "Version": "4.3-4.1build1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/m/make-dfsg/make_4.3-4.1build1_amd64.deb",
+      "Size": "179742",
+      "SHA256": "080b79a1a1623a2e6c6eead37d62b15fdf2c3dbfeafe8ecf5e31c54eb09eadcc",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.3-4.1build1_amd64.deb"
+    },
+    "libdpkg-perl": {
+      "Package": "libdpkg-perl",
+      "Version": "1.21.1ubuntu2.6",
+      "Architecture": "all",
+      "Filename": "pool/main/d/dpkg/libdpkg-perl_1.21.1ubuntu2.6_all.deb",
+      "Size": "236718",
+      "SHA256": "5cea0fc1b24772bbda3cdcf9acfd6caefb2d03d1136616f3d5b4cd8caf71eb19",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/d/dpkg/libdpkg-perl_1.21.1ubuntu2.6_all.deb"
+    },
+    "bzip2": {
+      "Package": "bzip2",
+      "Version": "1.0.8-5ubuntu0.1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/b/bzip2/bzip2_1.0.8-5ubuntu0.1_amd64.deb",
+      "Size": "34844",
+      "SHA256": "de495ecb37e8c64fc28548c81cffb4b79597b4f8ecf50c8511d8eb5a53527e65",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/b/bzip2/bzip2_1.0.8-5ubuntu0.1_amd64.deb"
+    },
+    "lto-disabled-list": {
+      "Package": "lto-disabled-list",
+      "Version": "24",
+      "Architecture": "all",
+      "Filename": "pool/main/l/lto-disabled-list/lto-disabled-list_24_all.deb",
+      "Size": "12504",
+      "SHA256": "c7fed2763b58cec1bc2749e696629ea57aac1d2aa2e231f90ccb16a8a61b16a6",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/l/lto-disabled-list/lto-disabled-list_24_all.deb"
+    },
+    "dpkg-dev": {
+      "Package": "dpkg-dev",
+      "Version": "1.21.1ubuntu2.6",
+      "Architecture": "all",
+      "Filename": "pool/main/d/dpkg/dpkg-dev_1.21.1ubuntu2.6_all.deb",
+      "Size": "921736",
+      "SHA256": "02d16cdbb018aad5d829f65ff2d6faac90ea1d9dece91ce0b435bd8510481c75",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/d/dpkg/dpkg-dev_1.21.1ubuntu2.6_all.deb"
+    },
+    "build-essential": {
+      "Package": "build-essential",
+      "Version": "12.9ubuntu3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/b/build-essential/build-essential_12.9ubuntu3_amd64.deb",
+      "Size": "4744",
+      "SHA256": "1e464c41488d154b9f5ca19d2e9ac8b18913ae16e3dca713c3ba0223fae2cccc",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/b/build-essential/build-essential_12.9ubuntu3_amd64.deb"
+    },
+    "cuda-cccl-13-2": {
+      "Package": "cuda-cccl-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-cccl-13-2_13.2.86-1_amd64.deb",
+      "Size": "1261292",
+      "SHA256": "44a2457b6e71cdea22f6d486618fcf34ef75698561a7c7b2df3175cf9a97c033",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-cccl-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-toolkit-config-common": {
+      "Package": "cuda-toolkit-config-common",
+      "Version": "13.4.92-1",
+      "Architecture": "all",
+      "Filename": "./cuda-toolkit-config-common_13.4.92-1_all.deb",
+      "Size": "17434",
+      "SHA256": "d48a133606d0b286c41cde1fc5b07da7197ccdc8291ceb7ba51cadb85552f918",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-toolkit-config-common_13.4.92-1_all.deb"
+    },
+    "cuda-toolkit-13-config-common": {
+      "Package": "cuda-toolkit-13-config-common",
+      "Version": "13.4.92-1",
+      "Architecture": "all",
+      "Filename": "./cuda-toolkit-13-config-common_13.4.92-1_all.deb",
+      "Size": "17450",
+      "SHA256": "7f3cdf5540c05375dc06978caaa4b266940a1dd09fa78209f54bd2479f985b5b",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-toolkit-13-config-common_13.4.92-1_all.deb"
+    },
+    "cuda-toolkit-13-2-config-common": {
+      "Package": "cuda-toolkit-13-2-config-common",
+      "Version": "13.2.86-1",
+      "Architecture": "all",
+      "Filename": "./cuda-toolkit-13-2-config-common_13.2.86-1_all.deb",
+      "Size": "17408",
+      "SHA256": "46491ab1a16047bc1a9f30c4eb785e325637164055dfac9f40c206099e45bc55",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-toolkit-13-2-config-common_13.2.86-1_all.deb"
+    },
+    "cuda-cudart-13-2": {
+      "Package": "cuda-cudart-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-cudart-13-2_13.2.86-1_amd64.deb",
+      "Size": "179474",
+      "SHA256": "6f5c230f993f4971eec9f91b756ba3827fa0ff1419eeba9862d02f88247c34bf",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-cudart-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-culibos-dev-13-2": {
+      "Package": "cuda-culibos-dev-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-culibos-dev-13-2_13.2.86-1_amd64.deb",
+      "Size": "23912",
+      "SHA256": "1caca3e39170ab1571a694583765c21539c58292332b737b999e0d897311a23f",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-culibos-dev-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-driver-dev-13-2": {
+      "Package": "cuda-driver-dev-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-driver-dev-13-2_13.2.86-1_amd64.deb",
+      "Size": "30868",
+      "SHA256": "ba113b074282ba57132a7dd44d3d454dc43d0b069cdfef992f3bd4f910b76711",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-driver-dev-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-cudart-dev-13-2": {
+      "Package": "cuda-cudart-dev-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-cudart-dev-13-2_13.2.86-1_amd64.deb",
+      "Size": "1449336",
+      "SHA256": "f7682b556638eef82b5a5f7046dd4ab5ee799cbd42ef5e8edc585f1dc826e901",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-cudart-dev-13-2_13.2.86-1_amd64.deb"
+    },
+    "libnvvm-13-2": {
+      "Package": "libnvvm-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./libnvvm-13-2_13.2.86-1_amd64.deb",
+      "Size": "45459016",
+      "SHA256": "a4806fe86ee3f47cc912fe1dd9fe68e831536d4572386ea7a4ee2ad969943f5e",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libnvvm-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-crt-13-2": {
+      "Package": "cuda-crt-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-crt-13-2_13.2.86-1_amd64.deb",
+      "Size": "83114",
+      "SHA256": "a0a9719a9f382a79ab343e21c4fda9de1ef6a4145bfcd6a4744aad06e0c9d4f8",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-crt-13-2_13.2.86-1_amd64.deb"
+    },
+    "libnvptxcompiler-13-2": {
+      "Package": "libnvptxcompiler-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./libnvptxcompiler-13-2_13.2.86-1_amd64.deb",
+      "Size": "14288308",
+      "SHA256": "232fb201d5a482d607d7be57fc087333d50fad9d0c32332f91c9034127dc1dc6",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libnvptxcompiler-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-nvcc-13-2": {
+      "Package": "cuda-nvcc-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-nvcc-13-2_13.2.86-1_amd64.deb",
+      "Size": "31097160",
+      "SHA256": "8ac5c08904a69fe48cbbd36545e278242e9e872fdf455f40fb50c8bb62725d2e",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-nvcc-13-2_13.2.86-1_amd64.deb"
+    },
+    "libcublas-13-2": {
+      "Package": "libcublas-13-2",
+      "Version": "13.4.1.3-1",
+      "Architecture": "amd64",
+      "Filename": "./libcublas-13-2_13.4.1.3-1_amd64.deb",
+      "Size": "375280036",
+      "SHA256": "96044f7ee0edc04d8c51bb1cdf6fdc20920032a9099f8f35917de02650903f04",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcublas-13-2_13.4.1.3-1_amd64.deb"
+    },
+    "libcusolver-13-2": {
+      "Package": "libcusolver-13-2",
+      "Version": "12.2.0.11-1",
+      "Architecture": "amd64",
+      "Filename": "./libcusolver-13-2_12.2.0.11-1_amd64.deb",
+      "Size": "179598216",
+      "SHA256": "70c496a6563dc974a621b40604e6bfaf19f417e1348c96080dd82b7942b4c095",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcusolver-13-2_12.2.0.11-1_amd64.deb"
+    },
+    "libcusparse-13-2": {
+      "Package": "libcusparse-13-2",
+      "Version": "12.7.10.12-1",
+      "Architecture": "amd64",
+      "Filename": "./libcusparse-13-2_12.7.10.12-1_amd64.deb",
+      "Size": "141477732",
+      "SHA256": "09d89d000907895892acfd322af580204c9bfedf7d20df895da7fbc164d0c855",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcusparse-13-2_12.7.10.12-1_amd64.deb"
+    },
+    "libcublas-dev-13-2": {
+      "Package": "libcublas-dev-13-2",
+      "Version": "13.4.1.3-1",
+      "Architecture": "amd64",
+      "Filename": "./libcublas-dev-13-2_13.4.1.3-1_amd64.deb",
+      "Size": "432889794",
+      "SHA256": "a77afded1f606e32ca734d808151685e13eea5df492876f56b88455a0bd076a4",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcublas-dev-13-2_13.4.1.3-1_amd64.deb"
+    },
+    "libcusolver-dev-13-2": {
+      "Package": "libcusolver-dev-13-2",
+      "Version": "12.2.0.11-1",
+      "Architecture": "amd64",
+      "Filename": "./libcusolver-dev-13-2_12.2.0.11-1_amd64.deb",
+      "Size": "112773812",
+      "SHA256": "9b85620746f59b88c7237c6548678c78b183a6005e55e8e4fa2070f72ed0b977",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcusolver-dev-13-2_12.2.0.11-1_amd64.deb"
+    },
+    "libcusparse-dev-13-2": {
+      "Package": "libcusparse-dev-13-2",
+      "Version": "12.7.10.12-1",
+      "Architecture": "amd64",
+      "Filename": "./libcusparse-dev-13-2_12.7.10.12-1_amd64.deb",
+      "Size": "144332604",
+      "SHA256": "36a614fb260e1c016118d85f4d44b251401e34b3678cb57831510925ad07baa6",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcusparse-dev-13-2_12.7.10.12-1_amd64.deb"
+    },
+    "cuda-nvrtc-13-2": {
+      "Package": "cuda-nvrtc-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-nvrtc-13-2_13.2.86-1_amd64.deb",
+      "Size": "33475580",
+      "SHA256": "aeae8669122bbb9bd08ad49842732b815dbc8e433d065dbb6cc072deb3d2a05c",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-nvrtc-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-nvrtc-dev-13-2": {
+      "Package": "cuda-nvrtc-dev-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-nvrtc-dev-13-2_13.2.86-1_amd64.deb",
+      "Size": "27439160",
+      "SHA256": "21fb98b996525aeb9521436a63e96f906b0df528bb94eff7358e20c79a2f57ac",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-nvrtc-dev-13-2_13.2.86-1_amd64.deb"
+    },
+    "cuda-nvtx-13-2": {
+      "Package": "cuda-nvtx-13-2",
+      "Version": "13.2.86-1",
+      "Architecture": "amd64",
+      "Filename": "./cuda-nvtx-13-2_13.2.86-1_amd64.deb",
+      "Size": "100938",
+      "SHA256": "2382d2286eeac980b190b6036dce287ee7ec806b7c2f7b95b0f28a96c1d793e2",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./cuda-nvtx-13-2_13.2.86-1_amd64.deb"
+    },
+    "libcurand-13-2": {
+      "Package": "libcurand-13-2",
+      "Version": "10.4.2.66-1",
+      "Architecture": "amd64",
+      "Filename": "./libcurand-13-2_10.4.2.66-1_amd64.deb",
+      "Size": "43378380",
+      "SHA256": "16cbee471023112506eee4ca63edfc0e016f6418ab9c5367bdf1dc9afbef499a",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcurand-13-2_10.4.2.66-1_amd64.deb"
+    },
+    "libcurand-dev-13-2": {
+      "Package": "libcurand-dev-13-2",
+      "Version": "10.4.2.66-1",
+      "Architecture": "amd64",
+      "Filename": "./libcurand-dev-13-2_10.4.2.66-1_amd64.deb",
+      "Size": "43447316",
+      "SHA256": "99998f4aff1da3184b656c643121f0ffb6d94360f3fa88d910e28934cafee8c5",
+      "URL": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/./libcurand-dev-13-2_10.4.2.66-1_amd64.deb"
+    },
+    "libmd0": {
+      "Package": "libmd0",
+      "Version": "1.0.4-1build1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libm/libmd/libmd0_1.0.4-1build1_amd64.deb",
+      "Size": "22964",
+      "SHA256": "bcdad5e400aeb660f0337a1c5c1a77e3effa91d0803e64ce2d000e9006f67cdb",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libm/libmd/libmd0_1.0.4-1build1_amd64.deb"
+    },
+    "libbsd0": {
+      "Package": "libbsd0",
+      "Version": "0.11.5-1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libb/libbsd/libbsd0_0.11.5-1_amd64.deb",
+      "Size": "44760",
+      "SHA256": "09367acdf59f28ffb71ba7bc36c516cff03b2765930cf9be7bb7ea7273e4c312",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libb/libbsd/libbsd0_0.11.5-1_amd64.deb"
+    },
+    "libxau6": {
+      "Package": "libxau6",
+      "Version": "1:1.0.9-1build5",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxau/libxau6_1.0.9-1build5_amd64.deb",
+      "Size": "7634",
+      "SHA256": "551fa4101394af894f5f401285eeca9756da94bb31ecb08ed36a549ec580cd10",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxau/libxau6_1.0.9-1build5_amd64.deb"
+    },
+    "libxdmcp6": {
+      "Package": "libxdmcp6",
+      "Version": "1:1.1.3-0ubuntu5",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxdmcp/libxdmcp6_1.1.3-0ubuntu5_amd64.deb",
+      "Size": "10904",
+      "SHA256": "6f6c869dcfc072fa77d24b72ba127bdf15d606bdffbeba4314fb39f4f324363d",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxdmcp/libxdmcp6_1.1.3-0ubuntu5_amd64.deb"
+    },
+    "libxcb1": {
+      "Package": "libxcb1",
+      "Version": "1.14-3ubuntu3",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxcb/libxcb1_1.14-3ubuntu3_amd64.deb",
+      "Size": "49030",
+      "SHA256": "9258f04136434e7a0ccd76041505421934284209693373cfa9c24acb3a641ec5",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxcb/libxcb1_1.14-3ubuntu3_amd64.deb"
+    },
+    "libx11-data": {
+      "Package": "libx11-data",
+      "Version": "2:1.7.5-1ubuntu0.4",
+      "Architecture": "all",
+      "Filename": "pool/main/libx/libx11/libx11-data_1.7.5-1ubuntu0.4_all.deb",
+      "Size": "120156",
+      "SHA256": "3e5aa90c2392c053657cb6213dc21426a192ed75461a99db78c864d4b2b8325a",
+      "URL": "http://security.ubuntu.com/ubuntu/pool/main/libx/libx11/libx11-data_1.7.5-1ubuntu0.4_all.deb"
+    },
+    "libx11-6": {
+      "Package": "libx11-6",
+      "Version": "2:1.7.5-1ubuntu0.4",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libx11/libx11-6_1.7.5-1ubuntu0.4_amd64.deb",
+      "Size": "667500",
+      "SHA256": "6fcad3c4020a87caad67cc4141a82372ed474c050e6eeb9d434594590760430e",
+      "URL": "http://security.ubuntu.com/ubuntu/pool/main/libx/libx11/libx11-6_1.7.5-1ubuntu0.4_amd64.deb"
+    },
+    "libxext6": {
+      "Package": "libxext6",
+      "Version": "2:1.3.4-1build1",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxext/libxext6_1.3.4-1build1_amd64.deb",
+      "Size": "31808",
+      "SHA256": "875ec849749511dff61c8cc5a775f6f93427b9c3f392fdcec6925f14428e89cd",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxext/libxext6_1.3.4-1build1_amd64.deb"
+    },
+    "libxrender1": {
+      "Package": "libxrender1",
+      "Version": "1:0.9.10-1build4",
+      "Architecture": "amd64",
+      "Filename": "pool/main/libx/libxrender/libxrender1_0.9.10-1build4_amd64.deb",
+      "Size": "19678",
+      "SHA256": "a68f6db4320b5963dd499b83b6cc8c7b5cd39b05e84862d5945da9244e4c96d6",
+      "URL": "http://us-central1.gce.archive.ubuntu.com/ubuntu/pool/main/libx/libxrender/libxrender1_0.9.10-1build4_amd64.deb"
+    }
+  },
+  "download_origins": [
+    "http://security.ubuntu.com",
+    "http://us-central1.gce.archive.ubuntu.com",
+    "https://developer.download.nvidia.com"
+  ],
+  "roots": [
+    "cuda-cccl-13-2",
+    "cuda-cudart-dev-13-2",
+    "cuda-nvcc-13-2",
+    "cuda-nvrtc-dev-13-2",
+    "cuda-nvtx-13-2",
+    "g++",
+    "gcc",
+    "libc6-dev",
+    "libcublas-dev-13-2",
+    "libcurand-13-2",
+    "libcurand-dev-13-2",
+    "libcusolver-dev-13-2",
+    "libcusparse-dev-13-2",
+    "libx11-6",
+    "libxext6",
+    "libxrender1",
+    "make"
+  ],
+  "qualified_package_configuration": {
+    "etc/dpkg/dpkg.cfg": {
+      "sha256": "fead43b89af3ea5691c48f32d7fe1ba0f7ab229fb5d230f612d76fe8e6f5a015",
+      "mode": 420,
+      "uid": 0
+    },
+    "etc/dpkg/dpkg.cfg.d/excludes": {
+      "sha256": "55227b589407ec8a17101eed82c6936bd0a666477a136fd9a035cf3fada956a0",
+      "mode": 420,
+      "uid": 0
+    },
+    "etc/dpkg/dpkg.cfg.d/needrestart": {
+      "sha256": "a906969392a7a72cbe731718792a98c396f8aee414760b8b0c51fbc7477d5ca7",
+      "mode": 420,
+      "uid": 0
+    },
+    "usr/lib/needrestart/dpkg-status": {
+      "sha256": "2b02fd9102cf34452b2ebda0c842a2b954481d593f9587ad0b052c18e5ca73fb",
+      "mode": 493,
+      "uid": 0
+    }
+  }
+}

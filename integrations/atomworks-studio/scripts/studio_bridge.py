@@ -5,19 +5,22 @@ from urllib.parse import urlsplit, parse_qs
 import httpx
 
 READ_SUFFIX = r'(?:cif|bonds|distance-restraints|atom-distance|annotations/[A-Za-z0-9_]+|annotation-fields/[A-Za-z0-9_]+|scalar-fields/[A-Za-z0-9_]+|atoms/[0-9]+/annotations)'
-WRITE_SUFFIX = r'(?:export|validate|conditions|groups|centroids|distance-restraints(?:/replace)?|protonate|charges|chains|bonds(?:/infer-ccd)?|internal-coords(?:/clear-targets)?|delete|segments(?:/realize|/collapse)?|reset-residue-ids|undo|combine|interactions/analyze|selections/(?:resolve|query))'
+WRITE_SUFFIX = r'(?:export|validate|conditions(?:/reset)?|groups|centroids|distance-restraints(?:/replace)?|protonate|charges|chains|bonds(?:/infer-ccd)?|internal-coords(?:/clear-targets)?|delete|segments(?:/realize|/collapse)?|reset-residue-ids|undo|combine|interactions/analyze|selections/(?:resolve|query))'
 
 def validate_route(method,path):
     url=urlsplit(path)
     if url.scheme or url.netloc or url.fragment or '%' in url.path or '..' in url.path: raise ValueError('Only Studio editor API paths are allowed')
     p=url.path
     session=r'/api/v1/sessions/[A-Za-z0-9_-]{1,96}'
-    allowed=(method=='GET' and (re.fullmatch(r'/api/v1/(?:schema|health|ready|examples(?:/[A-Za-z0-9_-]+/cif)?)',p) or re.fullmatch(session+r'(?:/'+READ_SUFFIX+r')?',p))) or (method=='POST' and (p=='/api/v1/sessions' or re.fullmatch(session+'/'+WRITE_SUFFIX,p)))
+    allowed=(method=='GET' and (re.fullmatch(r'/api/v1/(?:schema|health|ready|examples(?:/[A-Za-z0-9_-]+/cif)?)',p) or re.fullmatch(session+r'(?:/'+READ_SUFFIX+r')?',p))) or (method=='POST' and (p in ('/api/v1/sessions','/api/v1/import/inspect') or re.fullmatch(session+'/'+WRITE_SUFFIX,p)))
+    allowed = allowed or (method=='DELETE' and re.fullmatch(session,p))
     if not allowed: raise ValueError('Unsupported Studio editor operation')
     if url.query and (not p.endswith('/atom-distance') or set(parse_qs(url.query))-{'atom1','atom2'}): raise ValueError('Unsupported Studio query')
 
 def request(service, method, path, body=None, form=None):
     validate_route(method,path)
+    from editor_runtime import ensure_editor
+    ensure_editor(service)
     if len(json.dumps([body,form])) > 28000000: raise ValueError('Studio request too large')
     if body is not None and form is not None: raise ValueError('Use one request body')
     kwargs={}

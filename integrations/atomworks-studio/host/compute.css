@@ -22,6 +22,12 @@
 .rfd-toolbar-panel label{display:grid;gap:5px;margin:8px 0}.rfd-toolbar-panel input{width:100%;min-width:0;box-sizing:border-box}.rfd-toolbar-panel p{color:var(--text-muted)}
 #rfd-drafts{max-height:32vh;overflow:auto}#rfd-drafts button{white-space:normal;overflow-wrap:anywhere;padding:8px;text-align:left}#rfd-runs>div{display:grid;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)}
 .rfd-toolbar-panel [hidden],#rfd-generate-section [hidden]{display:none}
+/* A wrapped toolbar cannot anchor a full-width panel to its first button. */
+@media(max-width:900px){
+  .app-shell>header .header-actions{position:relative}
+  .rfd-toolbar-menu,#rfd-compute-box{position:static}
+  .rfd-toolbar-panel,.rfd-compute-panel{max-width:100%;overflow-wrap:anywhere}
+}
 #rfd-generate-section>summary{margin:0;font-weight:600}#rfd-generate-section[open]>summary{margin-bottom:12px}
 #rfd-generation{padding:0;background:none;border:0}#rfd-generation .rfd-generation-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#rfd-generation fieldset{grid-column:1/-1;min-width:0}#rfd-generation fieldset label{padding:6px 8px;margin-right:4px}#rfd-generation .rfd-sampling{flex-direction:column;gap:12px}#rfd-generation details>summary{margin:0}#rfd-plan{margin-top:12px;font-size:12px}#rfd-generate{margin-top:10px;width:100%}
 #rfd-host:has(#rfd-message:empty):has(#rfd-chat-prompt[hidden]){display:none}

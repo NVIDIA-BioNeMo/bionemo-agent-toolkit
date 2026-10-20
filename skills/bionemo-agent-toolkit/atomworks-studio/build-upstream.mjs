@@ -1,10 +1,11 @@
+import {adaptSessionFileController} from "./host/studio-source.mjs";
 import path from "node:path";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { build } from "esbuild";
 const root = path.resolve(process.env.ATOMWORKS_STUDIO_SOURCE || "../../../atomworks-studio");
-const pin = "648cfe3905d1f1893c0c37d2cc4b8eea942a5616";
-if (execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim() !== pin) throw Error("Use the pinned Studio v0.1.0 checkout");
+const pin = "4b419ebd327405035c8cf6ccde7f333d0878888e";
+if (execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim() !== pin) throw Error("Use the pinned Studio v0.0.1 checkout");
 execFileSync("git", ["-C", root, "diff", "--exit-code", "HEAD", "--", "packages/web"]);
 const web = path.join(root, "packages/web"), bridge = path.resolve("host/bridge.js");
 const wasm = (await readFile(path.join(web, "src/wasm/annotation_studio_core_bg.wasm"))).toString("base64");
@@ -27,7 +28,7 @@ const adapter = { name: "studio-host-adapter", setup(b) {
       s = replaceOnce(s, "await fetch(versionedApiPath(path),", "await studioFetch(versionedApiPath(path),");
     }
     if (a.path === path.join(web, "src/studio/session-file-controller.ts")) {
-      s = replaceOnce(s, "      URL.revokeObjectURL(anchor.href);", "      setTimeout(() => URL.revokeObjectURL(anchor.href), 60000);");
+      s = adaptSessionFileController(s, bridge);
     }
     if (a.path === path.join(web, "src/main.ts")) {
       s = replaceOnce(s, 'element("document-name").textContent = summary.name;', 'element("document-name").textContent = summary.name === "protein_binder" ? "PD-L1 binder demo" : summary.name;');
@@ -35,12 +36,12 @@ const adapter = { name: "studio-host-adapter", setup(b) {
       s = `import {studioEvent} from ${JSON.stringify(bridge)};
 ` + s;
       s = replaceOnce(s, '  const parentOrigin = query.get("parent_origin");', '  studioEvent(type, sessionId);\n  const parentOrigin = query.get("parent_origin");');
-      s = replaceOnce(s, '    onOpened: (response) => runViewerUpdate(async () => {', '    onOpened: openSessionFromHost = (response) => runViewerUpdate(async () => {');
-      s = 'let openSessionFromHost: ((response: SessionResponse) => Promise<void>) | null = null;\n' + s;
+      s = replaceOnce(s, '    onOpened: (response) => runViewerUpdate(async () => {', '    onOpened: openSessionFromHost = (response, current = () => true, beginCommit = () => {}) => runViewerUpdate(async () => { if (!current()) throw Error("The design changed; open the structure again."); beginCommit();');
+      s = 'let openSessionFromHost: ((response: SessionResponse, current?: () => boolean, beginCommit?: () => void) => Promise<void>) | null = null;\n' + s;
       s = replaceOnce(s, "await initCifCore();", `await initCifCore({module_or_path:Uint8Array.from(atob('${wasm}'), c=>c.charCodeAt(0))});`);
     }
     if (a.path === path.join(web, "src/main.ts")) s += `
-window.addEventListener('rfd-open-session', (event) => { const id = (event as CustomEvent<string>).detail; void (async()=>{ const response = await api<SessionResponse>('/api/sessions/'+id); if (!openSessionFromHost) throw Error('Studio is still starting'); element('analysis-results').replaceChildren(); await openSessionFromHost(response); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id}})); })().catch(error=>{log(String(error)); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id,error:String(error)}}));}); });`;
+window.addEventListener('rfd-open-session', (event) => { const {id,requestId,current,beginCommit} = (event as CustomEvent<{id:string,requestId:number,current:()=>boolean,beginCommit:()=>void}>).detail; void (async()=>{ const response = await api<SessionResponse>('/api/sessions/'+id); if (!openSessionFromHost) throw Error('Studio is still starting'); if (!current()) throw Error('The design changed; open the structure again.'); element('analysis-results').replaceChildren(); await openSessionFromHost(response,current,beginCommit); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id,requestId}})); })().catch(error=>{log(String(error)); window.dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id,requestId,error:String(error)}}));}); });`;
     if (/\b(localStorage|sessionStorage)\b/.test(s)) {
       s = `import {storage as embeddedStorage} from ${JSON.stringify(bridge)};
 ` + s;
@@ -59,6 +60,8 @@ const nvidiaLogo = (await readFile("host/nvidia-logo.svg")).toString("base64");
 html = replaceOnce(html, '<img src="./annotation-studio.svg" alt="" class="header-logo" />', `<img src="data:image/svg+xml;base64,${nvidiaLogo}" alt="NVIDIA" class="header-logo" />`);
 html = replaceOnce(html, '<h1>AtomWorks <span>Studio</span></h1>', '<div class="rfd-brand"><h1>RFD4-Proteina</h1></div>');
 html = replaceOnce(html, '<title>AtomWorks Studio</title>', '<title>RFD4-Proteina · NVIDIA BioNeMo</title>');
+// A sandboxed MCP document cannot navigate/reload its own host resource.
+html = replaceOnce(html, 'id="close-structure" class="secondary" disabled', 'id="close-structure" class="secondary" hidden disabled');
 html = html.replace('<option value="patinae">', '<option disabled value="patinae">');
 html = replaceOnce(html, '<a id="guide-link" href="/guide/" target="_blank" rel="noopener">Guide</a>', '<a id="guide-link" href="https://github.com/RosettaCommons/atomworks-studio" target="_blank" rel="noopener noreferrer">Powered by AtomWorks Studio</a>');
 const computeCss = await readFile("host/compute.css", "utf8");
@@ -67,7 +70,7 @@ html = html.replace("</head>", () => `<style>${css}
 ${computeCss}</style></head>`);
 html = html.replace("</body>", () => `<script>/*LOCAL_CONFIG*/<\/script><script>${js}<\/script></body>`);
 await writeFile("assets/studio-upstream.html", html);
-await writeFile("assets/studio-upstream.provenance.json", JSON.stringify({ repository: "https://github.com/RosettaCommons/atomworks-studio", tag: "v0.1.0", commit: pin, hooks: ["API transport", "session events", "in-memory storage", "inline CIF WASM", "Molstar-only renderer", "disable PWA", "reuse upstream file opening", "defer download URL cleanup"], sourceEdited: false }, null, 2) + "\n");
+await writeFile("assets/studio-upstream.provenance.json", JSON.stringify({ repository: "https://github.com/RosettaCommons/atomworks-studio", tag: "v0.0.1", commit: pin, hooks: ["API transport", "session events", "in-memory storage", "inline CIF WASM", "Molstar-only renderer", "disable PWA", "reuse upstream file opening", "defer download URL cleanup"], sourceEdited: false }, null, 2) + "\n");
 await writeFile("assets/STUDIO_LICENSE.md", await readFile(path.join(root, "LICENSE.md")));
 console.log(`Built upstream Studio ${(html.length / 1024 / 1024).toFixed(2)} MiB from ${pin}. Source unmodified.`);
 const packages = /* @__PURE__ */ new Map();
