@@ -60,7 +60,7 @@ Prepare an isolated Python 3.12 environment with
 Gradio is optional and is not used by the MCP app. The embedded frontend is built separately above.
 The old compute-bound Studio URL remains a compatibility fallback.
 
-CIF and results-archive exports use the MCP host's advertised `downloadFile` capability and `ui/download-file` request. The host may ask the user to confirm. Unsupported, rejected or failed host downloads show an error; they never fall back to a sandboxed browser anchor or claim the file was saved. The standalone localhost preview retains normal browser downloads.
+CIF and results-archive exports use the MCP host's advertised `downloadFile` capability and `ui/download-file` request. The host may ask the user to confirm. When download support is absent but chat messaging is available, the adapter saves the exact clicked bytes in its private local exports directory and sends the export ID to chat. The agent retrieves that checksum-verified export with `get_rfd4_export` and shares a clickable local file link. This needs no compute connection and preserves the current draft. Unsupported messaging, rejected downloads and failed transfers show an error. The standalone localhost preview retains normal browser downloads.
 
 Drafts auto-save annotated CIF, notes, image notes, and sampling settings in the
 adapter's private state directory. Saved drafts can be reopened explicitly after

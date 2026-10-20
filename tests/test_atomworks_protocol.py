@@ -23,6 +23,14 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual('execute_rfd4_plan' in names,mode=='agent')
                     self.assertEqual('recover_queued_rfd4_job' in names,mode=='agent')
                     if mode=='app':
+                        exported=await session.call_tool('save_rfd4_export',{'filename':'uat.cif','mime_type':'chemical/x-mmcif','text':'data_preserved\n'})
+                        self.assertFalse(exported.isError)
+                        saved=json.loads(exported.content[0].text)
+                        retrieved=await session.call_tool('get_rfd4_export',{'export_id':saved['export_id']})
+                        self.assertFalse(retrieved.isError)
+                        file=Path(json.loads(retrieved.content[0].text)['path'])
+                        self.assertTrue(file.is_relative_to(Path(root).resolve()))
+                        self.assertEqual(file.read_text(),'data_preserved\n')
                         result=await session.call_tool('get_workspace',{})
                         self.assertFalse(result.isError)
                         if (server.parents[1]/'assets/studio-upstream.html').exists():
@@ -31,13 +39,15 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                         self.assertNotIn('register_rfd4_compute',names)
                         self.assertIn('studio_request',names)
                         for tool in tools:
-                            self.assertEqual(tool.meta['ui']['visibility'],['app','model'] if tool.name=='open_rfd4_studio' else ['app'])
+                            self.assertEqual(tool.meta['ui']['visibility'],['app','model'] if tool.name in ('open_rfd4_studio','get_rfd4_export') else ['app'])
                             self.assertNotIn('openai/ui', tool.meta)
                             self.assertNotIn('com.openai', tool.meta)
                             if tool.name=='open_rfd4_studio':
                                 self.assertEqual(tool.meta['openai/outputTemplate'],'ui://bionemo-rfd4/studio.html')
                                 self.assertEqual(tool.meta['ui/resourceUri'],'ui://bionemo-rfd4/studio.html')
                     else:
+                        self.assertNotIn('save_rfd4_export',names)
+                        self.assertIn('get_rfd4_export',names)
                         execute=next(t for t in tools if t.name=='execute_rfd4_plan')
                         self.assertEqual(execute.meta['ui']['visibility'],['model'])
                         recovery=next(t for t in tools if t.name=='recover_queued_rfd4_job')

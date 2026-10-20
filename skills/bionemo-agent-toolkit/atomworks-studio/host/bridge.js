@@ -69,7 +69,17 @@ export async function downloadFile({filename, mimeType, text, base64}) {
     finally { setTimeout(() => URL.revokeObjectURL(url), 60000); }
     return;
   }
-  if (!hostCapabilities.downloadFile) throw Error('This host does not support file downloads. The file was not saved.');
+  if (!hostCapabilities.downloadFile) {
+    if (!hostCapabilities.message) throw Error('This host cannot download files or send export requests to chat. The file was not saved.');
+    const saved = await tool('save_rfd4_export', {filename:name, mime_type:mimeType,
+      ...(typeof text === 'string' ? {text} : {base64_data:base64})});
+    if (!saved || !/^[0-9a-f]{32}$/.test(saved.export_id)) throw Error('The export could not be saved.');
+    const sent = await sendScopedChat('Please retrieve RFD4 export ' + saved.export_id +
+      ' using get_rfd4_export and share its clickable local file link. It contains the exact CIF or results ZIP saved when I clicked export; do not run a design.');
+    if (!sent) throw Error('The export was saved locally, but the editor changed before chat confirmed it.');
+    message('Export saved locally. Continue in chat for the file link.');
+    return;
+  }
   const resource = {uri:'file:///' + encodeURIComponent(name), mimeType,
     ...(typeof text === 'string' ? {text} : {blob:base64})};
   const result = await rpc('ui/download-file', {contents:[{type:'resource', resource}]});

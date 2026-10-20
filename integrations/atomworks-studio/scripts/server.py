@@ -60,7 +60,19 @@ def select_compute(target_id: str, session_id: str, expected_revision: int) -> d
     """Explicitly select a saved machine at the inspected session revision; never starts it."""
     return service.register_registry_compute(target_id, session_id=session_id, expected_revision=expected_revision)
 
+@mcp.tool(meta={'ui':{'visibility':['app','model']}} if mode == 'app' else {}, annotations=READ)
+def get_rfd4_export(export_id: str) -> dict:
+    """Verify a saved export and return its local path. Share it as a Markdown file link; no compute is contacted."""
+    from local_exports import get
+    return get(service.root,export_id)
+
 if mode == 'app':
+    @mcp.tool(meta=APP, annotations=WRITE)
+    def save_rfd4_export(filename: str, mime_type: str, text: str | None=None, base64_data: str | None=None) -> dict:
+        """Save the exact clicked CIF/ZIP locally for export through chat; never starts compute."""
+        from local_exports import save
+        return save(service.root,filename,mime_type,text,base64_data)
+
     @mcp.tool(meta=APP, annotations=WRITE)
     def begin_compute_setup(session_id: str, expected_revision: int, target_id: str | None=None) -> dict:
         """Create or resume a setup conversation reference. Does not provision or connect."""

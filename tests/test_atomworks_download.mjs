@@ -5,14 +5,14 @@ import vm from 'node:vm';
 const source=readFileSync(new URL('../integrations/atomworks-studio/host/bridge.js',import.meta.url),'utf8')
   .replace(/^import \{navigationRequest\} from '\.\/navigation-request\.js';\n/,'')
   .replace(/export \{[^}]+\};/,'').replace(/export (?=(?:async )?function)/g,'');
-function harness({local=false,capability=true,result={}}={}) {
+function harness({local=false,capability=true,messageCapability=false,result={}}={}) {
  const calls=[],anchors=[],blobs=[],timers=[],revoked=[];
  const context=vm.createContext({window:local?{localToken:'fixture'}:{},addEventListener(){},Blob,Uint8Array,atob,
-   setTimeout(fn){timers.push(fn);},document:{createElement(){const a={click(){anchors.push(a);}};return a;}},
+   setTimeout(fn){timers.push(fn);},document:{getElementById(){return {textContent:''};},createElement(){const a={click(){anchors.push(a);}};return a;}},
    URL:{createObjectURL(blob){blobs.push(blob);return 'blob:fixture';},revokeObjectURL(url){revoked.push(url);}}});
  vm.runInContext(source,context);
- context.reply=async(method,params)=>{calls.push({method,params});if(result instanceof Error)throw result;return result;};
- vm.runInContext(`rpc=reply;hostCapabilities=${JSON.stringify(capability?{downloadFile:{}}:{})}`,context);
+ context.reply=async(method,params)=>{calls.push({method,params});if(result instanceof Error)throw result;return method==='tools/call'?{structuredContent:{export_id:'a'.repeat(32)}}:result;};
+ vm.runInContext(`rpc=reply;hostCapabilities=${JSON.stringify({...capability?{downloadFile:{}}:{},...messageCapability?{message:{}}:{}})}`,context);
  return {calls,anchors,blobs,timers,revoked,run:file=>{context.file=file;return vm.runInContext('downloadFile(file)',context);}};
 }
 test('embedded CIF uses inline text resource and waits for host acceptance',async()=>{
@@ -56,4 +56,21 @@ test('download waits for host confirmation',async()=>{
 test('ordinary example filename remains unchanged',async()=>{
  const h=harness();await h.run({filename:'example.cif',mimeType:'chemical/x-mmcif',text:'x'});
  assert.equal(h.calls[0].params.contents[0].resource.uri,'file:///example.cif');
+});
+
+test('unsupported download host saves exact bytes once and requests a verified file link in chat',async()=>{
+ for(const file of [{filename:'x.cif',mimeType:'chemical/x-mmcif',text:'data_科学'}, {filename:'x.zip',mimeType:'application/zip',base64:'UEsDBA=='}]){
+  const h=harness({capability:false,messageCapability:true});await h.run(file);
+  assert.equal(h.calls.length,2);assert.equal(h.calls[0].method,'tools/call');assert.equal(h.calls[0].params.name,'save_rfd4_export');
+  assert.equal(h.calls[0].params.arguments.filename,file.filename);
+  assert.equal(h.calls[0].params.arguments.text,file.text);assert.equal(h.calls[0].params.arguments.base64_data,file.base64);
+  assert.equal(h.calls[1].method,'ui/message');assert.match(h.calls[1].params.content[0].text,/get_rfd4_export/);
+  assert.match(h.calls[1].params.content[0].text,/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+  assert.equal(h.anchors.length,0);assert.equal(h.blobs.length,0);
+ }
+});
+test('chat rejection fails explicitly without repeating export or using a browser anchor',async()=>{
+ const h=harness({capability:false,messageCapability:true,result:{isError:true}});
+ await assert.rejects(h.run({filename:'x.cif',mimeType:'chemical/x-mmcif',text:'data_x'}));
+ assert.equal(h.calls.length,2);assert.equal(h.calls[1].method,'ui/message');assert.equal(h.anchors.length,0);
 });
