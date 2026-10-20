@@ -1,0 +1,67 @@
+{
+  "skill_name": "rfd4-proteina-nim",
+  "evals": [
+    {
+      "id": "staging-enzyme",
+      "prompt": "Use RFD4-Proteina NIM to execute Nam's annotated CIF enzyme example on staging. Save the full response, structures, sequences, and actual execution metadata in a new output directory.",
+      "expected_output": "A completed request to the internal buildapi.dev endpoint using the bundled enzyme input, with response-derived artifacts and a report that distinguishes design metrics from refolding.",
+      "files": [],
+      "assertions": [
+        "Executes the request, using the annotated mmCIF contents without substituting PDB or an RFdiffusion contigs payload.",
+        "Uses buildapi.dev.ngc.nvidia.com/v2/predict/models/nvidia/rfd4-proteina, NVCF-POLL-SECONDS: 300, and no authorization header.",
+        "Preserves request.json and response.raw, extracts designs[].structure.content as mmCIF, and saves returned sequences.",
+        "Reports returned counts, schedule, backend, warnings, and finite-coordinate diagnostics; does not invent pLDDT, binding, or experimental validation."
+      ]
+    },
+    {
+      "id": "local-rc-instructions",
+      "prompt": "Give me commands to run Nam's exact RFD4 RC locally with NGC_API_KEY_STAGING, on port 6626. I only want instructions, not a deployment or an inference call.",
+      "expected_output": "Commands for the named RC and upstream deploy_nim.sh, with runtime credentials, readiness-body validation, and unauthenticated local inference.",
+      "files": [],
+      "assertions": [
+        "Preserves nvcr.io/nvstaging/nim/rfd4-proteina:1.0.0-rc.20260929072057-951ccf3c88abb594 and uses a source checkout containing scripts/deploy_nim.sh.",
+        "Explains NGC_API_KEY_STAGING is mapped to NGC_API_KEY inside the container for weight download; keeps its value out of output.",
+        "Accounts for the deployment script running in the foreground, its destructive same-name container replacement, and true readiness rather than HTTP 200 alone.",
+        "Uses port 6626 and /biology/ipd/rfd4-proteina/generative without /v1/ or an inference Authorization header.",
+        "Checks the deployed schema for compatibility with the newer bundled examples, and does not run commands when only instructions were requested."
+      ]
+    },
+    {
+      "id": "offline-search",
+      "prompt": "Prepare but do not submit the bundled interchain search example for three independent RFD4 searches. Use thinking_medium, base seed 42, and save the request. Explain how to interpret the eventual design count and seeds.",
+      "expected_output": "An offline request with three replicates, batch_size=1, checkpoints [0,30,60], matching reward metric tags and weights, and no network activity.",
+      "files": [],
+      "assertions": [
+        "Preserves the full input mmCIF and sets sampling.num_replicates=3, sampling.batch_size=1, and sampling.seed=42.",
+        "Pins thinking_medium and leaves the last checkpoint at 60; reward keys remain metric.output_key names gated by reward_metrics_tags.",
+        "Explains that returned search designs can include final survivors and retained intermediates, so their count need not equal three.",
+        "Explains that search designs require replaying the full search and that search_rollout_seed is provenance, not a standalone replay handle.",
+        "Uses offline preparation and never submits a request."
+      ]
+    },
+    {
+      "id": "condition-spec",
+      "prompt": "Prepare an RFD4 condition_spec request from my target.cif and an existing JSON condition specification. Do not send it. The JSON names target.cif and uses C_CRD, C_SEQ, and C_HOT.",
+      "expected_output": "A request carrying the parsed spec object and complete inline mmCIF, checked for attached filename resolution without altering the biological conditions.",
+      "files": [],
+      "assertions": [
+        "Reads the supplied files, or asks for the missing files without inventing target contents or residue selections.",
+        "Uses input.format=condition_spec, input.spec as an object, and input.files with bare filename target.cif and complete file content.",
+        "Uses generation for a protein binder when appropriate; does not invent a binder task or top-level contigs/hotspot_res fields.",
+        "Does not submit the request or claim the preflight proves scientific correctness."
+      ]
+    },
+    {
+      "id": "oracle-and-pending",
+      "prompt": "My RFD4 staging job returned HTTP 202 and a request ID, but no designs. I also want pLDDT from the default staging deployment. What should happen next?",
+      "expected_output": "A pending result with preserved diagnostics; no invented polling URL, automatic resubmission, or invented oracle metrics.",
+      "files": [],
+      "assertions": [
+        "Treats 202 as pending, preserves the request ID and raw response, and does not call it a completed design.",
+        "Does not invent a completion URL for the buildapi endpoint or repeat the POST automatically.",
+        "Checks actual oracle availability; explains default staging has no refolding oracle and pLDDT cannot be inferred from generation or geometric metrics.",
+        "Offers an operator-enabled oracle or independent refolding when requested, without silently removing requested validation."
+      ]
+    }
+  ]
+}

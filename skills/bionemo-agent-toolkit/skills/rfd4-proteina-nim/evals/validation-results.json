@@ -1,0 +1,1800 @@
+{
+  "validated_on": "2026-10-13",
+  "source_commit": "67d600ba62f1219ed6516bb0c682e55d3b71c47c",
+  "endpoint": "https://buildapi.dev.ngc.nvidia.com/v2/predict/models/nvidia/rfd4-proteina",
+  "authentication": "No Authorization header; no environment API keys were set.",
+  "schema_validation": {
+    "pydantic_version": "2.14.1",
+    "request_models": 12,
+    "response_models": 11
+  },
+  "coordinate_validation": {
+    "parser": "gemmi",
+    "version": "0.7.5",
+    "structures": 22,
+    "checks": [
+      "mmCIF parse",
+      "nonempty atom_site",
+      "finite Cartn_x/Cartn_y/Cartn_z",
+      "parsed atom count equals atom_site row count"
+    ]
+  },
+  "live_examples": [
+    {
+      "example": "01_annotated_cif_enzyme.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:40:17.283217+00:00",
+      "wall_seconds": 3.044809897430241,
+      "request_sha256": "7e4b0725e750103e4461d2d46c218bdac343368fbf5dd8ff0349320b14f4576a",
+      "response_sha256": "a1774bf5ff98e2d7978efc1a93bf6ba90fe7bbc2aa2c1d2f90f49c3ce1447359",
+      "artifacts": "artifacts/validation-20261013/01_annotated_cif_enzyme",
+      "design_count": 1,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 1705.971,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 4063167084118258886,
+          "sequence_length": 192,
+          "atom_count": 1317,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 193,
+            "num_designed_residues": 192,
+            "num_atomized_tokens": 12,
+            "num_unindexed_insertions": 1,
+            "num_fixed_coordinate_atoms": 7,
+            "batch_size": 1,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 1157.8483930788934
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "02_condition_spec_monomer.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:40:20.447148+00:00",
+      "wall_seconds": 34.35749216657132,
+      "request_sha256": "bbd3170b0c306c90a9477df1c490264d6387f71dab9c0490a83a6151bc4e8b38",
+      "response_sha256": "978413cdfbe16964a381c117f48aeda2768e2db14e5f709022727c250da39852",
+      "artifacts": "artifacts/validation-20261013/02_condition_spec_monomer",
+      "design_count": 1,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 3237.068,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 8381593171817070510,
+          "sequence_length": 250,
+          "atom_count": 1539,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 250,
+            "num_designed_residues": 250,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 1,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 2723.583706188947
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "03_replicates_seeded.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:46:12.598122+00:00",
+      "wall_seconds": 5.335634036920965,
+      "request_sha256": "ea3b7b6aa33947b44cb63aebf3f8841db20731f6b39a6879a5ccff72f49fb300",
+      "response_sha256": "4492f1cc10665cd67f4e51d2df503df5009a9d2fbf1402134473a1de46f67b2e",
+      "artifacts": "artifacts/validation-20261013/03_replicates_seeded",
+      "design_count": 4,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 4027.641,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 20260921,
+          "sequence_length": 120,
+          "atom_count": 1020,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 120,
+            "num_designed_residues": 120,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 4,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3090.9792953170836
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 20260921,
+          "sequence_length": 120,
+          "atom_count": 728,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 120,
+            "num_designed_residues": 120,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 4,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3090.9792953170836
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_2",
+          "origin": "sample",
+          "seed": 20260921,
+          "sequence_length": 120,
+          "atom_count": 757,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 120,
+            "num_designed_residues": 120,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 4,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3090.9792953170836
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_3",
+          "origin": "sample",
+          "seed": 20260921,
+          "sequence_length": 120,
+          "atom_count": 851,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 120,
+            "num_designed_residues": 120,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 4,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3090.9792953170836
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "04_motif_scaffolding_indexed.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:40:54.941883+00:00",
+      "wall_seconds": 33.5153971305117,
+      "request_sha256": "9255dc8452d69ad54f18899729fee4f0eaa00dbe7eca6a848304ff4cfa7b13cd",
+      "response_sha256": "bd8bcad4598e4066b4a4d23264946184ac069eabac41f91e0c38a7b6ee9657f6",
+      "artifacts": "artifacts/validation-20261013/04_motif_scaffolding_indexed",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 3033.827,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 8862027657184033470,
+          "sequence_length": 85,
+          "atom_count": 722,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 85,
+            "num_designed_residues": 85,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 28,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 2508.6168688721955
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 8862027657184033470,
+          "sequence_length": 80,
+          "atom_count": 662,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 80,
+            "num_designed_residues": 80,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 28,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 2508.6168688721955
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "05_small_molecule_binder.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:41:28.613156+00:00",
+      "wall_seconds": 35.24648413993418,
+      "request_sha256": "57c0475e4995d77530f0f0c315554a8f5cb593a89a3886db01c5364ed127c18a",
+      "response_sha256": "bfaab3b0d0b7662e5e45b3673847aba82003aa5991ae5d13dee729b3787a03fc",
+      "artifacts": "artifacts/validation-20261013/05_small_molecule_binder",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 4067.681,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 1694097520292803795,
+          "sequence_length": 177,
+          "atom_count": 1228,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 177,
+            "num_designed_residues": 177,
+            "num_atomized_tokens": 27,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3127.3014759644866
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 1694097520292803795,
+          "sequence_length": 177,
+          "atom_count": 1222,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 177,
+            "num_designed_residues": 177,
+            "num_atomized_tokens": 27,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3127.3014759644866
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "06_search_interchain.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:43:49.085656+00:00",
+      "wall_seconds": 15.936687714420259,
+      "request_sha256": "bdf099a8117dde7a3a5a0c16ede6db795df10c26d44f44554c5cd7dc3618b136",
+      "response_sha256": "44e5fdeea04118e432ff69fec5e7a77c0999f1b8fd8a87ee2120fe5336972bf3",
+      "artifacts": "artifacts/validation-20261013/06_search_interchain",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [
+        "'sam_hbond_donor_acceptor.cif' names residue(s) 'L;G', which are not legal CCD chemical component ids (1-5 alphanumeric characters). TMol cannot build such a residue: it logs 'Unrecognized 3lc', drops it from the PoseStack, and the three interface metrics that then select a residue the PoseStack does not have -- soft_ddg, ppi_interface_ddg and ppi_interface_coulomb -- are ABSENT from this response rather than wrong. Every other metric is unaffected. Re-export the input with the real CCD code and CCD atom names to get those three back."
+      ],
+      "duration_ms": 15419.352,
+      "designs": [
+        {
+          "design_id": "req0_step60_b0_r0",
+          "origin": "search_final",
+          "seed": 7737851574340283437,
+          "sequence_length": 166,
+          "atom_count": 1120,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 166,
+            "num_designed_residues": 166,
+            "num_atomized_tokens": 27,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 1,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": 2039715247831226336,
+            "duration_ms": 13525.615558959544
+          },
+          "search_reward": 6.0
+        },
+        {
+          "design_id": "req0_step60_b0_r1",
+          "origin": "search_final",
+          "seed": 7737851574340283437,
+          "sequence_length": 166,
+          "atom_count": 1115,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 166,
+            "num_designed_residues": 166,
+            "num_atomized_tokens": 27,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 1,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": 2226308094476123199,
+            "duration_ms": 13525.615558959544
+          },
+          "search_reward": 6.0
+        }
+      ]
+    },
+    {
+      "example": "09_partial_diffusion.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:42:03.994504+00:00",
+      "wall_seconds": 32.42421100847423,
+      "request_sha256": "ddea0a2653b712bdd56adf66a24e06ba2fb9a62ee9ef0c4924e95d326bcfbcdf",
+      "response_sha256": "45c93ae9e7ab4d275cc8180dcd6bee8044ba9c5b0fe035dbbbbf1eb8461afa20",
+      "artifacts": "artifacts/validation-20261013/09_partial_diffusion",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "partial",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 1122.416,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 3726290377864119001,
+          "sequence_length": 59,
+          "atom_count": 454,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 59,
+            "num_designed_residues": 59,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": 0.9416553974151611,
+            "sequence_recovery": 0.4576271186440678,
+            "search_rollout_seed": null,
+            "duration_ms": 915.0584759190679
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 3726290377864119001,
+          "sequence_length": 59,
+          "atom_count": 454,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 59,
+            "num_designed_residues": 59,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": 0.7282070517539978,
+            "sequence_recovery": 0.3728813559322034,
+            "search_rollout_seed": null,
+            "duration_ms": 915.0584759190679
+          },
+          "search_reward": null
+        }
+      ],
+      "interpretation_warning": "Fraction 0.4 nominally scales 60 steps to 24, but BioIR reported 60 steps / 185 passes and null start_times. The response builder reports the full schedule; this is not evidence of executed partial cost or ignored conditioning."
+    },
+    {
+      "example": "10_inverse_folding.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:42:36.567617+00:00",
+      "wall_seconds": 33.27538357488811,
+      "request_sha256": "03998f8a6f854662d28e2bfe9ff93279425b847454f3c2b6b579146781b3cdca",
+      "response_sha256": "7afcc616a26eb459e3ea0343e63ba389af0ed364d0803d416d13acac94236cf1",
+      "artifacts": "artifacts/validation-20261013/10_inverse_folding",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "partial",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 2094.868,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 3047734948204442228,
+          "sequence_length": 59,
+          "atom_count": 426,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 59,
+            "num_designed_residues": 59,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": 1.2150438806202146e-06,
+            "sequence_recovery": 0.23728813559322035,
+            "search_rollout_seed": null,
+            "duration_ms": 1882.5521813705564
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 3047734948204442228,
+          "sequence_length": 59,
+          "atom_count": 442,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 59,
+            "num_designed_residues": 59,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 0,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": 1.2150438806202146e-06,
+            "sequence_recovery": 0.2711864406779661,
+            "search_rollout_seed": null,
+            "duration_ms": 1882.5521813705564
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "11_antibody_design.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:43:09.986468+00:00",
+      "wall_seconds": 38.94425485562533,
+      "request_sha256": "5091cc0c355584585013e7e3ed1f47e7ca2981c657ad8dac8717bd76b6fb849c",
+      "response_sha256": "50972d37c9aae0e4568cb1629ec24a0b6550a31e2b6f020486c9ce6250985d57",
+      "artifacts": "artifacts/validation-20261013/11_antibody_design",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 7227.568,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 3667241540644963744,
+          "sequence_length": 280,
+          "atom_count": 2156,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 280,
+            "num_designed_residues": 280,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 2050,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 4485.101632773876
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 3667241540644963744,
+          "sequence_length": 280,
+          "atom_count": 2156,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 280,
+            "num_designed_residues": 280,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 2050,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 4485.101632773876
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "14_nanobody_cdr_design.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:46:18.084886+00:00",
+      "wall_seconds": 7.452774281613529,
+      "request_sha256": "b65d97777145e654095a7b4d25e4df092633930723e2c06ae337de19dbeb4593",
+      "response_sha256": "cca350e4432dbffd5d383e572ec9d9e47901cae6e9a44638adf51dade75987fb",
+      "artifacts": "artifacts/validation-20261013/14_nanobody_cdr_design",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 6303.284,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 1241952561693763624,
+          "sequence_length": 230,
+          "atom_count": 1774,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 230,
+            "num_designed_residues": 230,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 784,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3759.0673812665045
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 1241952561693763624,
+          "sequence_length": 243,
+          "atom_count": 1874,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 243,
+            "num_designed_residues": 243,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 784,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3759.0673812665045
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "16_ppi_binder.json",
+      "input_schema_valid": true,
+      "http_status": 200,
+      "client_status": "completed",
+      "started_at": "2026-10-13T16:46:25.730389+00:00",
+      "wall_seconds": 38.14465287979692,
+      "request_sha256": "d078b5f89dd1d550f3d3e8ba5ab43c2adbef7b296b765086132b6653550f5b18",
+      "response_sha256": "a816b58a8b03d7defa53695ee8b3e62c3e13aa97c5bcb81e3c6d89eb1c203cdd",
+      "artifacts": "artifacts/validation-20261013/16_ppi_binder",
+      "design_count": 2,
+      "model": {
+        "model_name": "rfd4-proteina",
+        "checkpoint": "chk_epoch_00000169_step_000000340000-ema.ckpt",
+        "autoencoder_checkpoint": "2026_09_04_release_ae_z16_400k-ema.ckpt",
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "num_residue_types": 33,
+        "package_version": "1.0.0",
+        "execution_backend": "bioir",
+        "oracle": []
+      },
+      "runtime": {
+        "nim_version": "1.0.0",
+        "nimtools_version": "1.12.0",
+        "packages": {
+          "bionemo_ir": "0.2.0.dev0+cu132.g4f97e9d.integration",
+          "rfproteina": "0.0.2",
+          "atomworks": "2.1.1",
+          "torch": "2.13.0",
+          "triton": "3.7.1",
+          "cuequivariance_torch": "0.12.0",
+          "cuequivariance_ops_torch": "0.12.0"
+        },
+        "inference_precision": null,
+        "bioir_dtype": "bfloat16",
+        "cuda": "13.0",
+        "gpu": "NVIDIA H200",
+        "gpu_count": 1,
+        "gpu_ids": [
+          0
+        ],
+        "compile_lengths": [],
+        "cuda_graphs": true,
+        "cuda_graph_cache": {
+          "active": 5,
+          "captured": 5,
+          "verified": 0,
+          "fallback": 0
+        },
+        "cuda_graph_max_tokens": 512,
+        "cuda_graph_slots": 5,
+        "limits": {
+          "max_tokens": 1024,
+          "max_num_steps": 200,
+          "max_trunk_passes": 600,
+          "max_request_bytes": 33554432,
+          "max_search_rollouts": 256
+        }
+      },
+      "schedule": {
+        "kind": "full",
+        "num_steps": 60,
+        "recycle_strategy": "thinking_medium",
+        "recycle_schedule": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            1
+          ]
+        ],
+        "recycle_depth": 6,
+        "trunk_passes": 185,
+        "start_times": null
+      },
+      "warnings": [],
+      "duration_ms": 6814.365,
+      "designs": [
+        {
+          "design_id": "design_0",
+          "origin": "sample",
+          "seed": 1110747006620665491,
+          "sequence_length": 250,
+          "atom_count": 1873,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 250,
+            "num_designed_residues": 250,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 906,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3676.417587790638
+          },
+          "search_reward": null
+        },
+        {
+          "design_id": "design_1",
+          "origin": "sample",
+          "seed": 1110747006620665491,
+          "sequence_length": 239,
+          "atom_count": 1884,
+          "all_coordinates_finite_independently_checked": true,
+          "diagnostics": {
+            "num_tokens": 239,
+            "num_designed_residues": 239,
+            "num_atomized_tokens": 0,
+            "num_unindexed_insertions": 0,
+            "num_fixed_coordinate_atoms": 906,
+            "batch_size": 2,
+            "all_coordinates_finite": true,
+            "input_ca_rmsd_angstrom": null,
+            "sequence_recovery": null,
+            "search_rollout_seed": null,
+            "duration_ms": 3676.417587790638
+          },
+          "search_reward": null
+        }
+      ]
+    },
+    {
+      "example": "25_secondary_structure_conditioning.json",
+      "input_schema_valid": true,
+      "http_status": 422,
+      "client_status": "failed",
+      "started_at": "2026-10-13T16:47:04.038973+00:00",
+      "wall_seconds": 0.4950570724904537,
+      "request_sha256": "1aeb5157d8f6815c2e45212ca1a902d31e4b12c5890f64686f1e9ff1674e210e",
+      "response_sha256": "10661c02276cb75b789b39b820af9572965df53c8be2b48d9bef79ba6a619469",
+      "artifacts": "artifacts/validation-20261013/25_secondary_structure_conditioning",
+      "gateway_error": {
+        "type": "about:blank",
+        "title": "Unprocessable Content",
+        "status": 422,
+        "detail": "422 Unprocessable Content from POST https://grpc.nvcf.nvidia.com/biology/ipd/rfd4-proteina/generative",
+        "instance": "/v2/predict/models/nvidia/rfd4-proteina",
+        "cause": "422 Unprocessable Content from POST https://grpc.nvcf.nvidia.com/biology/ipd/rfd4-proteina/generative"
+      },
+      "interpretation_warning": "Source-valid sample was refused by staging. Gateway did not expose field-level cause. Retained as a diagnostic probe; not a validated working example."
+    }
+  ],
+  "oracle_probe": {
+    "request": "upstream sample_requests/08_metrics_oracle_refolding.json",
+    "http_status": 422,
+    "response_sha256": "10661c02276cb75b789b39b820af9572965df53c8be2b48d9bef79ba6a619469",
+    "gateway_error": {
+      "type": "about:blank",
+      "title": "Unprocessable Content",
+      "status": 422,
+      "detail": "422 Unprocessable Content from POST https://grpc.nvcf.nvidia.com/biology/ipd/rfd4-proteina/generative",
+      "instance": "/v2/predict/models/nvidia/rfd4-proteina",
+      "cause": "422 Unprocessable Content from POST https://grpc.nvcf.nvidia.com/biology/ipd/rfd4-proteina/generative"
+    },
+    "interpretation": "422 is consistent with the source oracle gate and successful responses reporting model.oracle=[]. The gateway does not expose the internal refusal reason.",
+    "artifacts": "artifacts/validation-20261013/oracle-unavailable"
+  },
+  "original_nam_script": {
+    "script": "sample_requests/run_staging_nvcf.sh",
+    "example": "01_annotated_cif_enzyme.json",
+    "http_status": 200,
+    "curl_total_seconds": 4.370338,
+    "download_bytes": 544304,
+    "response_sha256": "082ce042f33ac82493c79d323fe7715f2c93e2211ff8e1315b8da200773001a4",
+    "artifacts": "artifacts/validation-20261013/nam-original-client"
+  },
+  "offline_client_tests": {
+    "runner": "python -m unittest discover -s rfd4-proteina-nim/tests -q",
+    "tests": 25,
+    "status": "passed",
+    "fixtures": "Synthetic HTTP and output fixtures; no GPU and no live calls in unit tests."
+  },
+  "skill_frontmatter_validation": "passed",
+  "not_executed": [
+    "Local Docker deployment: Docker unavailable and NGC API keys unset",
+    "Agent evaluation prompts / discovery trigger evaluation",
+    "Independent protein refolding or experimental validation"
+  ],
+  "summary": {
+    "bundled_requests_source_valid": 12,
+    "live_requests_succeeded": 11,
+    "live_examples_refused": 1,
+    "generated_structures_checked": 22,
+    "all_seven_task_presets_exercised": true,
+    "known_findings": [
+      "Secondary-structure sample 25 returns HTTP 422 with opaque gateway details.",
+      "Search sample 06 completes but warns that three TMol metrics are omitted for non-CCD L;G.",
+      "Partial-diffusion schedule metadata reports the full schedule rather than the scaled partial trajectory."
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFD4-Proteina NIM (Internal)"
+  short_description: "Run internal RFD4 protein design on staging or locally"
+  default_prompt: "Use $rfd4-proteina-nim to run the enzyme example on staging and save the structures, sequences, and provenance."

@@ -52,6 +52,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **OpenFold2** | Monomer protein structure prediction (NIM). | [`openfold2-nim`](nim-skills/openfold2-nim) |
 | **OpenFold3** | Biomolecular complex structure prediction (NIM). | [`openfold3-nim`](nim-skills/openfold3-nim) |
 | **ProteinMPNN** | Inverse folding / sequence design for a target backbone (NIM). | [`proteinmpnn-nim`](nim-skills/proteinmpnn-nim) |
+| **RFD4-Proteina** | Joint protein structure and sequence design, conditioned generation, and reward-guided search through internal staging or a local release-candidate NIM. | [`rfd4-proteina-nim`](nim-skills/rfd4-proteina-nim) |
 | **RFdiffusion** | De novo protein backbone and binder design (NIM). | [`rfdiffusion-nim`](nim-skills/rfdiffusion-nim) |
 | **Proteina-Complexa** | Protein binder design for protein and small molecule targets. Combines a pretrained flow-based generative model (built on La-Proteina) with inference-time optimization for high-quality binder generation. | [`complexa-setup`](open-models-skills/proteina-complexa/complexa-setup), [`complexa-target`](open-models-skills/proteina-complexa/complexa-target), [`complexa-design`](open-models-skills/proteina-complexa/complexa-design), [`complexa-sweep`](open-models-skills/proteina-complexa/complexa-sweep), [`complexa-evaluate-pdbs`](open-models-skills/proteina-complexa/complexa-evaluate-pdbs) |
 | **KERMT** | Pretrained graph neural network for molecular property prediction (ADMET). Multi-task extension of GROVER with accelerated data loading via cuik-molmaker. SOTA on real-world ADMET data. | [`kermt-setup`](open-models-skills/kermt/skills/kermt-setup), [`kermt-infer`](open-models-skills/kermt/skills/kermt-infer), [`kermt-embed`](open-models-skills/kermt/skills/kermt-embed), [`kermt-finetune`](open-models-skills/kermt/skills/kermt-finetune), [`kermt-continue-pretrain`](open-models-skills/kermt/skills/kermt-continue-pretrain), [`kermt-pretrain-scratch`](open-models-skills/kermt/skills/kermt-pretrain-scratch), [`kermt-add-cmim-pretrain`](open-models-skills/kermt/skills/kermt-add-cmim-pretrain), [`kermt-monitor`](open-models-skills/kermt/skills/kermt-monitor) |
@@ -64,7 +65,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 
 NIM skill evaluation has two levels:
 
-1. **Hosted skill lift with ACES/SkillEvaluator.** Each NIM skill ships a
+1. **Hosted skill lift with ACES/SkillEvaluator.** The hosted skills listed below ship a
    single, bounded `evals/evals.json` case plus `evals/config.yml`.
    `astra-skill-eval` converts the case into Harbor tasks and runs the same
    prompt both with and without the skill. The task requires a call to the real
@@ -78,7 +79,7 @@ NIM skill evaluation has two levels:
    coverage. These tasks will live under `evals/harbor/` and provide their own
    verifier.
 
-The hosted lift evaluations require `NGC_API_KEY` in the invoking shell; each
+The hosted lift commands below require `NGC_API_KEY` in the invoking shell; each
 skill's `evals/config.yml` passes it into the Harbor tasks. No local NIM
 deployment is required. The commands below disable the optional Astra viewer
 upload, allow up to twice the default agent runtime, and write reports under
@@ -87,6 +88,14 @@ upload, allow up to twice the default agent runtime, and write reports under
 OpenFold3 and the MSA-Search to OpenFold3 workflow are pending validation. Their
 current hosted runs timed out and should not yet be used for pass/fail or model
 comparison.
+
+RFD4-Proteina uses a separate five-case dataset covering internal staging,
+local deployment instructions, offline preparation, and result interpretation.
+Its imported [NV-CARPS benchmark](nim-skills/rfd4-proteina-nim/BENCHMARK.md) and
+[validation evidence](nim-skills/rfd4-proteina-nim/evals/validation-results.json)
+retain the source evaluation results. See the
+[RFD4 bundle notes](nim-skills/README.md#rfd4-proteina) for provenance,
+access requirements, and offline client tests.
 
 - **Evo 2**
 
