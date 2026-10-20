@@ -37,7 +37,7 @@ test('ownership-required status explains the gate and offers no stop or automati
 test('a failed refresh cannot cause a probe on every status poll',async()=>{
   const calls=responses([{state:'registered',name:'GPU',kind:'ssh',fingerprint:'failure'},new Error('offline'),{state:'registered',name:'GPU',kind:'ssh',fingerprint:'failure'}]);
   await compute();
-  assert.equal(elements.get('rfd-compute-label').textContent,'Disconnected');
+  assert.equal(elements.get('rfd-compute-label').textContent,'Not connected');
   await compute();
   assert.deepEqual(calls,['get_compute_status','check_compute','get_compute_status']);
 });

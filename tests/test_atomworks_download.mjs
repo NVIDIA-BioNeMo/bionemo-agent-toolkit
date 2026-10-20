@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const source=readFileSync(new URL('../integrations/atomworks-studio/host/bridge.js',import.meta.url),'utf8')
   .replace(/^import \{navigationRequest\} from '\.\/navigation-request\.js';\n/,'')
-  .replace(/export \{[^}]+\};/,'').replace(/export (?=(?:async )?function)/g,'');
+  .replace(/^import \{connectSavedCompute\} from '\.\/compute-connection\.js';\n/m,'').replace(/export \{[^}]+\};/,'').replace(/export (?=(?:async )?function)/g,'');
 function harness({local=false,capability=true,messageCapability=false,result={}}={}) {
  const calls=[],anchors=[],blobs=[],timers=[],revoked=[];
  const context=vm.createContext({window:local?{localToken:'fixture'}:{},addEventListener(){},Blob,Uint8Array,atob,

@@ -27,7 +27,7 @@ def open_result(job_id):
     return service.viewer_payload(service.open_result(job_id))
 def execute_plan(**arguments): return service.public_job(service.execute(**arguments))
 def job_status(job_id): return service.public_job(service.status(job_id))
-ALLOWED = {'get_compute_capabilities':service.capabilities,'disconnect_compute':service.disconnect_compute,'open_run_structure':service.open_run_structure,'list_results':service.results,'download_results':service.download_results,'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
+ALLOWED = {'get_compute_capabilities':service.capabilities,'select_compute':lambda **kw:service.register_registry_compute(**kw),'inspect_compute_target':service.inspect_compute_target,'disconnect_compute':service.disconnect_compute,'open_run_structure':service.open_run_structure,'list_results':service.results,'download_results':service.download_results,'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
            'begin_compute_setup':service.begin_setup,'save_draft':service.save_draft,'list_drafts':service.list_drafts,'restore_draft':service.restore_draft,'list_registered_compute':service.available_compute,
            'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
            'set_condition':service.set_condition,'prepare_design':service.prepare,

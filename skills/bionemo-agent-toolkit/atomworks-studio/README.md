@@ -51,6 +51,25 @@ readiness, active runs, and chat-based setup. The first-run reminder is dismissi
 No provider lifecycle command runs from the app. Host messaging is capability
 checked; the standalone preview provides a copyable request.
 
+In **Compute → Use an existing machine**, choose a saved target and click
+**Connect**. Studio saves the current draft, selects that exact machine, checks
+connectivity, then performs a fresh GPU/runtime/weights check. The toolbar shows
+Connecting, Checking readiness, and Ready only after the backend check succeeds.
+Cached GPU and readiness evidence are hidden during this attempt. A missing
+runtime, unavailable machine or failed connection never provisions, starts or
+refreshes a machine automatically. Existing setup and lifecycle actions remain
+available in chat. Disconnect detaches this session; the saved target remains
+available for reconnect and existing jobs are preserved.
+
+This direct flow currently requires established SSH trust and the existing
+executor-ownership acceptance. Brev's CLI-generated configuration disables host-key
+verification; delegating to it is not an authenticated host-key bootstrap. The
+adapter retains strict verification. For a first-use machine without trusted keys,
+automatic bootstrap remains unimplemented: it needs a provider-authenticated host
+key or an already trusted administrative channel. Do not substitute an unverified
+key scan or a verification-disabled connection. No transport change is included
+in the direct-selection UI change.
+
 Set `RFD4_EDITOR_URL` to a CPU Studio loopback service independent of the GPU.
 Optionally set `RFD4_EDITOR_PYTHON` to an already-prepared Studio Python 3.12
 interpreter: the MCP server starts that CPU service once with upstream session

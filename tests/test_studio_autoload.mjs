@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {navigationRequest} from '../integrations/atomworks-studio/host/navigation-request.js';
-const source = readFileSync(new URL('../integrations/atomworks-studio/host/bridge.js', import.meta.url),'utf8').replace(/^import \{navigationRequest\} from '\.\/navigation-request\.js';\n/, '').replace(/export \{[^}]+\};/, '').replace(/export (?=(?:async )?function)/g, '');
+const source = readFileSync(new URL('../integrations/atomworks-studio/host/bridge.js', import.meta.url),'utf8').replace(/^import \{navigationRequest\} from '\.\/navigation-request\.js';\n/, '').replace(/^import \{connectSavedCompute\} from '\.\/compute-connection\.js';\n/m,'').replace(/export \{[^}]+\};/, '').replace(/export (?=(?:async )?function)/g, '');
 function harness() {
   const elements = new Map();
   const el = () => ({dataset:{}, querySelector:()=>null, append(){}, remove(){}, setAttribute(){}, add(){}, value:'0'});
