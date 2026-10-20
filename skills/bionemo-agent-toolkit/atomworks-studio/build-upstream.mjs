@@ -58,7 +58,7 @@ let html = await readFile(path.join(web, "index.html"), "utf8");
 html = html.replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "").replace(/<link[^>]*>/g, "");
 const nvidiaLogo = (await readFile("host/nvidia-logo.svg")).toString("base64");
 html = replaceOnce(html, '<img src="./annotation-studio.svg" alt="" class="header-logo" />', `<img src="data:image/svg+xml;base64,${nvidiaLogo}" alt="NVIDIA" class="header-logo" />`);
-html = replaceOnce(html, '<h1>AtomWorks <span>Studio</span></h1>', '<div class="rfd-brand"><h1>RFD4-Proteina</h1></div>');
+html = replaceOnce(html, '<h1>AtomWorks <span>Studio</span></h1>', '<div class="rfd-brand"><h1>RFD4-Proteina <span class="rfd-beta">Beta</span></h1></div>');
 html = replaceOnce(html, '<title>AtomWorks Studio</title>', '<title>RFD4-Proteina · NVIDIA BioNeMo</title>');
 // A sandboxed MCP document cannot navigate/reload its own host resource.
 html = replaceOnce(html, 'id="close-structure" class="secondary" disabled', 'id="close-structure" class="secondary" hidden disabled');
