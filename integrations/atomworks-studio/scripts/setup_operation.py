@@ -58,7 +58,10 @@ def setup_payload(scripts, destination, review, remote, review_checksum):
 class SetupOperation:
     def review_prerequisites(self, machine):
         import shlex
-        from prerequisite_review import probe_script,bind_review
+        if RECIPE.get("install_mode") == "public_wheels" or RECIPE["id"] == "rfd4-public-c7c6cac-wheels-v1":
+            from public_prerequisite import probe_script,bind_review
+        else:
+            from prerequisite_review import probe_script,bind_review
         cfg=dict(machine['config'],target_id=machine['id'])
         self.verify_target(cfg)
         return bind_review(json.loads(self.target_exec(cfg,shlex.join(['python3','-I','-c',probe_script()]),timeout=180)))
@@ -89,10 +92,12 @@ class SetupOperation:
         ownership=self.require_executor_ownership(cfg)
         prerequisites=self.review_prerequisites(machine)
         preparation=prerequisites.get('status')=='preparation_required'
-        files=['runtime_setup.py','runtime_install.py','runtime_install_profile.json','runtime_dependencies.lock','runtime_bootstrap.py','source_stage.py','source_integrity.py','runtime_recipe.py','runtime_recipe.json','runtime_download.py','runtime_smoke.py','remote_job.py','toolchain_paths.py','executor_ownership.py','ownership_adapter.py','execution_payload.py']
+        files=['runtime_setup.py','runtime_install.py','runtime_install_profile.json','runtime_dependencies.lock','runtime_bootstrap.py','source_stage.py','source_integrity.py','runtime_recipe.py','runtime_recipe.json','runtime_download.py','runtime_smoke.py','generation.py','public_model_bundle.py','remote_job.py','toolchain_paths.py','executor_ownership.py','ownership_adapter.py','execution_payload.py']
         files+=['prerequisite_privileged.py','prerequisite_setup.py','prerequisite_review.py','toolchain_profile.json','toolchain_review.py','toolchain_plan.py']
         files+=['toolchain_download.py','toolchain_bundle.py','toolchain_owner.py','toolchain_recovery.py']
         from toolchain_launch import BUNDLE_FILES
+        if prerequisites.get("kind") == "public_wheels":
+            files += ["public_prerequisite.py"]
         files=sorted(set(files)|BUNDLE_FILES)
         import ownership_adapter
         review={'operation_id':operation_id,'action':'setup','machine_id':machine_id,'executor_ownership':ownership,
@@ -104,7 +109,12 @@ class SetupOperation:
                 'prerequisite_requires_sudo':bool(prerequisites.get('changes')),
                 'prerequisite_download_bytes':prerequisites['download_bytes'],
                 'files':{name:hashlib.sha256((scripts/name).read_bytes()).hexdigest() for name in files},
-                'effect':'Fetch the reviewed model commit using existing Git access if no checkout exists, then verify the required native compiler toolchain, install the hash-locked runtime and download verified checkpoints. Then run one upstream short-monomer inference to validate setup.'}
+                'effect':'Fetch the reviewed model commit using existing Git access if no checkout exists, then install the hash-locked public wheels and download the pinned model/autoencoder bundle. Then run one upstream short-monomer inference to validate setup.'}
+        if prerequisites.get('kind') == 'public_wheels':
+            review['effect'] = ('Install the reviewed hash-locked public wheels and pinned Python 3.12 bootstrap, '
+                                'download verified model files, then run one short-monomer inference. '
+                                'No apt, compiler installation, or privileged operating-system package changes are planned. '
+                                'The preliminary platform/driver review does not establish GPU runtime or inference readiness.')
         if preparation:
             review['phase']='prepare_archives'
             review['effect']=('Download and verify '+str(len(prerequisites['packages']))+

@@ -24,7 +24,8 @@ def validate(review, receipt):
     if post.get('recipe_id')!=recipe['id'] or set(post.get('checks',{}))!=REQUIRED or any(value is not True for value in post['checks'].values()):
         raise ValueError('Setup receipt lacks successful post-inference runtime verification')
     root=PurePosixPath(review['remote_root'])
-    expected=[str(root/'model/data_path'/w['directory']/w['name']) for w in recipe['weights']]
+    expected=([str(root/'model-bundle'/w['name']) for w in recipe['model_bundle']['files']]
+              if recipe.get('model_bundle') else [str(root/'model/data_path'/w['directory']/w['name']) for w in recipe['weights']])
     if receipt.get('weight_paths')!=expected:
         raise ValueError('Verified checkpoint paths differ from the reviewed recipe')
     smoke=receipt.get('smoke',{})

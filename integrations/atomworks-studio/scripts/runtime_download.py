@@ -72,6 +72,11 @@ if __name__=='__main__':
     import json,sys
     recipe=json.loads(Path(__file__).with_name('runtime_recipe.json').read_text())
     data=Path(sys.argv[1])
-    for weight in recipe['weights']:
-        fetch(recipe['weights_base_url']+'/'+weight['directory']+'/'+weight['name'],data/weight['directory']/weight['name'],weight)
-        print('Verified '+weight['name'],flush=True)
+    if recipe.get('model_bundle'):
+        from public_model_bundle import download_bundle
+        download_bundle(data)
+        print('Verified pinned public model bundle',flush=True)
+    else:
+        for weight in recipe['weights']:
+            fetch(recipe['weights_base_url']+'/'+weight['directory']+'/'+weight['name'],data/weight['directory']/weight['name'],weight)
+            print('Verified '+weight['name'],flush=True)

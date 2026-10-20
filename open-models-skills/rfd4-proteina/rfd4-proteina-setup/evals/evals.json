@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "skill": "rfd4-proteina-setup",
+  "cases": [
+    {
+      "id": "preflight-then-smoke-monomer",
+      "prompt": "Set up RFProteina on this machine and confirm it can run. Install the environment, download the example checkpoints into a local DATA_PATH, run the setup preflight, and then run a single-design smoke test on the short monomer benchmark.",
+      "setup": {
+        "cwd": "repository root",
+        "requires": ["NVIDIA GPU", "git", "curl", "~10GB disk"]
+      },
+      "expected_behavior": [
+        "Runs bash setup.sh and activates .venv",
+        "Sets DATA_PATH in .env.local and obtains released checkpoints if needed",
+        "Runs skills/rfd4-proteina-setup/scripts/preflight.sh and it exits 0 (PREFLIGHT PASSED)",
+        "Runs rfd4-generate inputs=data/benchmarks/monomer subset_to_examples=monomer-short num_replicates=1 out_dir=./runs/smoke",
+        "Uses the release checkpoint pair selected by configs/inference.yaml without a checkpoint override"
+      ],
+      "success_criteria": {
+        "preflight_exit_code": 0,
+        "artifact_glob": "./runs/smoke/**/*.cif",
+        "min_artifacts": 1
+      }
+    }
+  ]
+}

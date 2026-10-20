@@ -4,6 +4,8 @@ from unittest.mock import Mock,patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from prerequisite_review import profile,bind_review
 from runtime_setup import setup,SetupCancelled
+from runtime_recipe import RECIPE
+LEGACY_RECIPE={key:value for key,value in RECIPE.items() if key!='install_mode'}
 
 
 class PreparationPhaseTests(unittest.TestCase):
@@ -18,7 +20,7 @@ class PreparationPhaseTests(unittest.TestCase):
         self.review={'phase':'prepare_archives','prerequisites':bind_review(self.request)}
         self.run=Mock(side_effect=AssertionError('No model or package process allowed'))
     def execute(self):
-        return setup(self.root,operation_id=self.operation,reviewed=self.review,
+        return setup(self.root,recipe=LEGACY_RECIPE,operation_id=self.operation,reviewed=self.review,
                      lock_path=self.root/'execution.lock',run=self.run)
     def test_preparation_never_installs_or_claims_ready(self):
         with patch('toolchain_download.prepare_archives') as fetch:

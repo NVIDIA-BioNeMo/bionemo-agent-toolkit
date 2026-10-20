@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "skill": "rfd4-proteina-generate",
+  "cases": [
+    {
+      "id": "generate-short-monomer",
+      "prompt": "Using RFProteina, generate a single short monomer design from the monomer benchmark. Run only the monomer-short example, one replicate, into ./runs/gen_eval, and confirm an annotated CIF is produced.",
+      "setup": {
+        "cwd": "repository root",
+        "requires": ["NVIDIA GPU", "rfd4-proteina-setup complete (venv + atomworks + checkpoints)"]
+      },
+      "expected_behavior": [
+        "Runs bash skills/rfd4-proteina-setup/scripts/preflight.sh and it exits 0",
+        "Recognizes this as the unconditional-generation task and uses data/benchmarks/monomer",
+        "Runs rfd4-generate inputs=data/benchmarks/monomer subset_to_examples=monomer-short num_replicates=1 out_dir=./runs/gen_eval",
+        "Uses the release checkpoint pair selected by configs/inference.yaml without a checkpoint override",
+        "Does not enable any *_refolding metrics tag (no container required for plain generation)"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/gen_eval/**/*.cif",
+        "min_artifacts": 1
+      }
+    }
+  ]
+}

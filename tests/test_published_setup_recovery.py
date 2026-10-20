@@ -3,7 +3,7 @@
 The sudo runner is simulated; source validation, ordinary execution lease and
 operation-root receipt publication are real. This is not Linux privilege UAT.
 """
-import hashlib,json,os,shlex,subprocess,sys,tempfile,unittest
+import hashlib,json,os,shlex,shutil,subprocess,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
@@ -50,7 +50,14 @@ class PublishedSetupRecoveryTests(unittest.TestCase):
             tx={'changes':{package:{'version':profile['packages'][package]['Version'],'actions':['Inst','Conf']}},
                 'download_bytes':int(profile['packages'][package]['Size']),'profile_sha256':checksum(profile),
                 'helper_hashes':{name:hashlib.sha256((scripts/name).read_bytes()).hexdigest() for name in BUNDLE_FILES}}
-            with patch.object(service,'review_prerequisites',return_value=tx):
+            from runtime_recipe import RECIPE
+            legacy={key:value for key,value in RECIPE.items() if key!='install_mode'}
+            # Recovery must import the recipe frozen with this historical review,
+            # not today's public recipe from the controller installation.
+            legacy_scripts=root/'legacy-scripts'
+            shutil.copytree(scripts,legacy_scripts)
+            (legacy_scripts/'runtime_recipe.json').write_text(json.dumps(legacy))
+            with patch('setup_operation.__file__',str(legacy_scripts/'setup_operation.py')),patch('setup_operation.RECIPE',legacy),patch.object(service,'review_prerequisites',return_value=tx):
                 public=service.prepare_runtime_setup(operation,machine)
             review=service.managed.operation(operation)['review'];digest=public['review_checksum']
             local=service.state/operation/'setup-payloads'/digest
@@ -68,7 +75,8 @@ class PublishedSetupRecoveryTests(unittest.TestCase):
                 self.assertEqual(args[6],str(remote/'payload/setup-review.json'))
                 calls.append(args[3])
                 completed=subprocess.run([sys.executable,'-B','-I','-c',DRIVER,str(remote/'payload'),str(lease),*args[3:]],
-                    capture_output=True,text=True,check=True)
+                    capture_output=True,text=True)
+                self.assertEqual(completed.returncode,0,completed.stderr)
                 return completed.stdout
             try:
                 op=service.managed.operation(operation)

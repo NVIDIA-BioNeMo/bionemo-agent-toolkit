@@ -254,8 +254,9 @@ class SetupReviewBindingTests(unittest.TestCase):
         for name in BUNDLE_FILES|{'runtime_setup.py','toolchain_profile.json'}:
             content=(source/name).read_bytes();(self.scripts/name).write_bytes(content)
             self.files[name]=hashlib.sha256(content).hexdigest()
+        self.recipe={k:v for k,v in RECIPE.items() if k!='install_mode'}
         self.review={'operation_id':'setup-test','action':'setup','remote_root':'/srv/rfd4',
-          'recipe_id':RECIPE['id'],'recipe':RECIPE,'recipe_checksum':self.digest(RECIPE),
+          'recipe_id':self.recipe['id'],'recipe':self.recipe,'recipe_checksum':self.digest(self.recipe),
           'files':self.files,'prerequisites':{'profile_sha256':self.digest(json.loads((self.scripts/'toolchain_profile.json').read_text())),
           'helper_hashes':{name:self.files[name] for name in BUNDLE_FILES}}}
         self.path=self.root/'review.json'
@@ -264,7 +265,7 @@ class SetupReviewBindingTests(unittest.TestCase):
     def validate(self,**kwargs):
         from runtime_setup import validate_setup_review
         self.path.write_text(json.dumps(self.review))
-        return validate_setup_review(self.path,kwargs.pop('checksum',self.digest(self.review)),kwargs.pop('root','/srv/rfd4'),kwargs.pop('operation','setup-test'),scripts=self.scripts)
+        return validate_setup_review(self.path,kwargs.pop('checksum',self.digest(self.review)),kwargs.pop('root','/srv/rfd4'),kwargs.pop('operation','setup-test'),scripts=self.scripts,recipe=self.recipe)
     def test_review_binds_operation_recipe_profile_and_source(self):
         self.assertEqual(self.validate(),self.review)
         with self.assertRaisesRegex(ValueError,'checksum'):self.validate(checksum='0'*64)

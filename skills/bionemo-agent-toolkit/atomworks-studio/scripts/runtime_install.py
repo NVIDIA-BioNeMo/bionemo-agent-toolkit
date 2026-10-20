@@ -1,7 +1,7 @@
-"""Candidate locked replacement for upstream native dependency installation.
+"""Locked public-release dependency installation.
 
 Call only inside the managed runtime setup reservation/execution lock. This
-module is not wired into production setup until Linux qualification succeeds.
+profile remains unqualified until Linux GPU acceptance succeeds.
 """
 import hashlib
 import json
@@ -62,19 +62,17 @@ def install(root, *, profile=PROFILE, run=subprocess.run, download=fetch, pass_f
     root=Path(root).resolve();model=root/'model';tools=root/'bootstrap'
     if hashlib.sha256(LOCK.read_bytes()).hexdigest()!=profile['lock_sha256']:
         raise ValueError('Dependency lock checksum mismatch')
-    toolchain=verify_toolchain(run=run)
+    if profile.get('install_mode') != 'public_wheels':
+        raise ValueError('Unsupported runtime installation mode')
     uv=bootstrap(tools,profile['uv'],download)
     env=dict(os.environ,UV_PYTHON_INSTALL_DIR=str(tools/'python'),UV_CACHE_DIR=str(tools/'cache'),
-             PYTHONDONTWRITEBYTECODE='1',TMOL_FORCE_BUILD='1')
+             PYTHONDONTWRITEBYTECODE='1')
     # Do not inherit user/global uv resolver configuration or arbitrary indexes.
     for key in list(env):
         if key.startswith(('UV_INDEX','UV_EXTRA_INDEX','UV_DEFAULT_INDEX','UV_CONSTRAINT','UV_OVERRIDE','PIP_')):
             del env[key]
-    compiler_paths=toolchain['paths']
-    cuda_home=str(Path(compiler_paths['nvcc']).resolve().parent.parent)
-    env.update(CC=compiler_paths['gcc'],CXX=compiler_paths['g++'],CUDACXX=compiler_paths['nvcc'],
-               CUDA_HOME=cuda_home,CUDA_PATH=cuda_home)
-    env['PATH']=str(Path(compiler_paths['nvcc']).parent)+os.pathsep+env.get('PATH',os.defpath)
+    # tmol's CUDA operations use reviewed public wheels; no compiler or sudo is needed.
+    env.pop('TMOL_FORCE_BUILD', None)
     def command(args, **kwargs):
         return run([str(uv),'--no-config',*args],cwd=model,env=env,check=True,pass_fds=pass_fds,**kwargs)
     command(['python','install',profile['python']['key']])
@@ -83,18 +81,15 @@ def install(root, *, profile=PROFILE, run=subprocess.run, download=fetch, pass_f
     version=run([str(python),'-c','import platform; print(platform.python_version())'],capture_output=True,text=True,check=True).stdout.strip()
     if version!=profile['python']['version']:raise ValueError('Existing environment has a different Python version')
     command(['pip','sync','--python',str(python),'--require-hashes','--build-constraints',str(LOCK),
-             '--torch-backend','cu132',str(LOCK)])
-    source=tools/'tmol-0.1.59.tar.gz'
-    download(profile['tmol']['url'],source,profile['tmol'])
-    command(['pip','install','--python',str(python),'--no-deps','--no-build-isolation',str(source)])
+             '--torch-backend','cu132','--only-binary','tmol,tmol-ops-cu13',str(LOCK)])
     scaffold(model)
     command(['pip','install','--python',str(python),'--no-deps','--no-build-isolation','-e',str(model)])
     command(['pip','check','--python',str(python)])
     installed=json.loads(run([str(python),'-c',
         'import importlib.metadata,json; print(json.dumps({d.metadata["Name"].lower().replace("_","-"):d.version for d in importlib.metadata.distributions()}))'],
         check=True,capture_output=True,text=True).stdout)
-    expected=dict(profile['packages'],tmol='0.1.59')
+    expected=profile['packages']
     mismatches={name:installed.get(name.lower().replace('_','-')) for name,version in expected.items()
                 if installed.get(name.lower().replace('_','-'))!=version}
     if mismatches:raise ValueError('Installed dependency versions differ from the pinned profile: '+json.dumps(mismatches))
-    return {'toolchain':toolchain,'python':version,'packages':installed,'lock_sha256':profile['lock_sha256']}
+    return {'install_mode':profile['install_mode'],'python':version,'packages':installed,'lock_sha256':profile['lock_sha256']}

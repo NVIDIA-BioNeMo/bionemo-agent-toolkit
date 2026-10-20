@@ -6,7 +6,8 @@ import shlex
 
 RECIPE = json.loads(Path(__file__).with_suffix('.json').read_text())
 
-PROBE = Path(__file__).with_name('source_integrity.py').read_text() + '\n' + '''import hashlib,importlib.metadata,json,os,platform,subprocess,sys
+BUNDLE_SOURCE = Path(__file__).with_name('public_model_bundle.py').read_text()
+PROBE = Path(__file__).with_name('source_integrity.py').read_text() + '\nPUBLIC_BUNDLE_SOURCE = ' + repr(BUNDLE_SOURCE) + '\n' + '''import hashlib,importlib.metadata,json,os,platform,subprocess,sys
 from pathlib import Path
 cfg=json.loads(sys.argv[1]); recipe=json.loads(sys.argv[2]); root=Path(cfg['remote_root'])/'model'
 checks={}; details=[]
@@ -25,18 +26,30 @@ except importlib.metadata.PackageNotFoundError:
     details.append('Required runtime dependency is missing')
 entrypoint=root/'.venv/bin/rfd4-generate'
 checks['entrypoint']=entrypoint.is_file() and os.access(entrypoint,os.X_OK)
-paths={Path(p).name:Path(p) for p in cfg.get('weight_paths',[])}
-checks['weights']=len(paths)==len(recipe['weights'])
-for expected in recipe['weights']:
-    path=paths.get(expected['name'])
-    valid=path is not None and path.is_file() and not path.is_symlink() and path.stat().st_size==expected['size']
-    if valid:
-        digest=hashlib.sha256()
-        with path.open('rb') as f:
-            for chunk in iter(lambda:f.read(4*1024*1024),b''):digest.update(chunk)
-        valid=digest.hexdigest()==expected['sha256']
-    checks['weights']=checks['weights'] and valid
-    if not valid:details.append('Missing, incomplete or incorrect checkpoint: '+expected['name'])
+if recipe.get('model_bundle'):
+    expected=[str(Path(cfg['remote_root'])/'model-bundle'/item['name']) for item in recipe['model_bundle']['files']]
+    checks['weights']=cfg.get('weight_paths')==expected
+    try:
+        namespace={'__name__':'rfd4_bundle_verification'}
+        exec(compile(PUBLIC_BUNDLE_SOURCE,'public_model_bundle.py','exec'),namespace)
+        checks['weights']=checks['weights'] and namespace['manifest']()==recipe['model_bundle']
+        checks['weights']=checks['weights'] and namespace['verify_bundle'](Path(cfg['remote_root'])/'model-bundle')==recipe['model_bundle']
+    except (ValueError,OSError,KeyError):
+        checks['weights']=False
+    if not checks['weights']:details.append('Missing, corrupt or mismatched public model bundle')
+else:
+    paths={Path(p).name:Path(p) for p in cfg.get('weight_paths',[])}
+    checks['weights']=len(paths)==len(recipe['weights'])
+    for expected in recipe['weights']:
+        path=paths.get(expected['name'])
+        valid=path is not None and path.is_file() and not path.is_symlink() and path.stat().st_size==expected['size']
+        if valid:
+            digest=hashlib.sha256()
+            with path.open('rb') as f:
+                for chunk in iter(lambda:f.read(4*1024*1024),b''):digest.update(chunk)
+            valid=digest.hexdigest()==expected['sha256']
+        checks['weights']=checks['weights'] and valid
+        if not valid:details.append('Missing, incomplete or incorrect checkpoint: '+expected['name'])
 try:
     import torch
     checks['cuda']=torch.cuda.is_available()

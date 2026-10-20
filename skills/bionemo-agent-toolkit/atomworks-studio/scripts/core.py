@@ -16,7 +16,8 @@ import httpx
 
 ROOT = Path(os.environ.get('RFD4_STUDIO_HOME', str(Path.home() / '.local/share/bionemo-rfd4')))
 ASSETS = ROOT.parent / 'rfd4-assets'
-REVISION = '84d83b98442e5946a6a626d0d99a19773207e894'
+from runtime_recipe import RECIPE
+REVISION = RECIPE['model_revision']
 
 def safe_id(value: str) -> str:
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}', value):

@@ -112,7 +112,11 @@ request. The agent reports actual tool-derived steps through `update_compute_set
 reporting completion cannot itself mark a GPU ready. Brev creation still requires
 the agent to reconcile existing machines before retrying an ambiguous CLI outcome.
 
-The model repository [RosettaCommons/RFD4-Proteina](https://github.com/RosettaCommons/RFD4-Proteina) is public under BSD-3-Clause; anonymous Git access was verified on 20 October 2026 at commit `c7c6cacbc617ab074b4e234448bed6581840949f`. The current locked recipe still targets the development source and is not compatible with this release. The old pinned commit is not fetchable from the public repository. The release uses AtomWorks 3.0.4, TMol 0.1.64, Hugging Face Hub below version 2, and a Hugging Face model bundle rather than the old two-file checkpoint contract. Port and qualify source staging, dependency locks, checkpoint loading/readiness and generation before replacing the recipe. Public source access is verified; public-release runtime installation and GPU acceptance remain open.
+The runtime uses the public BSD-3-Clause [RFD4-Proteina release](https://github.com/RosettaCommons/RFD4-Proteina), pinned to commit `c7c6cacbc617ab074b4e234448bed6581840949f`. Its Linux x86_64 Python 3.12.10 recipe installs hash-pinned CUDA 13.2 wheels, AtomWorks 3.0.4 and TMol 0.1.64. It does not install an OS compiler or optional refolding/search engines. The read-only prerequisite check requires glibc 2.28 or later and a CUDA 13 compatible driver; the later CUDA and representative generation checks determine actual readiness.
+
+Setup downloads the anonymous Hugging Face bundle `nvidia/RFD4-Proteina` at revision `a06e2509c7033b010fc43614e9fd840303588502`: `config.json` and `model.safetensors`, 1,742,667,866 bytes total. Both file sizes and SHA-256 checksums, resolved configuration and a revision receipt must match. The bundle contains the autoencoder; no separate AE checkpoint is downloaded. Generation uses this local bundle with Hub offline mode, native inference and optional metrics disabled. Setup cannot mark a runtime ready without a successful representative GPU generation and a second integrity check.
+
+Use a separate runtime root when moving from the development recipe to this public release. Setup refuses to replace a checkout at another revision; existing runs and their inputs are retained. Previously issued run reviews require fresh readiness and review against the new runtime. Anonymous source/bundle access, wheel resolution, CPU tensor loading and configuration composition have been verified. A real Linux install and GPU generation remain qualification gates; see `TESTING-2026-10-20.md`.
 
 ## Compute user flow
 
@@ -207,7 +211,7 @@ Example existing SSH registration (after setup):
   "ssh_host": "lab-gpu",
   "runtime_root": "/srv/rfd4",
   "studio_url": "http://127.0.0.1:18764",
-  "weight_paths": ["/srv/weights/actual-checkpoint.ckpt"]
+  "weight_paths": ["/srv/rfd4/model-bundle/config.json", "/srv/rfd4/model-bundle/model.safetensors"]
 }
 ```
 
@@ -231,11 +235,12 @@ Stage the local plugin with the existing model skills unchanged:
 
 ```sh
 python scripts/plugin_sync.py --write
-python scripts/stage_rfd4_plugin.py --model-repo /authorized/RFD4 --output /local/plugin
+python scripts/stage_rfd4_plugin.py --output /local/plugin
 ```
 
-Restricted model docs and skills stay in that local bundle. No model weights are
-included. Keep upstream licenses and access requirements separate from this adapter.
+The public upstream setup, annotation and generation skills are already synchronized
+into this bundle with their BSD licenses. No model weights, private source or local
+state are included. Commands in upstream references expect the model checkout root.
 
 ## Verification
 

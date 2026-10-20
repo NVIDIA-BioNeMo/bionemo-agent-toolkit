@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from generation import runtime_overrides
 
 VALIDATE = r'''import hashlib,json,sys
 from pathlib import Path
@@ -27,8 +28,8 @@ def smoke(root, run, lock_fd):
     output=Path(tempfile.mkdtemp(prefix='monomer-short-',dir=parent))
     args=[str(model/'.venv/bin/rfd4-generate'),'inputs=data/benchmarks/monomer',
           'subset_to_examples=monomer-short','num_replicates=1','batch_size=1',
-          'seed=42','compile_lengths=null','out_dir='+str(output),'hydra.run.dir='+str(output/'hydra')]
-    run(args,cwd=model,check=True,pass_fds=(lock_fd,),env=dict(os.environ,PYTHONDONTWRITEBYTECODE='1',DATA_PATH=str(model/'data_path')))
+          'seed=42','compile_lengths=null','out_dir='+str(output),'hydra.run.dir='+str(output/'hydra')] + runtime_overrides(str(root))
+    run(args,cwd=model,check=True,pass_fds=(lock_fd,),env=dict(os.environ,PYTHONDONTWRITEBYTECODE='1',DATA_PATH=str(model/'data_path'),HF_HUB_OFFLINE='1',HF_HUB_DISABLE_TELEMETRY='1'))
     result=json.loads(run([str(model/'.venv/bin/python'),'-B','-c',VALIDATE,str(output)],check=True,capture_output=True,text=True).stdout)
     if not isinstance(result.get('structures'),list) or not result['structures']:
         raise ValueError('Smoke inference returned no validated structures')

@@ -1,7 +1,7 @@
 # @package metrics
 #
 # Git-ignored: register your own custom metrics here without touching tracked
-# files. See docs/workflow/custom-metrics.md for the full guide.
+# files. See docs/how-to/advanced/custom-metrics.md for the full guide.
 #
 # inline_metrics:
 #   my_metric:

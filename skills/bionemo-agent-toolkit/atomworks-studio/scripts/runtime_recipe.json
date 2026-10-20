@@ -1,12 +1,15 @@
 {
-  "id": "rfd4-native-84d83b9-locked-v2",
-  "model_revision": "84d83b98442e5946a6a626d0d99a19773207e894",
+  "id": "rfd4-public-c7c6cac-wheels-v1",
+  "install_mode": "public_wheels",
+  "model_repository": "https://github.com/RosettaCommons/RFD4-Proteina.git",
+  "model_revision": "c7c6cacbc617ab074b4e234448bed6581840949f",
   "platform": "Linux",
   "architecture": "x86_64",
   "python_minor": [
     3,
     12
   ],
+  "python_version": "3.12.10",
   "minimum_gpu_memory_bytes": 80530636800,
   "minimum_compute_capability": [
     8,
@@ -27,30 +30,29 @@
     "ase": "3.29.0",
     "assertpy": "1.1",
     "astor": "0.8.1",
-    "atomworks": "3.0.0",
+    "atomworks": "3.0.4",
     "attrs": "26.1.0",
     "attrs-strict": "1.0.1",
     "beartype": "0.23.1",
     "biotite": "1.6.0",
     "biotraj": "1.2.2",
-    "boto3": "1.43.115",
-    "botocore": "1.43.115",
+    "boto3": "1.43.116",
+    "botocore": "1.43.116",
     "cattrs": "26.2.1",
-    "certifi": "2026.10.18",
+    "certifi": "2026.10.19",
     "charset-normalizer": "3.5.2",
     "click": "8.5.0",
     "cloudpickle": "3.1.2",
-    "cmake": "3.31.10",
     "contourpy": "1.4.0",
     "cuda-bindings": "13.3.1",
     "cuda-core": "1.0.1",
     "cuda-pathfinder": "1.8.3",
     "cuda-python": "13.3.1",
     "cuda-toolkit": "13.2.2",
-    "cuequivariance": "0.12.0",
-    "cuequivariance-ops-cu13": "0.12.0",
-    "cuequivariance-ops-torch-cu13": "0.12.0",
-    "cuequivariance-torch": "0.12.0",
+    "cuequivariance": "0.13.0",
+    "cuequivariance-ops-cu13": "0.13.0",
+    "cuequivariance-ops-torch-cu13": "0.13.0",
+    "cuequivariance-torch": "0.13.0",
     "cwevals": "0.0.1b1",
     "cycler": "0.12.1",
     "cython": "3.3.0",
@@ -75,12 +77,9 @@
     "hatchling": "1.32.4",
     "hf-xet": "1.7.0",
     "httpcore": "1.0.9",
-    "httpcore2": "2.15.1",
     "httpx": "0.28.1",
-    "httpx2": "2.15.1",
-    "huggingface-hub": "2.2.0",
+    "huggingface-hub": "1.33.0",
     "hydra-core": "1.3.7",
-    "hypothesis": "6.170.3",
     "idna": "3.20",
     "jaxtyping": "0.3.11",
     "jinja2": "3.1.6",
@@ -103,7 +102,6 @@
     "mypy-extensions": "1.1.0",
     "narwhals": "2.27.1",
     "networkx": "3.7",
-    "ninja": "1.13.2",
     "numba": "0.68.0",
     "numpy": "2.5.4",
     "nvidia-cublas": "13.4.1.3",
@@ -149,7 +147,6 @@
     "psutil": "7.2.2",
     "py3dmol": "2.5.5",
     "pyarrow": "26.0.0",
-    "pybind11": "3.1.0",
     "pydantic": "2.14.1",
     "pydantic-core": "2.50.1",
     "pygments": "2.21.0",
@@ -167,10 +164,9 @@
     "rootutils": "1.0.7",
     "s3transfer": "0.19.3",
     "safetensors": "0.8.0",
-    "scikit-build-core": "1.1.1",
     "scikit-learn": "1.9.1",
     "scipy": "1.18.1",
-    "setuptools": "84.2.0",
+    "setuptools": "84.2.1",
     "shellingham": "1.5.4",
     "six": "1.17.0",
     "sniffio": "1.3.1",
@@ -179,6 +175,8 @@
     "sympy": "1.14.0",
     "termcolor": "3.3.0",
     "threadpoolctl": "3.7.0",
+    "tmol": "0.1.64",
+    "tmol-ops-cu13": "0.1.64",
     "tokenizers": "0.23.3",
     "tomlkit": "0.15.2",
     "toolz": "1.2.0",
@@ -188,7 +186,6 @@
     "transformers": "5.20.2",
     "triton": "3.8.0",
     "trove-classifiers": "2026.9.21.13",
-    "truststore": "0.10.5",
     "typer": "0.25.1",
     "typing-extensions": "4.16.0",
     "typing-inspect": "0.9.0",
@@ -197,39 +194,37 @@
     "urllib3": "2.8.0",
     "wadler-lindig": "0.1.7",
     "wandb": "0.31.0",
-    "wheel": "0.48.0",
     "wrapt": "2.5.1",
     "xxhash": "4.0.2",
     "yarl": "1.25.1",
     "zstandard": "0.25.0",
-    "tmol": "0.1.59",
-    "rfd4-proteina": "0.0.2"
+    "rfd4-proteina": "0.0.1"
   },
   "source_hashes": {
-    "pyproject.toml": "ca9f52c97a9a84ed27bcb9d8b599928d92263d0e277198e6b191fc9ef2d4caef",
-    "setup.sh": "d7f5019a5876e0555976ee437030b0978dc8ae8929419cf6c2ce9aee4dcbc5a3",
-    "scripts/setup_venv.sh": "3325cdf7d231e063c23bcf83e05448851487a6e9aa8aa750b45866b7e5e9053b"
+    "pyproject.toml": "96975cce46569b4dd9792ed23419e14ade2c52baea70e9298bab1305a2449338",
+    "setup.sh": "c270d80f834756c49f737e82cccd91ac546e9a0a0538374df18a7dd100c2fabb",
+    "scripts/setup_venv.sh": "417298fc3deb6b6d1ff33c18aabbf7387b3576983eb6c816a76190b65b1ff5b2",
+    "configs/inference.yaml": "9bd0637ad51a4afc492e22d1df100672d5dfbca423230821b22ff10db94f45f0"
   },
-  "weights": [
-    {
-      "name": "chk_epoch_00000169_step_000000340000-ema.ckpt",
-      "directory": "flow_checkpoints",
-      "size": 4200426717,
-      "sha256": "d95c187520650824be6da9cd348d3d1a09127533047b8a0ed7ffa189f4123747"
-    },
-    {
-      "name": "2026_09_04_release_ae_z16_400k-ema.ckpt",
-      "directory": "ae_checkpoints",
-      "size": 3075639017,
-      "sha256": "b5ab42dda2702bf29f5d0b15e652cf1a88d2d8254ca81a4e7ec4aac55cf4147a"
-    }
-  ],
-  "weights_base_url": "https://rfd4-proteina-public-e04a.cwobject.com",
-  "digest_provenance": "Official object x-amz-meta-sha256 and content-length, verified 2026-10-19",
   "generated_source_hashes": {
-    "configs/metrics/custom_metrics/all_custom_metrics.yaml": "01df6f2a72ce9e9213cefdf2640322b5cad19adecbc574db78434a6e21991f5d"
+    "configs/metrics/custom_metrics/all_custom_metrics.yaml": "cb28236d285932295c7b4dff672cc30ba842c0f2ba631598acf64929e698547c"
   },
-  "model_repository": "https://github.com/NVIDIA-BioNeMo/RFD4-Proteina-Open-Model-Private.git",
-  "python_version": "3.12.10",
-  "dependency_lock_sha256": "b20a55cf4f1e2d5ac1f92f5fc6597361da0f359a109659fca50cc6fc887e4869"
+  "model_bundle": {
+    "repo_id": "nvidia/RFD4-Proteina",
+    "revision": "a06e2509c7033b010fc43614e9fd840303588502",
+    "files": [
+      {
+        "name": "config.json",
+        "size": 7270,
+        "sha256": "154ea927ab8005b7eac2d047a792147fb4606ab4878e496aa8414b6b40dad368"
+      },
+      {
+        "name": "model.safetensors",
+        "size": 1742660596,
+        "sha256": "5b549dd61adb2f6c6b5cb95bda13f40f5e31556b4e6c755edc0ca6f011c68fb0"
+      }
+    ]
+  },
+  "dependency_lock_sha256": "689b944b6d3b2bc35085806986e3ea7b10fbce1e44f10781a89b977cd20e7498",
+  "digest_provenance": "Pinned public source and canonical inference.yaml HF revision; official HF API and file SHA-256 verification."
 }

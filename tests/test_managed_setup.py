@@ -31,11 +31,14 @@ class ManagedSetupTests(unittest.TestCase):
         if ' status ' in command:return json.dumps({'job_id':self.op,'state':'completed'})
         if command.startswith('cat '):return json.dumps(self.receipt())
         return ''
+    def bundle_paths(self):
+        return [str(Path(self.review['remote_root'])/'model-bundle'/item['name'])
+                for item in self.review['recipe']['model_bundle']['files']]
     def receipt(self):
         from setup_acceptance import REQUIRED
         return {'operation_id':self.op,'recipe_id':self.review['recipe_id'],'recipe_checksum':self.review['recipe_checksum'],
                 'stage':'accepted','ready':True,
-                'weight_paths':['/srv/rfd4/model/data_path/'+w['directory']+'/'+w['name'] for w in self.review['recipe']['weights']],
+                'weight_paths':self.bundle_paths(),
                 'evidence':{'recipe_id':self.review['recipe_id'],'checks':{key:True for key in REQUIRED}},
                 'post_smoke_evidence':{'recipe_id':self.review['recipe_id'],'checks':{key:True for key in REQUIRED}},
                 'smoke':{'operation_id':self.op,'recipe_checksum':self.review['recipe_checksum'],'example':'monomer-short',
@@ -169,7 +172,7 @@ class ManagedSetupTests(unittest.TestCase):
         original=self.remote
         def stale(cfg,command,**kwargs):
             if command.startswith('cat '):
-                return json.dumps({'operation_id':'another-operation','recipe_id':self.review['recipe_id'],'stage':'accepted','ready':True,'weight_paths':['/srv/rfd4/model/data_path/'+w['directory']+'/'+w['name'] for w in RECIPE['weights']],'smoke':{'structures':[{'path':'result.cif'}]}})
+                return json.dumps({'operation_id':'another-operation','recipe_id':self.review['recipe_id'],'stage':'accepted','ready':True,'weight_paths':self.bundle_paths(),'smoke':{'structures':[{'path':'result.cif'}]}})
             return original(cfg,command,**kwargs)
         with patch.object(self.s,'verify_target'),patch.object(self.s,'target_copy'),patch.object(self.s,'target_exec',side_effect=stale):
             with self.assertRaisesRegex(ValueError,'matching smoke'):
@@ -208,9 +211,24 @@ class ManagedSetupTests(unittest.TestCase):
     def test_package_upgrade_reconciles_with_reviewed_recipe(self):
         self.lost=True
         with self.assertRaises(TimeoutError):self.execute()
-        with patch('setup_operation.RECIPE',{'id':'new-recipe','weights':[]}):
+        with patch('setup_operation.RECIPE',{'id':'new-recipe','model_bundle':{'files':[]}}):
             self.assertEqual(self.execute()['state'],'succeeded')
         self.assertEqual(len(self.s.managed.machine(self.machine)['config']['weight_paths']),2)
+
+    def test_public_bundle_paths_are_accepted_only_for_the_reviewed_bundle(self):
+        from setup_acceptance import validate
+        expected=self.bundle_paths()
+        self.assertEqual(validate(self.review,self.receipt()),expected)
+        self.assertEqual(expected,['/srv/rfd4/model-bundle/config.json',
+                                   '/srv/rfd4/model-bundle/model.safetensors'])
+        invalid=[expected[:1],list(reversed(expected)),
+                 ['/srv/rfd4/model/data_path/weights/model.ckpt'],
+                 ['/srv/rfd4/model-bundle/config.json','/srv/other/model.safetensors']]
+        for paths in invalid:
+            with self.subTest(paths=paths):
+                receipt=self.receipt();receipt['weight_paths']=paths
+                with self.assertRaisesRegex(ValueError,'checkpoint paths'):
+                    validate(self.review,receipt)
 
     def test_incomplete_smoke_evidence_cannot_commit_readiness(self):
         from setup_acceptance import validate

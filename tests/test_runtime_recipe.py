@@ -66,5 +66,5 @@ class RecipeTests(unittest.TestCase):
     def test_readiness_inventory_matches_install_profile(self):
         from runtime_recipe import RECIPE
         from runtime_install import PROFILE
-        self.assertEqual(RECIPE['packages'],dict(PROFILE['packages'],tmol='0.1.59',**{'rfd4-proteina':'0.0.2'}))
+        self.assertEqual(RECIPE['packages'],dict(PROFILE['packages'],**{'rfd4-proteina':'0.0.1'}))
         self.assertEqual(RECIPE['dependency_lock_sha256'],PROFILE['lock_sha256'])

@@ -49,6 +49,12 @@ class RunPayloadTests(unittest.TestCase):
         script=(directory/'run.sh').read_text()
         self.assertIn('/payload/input.cif',script);self.assertIn('num_replicates=2',script);self.assertIn('seed=777',script)
         self.assertIn('recycle_strategy=thinking_high',script)
+        self.assertIn('HF_HUB_OFFLINE=1',script)
+        self.assertIn('hf_ckpt_path=/srv/rfd4/model-bundle',script)
+        from public_model_bundle import MODEL_REVISION
+        self.assertIn('hf_ckpt_revision='+MODEL_REVISION,script)
+        self.assertIn('inference_backend=native',script)
+        self.assertIn('~metrics',script)
         self.assertEqual(execution_adapter.manifest(frozen['publication_bundle']),frozen['publication_files'])
 
     def test_changed_frozen_file_or_manifest_refuses_before_transport(self):

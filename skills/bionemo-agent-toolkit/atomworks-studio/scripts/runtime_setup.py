@@ -39,16 +39,25 @@ def validate_setup_review(path, expected_checksum, root, operation_id, *, recipe
         path=scripts/name
         if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
             raise ValueError('Remote setup source changed: '+name)
-    profile=json.loads((scripts/'toolchain_profile.json').read_text())
     prerequisites=review.get('prerequisites',{})
-    if prerequisites.get('profile_sha256')!=digest(profile):
-        raise ValueError('Remote prerequisite profile changed')
-    if (review.get('phase')=='prepare_archives')!=(prerequisites.get('status')=='preparation_required'):
-        raise ValueError('Remote preparation phase differs from prerequisites')
-    from toolchain_launch import BUNDLE_FILES
-    helpers={name:files.get(name) for name in BUNDLE_FILES}
-    if any(value is None for value in helpers.values()) or prerequisites.get('helper_hashes')!=helpers:
-        raise ValueError('Remote prerequisite helper manifest changed')
+    if recipe.get('install_mode')=='public_wheels':
+        from public_prerequisite import bind_review
+        if review.get('phase')=='prepare_archives':
+            raise ValueError('Public wheel setup does not prepare privileged package archives')
+        bound=bind_review(prerequisites,scripts=scripts)
+        if bound['helper_hashes']!={name:files.get(name) for name in bound['helper_hashes']}:
+            raise ValueError('Remote public prerequisite helper differs from reviewed source')
+    else:
+        profile=json.loads((scripts/'toolchain_profile.json').read_text())
+        prerequisites=review.get('prerequisites',{})
+        if prerequisites.get('profile_sha256')!=digest(profile):
+            raise ValueError('Remote prerequisite profile changed')
+        if (review.get('phase')=='prepare_archives')!=(prerequisites.get('status')=='preparation_required'):
+            raise ValueError('Remote preparation phase differs from prerequisites')
+        from toolchain_launch import BUNDLE_FILES
+        helpers={name:files.get(name) for name in BUNDLE_FILES}
+        if any(value is None for value in helpers.values()) or prerequisites.get('helper_hashes')!=helpers:
+            raise ValueError('Remote prerequisite helper manifest changed')
     return review
 
 
@@ -71,6 +80,8 @@ def write_journal(path, value):
 
 
 def setup(root, *, recipe=RECIPE, run=subprocess.run, download=fetch, lock_path=None, operation_id=None, reviewed=None, privileged=None):
+    if recipe.get('install_mode')=='public_wheels' and reviewed is not None and reviewed.get('phase')=='prepare_archives':
+        raise ValueError('Public wheel setup does not prepare privileged package archives')
     root=Path(root).resolve();model=root/'model'
     lock_path=Path(lock_path) if lock_path else Path.home()/'.local/share/bionemo-rfd4/execution.lock'
     lock_path.parent.mkdir(parents=True,exist_ok=True)
@@ -120,7 +131,12 @@ def setup(root, *, recipe=RECIPE, run=subprocess.run, download=fetch, lock_path=
                 if hashlib.sha256((model/relative).read_bytes()).hexdigest()!=digest:
                     raise ValueError('Modified installer source: '+relative)
             verify_source(model,recipe['model_revision'],recipe.get('generated_source_hashes'))
-            if reviewed is not None:
+            if recipe.get('install_mode')=='public_wheels':
+                if reviewed is not None:
+                    from public_prerequisite import bind_review
+                    bind_review(reviewed.get('prerequisites',{}))
+                status['prerequisites']={'kind':'public_wheels','package_mutations':0,'requires_sudo':False}
+            elif reviewed is not None:
                 from prerequisite_setup import install_prerequisites
                 def prerequisite_journal(stage):
                     status['stage']=stage;write_journal(journal,status)
@@ -144,11 +160,17 @@ def setup(root, *, recipe=RECIPE, run=subprocess.run, download=fetch, lock_path=
             check_cancel(root,operation_id)
             status['stage']='downloading';write_journal(journal,status)
             weights=[]
-            for weight in recipe['weights']:
-                check_cancel(root,operation_id)
-                destination=model/'data_path'/weight['directory']/weight['name']
-                download(recipe['weights_base_url']+'/'+weight['directory']+'/'+weight['name'],destination,weight)
-                weights.append(str(destination))
+            if recipe.get('model_bundle'):
+                from public_model_bundle import manifest, download_bundle
+                if recipe['model_bundle']!=manifest():raise ValueError('Reviewed public model bundle differs from this installer')
+                download_bundle(root/'model-bundle',check_cancel=lambda:check_cancel(root,operation_id))
+                weights=[str(root/'model-bundle'/item['name']) for item in recipe['model_bundle']['files']]
+            else:
+                for weight in recipe['weights']:
+                    check_cancel(root,operation_id)
+                    destination=model/'data_path'/weight['directory']/weight['name']
+                    download(recipe['weights_base_url']+'/'+weight['directory']+'/'+weight['name'],destination,weight)
+                    weights.append(str(destination))
             check_cancel(root,operation_id)
             status['stage']='verifying';write_journal(journal,status)
             cfg={'remote_root':str(root),'weight_paths':weights}
