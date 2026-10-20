@@ -22,6 +22,7 @@ Set `NGC_API_KEY` through the user's normal secret mechanism. Keep shell tracing
 off and never print the key. Login passes the key on standard input:
 
 ```bash
+set -e
 : "${NGC_API_KEY:?Set your NGC API key in the environment}"
 printf '%s' "$NGC_API_KEY" |
   docker login nvcr.io --username '$oauthtoken' --password-stdin
@@ -30,18 +31,25 @@ export RFD4_NIM_IMAGE=nvcr.io/nim/ipd/rfd4-proteina:latest
 export RFD4_NIM_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nim/rfd4-proteina"
 mkdir -p "$RFD4_NIM_CACHE"
 docker pull "$RFD4_NIM_IMAGE"
-docker image inspect --format '{{json .RepoDigests}}' "$RFD4_NIM_IMAGE"
+RFD4_NIM_IMAGE_PINNED="$(docker image inspect --format '{{index .RepoDigests 0}}' "$RFD4_NIM_IMAGE")"
+case "$RFD4_NIM_IMAGE_PINNED" in
+  nvcr.io/nim/ipd/rfd4-proteina@sha256:*) ;;
+  *) echo "Could not resolve the public image digest; stopping" >&2; exit 1 ;;
+esac
+printf 'Using image: %s\n' "$RFD4_NIM_IMAGE_PINNED"
 
 docker run --detach --name rfd4-proteina \
   --runtime=nvidia --gpus '"device=0"' \
   -p 127.0.0.1:8000:8000 \
   -e NGC_API_KEY \
   -v "$RFD4_NIM_CACHE:/opt/nim/.cache" \
-  "$RFD4_NIM_IMAGE"
+  "$RFD4_NIM_IMAGE_PINNED"
 ```
 
 This adapts the published command to bind the unauthenticated inference service
-to loopback and run detached. Select a GPU allocated to the task. If the container
+to loopback and run the pulled image by its recorded digest, detached. Retain
+that digest with the run artifacts; pinning records image identity, not a
+security or model-quality assessment. Select a GPU allocated to the task. If the container
 name already exists, inspect/reuse the intended deployment or choose another
 name; do not remove a container to make the command succeed.
 

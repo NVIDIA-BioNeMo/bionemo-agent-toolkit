@@ -36,6 +36,8 @@ access; read [deployment](references/deployment.md) only when deployment is need
 
 1. **Choose the requested destination.** Use `hosted` for NVIDIA's API or
    `local` for a user-operated NIM. Do not switch destinations after an error.
+   Preserve available diagnostics, report the failed or pending status, and
+   follow Troubleshooting below; stop when the request's state is unresolved.
    If the user requests preparation only, use `--dry-run` without probing a
    service or starting a container. For instructions only, show commands
    without executing them.
@@ -134,7 +136,8 @@ python scripts/design.py --mode local --base-url http://localhost:8000 \
 ```
 
 Always choose a new output directory. `--dry-run` performs basic wire checks;
-it does not validate all server rules or biological conditioning.
+report it as **prepared, not submitted**. It does not validate all server rules
+or biological conditioning, and it generates no designs.
 `--response-json /path/to/response.json` extracts a saved response offline and
 labels its provenance `saved_response`.
 
@@ -145,6 +148,12 @@ The helper saves exact `request.json` bytes, `transport.json`, received
 `sequences.fasta` when requested, and `summary.json` with per-design metrics,
 origins, diagnostics, validation errors, and model/runtime/schedule provenance.
 Files depend on the mode and response.
+
+Report **inference completed** only when `transport.json` has
+`source="network"`, `http_status=200`, and `status="completed"`, and
+`summary.json` has `status="completed"` with no validation errors.
+For `source="saved_response"`, report **saved response extracted**; this is
+not a new inference run. A zero exit code alone establishes neither result.
 
 Plain sampling should return `sampling.num_replicates` designs. Search may
 return multiple survivors and retained intermediates; preserve `origin` and
@@ -157,14 +166,20 @@ values, which may be fewer than the returned designs. The helper checks basic
 response integrity and the server's finite-coordinate flag; it does not prove
 folding or binding. The public API has no built-in refolding oracle: check
 `model.oracle` and actual results before quoting pLDDT or refolding metrics.
+Describe generated structures as **unvalidated design candidates**. Do not call
+them validated binders or claim affinity, folding success, or experimental
+activity without separate evidence and its source.
 
 ## Troubleshooting
 
 - Exit `0`: prepared offline or extracted a response passing basic checks;
-  inspect status and provenance before claiming completed inference.
+  apply the status and provenance checks above before reporting the outcome.
 - Exit `3` / HTTP `202`: pending. Preserve request IDs and the raw response.
   Obtain the service's documented completion mechanism; do not invent a
-  polling URL or repeat the POST automatically.
+  polling URL or repeat the POST automatically. Consult the
+  [product API documentation](https://build.nvidia.com/ipd/rfd4-proteina) or
+  the deployment operator with the saved request ID. If no retrieval route is
+  documented for that deployment, stop and report the unresolved pending job.
 - Exit `1`: request, transport, response, validation, or filesystem failure.
   Inspect saved diagnostics; do not substitute examples for generated results.
 - Exit `2`: invalid CLI arguments.
@@ -174,4 +189,9 @@ folding or binding. The public API has no built-in refolding oracle: check
 - `422`: compare inputs, supported tasks, schedules, attachments, and metric
   availability with the published API or the running container's schema.
 - `429`, `5xx`, or timeout: preserve the error and any `Retry-After` header;
-  establish request state before deciding whether a new submission is appropriate.
+  do not resubmit while acceptance is unknown. A timeout, elapsed hold period,
+  or `Retry-After` value alone does not prove the original request was rejected.
+  Submit again only after the service's documented status or operator confirms
+  that the original request was not accepted or has terminally failed without
+  recoverable outputs; honor any retry delay. Otherwise stop and report the
+  unresolved state with the saved diagnostics.

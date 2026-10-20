@@ -32,7 +32,7 @@
   "public_schema_checks": {
     "status": "passed",
     "validator": "jsonschema Draft202012Validator with references resolved from the published OpenAPI document",
-    "api_schema_sha256": "7bedd8a5fc7ee3026000f8ae62365e86dc9f66dd3c5d22eac430d046a38cb9b6",
+    "schema_sha256": "7bedd8a5fc7ee3026000f8ae62365e86dc9f66dd3c5d22eac430d046a38cb9b6",
     "checks": [
       "Bundled PD-1 request matches the parsed public deployment example, including inline mmCIF",
       "Bundled PD-1 request validates against the public request schema and client preflight",
