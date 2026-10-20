@@ -1,0 +1,6 @@
+interface:
+  display_name: "RFProteína Annotated CIF"
+  short_description: "Create and edit annotated CIF inputs"
+  default_prompt: "Use $rfd4-proteina-annotated-cif to modify this structure into a validated annotated CIF."
+policy:
+  allow_implicit_invocation: true

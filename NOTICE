@@ -1,7 +1,8 @@
 BioNeMo Agent Toolkit
 Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
-This project is dual-licensed:
+This project uses the following default licenses, except for separately
+licensed bundled content:
 
   - Source code (scripts, tests, build tooling) is licensed under the
     Apache License, Version 2.0. See LICENSE-APACHE-2.0 for the full text,
@@ -12,7 +13,11 @@ This project is dual-licensed:
     Attribution 4.0 International License (CC-BY-4.0). See LICENSE-CC-BY-4.0
     for the full text, or visit https://creativecommons.org/licenses/by/4.0/
 
-SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
+  - Imported RFD4-Proteina Rosetta workflow helpers and regression tests
+    retain their upstream BSD-3-Clause declaration. Their skill text and
+    documentation retain CC-BY-4.0.
+
+SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0 AND BSD-3-Clause
 
 =======================================================================
 ATTRIBUTION REQUIREMENT (CC-BY-4.0)
@@ -26,3 +31,20 @@ reasonable to the medium or means used:
   Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
   Licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
   Source: https://github.com/NVIDIA-BioNeMo/bionemo-agent-toolkit
+
+=======================================================================
+RFD4-PROTEINA ROSETTA WORKFLOW ATTRIBUTION
+=======================================================================
+
+The nine RFD4-Proteina open-model skills listed in
+open-models-skills/rfd4-proteina/README.md and their regression tests
+were imported from bionemo/rfd4-skill, branch
+omosafi/skills-rosetta, commit c18cff052273bb3dec30ae51e4f3a5793cfe0788.
+Source author: Ohad Mosafi <omosafi@nvidia.com>.
+Source declarations: CC-BY-4.0 for skill text and documentation;
+BSD-3-Clause for source helpers.
+
+Toolkit adaptations update helper and test paths for
+open-models-skills/rfd4-proteina/ and add catalog, dependency, and test
+instructions. The generated plugin payload carries the same adapted
+skill files.

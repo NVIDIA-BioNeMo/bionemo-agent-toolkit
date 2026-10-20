@@ -1,0 +1,29 @@
+{
+  "skill_name": "rfd4-proteina-evaluate",
+  "evals": [
+    {
+      "id": "posthoc-design-metrics-smoke",
+      "prompt": "I already generated a few structures under ./runs/smoke. Run a single cheap design metric over that folder (no refolding, no AF3) and confirm a per-example metrics CSV is written.",
+      "expected_output": "A successful design-only rfd4-evaluate run over ./runs/smoke producing at least one per_example_metrics CSV under ./runs/eval_out/evaluation_metrics, without requesting refolding or an AF3 container.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "rfd4-proteina-setup complete (venv + atomworks + DATA_PATH)",
+          "a small set of pre-generated CIFs under ./runs/smoke from the generate/setup smoke test",
+          "no AF3 container required (design tag only)"
+        ]
+      },
+      "assertions": [
+        "Runs rfd4-evaluate inputs=./runs/smoke metrics_tags='[design]' out_dir=./runs/eval_out",
+        "Uses Hydra key=value arguments, never --key value",
+        "Does not request any *_refolding tag, so no AF3 container is needed",
+        "Reports that per_example_metrics.csv is written under ./runs/eval_out/evaluation_metrics/"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/eval_out/**/per_example_metrics*.csv",
+        "min_artifacts": 1
+      }
+    }
+  ]
+}

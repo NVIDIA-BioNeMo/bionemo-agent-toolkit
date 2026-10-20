@@ -1,0 +1,115 @@
+{
+  "skill_name": "rfd4-proteina-commitment-curves",
+  "evals": [
+    {
+      "id": "make-configs-from-spec",
+      "prompt": "I want a commitment curve for a study called smoke_commitment. My design inputs are in ./data/smoke_inputs, parents should go to ./runs/smoke_parents, runs under ./runs, and I want to track the design metrics only (no refolding). Grid every 15 steps. Build me the configs.",
+      "expected_output": "A smoke_commitment study spec and three generated YAML configs at configs/inference_experiment/smoke_commitment_phase1.yaml, configs/inference_experiment/smoke_commitment_sweep.yaml, and configs/sweeps/smoke_commitment.yaml, with matching design metric tags, phase-2 num_replicates: 1, and a partial_trajectory_fraction_steps grid of 0.25, 0.5, 0.75, and 1.0.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "rfd4-proteina-setup complete; no GPU needed for config generation"
+        ]
+      },
+      "assertions": [
+        "Writes a spec YAML with name/inputs/parents_dir/out_root, metrics_tags: [design], and phase2.step: 15",
+        "Runs open-models-skills/rfd4-proteina/rfd4-proteina-commitment-curves/scripts/make_configs.py --spec <spec>",
+        "Produces configs/inference_experiment/smoke_commitment_{phase1,sweep}.yaml and configs/sweeps/smoke_commitment.yaml",
+        "The phase-2 config sets num_replicates: 1 and adds no sampling_transforms block",
+        "The two experiment configs declare the same metrics_tags",
+        "The sweep grid holds 0.25/0.5/0.75/1.0 for step 15 of 60"
+      ],
+      "success_criteria": {
+        "artifact_glob": "configs/sweeps/smoke_commitment.yaml",
+        "min_artifacts": 1,
+        "must_contain": {
+          "configs/inference_experiment/smoke_commitment_sweep.yaml": [
+            "num_replicates: 1"
+          ],
+          "configs/sweeps/smoke_commitment.yaml": [
+            "partial_trajectory_fraction_steps"
+          ]
+        }
+      }
+    },
+    {
+      "id": "flags-too-few-parents",
+      "prompt": "Set up a commitment curve over the 4 designs I have in ./runs/tiny. Grid every 5 steps.",
+      "expected_output": "An explanation that four parents leave a very wide correlation confidence interval, recommending at least 40 parents through phase-1 replication without increasing phase-2 children as a substitute.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "a directory holding 4 design CIFs; no GPU needed"
+        ]
+      },
+      "assertions": [
+        "Points out that rho is computed across parents, so 4 parents give a confidence interval near +/-0.9",
+        "Recommends 40+ parents, and generating replicates in phase 1 rather than children in phase 2",
+        "Does not silently raise phase-2 num_replicates to compensate"
+      ],
+      "success_criteria": {
+        "must_mention": [
+          "parents",
+          "40"
+        ]
+      }
+    },
+    {
+      "id": "distributions-and-rare-pass-rate",
+      "prompt": "Here are the metrics from my phase-1 parents: ./runs/smoke_phase1/per_example_metrics.csv. Before I pay for the sweep, show me how rare each of the metrics I care about actually is.",
+      "expected_output": "A metric_distributions.csv and at least two light/dark metric_distributions PNGs under ./runs/smoke_phase1/analysis, with configured pass thresholds and per-cut 1-in-N rates clearly distinguishing measured counts from unreliable or extrapolated estimates.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "a per_example_metrics.csv holding at least one column named by a pass criterion",
+          "no GPU required"
+        ]
+      },
+      "assertions": [
+        "Runs open-models-skills/rfd4-proteina/rfd4-proteina-commitment-curves/scripts/metric_distributions.py with --metrics_csv and --out_dir, not commitment_curve.py",
+        "Lets the thresholds come from the pass-criteria config rather than hand-typing them, and points --pass_criteria at the run's own config if it used a custom metrics group",
+        "Writes metric_distributions.csv plus light and dark PNGs: one histogram per metric, pass-criteria thresholds as vertical cuts",
+        "Reports the pass rate per cut as '1 in N designs', and for a cut fewer than 10 designs passed names the extrapolation it quoted (GPD tail or the density family) rather than presenting it as measured",
+        "Flags a bimodal metric whose density fit is marked 'poor fit', or a cut whose two estimates disagree by 10x, as not resolvable rather than quoting the number",
+        "Does not claim a criterion is impossible when the caption reads 'ends before the cut'"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/smoke_phase1/analysis/metric_distributions*.png",
+        "min_artifacts": 2,
+        "must_mention": [
+          "pass",
+          "1 in"
+        ]
+      }
+    },
+    {
+      "id": "curve-from-existing-tables",
+      "prompt": "I already have a finished sweep. Plot the commitment curve for one metric from ./runs/smoke_sweep/sweep_per_example_metrics.csv against the parents in ./runs/smoke_phase1/per_example_metrics.csv.",
+      "expected_output": "Commitment and fidelity CSVs plus light/dark curve PNGs under ./runs/smoke_sweep/analysis, with interpretation of the between-problem floor, reproducibility ceiling, and clean-end fidelity checks.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "a sweep master CSV with generation.args.partial_trajectory_fraction_steps and task columns",
+          "a phase-1 parent CSV whose example_id values match those tasks",
+          "no GPU required"
+        ]
+      },
+      "assertions": [
+        "Runs open-models-skills/rfd4-proteina/rfd4-proteina-commitment-curves/scripts/commitment_curve.py with --sweep_csv, --parent_csv, --out_dir and a --metrics 'Label=column' spec",
+        "Writes commitment_curve.csv plus light and dark PNGs under the out_dir",
+        "Also writes fidelity_curve.csv and its PNGs without being asked, and does not spend a --metrics slot on sequence identity or CA RMSD",
+        "Reports the step-0 value as a between-problem floor rather than calling it zero memory",
+        "Reports the value at the highest restart step as the metric's own reproducibility ceiling if it is below 1",
+        "Checks the clean end on the fidelity curves (identity ~100%, CA RMSD ~0 A) before interpreting rho"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/smoke_sweep/analysis/*curve*.png",
+        "min_artifacts": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+schema_version: 1
+
+harbor:
+  runtime_env:
+    - RFPROTEINA_ROOT
+  # The template/mount must provide a fresh model checkout and a real GPU to
+  # both arms. These checks do not install the runtime or perform the task.
+  pre_agent_setup:
+    - |
+      set -eu
+      case "${RFPROTEINA_ROOT:-}" in
+        /*) ;;
+        *) printf '%s\n' 'EVAL ENVIRONMENT ERROR: set RFPROTEINA_ROOT to the absolute model path inside the sandbox.' >&2; exit 1 ;;
+      esac
+      for required in .project-root pyproject.toml configs/inference.yaml setup.sh; do
+        if [ ! -f "$RFPROTEINA_ROOT/$required" ]; then
+          printf 'EVAL ENVIRONMENT ERROR: model checkout is missing %s.\n' "$required" >&2
+          exit 1
+        fi
+      done
+      if [ ! -w "$RFPROTEINA_ROOT" ]; then
+        printf '%s\n' 'EVAL ENVIRONMENT ERROR: provide a writable model checkout per trial.' >&2
+        exit 1
+      fi
+      if ! command -v nvidia-smi >/dev/null 2>&1; then
+        printf '%s\n' 'EVAL ENVIRONMENT ERROR: the setup smoke task requires a GPU sandbox with nvidia-smi.' >&2
+        exit 1
+      fi
+      if ! gpu_listing="$(nvidia-smi --query-gpu=name --format=csv,noheader)" || [ -z "$gpu_listing" ]; then
+        printf '%s\n' 'EVAL ENVIRONMENT ERROR: no NVIDIA GPU is visible to the sandbox.' >&2
+        exit 1
+      fi
+      printf '%s\n' 'Evaluation prerequisites found; runtime installation and generation remain agent tasks.'

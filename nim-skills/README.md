@@ -43,3 +43,6 @@ python -B -m unittest discover -s nim-skills/rfd4-proteina-nim/tests -v
 
 These tests use synthetic responses and a temporary loopback HTTP service.
 They do not perform live staging inference.
+
+For native RFProteina model workflows, see the separate
+[open-model skill collection](../open-models-skills/rfd4-proteina/README.md).

@@ -1,0 +1,141 @@
+{
+  "skill_name": "rfd4-proteina-annotated-cif",
+  "evals": [
+    {
+      "id": "condition-target-backbone",
+      "prompt": "Take this cleaned complex CIF and coordinate-condition the N, CA, C, O backbone atoms on target chain A while leaving its sequence designable. The target contains terminal OXT and unresolved atoms with NaN coordinates. Save a validated annotated CIF.",
+      "expected_output": "A validated annotated CIF with only finite N, CA, C, O coordinates on target chain A conditioned, target sequence left designable, and exact condition selections and values verified after reloading.",
+      "files": [],
+      "assertions": [
+        "Uses DISTILLATION for the cleaned unannotated input unless inspection shows it is already annotated",
+        "Selects chain A protein atoms named N, CA, C, O with finite xyz; excludes OXT and unresolved atoms",
+        "Sets C_CRD on the resolved target backbone and leaves target C_SEQ off as explicitly requested, preserving unrelated conditions",
+        "Runs all three input-validation invariant checks before save",
+        "Saves standard annotations, reloads with ANNOTATED_CIF, and compares exact condition selections and values"
+      ]
+    },
+    {
+      "id": "pdb-ligand-provenance",
+      "prompt": "Turn this protein-ligand PDB into an annotated CIF and fix the ligand pose.",
+      "expected_output": "A provenance-aware PDB-to-annotated-CIF workflow that fixes the supplied ligand pose only with established chemistry, identifies missing bond or charge information, and recommends visual inspection.",
+      "files": [],
+      "assertions": [
+        "Flags PDB as risky for ligand bonds, bond orders, charges, aromaticity, and connectivity",
+        "Determines whether the input is raw RCSB or already cleaned before choosing a parser preset",
+        "Does not invent missing ligand chemistry",
+        "Recommends visually checking bonds and charges"
+      ]
+    },
+    {
+      "id": "insert-expandable-design-chain",
+      "prompt": "Add a new variable-length protein chain B of 80 to 120 residues to this annotated CIF.",
+      "expected_output": "An annotated CIF containing a collapsed expandable protein chain B of 80-120 residues, with conditions and segment bounds preserved through validation and reload.",
+      "files": [],
+      "assertions": [
+        "Loads with ANNOTATED_CIF after importing rfproteina.conditions",
+        "Uses insert_expandable_segment with new_chain=True and ChainType.POLYPEPTIDE_L",
+        "Keeps the segment collapsed rather than realizing it",
+        "Validates, saves, reloads, and confirms the segment and annotations survive"
+      ]
+    },
+    {
+      "id": "unindex-disconnected-motif-islands",
+      "prompt": "Unindex catalytic residues A57 and A102 around this ligand so RFProteína can place them freely.",
+      "expected_output": "A validated template with catalytic residues A57 and A102 unindexed in separate groups, consistent residue-wide index conditions, and the ligand still indexed.",
+      "files": [],
+      "assertions": [
+        "Checks that A57 and A102 are standard non-atomized residues and keeps the ligand indexed",
+        "Sets C_IDX consistently across every atom of each residue",
+        "Uses separate C_IDXGRP groups because A57 and A102 are not directly peptide-bonded",
+        "Ensures no index group mixes indexed and unindexed residues",
+        "Runs the full pre-save invariant checks"
+      ]
+    },
+    {
+      "id": "combine-annotated-cifs",
+      "prompt": "Combine target.cif and motif.cif into one annotated CIF; both currently use chain A.",
+      "expected_output": "One validated annotated CIF combining target.cif and motif.cif, with chain collisions resolved and reported, material conditions preserved, and derived identifiers recomputed.",
+      "files": [],
+      "assertions": [
+        "Loads both files with ANNOTATED_CIF and works with AtomArrayPlus objects",
+        "Resolves and reports the chain-ID collision before concatenation",
+        "Uses concatenate_atom_array_plus rather than plain Biotite concatenation",
+        "Preserves material condition columns and re-derives entity, instance, molecule, and index-group IDs",
+        "Validates and round-trips the combined annotated CIF"
+      ]
+    },
+    {
+      "id": "prose-intent-direct-python",
+      "prompt": "I want a 110-140 residue protein scaffold around catalytic residues 36 and 87 in this source CIF. Keep only each catalytic sidechain tip fixed and let the model choose their positions in the new chain. Prepare the annotated CIF.",
+      "expected_output": "A task-specific AtomWorks Python recipe and validated annotated CIF for a collapsed 110-140-residue scaffold after clarifying catalytic tip atoms, index grouping, retained components, and length accounting.",
+      "files": [],
+      "assertions": [
+        "Inspects the supplied CIF and establishes its provenance before selecting a parser preset",
+        "Confirms exact tip atoms, sequence identity, independent versus tied index groups, retained components, and whether 110-140 counts generated residues",
+        "Builds directly with a task-specific Python AtomWorks recipe without a JSON/YAML intermediary",
+        "Leaves the expandable segment collapsed and runs invariant plus round-trip validation"
+      ]
+    },
+    {
+      "id": "modify-existing-annotated-cif",
+      "prompt": "First explain what this annotated CIF asks the model to do. Then change only ligand atom O4 from its current hydrogen-bond role to ACCEPTOR and write a new annotated CIF.",
+      "expected_output": "An explanation of the existing design conditions and a new validated annotated CIF changing only the selected ligand O4 hydrogen-bond role to ACCEPTOR, with unrelated chemistry and conditions proven unchanged.",
+      "files": [],
+      "assertions": [
+        "Imports rfproteina.conditions before loading the source with ANNOTATED_CIF",
+        "Summarizes current structure, chemistry, and conditions before editing",
+        "Copies the existing C_HB annotation and changes only the uniquely selected O4 atom through the condition API",
+        "Writes a new file and proves unrelated conditions, charges, bonds, components, and expandable segments did not change",
+        "Runs input-validation checks before save and after reparsing"
+      ]
+    },
+    {
+      "id": "benchmark-backbone-only",
+      "prompt": "Prepare the BB-only target-conditioning variant of this PPI benchmark. Target A contains OXT and unresolved backbone coordinates; retain its native sequence. Preserve the ligand and chain C conditions.",
+      "expected_output": "A validated BB-only PPI target-conditioning variant retaining native target sequence conditions and ligand and chain C conditions, while excluding OXT and nonfinite target coordinates from coordinate conditioning.",
+      "files": [],
+      "assertions": [
+        "Conditions only finite target N, CA, C, O coordinates, excluding OXT",
+        "Keeps target sequence conditioning enabled across whole residues, including unresolved atoms",
+        "Preserves ligand and chain C conditions",
+        "Runs invariant and exact round-trip checks"
+      ]
+    },
+    {
+      "id": "materialized-benchmark-child",
+      "prompt": "Workspace policy requires immutable shared templates and one sampled fixed-length child CIF per benchmark replicate, with parent and seed recorded in the existing campaign ledger. Prepare a child from this 80-120 residue source template; do not launch generation.",
+      "expected_output": "A separate validated fixed-length child CIF sampled from the 80-120-residue template, with parent, seed, and sampled length recorded in the existing ledger; the shared source remains immutable and generation is not launched.",
+      "files": [],
+      "assertions": [
+        "Follows workspace rules for shared inputs and the existing ledger",
+        "Preserves the collapsed source template and intentionally materializes a separate fixed-length child",
+        "Records sampled length, parent and seed through the established campaign workflow",
+        "Validates the child without launching generation or inventing a competing accounting policy"
+      ]
+    },
+    {
+      "id": "unindexed-expandable-spacing",
+      "prompt": "Keep two cysteine motif residues unindexed in one index group with an expandable segment of length 2 between them. Explain the token count and relative indices, and prepare the template if this checkout supports it.",
+      "expected_output": "An explanation of relative cysteine indices 0 and 3 and, when supported by the installed runtime, a collapsed template with both motif residues and the length-2 expandable segment unindexed in one group; unsupported behavior is reported explicitly.",
+      "files": [],
+      "assertions": [
+        "Reads canonical expandable-segment documentation and checks installed behavior",
+        "Explains that the sampled gap yields relative cysteine indices 0 and 3 without additional unindexed spacer tokens",
+        "Marks segment and flanking motif residues unindexed in the same group",
+        "Preserves the collapsed template and intentional spacing; reports unsupported runtime behavior instead of changing the design"
+      ]
+    },
+    {
+      "id": "installed-annotation-support",
+      "prompt": "Use ensure_annotations to prepare is_protein, the C_HOT mask name, and is_magic_pocket on this array. Explain what this installed AtomWorks supports before changing the CIF.",
+      "expected_output": "An installed-runtime support assessment for is_protein, the C_HOT mask, and is_magic_pocket using the registered annotation APIs, without fabricating unsupported masks or treating serialization as evidence of model support.",
+      "files": [],
+      "assertions": [
+        "Checks the installed lazy registry and StandardAnnotation full_name/mask_name fallback after registering RFProteina conditions",
+        "Recognizes a supported condition mask through the StandardAnnotation fallback",
+        "Reports is_magic_pocket as unsupported when absent from both registries and the array",
+        "Does not substitute an all-false mask or assume serialization proves model support"
+      ]
+    }
+  ]
+}

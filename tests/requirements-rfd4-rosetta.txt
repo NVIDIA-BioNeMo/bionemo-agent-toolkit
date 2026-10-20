@@ -1,0 +1,11 @@
+# Offline helper regressions only; use Python 3.12 in an isolated environment.
+# AtomWorks, RFProteina, and CUDA are supplied by the separate model runtime.
+# Packaging regressions exercise the upstream Biotite 1.x superimpose API.
+biotite>=1.0,<2
+fire
+matplotlib
+numpy>=1.26
+pandas
+pytest
+pyyaml>=6.0
+scipy

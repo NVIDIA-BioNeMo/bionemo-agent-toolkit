@@ -1,0 +1,79 @@
+{
+  "skill_name": "rfd4-proteina-search",
+  "evals": [
+    {
+      "id": "beam-example-small-validation",
+      "prompt": "Run a small reward-guided beam search to validate the setup. Use the ready inference_beam_example config, but shrink it so it is cheap: reduce beam_width and n_branch to 2 and keep only the checkpoint at step 20 with nsteps=20. Confirm it produces at least one scored output CIF.",
+      "expected_output": "A reduced-cost beam-search run using inference_beam_example with nsteps=20, only checkpoint 20, beam_width=2, and n_branch=2, producing at least one scored CIF and per_example_metrics.csv under ./runs/search_smoke with the configured AF3 reward.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "NVIDIA GPU",
+          "rfd4-proteina-setup complete",
+          "AF3 oracle runtime configured via .env.local"
+        ]
+      },
+      "assertions": [
+        "Runs open-models-skills/rfd4-proteina/rfd4-proteina-setup/scripts/preflight.sh and confirms the AF3 container is configured",
+        "Runs the beam example with reduced cost: rfd4-generate inference_experiment=inference_beam_example num_replicates=1 generation.args.nsteps=20 '~search.checkpoints.40' '~search.checkpoints.50' '~search.checkpoints.60' search.beam_width=2 search.n_branch=2 out_dir=./runs/search_smoke",
+        "Uses rfd4-generate from the installed Python environment, with the AF3 oracle configured separately",
+        "Keeps only checkpoint 20, with its explicit oracle metric and reward; deletes inherited checkpoints beyond nsteps rather than leaving them in the mapping",
+        "Uses Hydra key=value overrides, never --key value",
+        "Produces at least one scored design CIF under the out_dir with metrics in per_example_metrics.csv"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/search_smoke/**/*.cif",
+        "min_artifacts": 1
+      }
+    },
+    {
+      "id": "beam-search-without-refolding-oracle",
+      "prompt": "Run a small reward-guided search using interface interaction metrics only. I do not have AF2, AF3, or OpenFold3 configured.",
+      "expected_output": "A small search using a configured non-refolding interaction reward, producing at least one scored CIF under ./runs/search_no_oracle and reporting the reward metrics while preserving scheduler settings and avoiding AF2, AF3, or OpenFold3 requirements.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "NVIDIA GPU",
+          "rfd4-proteina-setup complete"
+        ]
+      },
+      "assertions": [
+        "Uses the shipped sm_binder_hbond_search config or another configured non-refolding reward",
+        "Does not require or preflight an AF2, AF3, or OpenFold3 runtime",
+        "Keeps the user-selected scheduler partition, account, priority, and extra options unchanged",
+        "Uses reduced beam_width, n_branch, checkpoints, and num_replicates for the smoke run",
+        "Produces at least one scored design and reports the interaction metrics used by the reward"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/search_no_oracle/**/*.cif",
+        "min_artifacts": 1
+      }
+    },
+    {
+      "id": "clean-scoring-without-final-checkpoint",
+      "prompt": "Use inference_beam_regression to score clean predictions at step 40, then finish each retained beam once without selection at step 60. Use beam_width=2, n_branch=2, and one replicate.",
+      "expected_output": "A one-replicate inference_beam_regression run with two beams and two branches, clean clash scoring at step 40, and unselected completion at step 60, producing at least one CIF under ./runs/search_clean with ordinary final metrics and an explanation of the absent final search reward.",
+      "files": [],
+      "setup": {
+        "cwd": "repository root",
+        "requires": [
+          "NVIDIA GPU",
+          "rfd4-proteina-setup complete"
+        ]
+      },
+      "assertions": [
+        "Uses rfd4-generate inference_experiment=inference_beam_regression num_replicates=1 search.beam_width=2 search.n_branch=2 ++search.checkpoints.40.use_clean_prediction=true '~search.checkpoints.60' out_dir=./runs/search_clean",
+        "Keeps the explicitly configured clash metric and its reward at step 40, with nsteps=60",
+        "Does not add oracle providers or dynamically discover metric dependencies",
+        "Explains that each of the two retained beam candidates finishes once without further branching, search scoring, or selection",
+        "Reports ordinary final metrics; does not expect a final search.reward or saved clean-prediction structures"
+      ],
+      "success_criteria": {
+        "artifact_glob": "./runs/search_clean/**/*.cif",
+        "min_artifacts": 1
+      }
+    }
+  ]
+}
