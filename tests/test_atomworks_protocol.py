@@ -23,6 +23,12 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual('execute_rfd4_plan' in names,mode=='agent')
                     self.assertEqual('recover_queued_rfd4_job' in names,mode=='agent')
                     if mode=='app':
+                        self.assertIn('refresh_selected_compute_access',names)
+                        refresh=next(t for t in tools if t.name=='refresh_selected_compute_access')
+                        self.assertFalse(refresh.annotations.readOnlyHint)
+                        config=json.loads((server.parents[3]/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
+                        app=next(value for value in config['mcpServers'].values() if value.get('args')==['app'])
+                        self.assertEqual(app['tools']['refresh_selected_compute_access']['approval_mode'],'prompt')
                         exported=await session.call_tool('save_rfd4_export',{'filename':'uat.cif','mime_type':'chemical/x-mmcif','text':'data_preserved\n'})
                         self.assertFalse(exported.isError)
                         saved=json.loads(exported.content[0].text)

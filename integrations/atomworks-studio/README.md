@@ -61,14 +61,22 @@ refreshes a machine automatically. Existing setup and lifecycle actions remain
 available in chat. Disconnect detaches this session; the saved target remains
 available for reconnect and existing jobs are preserved.
 
-This direct flow currently requires established SSH trust and the existing
-executor-ownership acceptance. Brev's CLI-generated configuration disables host-key
-verification; delegating to it is not an authenticated host-key bootstrap. The
-adapter retains strict verification. For a first-use machine without trusted keys,
-automatic bootstrap remains unimplemented: it needs a provider-authenticated host
-key or an already trusted administrative channel. Do not substitute an unverified
-key scan or a verification-disabled connection. No transport change is included
-in the direct-selection UI change.
+On an unsuccessful Brev connection, Connect can refresh access for the selected
+running machine through the existing reserved access-refresh operation. The MCP
+host retains the normal approval prompt for that local configuration change.
+Only this refresh probe uses OpenSSH `accept-new`: it remembers a first-use key
+in the user's normal trust store and refuses changed keys. The initial server
+key is trusted on first use, not independently authenticated by Brev metadata.
+Subsequent execution and copies use strict verification; generic SSH targets
+remain strict throughout. The operation preserves organization, immutable
+instance, physical identity, job reservations and revision checks. It never
+starts, provisions, installs on or claims a machine.
+
+The existing executor-ownership acceptance still gates readiness and generation.
+It is a plugin controller-ownership mechanism, not a Brev/RFD4 requirement. The
+live demo target has not passed that acceptance; no privileged ownership change
+has been made. Removing that prerequisite requires a separately reviewed targeted
+change to its setup/publication/run guards, not fabricated ownership evidence.
 
 Set `RFD4_EDITOR_URL` to a CPU Studio loopback service independent of the GPU.
 Optionally set `RFD4_EDITOR_PYTHON` to an already-prepared Studio Python 3.12

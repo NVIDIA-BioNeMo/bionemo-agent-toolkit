@@ -83,6 +83,17 @@ class SSHTransportTests(unittest.TestCase):
         self.assertIn('StrictHostKeyChecking=yes', args)
         self.assertIn('ControlPath=none', args)
 
+    def test_only_explicit_brev_refresh_can_remember_a_first_use_key(self):
+        ssh_transport.execute(self.cfg,'true',self.run,15,trust_on_first_use=True)
+        args=self.run.call_args.args[0]
+        self.assertIn('StrictHostKeyChecking=accept-new',args)
+        self.assertIn('UserKnownHostsFile='+str(Path.home()/'.ssh/known_hosts'),args)
+        self.assertNotIn('StrictHostKeyChecking=no',args)
+        self.run.reset_mock()
+        with self.assertRaisesRegex(ValueError,'only during Brev'):
+            ssh_transport.execute({'kind':'ssh','ssh_host':'my-host'},'true',self.run,15,trust_on_first_use=True)
+        self.run.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

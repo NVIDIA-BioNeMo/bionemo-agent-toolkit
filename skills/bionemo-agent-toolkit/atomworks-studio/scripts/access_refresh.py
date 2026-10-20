@@ -1,4 +1,4 @@
-"""Explicit, non-provisioning Brev SSH refresh with existing host trust."""
+"""Explicit, non-provisioning Brev refresh with approved first-use key trust."""
 from brev_provider import Brev
 import registry
 from ssh_transport import execute
@@ -72,7 +72,8 @@ def _refresh_locked(backend, operation_id, machine_id,lease_fd):
         verify_provider()
         state.transition(operation_id,'dispatched')
         # Local SSH/key/helper configuration may change. No exec, copy, power,
-        # provisioning or trust-enrollment command is permitted here.
+        # provisioning command is permitted here. The following SSH probe may
+        # remember a first-use key, but can never replace an existing key.
         # The CLI inherits the lease: if this controller dies, recovery remains
         # blocked until that child exits, not merely until its parent disappears.
         backend.run(['brev','refresh'],timeout=60,pass_fds=(lease_fd,))
@@ -84,7 +85,7 @@ def _refresh_locked(backend, operation_id, machine_id,lease_fd):
         if access['host']==cfg['instance']:
             raise ValueError('Brev did not resolve the saved SSH alias; no connection was attempted')
         candidate=dict(cfg,ssh_access=access)
-        identity=registry.machine_identity_from_output(execute(candidate,'cat /etc/machine-id',backend.run,15))
+        identity=registry.machine_identity_from_output(execute(candidate,'cat /etc/machine-id',backend.run,15,trust_on_first_use=True))
         verify_provider()
         # Verify again after the probe, but commit the original probed snapshot.
         registry.verify_access(access,backend.run)

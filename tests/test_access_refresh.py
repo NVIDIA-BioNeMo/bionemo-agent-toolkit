@@ -46,7 +46,7 @@ class AccessRefreshTests(unittest.TestCase):
         self.assertEqual(self.s.managed.selection('session'),self.before['sessions']['session'])
         self.assertEqual(self.commands[0],['brev','refresh'])
         self.assertEqual([c[0] for c in self.commands],['brev','ssh'])
-        self.assertIn('StrictHostKeyChecking=yes',self.commands[1])
+        self.assertIn('StrictHostKeyChecking=accept-new',self.commands[1])
         self.assertNotIn(self.machine,self.s.managed.snapshot()['reservations'])
         self.execute()
         self.assertEqual(len(self.commands),2)
@@ -58,12 +58,23 @@ class AccessRefreshTests(unittest.TestCase):
             self.assertEqual(self.commands,[])
             self.row={'id':'fixed','name':'saved','status':'RUNNING'}
 
+    def test_selected_machine_refresh_reuses_the_existing_reserved_access_flow(self):
+        result=self.s.refresh_selected_compute_access('session',self.s.managed.selection('session')['revision'])
+        self.assertEqual(result['id'],self.op)
+        self.assertEqual(result['state'],'succeeded')
+        self.assertEqual([c[0] for c in self.commands],['brev','ssh'])
+
+    def test_selected_machine_refresh_rejects_a_stale_session_before_any_command(self):
+        with self.assertRaisesRegex(ValueError,'selection changed'):
+            self.s.refresh_selected_compute_access('session',0)
+        self.assertEqual(self.commands,[])
+
     def test_wrong_organization_does_not_switch_context(self):
         self.p.current_org.return_value='another'
         with self.assertRaisesRegex(ValueError,'saved Brev organization'):self.execute()
         self.assertEqual(self.commands,[])
 
-    def test_host_key_failure_preserves_config_and_never_auto_enrolls(self):
+    def test_rejected_changed_key_preserves_config_and_never_replaces_key(self):
         def reject(args,timeout=60,**kwargs):
             self.commands.append(args)
             if args[0]=='ssh':raise RuntimeError('Host key verification failed')

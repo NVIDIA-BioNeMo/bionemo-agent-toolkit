@@ -13,6 +13,7 @@ function harness({connected=true, result={state:'ready',transport:'reachable'}, 
       if(name==='get_compute_status')return {selection:{revision:7}};
       if(name==='select_compute')return {state:'ready',name:'A100',kind:'brev',gpu:'cached GPU',transport:'reachable',checked_at:'old',selection:{machine_id:'saved-brev',revision:8}};
       if(name==='inspect_compute_target')return {connected};
+      if(name==='refresh_selected_compute_access')return {state:'succeeded'};
       if(name==='check_compute')return result;
       throw Error('Unexpected tool '+name);
     },render:state=>frames.push(state),accept:state=>accepted.push(state)};
@@ -34,7 +35,8 @@ for (const [reason,state] of [['missing runtime','needs_setup'],['missing weight
     assert.equal(h.accepted[0].state,state);
     assert.equal(h.accepted[0].detail,reason);
     assert.ok(h.frames.every(f=>f.state!=='ready'));
-    assert.ok(h.calls.every(([name])=>! /refresh|start|create|setup|ownership/.test(name)));
+    assert.ok(h.calls.every(([name])=>! /recover|start|create|setup|ownership/.test(name)));
+    assert.ok(h.calls.filter(([name])=>name==='refresh_selected_compute_access').length<=1);
   });
 }
 test('failed connection still refreshes authoritative readiness instead of exposing cached Ready',async()=>{
@@ -42,6 +44,18 @@ test('failed connection still refreshes authoritative readiness instead of expos
   await connectSavedCompute(h.args);
   assert.ok(h.calls.some(([name])=>name==='check_compute'));
   assert.ok(h.frames.every(f=>f.state==='connecting'));
+});
+test('unconfigured Brev access uses one session-bound refresh before a strict recheck',async()=>{
+  const h=harness({connected:false});
+  await connectSavedCompute(h.args);
+  assert.deepEqual(h.calls.filter(c=>c[0]==='refresh_selected_compute_access'),[['refresh_selected_compute_access',{session_id:'draft-session',expected_revision:8}]]);
+  assert.equal(h.calls.filter(c=>c[0]==='inspect_compute_target').length,2);
+});
+test('rejected first-use or changed key stops without retrying or invoking readiness',async()=>{
+  const h=harness({connected:false,failure:{name:'refresh_selected_compute_access',message:'Host key verification failed'}});
+  await assert.rejects(connectSavedCompute(h.args),/Host key/);
+  assert.equal(h.calls.at(-1)[0],'refresh_selected_compute_access');
+  assert.equal(h.accepted.length,0);
 });
 test('switching documents after a response prevents retargeting the new document',async()=>{
   for(const boundary of ['get_compute_status','select_compute','inspect_compute_target','check_compute']) {

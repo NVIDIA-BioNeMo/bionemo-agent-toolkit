@@ -109,6 +109,15 @@ class Compute:
         from access_refresh import refresh
         return refresh(self,operation_id,machine_id)
 
+    def refresh_selected_compute_access(self,session_id,expected_revision):
+        selection,cfg=self.selected_compute(session_id)
+        if selection['revision']!=expected_revision:
+            raise ValueError('Compute selection changed; select the machine again')
+        if cfg is None or cfg['kind']!='brev':
+            raise ValueError('Select a saved Brev machine before refreshing its access')
+        operation=self.begin_setup(session_id,cfg['target_id'],expected_revision)
+        return self.refresh_compute_access(operation['id'],cfg['target_id'])
+
     def recover_compute_access(self,operation_id):
         from access_refresh import recover
         return recover(self,operation_id)

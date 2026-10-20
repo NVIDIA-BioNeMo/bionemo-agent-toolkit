@@ -12,7 +12,14 @@ export async function connectSavedCompute({targetId, session, current, saveDraft
   if (!current()) return;
   // Never display cached Ready evidence as the result of this connection attempt.
   render({...pending(selected), detail:'Checking the connection…'});
-  const connection = await tool('inspect_compute_target', {target_id:targetId});
+  let connection = await tool('inspect_compute_target', {target_id:targetId});
+  if (!current()) return;
+  if (!connection.connected && selected.kind === 'brev') {
+    render({...pending(selected), detail:'Refreshing Brev access. A new server key is remembered; changed keys are rejected.'});
+    await tool('refresh_selected_compute_access', {session_id:session,expected_revision:selected.selection.revision});
+    if (!current()) return;
+    connection = await tool('inspect_compute_target', {target_id:targetId});
+  }
   if (!current()) return;
   if (connection.connected) render({...pending(selected), state:'checking', transport:'reachable',
     detail:'Connected. Checking GPU, RFD4 runtime and model weights…'});

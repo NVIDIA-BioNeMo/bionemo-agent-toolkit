@@ -37,7 +37,7 @@ addEventListener("message", (e) => {
   }
 });
 async function tool(name, args = {}) {
-  if (['begin_compute_setup', 'select_compute', 'disconnect_compute', 'prepare_design'].includes(name)) {
+  if (['begin_compute_setup', 'select_compute', 'refresh_selected_compute_access', 'disconnect_compute', 'prepare_design'].includes(name)) {
     const capabilities = await tool('get_compute_capabilities');
     if (capabilities.protocol !== 3 || capabilities.schema !== 2) throw Error('Update and restart the RFD4 plugin before changing compute.');
   }

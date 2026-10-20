@@ -67,6 +67,11 @@ def get_rfd4_export(export_id: str) -> dict:
     return get(service.root,export_id)
 
 if mode == 'app':
+    @mcp.tool(meta=APP, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    def refresh_selected_compute_access(session_id: str, expected_revision: int) -> dict:
+        """On Connect, refresh access for this session's selected running Brev machine. May remember a first-use server key; changed keys fail. Never starts, provisions or claims machines, installs RFD4 or submits inference."""
+        return service.refresh_selected_compute_access(session_id,expected_revision)
+
     @mcp.tool(meta=APP, annotations=WRITE)
     def save_rfd4_export(filename: str, mime_type: str, text: str | None=None, base64_data: str | None=None) -> dict:
         """Save the exact clicked CIF/ZIP locally for export through chat; never starts compute."""
@@ -183,7 +188,7 @@ else:
 
     @mcp.tool(meta={'ui':{'visibility':['model']}}, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
     def refresh_compute_access(operation_id: str, machine_id: str) -> dict:
-        """Explicitly refresh local Brev SSH/key/helper configuration for a saved running machine. Verifies organization, immutable instance and physical identity using existing trusted host keys. Never enrolls keys, starts a machine, installs RFD4 or submits inference. Unknown host keys require independent verification outside this tool."""
+        """Explicitly refresh Brev SSH/key/helper configuration for a saved running machine. Verifies organization, immutable instance and physical identity. May remember a first-use server key; changed keys fail. Never starts, provisions or claims machines, installs RFD4 or submits inference."""
         return service.refresh_compute_access(operation_id,machine_id)
 
     @mcp.tool(annotations=READ)

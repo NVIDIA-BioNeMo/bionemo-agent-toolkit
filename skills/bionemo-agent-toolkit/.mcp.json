@@ -14,7 +14,12 @@
         "RFD4_EDITOR_PYTHON",
         "CODEX_HOME"
       ],
-      "default_tools_approval_mode": "auto"
+      "default_tools_approval_mode": "auto",
+      "tools": {
+        "refresh_selected_compute_access": {
+          "approval_mode": "prompt"
+        }
+      }
     },
     "rfd4-studio": {
       "command": "./atomworks-studio/start_server",
