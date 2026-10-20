@@ -112,7 +112,7 @@ request. The agent reports actual tool-derived steps through `update_compute_set
 reporting completion cannot itself mark a GPU ready. Brev creation still requires
 the agent to reconcile existing machines before retrying an ambiguous CLI outcome.
 
-The intended final model repository is [RosettaCommons/RFD4-Proteina](https://github.com/RosettaCommons/RFD4-Proteina). The current locked recipe still targets the development source. Qualify the final revision, source hashes and dependency/install contract before switching that recipe; the public Studio frontend and model runtime have separate release requirements.
+The model repository [RosettaCommons/RFD4-Proteina](https://github.com/RosettaCommons/RFD4-Proteina) is public under BSD-3-Clause; anonymous Git access was verified on 20 October 2026 at commit `c7c6cacbc617ab074b4e234448bed6581840949f`. The current locked recipe still targets the development source and is not compatible with this release. The old pinned commit is not fetchable from the public repository. The release uses AtomWorks 3.0.4, TMol 0.1.64, Hugging Face Hub below version 2, and a Hugging Face model bundle rather than the old two-file checkpoint contract. Port and qualify source staging, dependency locks, checkpoint loading/readiness and generation before replacing the recipe. Public source access is verified; public-release runtime installation and GPU acceptance remain open.
 
 ## Compute user flow
 
