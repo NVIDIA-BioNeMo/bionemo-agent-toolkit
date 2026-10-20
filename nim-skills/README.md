@@ -32,6 +32,10 @@ request fixtures, references, tests, and UI metadata are included as well.
 Source repository paths and evaluation dates in those files are historical
 provenance. Changes to signed content require a new evaluation and signature.
 
+The toolkit-added [skill card](rfd4-proteina-nim/skill-card.md) summarizes
+capabilities, access requirements, limitations, and the retained evaluation
+evidence. It is separate from the original signature's resource list.
+
 The canonical toolkit copy is `nim-skills/rfd4-proteina-nim/`; the generated
 plugin copy is `skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim/`.
 Both retain the original signed files. Run the client tests from the toolkit
