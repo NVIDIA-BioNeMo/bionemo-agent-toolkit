@@ -52,7 +52,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **OpenFold2** | Monomer protein structure prediction (NIM). | [`openfold2-nim`](nim-skills/openfold2-nim) |
 | **OpenFold3** | Biomolecular complex structure prediction (NIM). | [`openfold3-nim`](nim-skills/openfold3-nim) |
 | **ProteinMPNN** | Inverse folding / sequence design for a target backbone (NIM). | [`proteinmpnn-nim`](nim-skills/proteinmpnn-nim) |
-| **RFD4-Proteina** | Joint protein structure and sequence design, conditioned generation, and reward-guided search through internal staging or a local release-candidate NIM. | [`rfd4-proteina-nim`](nim-skills/rfd4-proteina-nim) |
+| **RFD4-Proteina** | Joint protein structure and sequence design, conditioned generation, and reward-guided search through the NVIDIA hosted API or public NIM container. | [`rfd4-proteina-nim`](nim-skills/rfd4-proteina-nim) |
 | **RFdiffusion** | De novo protein backbone and binder design (NIM). | [`rfdiffusion-nim`](nim-skills/rfdiffusion-nim) |
 | **RFD4-Proteina (open model)** | Native model setup, annotated-CIF authoring, generation, search, evaluation, campaign tracking, and delivery. Requires a separate RFProteina model checkout. | [`rfd4-proteina-setup`](open-models-skills/rfd4-proteina/rfd4-proteina-setup), [`rfd4-proteina-annotated-cif`](open-models-skills/rfd4-proteina/rfd4-proteina-annotated-cif), [`rfd4-proteina-generate`](open-models-skills/rfd4-proteina/rfd4-proteina-generate), [`rfd4-proteina-search`](open-models-skills/rfd4-proteina/rfd4-proteina-search), [`rfd4-proteina-evaluate`](open-models-skills/rfd4-proteina/rfd4-proteina-evaluate), [`rfd4-proteina-autoresearch`](open-models-skills/rfd4-proteina/rfd4-proteina-autoresearch), [`rfd4-proteina-commitment-curves`](open-models-skills/rfd4-proteina/rfd4-proteina-commitment-curves), [`rfd4-proteina-campaign`](open-models-skills/rfd4-proteina/rfd4-proteina-campaign), [`rfd4-proteina-package`](open-models-skills/rfd4-proteina/rfd4-proteina-package) |
 | **Proteina-Complexa** | Protein binder design for protein and small molecule targets. Combines a pretrained flow-based generative model (built on La-Proteina) with inference-time optimization for high-quality binder generation. | [`complexa-setup`](open-models-skills/proteina-complexa/complexa-setup), [`complexa-target`](open-models-skills/proteina-complexa/complexa-target), [`complexa-design`](open-models-skills/proteina-complexa/complexa-design), [`complexa-sweep`](open-models-skills/proteina-complexa/complexa-sweep), [`complexa-evaluate-pdbs`](open-models-skills/proteina-complexa/complexa-evaluate-pdbs) |
@@ -90,13 +90,16 @@ OpenFold3 and the MSA-Search to OpenFold3 workflow are pending validation. Their
 current hosted runs timed out and should not yet be used for pass/fail or model
 comparison.
 
-The RFD4-Proteina NIM skill uses a separate five-case dataset covering internal staging,
-local deployment instructions, offline preparation, and result interpretation.
-Its imported [NV-CARPS benchmark](nim-skills/rfd4-proteina-nim/BENCHMARK.md) and
-[validation evidence](nim-skills/rfd4-proteina-nim/evals/validation-results.json)
-retain the source evaluation results. See the
-[RFD4 bundle notes](nim-skills/README.md#rfd4-proteina) for provenance,
-access requirements, and offline client tests.
+The RFD4-Proteina NIM skill targets the
+[released product](https://build.nvidia.com/ipd/rfd4-proteina), with a five-case
+dataset covering authenticated hosted inference, public container instructions,
+offline preparation, and result interpretation. Its
+[live agent benchmark](nim-skills/rfd4-proteina-nim/BENCHMARK.md) and a new
+service-account signature are pending for this revision;
+[offline validation](nim-skills/rfd4-proteina-nim/evals/validation-results.json)
+does not establish production inference success. See the
+[RFD4 bundle notes](nim-skills/README.md#rfd4-proteina) for public provenance,
+access requirements, and client tests.
 
 - **Evo 2**
 

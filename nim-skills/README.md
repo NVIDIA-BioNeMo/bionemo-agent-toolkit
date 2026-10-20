@@ -16,37 +16,34 @@ Use the top-level README for setup and agent-discovery guidance.
 ## RFD4-Proteina
 
 [`rfd4-proteina-nim`](rfd4-proteina-nim/SKILL.md) supports joint protein structure
-and sequence design, conditioning, and reward-guided search through an internal
-staging endpoint or a local release-candidate deployment. It requires access to
-the selected service; the bundle retains its internal visibility metadata and
-prerelease version boundaries. Its Python client uses the standard library.
+and sequence design, conditioning, and reward-guided search through the released
+[NVIDIA API](https://build.nvidia.com/ipd/rfd4-proteina) or a self-hosted public
+NIM container. Hosted inference uses `NVIDIA_API_KEY` (`NGC_API_KEY` fallback);
+the local client sends no inference credential. The Python client uses only
+the standard library.
 
-The complete bundle was imported unchanged from `bionemo/rfd4-skill`, branch
-`omosafi/nvcarps-signing`, commit
-`3dc70a052c6449cd582f8d771cb97bc122f43862`. That commit was authored by
-`nvcarps-service-account` and added the
-[`BENCHMARK.md`](rfd4-proteina-nim/BENCHMARK.md) and
-[`skill.oms.sig`](rfd4-proteina-nim/skill.oms.sig) artifacts.
-The [live validation evidence](rfd4-proteina-nim/evals/validation-results.json),
-request fixtures, references, tests, and UI metadata are included as well.
-Source repository paths and evaluation dates in those files are historical
-provenance. Changes to signed content require a new evaluation and signature.
+The bundle's endpoint, authentication, deployment instructions, and PD-1 request
+are grounded in public product documentation. See the
+[source notes](rfd4-proteina-nim/references/sources.md),
+[fixture manifest](rfd4-proteina-nim/assets/source-manifest.json), and
+[skill card](rfd4-proteina-nim/skill-card.md).
 
-The toolkit-added [skill card](rfd4-proteina-nim/skill-card.md) summarizes
-capabilities, access requirements, limitations, and the retained evaluation
-evidence. It is separate from the original signature's resource list.
+The previous evaluation/signature no longer applies to these modified files.
+[`BENCHMARK.md`](rfd4-proteina-nim/BENCHMARK.md) marks live evaluation as pending;
+a new service-account signature must be generated after evaluation. The
+[validation record](rfd4-proteina-nim/evals/validation-results.json) describes
+offline checks without claiming production inference or local GPU deployment.
 
 The canonical toolkit copy is `nim-skills/rfd4-proteina-nim/`; the generated
 plugin copy is `skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim/`.
-Both retain the original signed files. Run the client tests from the toolkit
-root:
+Keep both copies in sync. Run the client tests from the toolkit root:
 
 ```bash
 python -B -m unittest discover -s nim-skills/rfd4-proteina-nim/tests -v
 ```
 
 These tests use synthetic responses and a temporary loopback HTTP service.
-They do not perform live staging inference.
+They do not perform live production inference.
 
 For native RFProteina model workflows, see the separate
 [open-model skill collection](../open-models-skills/rfd4-proteina/README.md).

@@ -10,14 +10,11 @@
   },
   "sampling": {
     "recycle_strategy": "thinking_medium",
-    "num_replicates": 2
+    "num_replicates": 1
   },
   "metrics": {
     "tags": [
-      "design",
-      "hotspot_conditioning",
-      "interchain_interactions",
-      "cms"
+      "design"
     ]
   }
 }
