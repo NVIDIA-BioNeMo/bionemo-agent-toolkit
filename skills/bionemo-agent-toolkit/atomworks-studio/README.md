@@ -60,6 +60,8 @@ Prepare an isolated Python 3.12 environment with
 Gradio is optional and is not used by the MCP app. The embedded frontend is built separately above.
 The old compute-bound Studio URL remains a compatibility fallback.
 
+CIF and results-archive exports use the MCP host's advertised `downloadFile` capability and `ui/download-file` request. The host may ask the user to confirm. Unsupported, rejected or failed host downloads show an error; they never fall back to a sandboxed browser anchor or claim the file was saved. The standalone localhost preview retains normal browser downloads.
+
 Drafts auto-save annotated CIF, notes, image notes, and sampling settings in the
 adapter's private state directory. Saved drafts can be reopened explicitly after
 reload. This avoids relying solely on upstream's two-hour session retention.
@@ -109,6 +111,8 @@ Setup requests have durable IDs. Repeated clicks resume the same unfinished
 request. The agent reports actual tool-derived steps through `update_compute_setup`;
 reporting completion cannot itself mark a GPU ready. Brev creation still requires
 the agent to reconcile existing machines before retrying an ambiguous CLI outcome.
+
+The intended final model repository is [RosettaCommons/RFD4-Proteina](https://github.com/RosettaCommons/RFD4-Proteina). The current locked recipe still targets the development source. Qualify the final revision, source hashes and dependency/install contract before switching that recipe; the public Studio frontend and model runtime have separate release requirements.
 
 ## Compute user flow
 

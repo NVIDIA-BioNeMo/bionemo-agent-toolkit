@@ -15,7 +15,7 @@ const bundle=await build({stdin:{contents:adaptSessionFileController(original,'h
  a.path.endsWith('/confirmation')?'export const confirmAction=async()=>false;':
  a.path.endsWith('/authoring-actions')?'export const prepareCifDownload=async()=>null;':
  a.path.endsWith('/persistence')?'export const PENDING_EXAMPLE_KEY="pending";':
- a.path==='host-bridge'?'export const nativeFileNavigation=()=>{throw Error("Use an explicit test navigation token")};':
+ a.path==='host-bridge'?'export const nativeFileNavigation=()=>{throw Error("Use an explicit test navigation token")}; export const downloadFile=async()=>{};':
  'export const inspect_cif=()=>{};'}));
 }}]});
 const {SessionFileController}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));

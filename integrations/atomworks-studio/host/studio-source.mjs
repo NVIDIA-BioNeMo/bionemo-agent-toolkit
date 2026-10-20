@@ -5,7 +5,7 @@ export function adaptSessionFileController(s, bridge) {
     if (s.split(from).length !== 2) throw Error(`Upstream hook changed: ${from}`);
     return s.replace(from, to);
   }
-      s = `import {nativeFileNavigation} from ${JSON.stringify(bridge)};\n` + s;
+      s = `import {nativeFileNavigation, downloadFile} from ${JSON.stringify(bridge)};\n` + s;
       s = replaceOnce(s, 'onOpened: (response: SessionResponse) => Promise<void>;', 'onOpened: (response: SessionResponse, current?: () => boolean, beginCommit?: () => void) => Promise<void>;');
       s = replaceOnce(s, '  private openFile(file: File, targetSession: string | null = null): Promise<boolean> {', `  private openFile(file: File, targetSession: string | null = null): Promise<boolean> {
     return nativeFileNavigation(request => this.openFileInternal(file, request, targetSession), {freshDocument:targetSession === null}).catch(error => { this.options.log(String(error)); return false; });
@@ -43,6 +43,11 @@ export function adaptSessionFileController(s, bridge) {
       s = replaceOnce(s, '      const combined = await api<SessionResponse>(`/api/sessions/${targetSession}/combine`, {', '      const copySession = await request.copySavedSession();\n      const combined = await api<SessionResponse>(`/api/sessions/${copySession}/combine`, {');
       s = replaceOnce(s, 'await this.openFile(file, targetSession);', 'await this.openFileInternal(file, request, targetSession);');
       s = replaceOnce(s, 'await this.options.onCombined(combined, file.name);', 'await this.options.onOpened(combined, request.current, request.beginCommit);');
-      s = replaceOnce(s, "      URL.revokeObjectURL(anchor.href);", "      setTimeout(() => URL.revokeObjectURL(anchor.href), 60000);");
+      s = replaceOnce(s, `      const blob = new Blob([result.cif], { type: "chemical/x-mmcif" });
+      const anchor = document.createElement("a");
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = \`\${result.name}_annotated.cif\`;
+      anchor.click();
+      URL.revokeObjectURL(anchor.href);`, '      await downloadFile({filename:result.name + "_annotated.cif", mimeType:"chemical/x-mmcif", text:result.cif});');
   return s;
 }

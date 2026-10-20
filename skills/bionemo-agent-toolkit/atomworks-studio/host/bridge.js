@@ -54,6 +54,29 @@ async function studioFetch(path, init = {}) {
   const body = [204, 205, 304].includes(value.status) ? null : value.text;
   return new Response(body, { status: value.status, headers: { "Content-Type": value.content_type } });
 }
+export async function downloadFile({filename, mimeType, text, base64}) {
+  if (typeof filename !== 'string' || !filename || typeof mimeType !== 'string'
+      || (typeof text === 'string') === (typeof base64 === 'string')) {
+    throw Error('Invalid download contents.');
+  }
+  const name = filename.replace(/[\\/\x00-\x1f\x7f]/g, '_');
+  if (local) {
+    const bytes = typeof text === 'string' ? text : Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], {type:mimeType}));
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = name;
+    try { anchor.click(); }
+    finally { setTimeout(() => URL.revokeObjectURL(url), 60000); }
+    return;
+  }
+  if (!hostCapabilities.downloadFile) throw Error('This host does not support file downloads. The file was not saved.');
+  const resource = {uri:'file:///' + encodeURIComponent(name), mimeType,
+    ...(typeof text === 'string' ? {text} : {blob:base64})};
+  const result = await rpc('ui/download-file', {contents:[{type:'resource', resource}]});
+  if (!result || typeof result !== 'object' || result.isError) {
+    throw Error('The host cancelled or rejected the download. The file was not saved.');
+  }
+}
 function studioEvent(type, session) {
   if (type === 'ready' && freshDocumentRequest?.state === 'committing') {
     resetDocumentMetadata();
@@ -601,10 +624,7 @@ async function showResults(jobId, row, canOpen = () => true) {
     download.disabled = true;
     try {
       const file = await tool('download_results', {job_id: jobId});
-      const blob = new Blob([Uint8Array.from(atob(file.base64), c => c.charCodeAt(0))], {type: file.mime_type});
-      const url = URL.createObjectURL(blob), a = document.createElement('a');
-      a.href = url; a.download = file.filename; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      await downloadFile({filename:file.filename, mimeType:file.mime_type, base64:file.base64});
     } catch(e) { message(e.message); }
     finally { download.disabled = false; }
   };
