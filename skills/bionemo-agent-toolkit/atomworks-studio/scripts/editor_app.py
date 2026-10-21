@@ -47,6 +47,31 @@ import subprocess
 import time
 from urllib.parse import urlsplit
 import httpx
+import importlib.util
+import socket
+import sys
+
+
+def default_editor_url(root):
+    """Persist one loopback endpoint per workspace, shared by both MCP servers."""
+    from upgrade_state import require_workspace_activation
+    require_workspace_activation(root)
+    root = Path(root)
+    with (root/'editor-config.lock').open('a') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        config = root/'editor.json'
+        if config.exists():
+            return json.loads(config.read_text())['studio_url']
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1', 0))
+            url = f'http://127.0.0.1:{listener.getsockname()[1]}'
+        # The startup health/identity checks still reject a foreign listener
+        # if something acquires this port before the editor starts.
+        temporary = root/'editor.json.tmp'
+        temporary.write_text(json.dumps({'studio_url': url})+'\n')
+        temporary.chmod(0o600)
+        temporary.replace(config)
+        return url
 
 
 
@@ -77,7 +102,10 @@ def ensure_editor(service):
     with (service.root/'editor.lock').open('a') as handle:
         fcntl.flock(handle,fcntl.LOCK_EX)
         if healthy(): return
-        if not python: raise ValueError('CPU editor is unavailable; configure RFD4_EDITOR_PYTHON to start it')
+        if not python and importlib.util.find_spec('annotation_studio') is not None:
+            python = sys.executable
+        if not python:
+            raise ValueError('CPU editor dependencies are missing from this custom Python environment; install editor-requirements.txt or configure RFD4_EDITOR_PYTHON')
         if not Path(python).is_file(): raise ValueError('The configured CPU Studio Python is unavailable')
         env=dict(os.environ,RFD4_STUDIO_HOME=str(service.root),
                  ANNOTATION_STUDIO_SESSION_DIR=str(service.root/'editor-sessions'))

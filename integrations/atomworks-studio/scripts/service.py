@@ -124,7 +124,9 @@ class Backend(OwnershipOperation, Compute):
         if not url:
             default = self.root/'config.json'
             if default.exists(): url=json.loads(default.read_text()).get('studio_url')
-        if not url: raise ValueError('CPU editor is not configured. Set RFD4_EDITOR_URL or configure editor.json; GPU registration is separate.')
+        if not url:
+            from editor_app import default_editor_url
+            url = default_editor_url(self.root)
         self.validate_config({'kind':'local','instance':'editor','remote_root':'/tmp','studio_url':url})
         return url
 

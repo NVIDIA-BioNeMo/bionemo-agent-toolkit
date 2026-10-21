@@ -361,9 +361,12 @@ class RegistryContract(unittest.TestCase):
         self.s.available_compute()
         self.assertNotEqual(self.s.managed.selection('a')['previous_machine_id'], self.s.managed.selection('b')['previous_machine_id'])
         self.assertIsNone(self.s.managed.selection('a')['machine_id'])
-    def test_missing_editor_has_actionable_error(self):
+    def test_missing_editor_gets_local_default_without_compute(self):
         with patch.dict(os.environ,{},clear=True):
-            with self.assertRaisesRegex(ValueError,'CPU editor is not configured'): self.s.studio_url()
+            url = self.s.studio_url()
+            self.assertTrue(url.startswith('http://127.0.0.1:'))
+            self.assertEqual(self.s.studio_url(), url)
+            self.assertEqual(self.s.available_compute()['targets'], [])
     def test_inspection_is_connection_only(self):
         self.register()
         with patch.object(self.s,'target_exec',return_value='') as execute:

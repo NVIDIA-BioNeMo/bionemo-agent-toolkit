@@ -81,8 +81,28 @@ class EditorRuntimeTests(unittest.TestCase):
         with patch.dict(os.environ,{},clear=True),patch('editor_app.httpx.get',side_effect=[self.health,self.response()]):
             with self.assertRaisesRegex(ValueError,'compatibility adapter'):ensure_editor(self.service)
     def test_unreachable_editor_without_python_explains_setup(self):
-        with patch.dict(os.environ,{},clear=True),patch('editor_app.httpx.get',side_effect=httpx.ConnectError('unreachable')):
+        with patch.dict(os.environ,{},clear=True),patch('editor_app.importlib.util.find_spec',return_value=None),patch('editor_app.httpx.get',side_effect=httpx.ConnectError('unreachable')):
             with self.assertRaisesRegex(ValueError,'RFD4_EDITOR_PYTHON'):ensure_editor(self.service)
+    def test_bundled_cpu_runtime_starts_without_editor_environment_variables(self):
+        process=Mock();process.poll.return_value=None
+        with patch.dict(os.environ,{},clear=True),patch('editor_app.importlib.util.find_spec',return_value=object()),patch('editor_app.httpx.get',side_effect=[httpx.ConnectError('down'),self.health,self.response()]),patch('editor_app.subprocess.Popen',return_value=process) as launch:
+            ensure_editor(self.service)
+            self.assertEqual(launch.call_args.args[0][0],sys.executable)
+            self.assertEqual(launch.call_args.kwargs['env']['RFD4_STUDIO_HOME'],str(self.root))
+
+    def test_default_endpoint_is_shared_across_concurrent_callers(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from editor_app import default_editor_url
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            urls=list(workers.map(lambda _:default_editor_url(self.root),range(8)))
+        self.assertEqual(len(set(urls)),1)
+        self.assertTrue(urls[0].startswith('http://127.0.0.1:'))
+        self.assertEqual((self.root/'editor.json').stat().st_mode & 0o777,0o600)
+
+    def test_default_endpoint_preserves_explicit_config(self):
+        from editor_app import default_editor_url
+        (self.root/'editor.json').write_text('{"studio_url":"http://127.0.0.1:18765"}')
+        self.assertEqual(default_editor_url(self.root),'http://127.0.0.1:18765')
     def test_start_uses_same_port_and_workspace_then_checks_receipt(self):
         process=Mock();process.poll.return_value=None
         with patch.dict(os.environ,{'RFD4_EDITOR_PYTHON':sys.executable},clear=True),patch('editor_app.httpx.get',side_effect=[httpx.ConnectError('down'),self.health,self.response()]),patch('editor_app.subprocess.Popen',return_value=process) as launch:

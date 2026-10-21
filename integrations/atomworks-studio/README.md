@@ -10,19 +10,19 @@ The app uses a bundled frontend rather than an HTTP iframe. No NGS plugin is req
 
 Install the toolkit plugin from this repository's `skills/bionemo-agent-toolkit`
 directory. Its `.mcp.json` starts separate app and agent servers using `uv` and
-Python 3.12. Prepare an independent CPU editor environment:
+Python 3.12. The launcher installs the pinned MCP and CPU editor requirements
+through `uv`; the first launch needs network access and may take longer. Opening
+Studio automatically selects and saves a local loopback address and starts the
+CPU editor. No editor environment variables, GPU, model weights or remote compute
+registration are needed to view and annotate the preloaded example. Gradio is
+not required. Later launches reuse the saved editor address and session store.
 
-```sh
-uv venv --python 3.12 /absolute/path/to/editor-env
-uv pip install --python /absolute/path/to/editor-env/bin/python -r integrations/atomworks-studio/editor-requirements.txt
-```
-
-Set `RFD4_EDITOR_PYTHON` to that environment's Python before starting the host.
-The server starts the editor service with session persistence and an OS lock;
-this does not install dependencies or start GPU compute. Alternatively, set
-`RFD4_EDITOR_URL` to an existing CPU Studio loopback service. Gradio is not required.
-`RFD4_STUDIO_PYTHON` optionally selects an already prepared MCP environment using
-`requirements.txt`. `RFD4_STUDIO_HOME` selects persistent state (default
+For custom installations, `RFD4_EDITOR_URL` or `editor.json` can select an existing
+compatible CPU editor. `RFD4_EDITOR_PYTHON` can select a separate editor environment
+prepared using `editor-requirements.txt`. `RFD4_STUDIO_PYTHON` bypasses `uv` and must
+provide `requirements.txt` plus `editor-requirements.txt` (unless a separate editor
+is configured). The editor runs locally and starts again on demand after a host
+restart. `RFD4_STUDIO_HOME` selects persistent state (default
 `~/.local/share/bionemo-rfd4`). Credentials stay in SSH/Brev configuration.
 
 Ask chat to open **RFD4-Proteina Studio**, then:
