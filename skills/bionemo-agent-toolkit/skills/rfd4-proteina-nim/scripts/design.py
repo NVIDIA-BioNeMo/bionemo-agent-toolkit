@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Submit an internal RFD4 NIM request, or prepare/extract it offline (stdlib only).
+"""Submit a public RFD4-Proteina NIM request, or prepare/extract it offline.
 
 Usage:
     python scripts/design.py --request request.json --output-dir new-run --dry-run
@@ -8,7 +8,8 @@ Usage:
 Arguments:
     --request: required JSON file with complete inline mmCIF inputs.
     --output-dir: required new artifact directory; existing paths are refused.
-    --mode: staging (default) or local. --base-url overrides RFD4_NIM_URL for local.
+    --mode: hosted (default) or local. Hosted uses NVIDIA_API_KEY, or NGC_API_KEY.
+    --base-url: overrides RFD4_NIM_URL for local; defaults to localhost:8000.
     --timeout: positive socket timeout in seconds (default 600).
     --dry-run: save and preflight offline. --response-json: extract a saved response
     offline. These two options are mutually exclusive. Use --help for all defaults.
@@ -43,9 +44,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-STAGING_URL = "https://buildapi.dev.ngc.nvidia.com/v2/predict/models/nvidia/rfd4-proteina"
+HOSTED_URL = "https://health.api.nvidia.com/v1/biology/ipd/rfd4-proteina/generative"
 API_PATH = "/biology/ipd/rfd4-proteina/generative"
-DEFAULT_LOCAL_BASE_URL = "http://localhost:6626"
+DEFAULT_LOCAL_BASE_URL = "http://localhost:8000"
 DEFAULT_TIMEOUT_SECONDS = 600
 NVCF_POLL_SECONDS = 300
 MAX_INLINE_FILENAME_LENGTH = 255
@@ -53,7 +54,7 @@ MAX_SEED = 2**63 - 1
 MAX_NUM_STEPS = 1000
 MAX_SEARCH_CHECKPOINTS = 21
 TASKS = {
-    "generation", "unconditional", "motif_scaffolding", "enzyme_design",
+    "generation", "motif_scaffolding", "enzyme_design",
     "small_molecule_binder", "antibody_design", "partial_diffusion", "inverse_folding",
 }
 
@@ -131,14 +132,12 @@ def validate_request(body: dict) -> None:
         check_references(spec)
         conditions = spec.get("conditions", {})
         require(isinstance(conditions, dict), "spec.conditions must be an object")
-        inert = set(conditions) & {"C_CDR", "C_ABH", "C_ABL", "cdr", "ab-heavy", "ab-light"}
-        require(not inert, f"Inert Ig conditions: {sorted(inert)}; hold framework with C_CRD and C_SEQ")
     sampling = body.get("sampling", {})
     require(isinstance(sampling, dict), "sampling must be an object")
     count = sampling.get("num_replicates", 1)
     integer(count, "sampling.num_replicates")
     if sampling.get("batch_size") is not None:
-        integer(sampling["batch_size"], "sampling.batch_size", upper=count)
+        integer(sampling["batch_size"], "sampling.batch_size")
     if sampling.get("seed") is not None:
         integer(sampling["seed"], "sampling.seed", 0, MAX_SEED)
     if sampling.get("num_steps") is not None:
@@ -150,9 +149,14 @@ def validate_request(body: dict) -> None:
     search = body.get("search")
     if search is not None:
         require(isinstance(search, dict), "search must be an object")
-        require(body["task"] != "inverse_folding", "inverse_folding does not support search")
-        require(sampling.get("batch_size") in (None, 1) and (count == 1 or sampling.get("batch_size") == 1),
-                "Search requires batch_size=1; set it explicitly when num_replicates > 1")
+        tags = search.get("reward_metrics_tags")
+        require(isinstance(tags, list) and tags and all(isinstance(tag, str) and tag for tag in tags),
+                "Search requires non-empty reward_metrics_tags")
+        weights = search.get("weights")
+        require(isinstance(weights, dict) and weights
+                and all(isinstance(key, str) and key and type(value) in (int, float) and math.isfinite(value)
+                        for key, value in weights.items()),
+                "Search requires metric.output_key weights with finite numeric values")
         points = search.get("step_checkpoints")
         require(isinstance(points, list) and 2 <= len(points) <= MAX_SEARCH_CHECKPOINTS
                 and all(type(x) is int for x in points) and points[0] == 0
@@ -164,9 +168,10 @@ def validate_request(body: dict) -> None:
 
 
 def endpoint(mode: str, base_url: str | None) -> str:
-    if mode == "staging":
+    require(mode in {"hosted", "local"}, "Choose hosted or local mode")
+    if mode == "hosted":
         require(base_url is None, "--base-url applies only to --mode local")
-        return STAGING_URL
+        return HOSTED_URL
     base = base_url or os.environ.get("RFD4_NIM_URL") or DEFAULT_LOCAL_BASE_URL
     parsed = urllib.parse.urlsplit(base)
     require(parsed.scheme in {"http", "https"} and parsed.hostname and not parsed.username
@@ -181,11 +186,25 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def post(url: str, payload: bytes, mode: str, timeout: float):
+def request_headers(mode: str) -> dict[str, str]:
+    """Load hosted credentials only for a live hosted submission, never for local."""
+    require(mode in {"hosted", "local"}, "Choose hosted or local mode")
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    if mode == "staging":
+    if mode == "hosted":
+        key = os.environ.get("NVIDIA_API_KEY") or os.environ.get("NGC_API_KEY")
+        require(isinstance(key, str) and bool(key.strip()),
+                "Set NVIDIA_API_KEY (or NGC_API_KEY) to your NVIDIA API key for hosted inference")
+        key = key.strip()
+        # Reject unsafe header bytes with a constant error, never one quoting the key.
+        require(all(33 <= ord(char) <= 126 for char in key),
+                "The API key must contain printable ASCII characters without whitespace")
+        headers["Authorization"] = f"Bearer {key}"
         headers["NVCF-POLL-SECONDS"] = str(NVCF_POLL_SECONDS)
-    request = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    return headers
+
+
+def post(url: str, payload: bytes, mode: str, timeout: float):
+    request = urllib.request.Request(url, data=payload, headers=request_headers(mode), method="POST")
     opener = urllib.request.build_opener(NoRedirect())
     try:
         response = opener.open(request, timeout=timeout)
@@ -202,8 +221,8 @@ def extract_result(body: dict, result: dict, output_dir: Path) -> dict:
     designs = result.get("designs")
     require(isinstance(designs, list) and designs, "Response has no designs; a scaffold/example response is not a result")
     errors, notices, records, fasta = [], [], [], []
-    expected_task = "generation" if body["task"] == "unconditional" else body["task"]
-    returned_task = "generation" if result.get("task") == "unconditional" else result.get("task")
+    expected_task = body["task"]
+    returned_task = result.get("task")
     if returned_task != expected_task:
         errors.append(f"Response task {result.get('task')!r} does not match {body['task']!r}")
     searching = body.get("search") is not None
@@ -296,7 +315,9 @@ def run(args) -> int:
                               "message": "202 is not completion. Preserve the request ID; no automatic POST retry or guessed polling URL."}))
             return 3
         if status is not None and status != HTTPStatus.OK:
-            hint = " Verify staging access with the service owner; registry credentials are separate." if status in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN} else ""
+            hint = (" Verify the NVIDIA API key and access to the selected service; "
+                    "registry access does not establish hosted API access."
+                    if status in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN} else "")
             raise ClientError(f"HTTP {status}; inspect response.raw. No automatic resubmission.{hint}")
         result = load_json(raw)
         save_json(output_dir / "response.json", result)
@@ -318,7 +339,7 @@ def run(args) -> int:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--request", type=Path, required=True, help="Complete JSON request, including inline mmCIF")
-    parser.add_argument("--mode", choices=("staging", "local"), default="staging")
+    parser.add_argument("--mode", choices=("hosted", "local"), default="hosted")
     parser.add_argument("--base-url", help=f"Local base URL; default RFD4_NIM_URL or {DEFAULT_LOCAL_BASE_URL}")
     parser.add_argument("--output-dir", type=Path, required=True, help="New directory; existing paths are never overwritten")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS,

@@ -1,53 +1,36 @@
 # Tasks and design controls
 
-## Contents
-
-- [Task selection](#task-selection)
-- [Sampling and reproducibility](#sampling-and-reproducibility)
-- [Partial diffusion](#partial-diffusion)
-- [Search](#search)
-- [Metrics and deployment limits](#metrics-and-deployment-limits)
+Grounded in the public [model card](https://build.nvidia.com/ipd/rfd4-proteina/modelcard)
+and [API schema](https://build.nvidia.com/ipd/rfd4-proteina), version 1.0.0.
+The running deployment remains authoritative for capability and resource limits.
 
 ## Task selection
 
-Task names select the sampler and validation rules. Conditions specify the
-biological problem. These seven names are not an exhaustive list of capabilities.
-
 | Task | Use |
 | --- | --- |
-| `generation` | New regions from noise, with any supplied conditions; includes protein/DNA target binders and peptide–MHC binders |
-| `motif_scaffolding` | Scaffold indexed motif segments |
-| `enzyme_design` | Scaffold unindexed catalytic/tip-atom motifs; retain required ligand context |
-| `small_molecule_binder` | Design around a ligand carried in the input |
-| `antibody_design` | Hold framework/antigen; leave selected CDR regions designable; also used for VHH examples |
-| `partial_diffusion` | Refine a supplied complete design/backbone from partway along the trajectory |
-| `inverse_folding` | Hold an existing backbone and generate sequence |
+| `generation` | Generate designable regions while preserving supplied conditions; includes monomers and conditioned protein binders. |
+| `motif_scaffolding` | Build a scaffold around indexed motif segments. |
+| `enzyme_design` | Scaffold an unindexed catalytic site. |
+| `small_molecule_binder` | Design around a ligand held in the input. |
+| `antibody_design` | Redesign selected CDRs on a fixed framework, optionally with an antigen. |
+| `partial_diffusion` | Refine a supplied design by restarting partway through generation. |
+| `inverse_folding` | Hold a backbone and generate sequence and side chains. |
 
-The older name `unconditional` is accepted as a legacy alias by the inspected
-source and normalized to `generation` with a warning. It does not mean that
-target conditioning is ignored. New requests should use `generation` on
-compatible deployments. Do not add `binder`, `nanobody`, or `tcr` task names.
-
-Use `C_CRD`, `C_SEQ`, and `C_HOT` to hold a target and mark an interface. Ig
-conditions `C_CDR`, `C_ABH`, `C_ABL`, `cdr`, `ab-heavy`, and `ab-light` are
-rejected because the pinned feature pipeline does not consume them. Cyclic
-conditioning is disabled on the inspected default pin; a linear output with
-copied cyclic annotations would not demonstrate ring closure. `C_SEC` is
-accepted by the inspected source for secondary structure. However, sample 25
-returned HTTP 422 on staging during authoring, with no field-level error
-exposed by the gateway. Source acceptance is not deployed success; resolve
-that discrepancy before recommending this sample for a live campaign.
+Use one of these seven published names. Protein binders use `generation` with
+appropriate target/binder conditions; a task name does not encode an epitope or
+hold a target by itself. Preserve framework, motif, ligand, and hotspot
+annotations actually supplied by the user.
 
 ## Sampling and reproducibility
 
-| `sampling` field | Inspected contract |
+| Field | Public contract |
 | --- | --- |
-| `num_replicates` | Integer >=1; default 1; current source has no fixed count cap |
-| `batch_size` | Optional integer >=1 and <=replicate count; omitted means all replicates in one batch |
-| `seed` | Optional integer 0 through `2**63-1`; omitted selects a new base seed |
-| `num_steps` | Optional integer 1–1000 in the schema; deployment and checkpoint can impose tighter bounds |
-| `recycle_strategy` | `thinking_low`, `thinking_medium`, `thinking_high` |
-| `recycle_schedule` | Custom `[[step_count, depth], ...]`; mutually exclusive with named strategy |
+| `sampling.num_replicates` | Positive integer; the deployment and GPU still limit practical request size. |
+| `sampling.batch_size` | Positive integer or omitted. Omission batches all requested replicates. Lower values trade throughput for memory and replay behavior. |
+| `sampling.seed` | Nonnegative base seed. With batch size 1, replicate i uses `(seed+i) % 2**63`. |
+| `sampling.num_steps` | Optional step count. Explicit steps without recycling request flat sampling; the loaded checkpoint can impose a higher minimum than the schema. |
+| `sampling.recycle_strategy` | Named recycle schedule. |
+| `sampling.recycle_schedule` | Explicit `[step_count, depth]` bands; cannot be combined with a named strategy. |
 
 | Named strategy | Steps | Trunk passes |
 | --- | ---: | ---: |
@@ -55,51 +38,41 @@ that discrepancy before recommending this sample for a live campaign.
 | `thinking_medium` | 60 | 185 |
 | `thinking_high` | 60 | 295 |
 
-Omitting all schedule fields inherits the checkpoint preset; on the validated
-staging deployment that is `thinking_medium`. Explicit `num_steps` alone
-requests flat sampling. On the inspected source, `num_steps` alongside a
-named strategy rescales its band widths and emits a warning; earlier source
-rejected this combination when counts differed. Custom bands must sum to
-`num_steps` if supplied, allow depths 0–32 and at most 64 bands, and receive
-a warning because their quality is unvalidated. Depth 0 still costs one pass.
+Use the public example's `thinking_medium` unless the user selects another
+schedule. The checkpoint default is also `thinking_medium`. Supplying a step
+count with a named strategy rescales its shape, and the response warns about
+the change; quality of such modified schedules is not established by this skill.
+For custom bands, an explicit step count must equal their sum. Record the
+returned schedule and warnings rather than assuming the request ran unchanged.
 
-Use named schedules without a conflicting explicit step count for normal
-requests. Unknown/retired strategy names can fall back with warnings on newer
-servers; acceptance does not mean that the requested schedule ran. Legacy
-`midpeak6_50` bands had a documented poly-alanine failure and should not be
-introduced as a speed optimization. This does not imply every 50-step schedule
-has identical behavior. Always report the returned schedule, not an assumption.
-
-With `batch_size=1`, replicate i uses `(seed+i) % 2**63`. A larger batch draws
-from one RNG stream: designs remain distinct but share a batch seed. Replay
-the whole request with the same batch size, including a smaller final batch.
-Retain input, weights, backend, software versions, and seeds; bitwise GPU
-determinism across runtimes is not guaranteed. Do not assume seeds identify
-single designs produced in a batch or under search.
+A batch uses a single random stream: designs can share a seed while differing
+from one another. Replay the whole batch with the same input, weights, backend,
+runtime, and batch size, including any smaller final batch. GPU determinism
+across runtimes is not guaranteed. Use batch size 1 when individual ordinary
+sampling replicates must be replayable.
 
 ## Partial diffusion
 
-`partial` is required only for `task="partial_diffusion"` and refused for
-other tasks. Use one of:
+`partial` is required for `partial_diffusion` and rejected for other tasks.
+Use `trajectory_fraction_steps` in `(0,1]`, or explicit `t_backbone` and
+`t_latent` values in `(0,1)`. A fraction is mutually exclusive with explicit
+modality times. `couple_partial_t` allows the missing modality time to be
+derived from the supplied one.
 
-- `{"trajectory_fraction_steps": 0.4}`: run 40% of the trajectory; valid range
-  `(0,1]`. Do not also send modality start times or `couple_partial_t`.
-- `{"t_backbone": 0.6, "t_latent": 0.7}`: explicit times, each strictly `(0,1)`.
-- One of those times with `"couple_partial_t": true`: derive the missing time.
+Supply an appropriate complete starting backbone. A motif-only template is
+not a substitute for a complete design. Inverse folding preserves backbone
+geometry and cannot repair every defect in the input.
 
-The tested BioIR response for fraction 0.4 reported 60 steps, 185 trunk passes,
-and null start times, despite `kind=partial`. This matches a response-builder
-limitation in the inspected source, not proof that the partial input was
-ignored. Do not use those reported values to estimate partial-run savings.
-
-Use a complete, finite starting backbone. Samples 09/10 use the upstream
-complete 2KL8 fixture; a motif-only input is not a substitute. Inverse folding
-holds backbone geometry and cannot repair defects already present in it.
+The public response contract describes executed steps and recycle bands after
+partial scaling. Retain the requested fraction/times and returned schedule.
+If they disagree, report that discrepancy and avoid making unsupported compute
+or adherence claims from the metadata alone.
 
 ## Search
 
-`search` is beam search over intermediate trajectories; requesting ordinary
-replicates does not enable it. Example 06 contains:
+Search branches and prunes trajectories at checkpoints. Asking for ordinary
+replicates does not enable search. An example from the published schema's
+reward fields, with a schedule consistent with `thinking_medium`, is:
 
 ```json
 {
@@ -112,52 +85,43 @@ replicates does not enable it. Example 06 contains:
 }
 ```
 
-Checkpoints start at 0, strictly increase, and end at the number of executed
-steps. Pin the schedule. The schema allows 2–21 checkpoints and 1–16 branches
-and beam width. Search requires `batch_size=1`; set it explicitly when
-`num_replicates>1` because the batching default is otherwise incompatible.
+Checkpoints start at 0, strictly increase, and end at the resolved integration
+step count. Pin the schedule when preparing search; partial scaling can change
+that endpoint. The schema permits 2–21 checkpoints and 1–16 branches and beam
+width. Use batch size 1 for the skill's reproducible search examples and inspect
+the deployed service's validation if combining optional settings.
 
-For partial diffusion with a fraction, the final checkpoint is
-`round(resolved_num_steps * trajectory_fraction_steps)` (24 for 60 × 0.4).
-Search with explicit modality start times is refused because the scaled step
-count depends on the model's schedule. Inverse folding does not support search.
+Reward weights name `metric.output_key` entries. Negative weights penalize;
+clip bounds limit their contribution before weighting. `reward_metrics_tags`
+enables scoring families independently of `metrics.tags`, which controls final
+reporting. Missing/null rewards are not zero, and the metric's chain context
+must match the intended design.
 
-Weights name actual `metric.output_key` entries, not metric tags. Negative
-weights penalize. `reward_metrics_tags` enables the metrics used while scoring;
-it is independent of `metrics.tags`, which controls final reporting. A missing
-or null reward metric can make candidates unscorable; do not substitute zero.
-Clip bounds apply before weighting, without changing reported metric values.
+`checkpoint_overrides` changes rewards at chosen checkpoints.
+`intermediate_save_min_reward` retains qualifying non-survivors in addition to
+the final beam. `scoring_chunk_size` bounds decoded candidates per scoring chunk.
+Keep `search_final` and `search_intermediate` separate when counting results.
 
-`checkpoint_overrides` can replace weights, clips, and reward tags at a listed
-checkpoint after zero. `intermediate_save_min_reward` also retains qualifying
-scoring rollouts; `scoring_chunk_size` bounds decode/scoring memory. Preserve
-the returned `origin` so retained rollouts are not confused with final winners.
-
-The deployment budgets approximately
+Approximate work is
 `beam_width * n_branch * (len(step_checkpoints)-1) * num_replicates` rollouts.
-Use the response's rollout report for actual work. Search designs share their
-replicate seed; replay the full search. `diagnostics.search_rollout_seed` is
-provenance and is not an independently settable replay handle.
+Read the returned search report for actual work. Seeds of individual search
+branches are provenance, not independently replayable requests; replay the
+entire search with the original configuration.
 
 ## Metrics and deployment limits
 
-Begin with the sample's tags or `metrics.tags=["design"]` for basic geometry.
-An omitted/empty tag list returns diagnostics without requested metric families.
-Use `hotspot_conditioning`, `interchain_interactions`, `cms`,
-`3d_coordinate_conditioning`, `unindexed`, `rasa_conditioning`, or
-`centroid_conditioning` only when relevant to the input. Inspect `/v1/tasks`
-and actual results for availability. `small_molecule_only` describes pure
-ligand generation upstream and can suppress protein geometry metrics; it is
-not the usual choice for protein design around a small molecule.
+Start with the public example's `metrics.tags=["design"]` for geometry metrics.
+The API also lists condition-specific families such as `hotspot_conditioning`,
+`interchain_interactions`, `3d_coordinate_conditioning`, `unindexed`, and `cms`.
+Select families relevant to the input and supported by the deployment.
+An empty tag list requests diagnostics without those metric families.
 
-Default deployments have no refolding oracle; `*_refolding`, `antibody`, and
-other oracle tags require an operator-enabled plugin. `developability` is
-unavailable in the inspected stock runtime. `ligand_interface` was removed;
-do not copy it from older samples. Availability and scientific usefulness are
-different questions, so report null/empty results and warnings honestly.
+The default product deployment serves non-oracle metrics. Refolding metrics
+require an operator-configured oracle; `model.oracle` identifies what actually
+ran. A published tag name does not guarantee the deployment has its dependencies
+or that a value is defined for the supplied structure.
 
-The inspected defaults are 1024 tokens, 200 integration steps, 600 trunk
-passes, a 32 MiB request, and 256 search rollouts. These are deployment values,
-not universal model limits. Read `runtime.limits` from the actual response.
-GPU memory also depends on token count and batch size; an uncapped replicate
-field does not mean an unlimited batch will fit.
+The public model card lists a 1024-token design limit. Read the actual response's
+`runtime.limits` for token, step, trunk-pass, request-size, and search-rollout
+limits. GPU memory depends on input size, batching, and decoding as well as the
+nominal number of designs. Server limits can be stricter than schema bounds.

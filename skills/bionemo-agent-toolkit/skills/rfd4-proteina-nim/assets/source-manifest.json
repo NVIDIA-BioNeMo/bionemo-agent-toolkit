@@ -1,68 +1,16 @@
 {
-  "repository": "https://gitlab-master.nvidia.com/bionemo/rfd4-proteina-nim",
-  "branch": "ntdo/oss-pipeline",
-  "commit": "67d600ba62f1219ed6516bb0c682e55d3b71c47c",
-  "copied_on": "2026-10-13",
+  "source_url": "https://build.nvidia.com/ipd/rfd4-proteina/deploy",
+  "source_section": "Step 3. Test the NIM \u2014 complete PD-1 binder request",
+  "retrieved_on": "2026-10-20",
+  "api_schema_version": "1.0.0",
+  "api_schema_url": "https://build.nvidia.com/ipd/rfd4-proteina",
+  "schema_sha256": "7bedd8a5fc7ee3026000f8ae62365e86dc9f66dd3c5d22eac430d046a38cb9b6",
+  "formatting": "JSON pretty-printed with two-space indentation and a final newline; the parsed request and inline mmCIF match the public example.",
   "files": [
     {
-      "path": "assets/requests/01_annotated_cif_enzyme.json",
-      "source_path": "sample_requests/01_annotated_cif_enzyme.json",
-      "sha256": "7e4b0725e750103e4461d2d46c218bdac343368fbf5dd8ff0349320b14f4576a"
-    },
-    {
-      "path": "assets/requests/02_condition_spec_monomer.json",
-      "source_path": "sample_requests/02_condition_spec_monomer.json",
-      "sha256": "bbd3170b0c306c90a9477df1c490264d6387f71dab9c0490a83a6151bc4e8b38"
-    },
-    {
-      "path": "assets/requests/03_replicates_seeded.json",
-      "source_path": "sample_requests/03_replicates_seeded.json",
-      "sha256": "ea3b7b6aa33947b44cb63aebf3f8841db20731f6b39a6879a5ccff72f49fb300"
-    },
-    {
-      "path": "assets/requests/04_motif_scaffolding_indexed.json",
-      "source_path": "sample_requests/04_motif_scaffolding_indexed.json",
-      "sha256": "9255dc8452d69ad54f18899729fee4f0eaa00dbe7eca6a848304ff4cfa7b13cd"
-    },
-    {
-      "path": "assets/requests/05_small_molecule_binder.json",
-      "source_path": "sample_requests/05_small_molecule_binder.json",
-      "sha256": "57c0475e4995d77530f0f0c315554a8f5cb593a89a3886db01c5364ed127c18a"
-    },
-    {
-      "path": "assets/requests/06_search_interchain.json",
-      "source_path": "sample_requests/06_search_interchain.json",
-      "sha256": "bdf099a8117dde7a3a5a0c16ede6db795df10c26d44f44554c5cd7dc3618b136"
-    },
-    {
-      "path": "assets/requests/09_partial_diffusion.json",
-      "source_path": "sample_requests/09_partial_diffusion.json",
-      "sha256": "ddea0a2653b712bdd56adf66a24e06ba2fb9a62ee9ef0c4924e95d326bcfbcdf"
-    },
-    {
-      "path": "assets/requests/10_inverse_folding.json",
-      "source_path": "sample_requests/10_inverse_folding.json",
-      "sha256": "03998f8a6f854662d28e2bfe9ff93279425b847454f3c2b6b579146781b3cdca"
-    },
-    {
-      "path": "assets/requests/11_antibody_design.json",
-      "source_path": "sample_requests/11_antibody_design.json",
-      "sha256": "5091cc0c355584585013e7e3ed1f47e7ca2981c657ad8dac8717bd76b6fb849c"
-    },
-    {
-      "path": "assets/requests/14_nanobody_cdr_design.json",
-      "source_path": "sample_requests/14_nanobody_cdr_design.json",
-      "sha256": "b65d97777145e654095a7b4d25e4df092633930723e2c06ae337de19dbeb4593"
-    },
-    {
       "path": "assets/requests/16_ppi_binder.json",
-      "source_path": "sample_requests/16_ppi_binder.json",
-      "sha256": "d078b5f89dd1d550f3d3e8ba5ab43c2adbef7b296b765086132b6653550f5b18"
-    },
-    {
-      "path": "assets/requests/25_secondary_structure_conditioning.json",
-      "source_path": "sample_requests/25_secondary_structure_conditioning.json",
-      "sha256": "1aeb5157d8f6815c2e45212ca1a902d31e4b12c5890f64686f1e9ff1674e210e"
+      "source_url": "https://build.nvidia.com/ipd/rfd4-proteina/deploy",
+      "sha256": "a66f921312b91b41b90be6846cd6c4e2f64a3cb1794149009e170e1bbbb51731"
     }
   ]
 }

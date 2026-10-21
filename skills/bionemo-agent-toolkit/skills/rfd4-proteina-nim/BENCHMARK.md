@@ -9,11 +9,11 @@ Recommended for publication based on the completed evaluation evidence in this r
 ## Evaluation Metadata
 
 - Skill: `rfd4-proteina-nim`
-- Evaluation date: 2026-10-13
+- Evaluation date: 2026-10-21
 - Evaluator version: `1.5.6`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-4-8`), Codex (`openai/openai/gpt-5.5`)
 - Tasks: 5 evaluation tasks (5 positive)
-- Dataset digest: `sha256:f0c2a36cb6f8e1c81678477d5b8b7fed33996d1a6b7f31320272009e6c953a36` (skill-evaluator-dataset-snapshot/1)
+- Dataset digest: `sha256:224e837bd6c72a2b1cbea7a74598bfd69f84f624ae408498e86b04c24da32e02` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -35,12 +35,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | Not available | 84.1% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | Not available | 80.0% → 80.0% (±0.0 points) |
-| Correctness | Not available | 32.0% → 84.0% (+52.0 points) |
-| Discoverability | Not available | 89.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | Not available | 35.0% → 76.5% (+41.5 points) |
-| Efficiency | Not available | 91.2% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 94.3% — baseline ran, but no comparable score was available; uplift unavailable | 82.6% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 90.0% → 100.0% (+10.0 points) | 70.0% → 80.0% (+10.0 points) |
+| Correctness | 60.0% → 100.0% (+40.0 points) | 76.0% → 88.0% (+12.0 points) |
+| Discoverability | 98.6% — baseline ran, but no comparable score was available; uplift unavailable | 90.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 43.5% → 84.0% (+40.5 points) | 44.5% → 76.5% (+32.0 points) |
+| Efficiency | 88.7% — baseline ran, but no comparable score was available; uplift unavailable | 78.6% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -52,19 +52,19 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 2,333,177 | 2,287,391 | +45,786 | +2.00% | skill 5/5; base 5/5 |
-| claude-code | condition-spec | 647,875 | 475,447 | +172,428 | +36.27% | skill 1/1; base 1/1 |
-| claude-code | local-rc-instructions | 105,080 | 347,202 | -242,122 | -69.74% | skill 1/1; base 1/1 |
-| claude-code | offline-search | 783,943 | 737,343 | +46,600 | +6.32% | skill 1/1; base 1/1 |
-| claude-code | oracle-and-pending | 63,527 | 347,543 | -284,016 | -81.72% | skill 1/1; base 1/1 |
-| claude-code | staging-enzyme | 732,752 | 379,856 | +352,896 | +92.90% | skill 1/1; base 1/1 |
-| codex | All cases | 624,263 | 3,021,821 | -2,397,558 | -79.34% | skill 5/5; base 5/5 |
-| codex | condition-spec | 66,307 | 90,244 | -23,937 | -26.52% | skill 1/1; base 1/1 |
-| codex | local-rc-instructions | 48,769 | 76,050 | -27,281 | -35.87% | skill 1/1; base 1/1 |
-| codex | offline-search | 249,759 | 374,076 | -124,317 | -33.23% | skill 1/1; base 1/1 |
-| codex | oracle-and-pending | 29,820 | 105,430 | -75,610 | -71.72% | skill 1/1; base 1/1 |
-| codex | staging-enzyme | 229,608 | 2,376,021 | -2,146,413 | -90.34% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 2,957,440 | 5,309,212 | -2,351,772 | -44.30% | skill 10/10; base 10/10 |
+| claude-code | All cases | 1,542,688 | 3,638,826 | -2,096,138 | -57.60% | skill 5/5; base 5/5 |
+| claude-code | condition-spec | 284,270 | 510,738 | -226,468 | -44.34% | skill 1/1; base 1/1 |
+| claude-code | hosted-binder | 662,255 | 2,544,484 | -1,882,229 | -73.97% | skill 1/1; base 1/1 |
+| claude-code | local-public-deployment | 99,156 | 30,469 | +68,687 | +225.43% | skill 1/1; base 1/1 |
+| claude-code | offline-search | 394,531 | 428,873 | -34,342 | -8.01% | skill 1/1; base 1/1 |
+| claude-code | oracle-and-pending | 102,476 | 124,262 | -21,786 | -17.53% | skill 1/1; base 1/1 |
+| codex | All cases | 714,208 | 1,763,466 | -1,049,258 | -59.50% | skill 5/5; base 5/5 |
+| codex | condition-spec | 97,175 | 88,550 | +8,625 | +9.74% | skill 1/1; base 1/1 |
+| codex | hosted-binder | 364,385 | 483,873 | -119,488 | -24.69% | skill 1/1; base 1/1 |
+| codex | local-public-deployment | 59,649 | 35,455 | +24,194 | +68.24% | skill 1/1; base 1/1 |
+| codex | offline-search | 151,422 | 1,038,202 | -886,780 | -85.41% | skill 1/1; base 1/1 |
+| codex | oracle-and-pending | 41,577 | 117,386 | -75,809 | -64.58% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 2,256,896 | 5,402,292 | -3,145,396 | -58.22% | skill 10/10; base 10/10 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. N/A means the relevant trajectory counters were not available; coverage is never estimated.
 
@@ -72,7 +72,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 4 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 13 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
 | Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 5 task(s) |
 
@@ -81,10 +81,12 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **MEDIUM** PII/phone_numbers: International phone number (`assets/requests/25_secondary_structure_conditioning.json:8`)
-- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/rfd4-proteina-nim/SKILL.md`)
+- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim/SKILL.md`)
+- **MEDIUM** QUALITY/quality_reliability: MCP skill lacks connection/error guidance (`skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim/SKILL.md`)
+- **MEDIUM** QUALITY/quality_efficiency: Deeply nested references in examples.md (`skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim/SKILL.md`)
+- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/rfd4-proteina-nim`)
 - **MEDIUM** SECURITY/Whitespace Padding (P9): Prompt Injection: U+0020 x121 (`assets/requests/16_ppi_binder.json:8`)
-- **LOW** SCRIPT_LINT/magic_numbers: design.py contains magic numbers (`skills/rfd4-proteina-nim/scripts/design.py`)
+- 8 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 

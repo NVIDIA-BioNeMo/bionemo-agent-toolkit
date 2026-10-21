@@ -1,52 +1,58 @@
-# Wire contract and transport
+# Public API contract and transport
 
-## Contents
+Sources: [RFD4-Proteina product page and API schema](https://build.nvidia.com/ipd/rfd4-proteina)
+and [local deployment example](https://build.nvidia.com/ipd/rfd4-proteina/deploy),
+checked October 20, 2026. The published OpenAPI document identifies version 1.0.0.
 
-- [Endpoints](#endpoints)
-- [Request envelope and inputs](#request-envelope-and-inputs)
-- [Response](#response)
-- [Errors and long requests](#errors-and-long-requests)
+## Endpoints and authentication
 
-## Endpoints
+Hosted inference:
 
-Use Nam's staging route:
-`https://buildapi.dev.ngc.nvidia.com/v2/predict/models/nvidia/rfd4-proteina`.
-POST JSON with `Content-Type: application/json` and `NVCF-POLL-SECONDS: 300`.
-No `Authorization` header is used by `sample_requests/run_staging_nvcf.sh`.
-Its curl timeout is 340 seconds; the bundled Python client allows 600 seconds
-per socket operation. These are client limits, not service completion promises.
+```text
+POST https://health.api.nvidia.com/v1/biology/ipd/rfd4-proteina/generative
+Authorization: Bearer <NVIDIA_API_KEY>
+Content-Type: application/json
+NVCF-POLL-SECONDS: 300
+```
 
-Staging submission uploads the complete JSON request, including every inline
-structure and design specification, to NVIDIA's remote internal staging
-service. The request has no Authorization header; this skill establishes no
-retention or logging guarantee for that service. Use inputs permitted on
-that destination. For data that must stay on the machine, use a local NIM
-on that machine. Do not change a user's chosen destination silently.
+Get a key using the product page and set `NVIDIA_API_KEY` in the environment.
+The bundled client also accepts `NGC_API_KEY` when `NVIDIA_API_KEY` is absent or
+empty. It never writes the Authorization header to its transport metadata or
+accepts the key as a CLI argument. Missing or malformed credentials fail before
+any network request. Offline modes do not read credentials.
 
-Local inference: `POST /biology/ipd/rfd4-proteina/generative`, with no `/v1`
-prefix. The upstream RC launcher maps host port 6626 to container port 8000.
-Use `/v1/health/ready` for readiness, `/v1/tasks` for task and metric discovery,
-and `/openapi.json` or `/docs` for that running image's schema. Some discovery
-fields were added after the RC; their absence is a version difference.
+Local inference:
 
-The source also documents an alternative authenticated
-`https://health.api.nvidia.com/v1/stg/biology/ipd/rfd4-proteina/generative` route.
-It uses a function-authorized NGC key and has different access rules. It is
-not the route in Nam's `run_staging_nvcf.sh`, and the bundled client does
-not switch to it or implement its credentials. Registry access does not prove
-function invocation access. No production endpoint is assumed by this skill.
+```text
+POST http://localhost:8000/biology/ipd/rfd4-proteina/generative
+Content-Type: application/json
+```
 
-## Request envelope and inputs
+No `/v1` prefix or API key is sent for local inference. `--base-url`, then
+`RFD4_NIM_URL`, override the local host and port. The base URL must not contain
+credentials, a query, fragment, or route. Hosted mode uses its fixed URL and
+rejects `--base-url` so a hosted credential cannot be sent to an alternate host.
 
-The top-level fields are `task`, `input`, `sampling`, `partial`, `search`,
-`metrics`, and `output`. Unknown fields are rejected by the server's strict
-Pydantic models. Task/schedule details live in `references/parameters.md`.
+Submission uploads the complete request, including inline structures and
+conditions, to the chosen service. Follow the product page's data-use terms;
+use only input data permitted at that destination. Selecting `local` is not
+proof of locality if its base URL points to another machine.
 
-The snippets below only write a local request. Its embedded file contents
-are uploaded if the request is subsequently submitted. Use only the input
-files selected for the task; `--dry-run` never uploads them.
+The helper makes one POST, refuses redirects, and does not retry automatically.
+Its default 600-second timeout is per socket operation, not a completion promise.
+The hold header asks the hosted service to wait up to 300 seconds before
+returning a pending response. For self-hosted capability discovery use
+`/v1/tasks`, `/openapi.json`, and `/v1/health/ready`.
 
-Canonical annotated-CIF request, built from a real user file:
+## Request envelope
+
+Fields are `task`, `input`, `sampling`, `partial`, `search`, `metrics`, and
+`output`; `task` and `input` are required. Unknown top-level fields are rejected.
+See [parameters](parameters.md) for the seven tasks and design controls.
+
+The public [PD-1 example](../assets/requests/16_ppi_binder.json) embeds a complete
+annotated mmCIF. To use a user-authored annotated input, construct a request
+locally from that file, preserving all annotations and molecular context:
 
 ```python
 import json
@@ -57,101 +63,82 @@ payload = {
     "task": "generation",
     "input": {
         "format": "annotated_cif",
-        "example_id": "target_design",
         "file": {"filename": source.name, "content": source.read_text()},
     },
-    "sampling": {"recycle_strategy": "thinking_medium", "num_replicates": 1, "seed": 42},
+    "sampling": {"recycle_strategy": "thinking_medium", "num_replicates": 1},
     "metrics": {"tags": ["design"]},
     "output": {"structure_format": "mmcif", "include_sequence": True},
 }
 Path("request.json").write_text(json.dumps(payload, indent=2) + "\n")
 ```
 
-This requires an already authored design specification in the mmCIF.
-Conditions are stored in extra `_atom_site` columns and other annotations.
-For unconditioned monomers the upstream input still contains a template with
-expandable segments. NaN coordinates in these input placeholders can be
-intentional; non-finite coordinates in generated output are a failure.
+This does not create conditioning in an ordinary mmCIF. The input must actually
+encode what is fixed and what is designable. Template regions can contain
+intentional NaN coordinates; generated output must have finite coordinates.
 
-For a JSON condition spec and ordinary mmCIF attachments:
+For an existing JSON condition spec, replace the input object:
 
 ```python
 spec = json.loads(Path("condition_spec.json").read_text())
-structures = [Path("target.cif")]  # Include every structure the spec references.
+structures = [Path("target.cif")]  # Every structure referenced by the user's spec.
 payload["input"] = {
     "format": "condition_spec",
-    "example_id": "conditioned_design",
     "spec": spec,
     "files": [{"filename": p.name, "content": p.read_text()} for p in structures],
 }
 Path("request.json").write_text(json.dumps(payload, indent=2) + "\n")
 ```
 
-`spec` is an object, not a YAML string or full Hydra configuration. If the
-supplied spec is YAML, parse it with a safe YAML loader first. `spec.input`
-must exactly match an attached filename; other nested structure references
-must also resolve to attachments. Filenames are bare names of at most 255
-characters, never server paths. `input_as_annotated_cif: true` tells the
-upstream converter to consume existing annotations (see example 02).
+`spec` is an object, not serialized YAML or a full training configuration.
+If supplied as YAML, parse it with a safe YAML parser first. Its `input` and
+other structure references must resolve to attached bare filenames, not server
+paths. Filenames are at most 255 characters. The helper performs basic
+attachment checks; the serving implementation validates the actual conditions.
 
-`C_CRD` holds coordinates, `C_SEQ` holds identities, and `C_HOT` marks hotspots.
-Selections refer to the actual input chains/residues; use the antibody and PPI
-examples to see concrete specifications. Do not invent selections for missing
-targets. Conversion to ordinary mmCIF alone does not create design conditions.
+The API accepts mmCIF, not PDB. Use a chemistry-aware conversion and preserve
+bonds, charges, and conditions if conversion is needed. Renaming a PDB file
+is insufficient. Public RFdiffusion fields such as `contigs`, `input_pdb`,
+`hotspot_res`, `diffusion_steps`, and `num_designs` do not belong in this envelope.
 
-PDB is not accepted in either dialect. The upstream guidance is
-`atomworks.io.parser.parse` followed by `to_cif_file`, with bond/charge checks.
-Use a chemistry-aware conversion for ligands and re-author missing conditions.
-Renaming a PDB or putting it in `file.content` is insufficient. The removed
-`contig_spec` dialect and scaffold's top-level `contigs` are not served.
-
-## Response
+## Response and output controls
 
 | Field | Meaning |
 | --- | --- |
-| `request_id`, `task`, `duration_ms` | Server job metadata; `request_id` can be the literal `local`, so also retain transport IDs/hashes |
-| `model` | Checkpoints, execution backend, device/dtype, and oracle list |
-| `runtime` | Package versions, GPU, acceleration settings, and deployed limits |
-| `schedule` | Reported steps, bands, trunk passes, and partial start times; see the BioIR partial-schedule caveat below |
-| `search` | Search report, or null; rollout counts are computational work, not design counts |
-| `designs[]` | Generated results with opaque `design_id`, `replicate_index`, `origin`, `seed` |
-| `designs[].structure` | `{format: "mmcif", filename, content}`, or null when suppressed |
-| `designs[].sequence` | One-letter sequence; `X` can represent non-protein tokens |
-| `designs[].metrics` | `metric.output_key` values; null is permitted |
-| `designs[].diagnostics` | Finite-coordinate flag, counts, batch size, optional CA RMSD and sequence recovery |
-| `designs[].chain_of_interest` | Context for `*_coi` metrics; not automatically the designed binder |
-| `designs[].search_reward` | Search selection score, or null outside search |
-| `aggregated_metrics[]` | `{metric, reduction, value, n}`; retain the denominator |
-| `warnings[]` | Nonfatal differences, unavailable metric results, schedule notices |
+| `request_id`, `task`, `duration_ms` | Job identity, selected task, and reported duration. Retain transport IDs and hashes as well. |
+| `model`, `runtime` | Checkpoints, backend, dtype, active oracles, software versions, hardware, and deployment limits. |
+| `schedule` | Reported integration steps, recycle bands, trunk passes, and partial start times. |
+| `search` | Search work report, or null for plain sampling. |
+| `designs[]` | Results with opaque IDs, replicate indices, origins, seeds, structures, sequences, metrics, and diagnostics. |
+| `designs[].structure` | `{format: "mmcif", filename, content}`, or null when suppressed. |
+| `designs[].diagnostics.all_coordinates_finite` | A false value marks an unusable design. The helper checks the flag; independent parsing is separate. |
+| `designs[].chain_of_interest` | Context for chain-specific metrics, not an automatic binder-chain assignment. |
+| `aggregated_metrics[]` | Reduced metric values and their contributing count `n`. |
+| `warnings[]` | Runtime notices and unavailable or adjusted behavior. |
 
-`output.structure_format` accepts `mmcif` (default) or `none`.
-`output.include_sequence` defaults to true. Output is not `output_pdb` or
-`elapsed_ms`. Standard responses already include provenance; optional
-`X-Include-Runtime-Metrics` requests stage timings from supporting servers.
-Shared batch/search forward timings must not be summed once per design.
+`output.structure_format` accepts `mmcif` or `none`;
+`output.include_sequence` defaults to true. Full sequence strings may include
+non-protein `X` tokens. The helper assigns safe local filenames rather than
+trusting server-supplied paths. It retains the original IDs and suggested names
+in `summary.json`.
 
-In the authoring smoke test, a partial request with fraction 0.4 returned
-`kind=partial` but still reported all 60 steps / 185 trunk passes and null
-start times. The inspected BioIR response builder uses the full sampling
-configuration for these fields. Preserve the values as reported metadata;
-they do not establish the executed partial trajectory's cost.
+The published schema describes partial schedules after fraction scaling. Compare
+request and response values and report any discrepancy; do not infer executed
+work or cost from inconsistent metadata. Search rewards and geometry metrics do
+not establish refolding confidence. `model.oracle` lists active predictors;
+there is no built-in refolding oracle in the documented API.
 
-## Errors and long requests
+## Errors and pending requests
 
-The NIM's own errors use
-`{"error":{"code":"schema_violation","message":"...","details":["..."]}}`.
-Gateway responses can instead be text/HTML. Preserve the raw body before
-parsing. Typical NIM codes include `invalid_request`, `invalid_input`,
-`request_too_large`, `out_of_memory`, `model_unavailable`,
-`pipeline_unavailable`, `oracle_unavailable`, `service_busy`, and `timeout`.
+NIM errors may carry `error.code`, `error.message`, and `error.details`; gateways
+may return another JSON shape or text/HTML. The helper saves the raw body before
+parsing it. An HTTP 200 with no designs or failed validation is not success.
 
-The Python helper makes one POST and refuses redirects. A 202 saves the body
-and `NVCF-REQID`/`X-Request-ID` when returned, exits 3, and leaves the job
-pending. Nam's script supplies no documented result-fetch URL for buildapi.
-Obtain a supported completion mechanism from the deployment owner before
-retrieving a pending job; do not guess a generic NVCF URL.
+HTTP 202 is pending. The helper retains `NVCF-REQID` and `X-Request-ID` when
+present and exits 3. The product's synchronous example does not specify a result
+retrieval route; use a documented completion mechanism for the actual deployment
+before polling. Do not invent a URL or re-POST to try to obtain a response.
 
-For 422, inspect the actual error: common causes include raw PDB, unattached
-structure references, wrong task or old fields, conflicting partial settings,
-unavailable oracle metrics, or search checkpoints inconsistent with the
-resolved schedule. A 200 without designs or a failed validation is not success.
+For 401/403, check key validity and product access. For 413, inspect deployment
+limits. For 422, check attachments, tasks, schedules, partial/search settings,
+and oracle availability. Preserve `Retry-After` on 429/503 and establish service
+state before another submission; changing the endpoint is not error recovery.

@@ -1,94 +1,95 @@
-# Examples and a diagnostic probe
+# Public request example
 
-All paths below are relative to the skill directory. Each bundled JSON carries
-its complete mmCIF; no upstream repository, GPU, or Python package is needed
-to prepare or submit a staging request. The files are unchanged copies, with
-source revision and SHA-256 hashes in `assets/source-manifest.json`.
+The bundled [PD-1 binder request](../assets/requests/16_ppi_binder.json) is the
+complete JSON example from the public
+[Deploy tab](https://build.nvidia.com/ipd/rfd4-proteina/deploy). It uses
+`generation`, annotated mmCIF with a fixed PD-1 target and designable binder,
+`thinking_medium`, one replicate, and `metrics.tags=["design"]`.
+The [manifest](../assets/source-manifest.json) records the public source and hash.
 
-| Request in `assets/requests/` | Task / purpose |
-| --- | --- |
-| `01_annotated_cif_enzyme.json` | Nam's first smoke example; annotated catalytic motif, `enzyme_design` |
-| `02_condition_spec_monomer.json` | Parsed spec dialect, attached annotated monomer template, `generation` |
-| `03_replicates_seeded.json` | Four generation replicates with a base seed |
-| `04_motif_scaffolding_indexed.json` | Two indexed motif scaffolds |
-| `05_small_molecule_binder.json` | Two designs around SAM |
-| `06_search_interchain.json` | SAM hydrogen-bond beam search without a refolding oracle |
-| `09_partial_diffusion.json` | Two refinements of a complete 2KL8 structure |
-| `10_inverse_folding.json` | Two sequence designs on the same complete backbone |
-| `11_antibody_design.json` | Trastuzumab H3 redesign against HER2, condition-spec dialect |
-| `14_nanobody_cdr_design.json` | Three VHH CDRs redesigned against PD-L1 |
-| `16_ppi_binder.json` | De novo binder against PD-1, `generation` with target/hotspot conditions |
-| `25_secondary_structure_conditioning.json` | Diagnostic probe only: source-valid, but HTTP 422 on tested staging |
+This example can be prepared without a GPU or credentials. Hosted execution
+requires `NVIDIA_API_KEY`; local execution requires a running NIM. It is a
+published example, not evidence that this skill revision has run production
+inference. Its target and annotations must not replace the user's own inputs.
 
-The other eleven bundled requests completed on staging during authoring.
-Example 06 returned a warning: a non-CCD `L;G` component caused three TMol
-interface metrics to be omitted; its search still completed. Preserve and
-report that warning, and repair chemistry using real CCD names if those
-metrics are needed. Do not silently rename the component to make it pass.
+## Prepare or submit
 
-Example 25's gateway response hid the field-level cause. Retain it as evidence
-for deployment/input debugging, not as a validated secondary-structure recipe.
-
-An example is a starting point for the specific structure it contains, not a
-replacement for the user's target. Preserve the full input and alter only the
-fields necessary to express the user's request. For a different protein or
-epitope, author corresponding conditions against that structure.
-
-## Nam's original commands
-
-In a checkout of `ntdo/oss-pipeline` containing `sample_requests/`:
+Run from the skill directory and use a new output directory for each command:
 
 ```bash
-cd /path/to/rfd4-proteina-nim/sample_requests
-./run_staging_nvcf.sh 01_annotated_cif_enzyme.json
-./run_staging_nvcf.sh 01_annotated_cif_enzyme.json --output response.json
+python scripts/design.py --mode hosted --dry-run \
+  --request assets/requests/16_ppi_binder.json \
+  --output-dir /tmp/rfd4-binder-prepared
 ```
 
-The first command prints the body followed by an `HTTP_STATUS:...` trailer,
-so its complete stdout is not one JSON document. Use `--output` for a body-only
-file. The upstream curl command lacks `--fail`; a zero shell exit by itself
-does not prove HTTP success. The skill client checks HTTP status explicitly.
+When execution is requested, remove `--dry-run` and choose another output
+directory. For an existing self-hosted service use `--mode local --base-url
+http://localhost:8000`. The hosted API includes `/v1` in its path; local inference
+does not. Credentials stay in environment variables, not JSON or CLI arguments.
 
-## Change count and seed without damaging the mmCIF
+## Change count and seed
+
+Preserve the complete structure while changing only the requested controls:
 
 ```bash
 python - <<'PY'
 import json
 from pathlib import Path
-p = json.loads(Path('assets/requests/16_ppi_binder.json').read_text())
-p['sampling'].update(num_replicates=3, batch_size=1, seed=42)
-Path('ppi-request.json').write_text(json.dumps(p, indent=2) + '\n')
+
+payload = json.loads(Path("assets/requests/16_ppi_binder.json").read_text())
+payload["sampling"].update(num_replicates=3, batch_size=1, seed=42)
+Path("ppi-request.json").write_text(json.dumps(payload, indent=2) + "\n")
 PY
-python scripts/design.py --mode staging --request ppi-request.json \
-  --output-dir /tmp/rfd4-ppi-prepared --dry-run
+python scripts/design.py --dry-run --request ppi-request.json \
+  --output-dir /tmp/rfd4-ppi-prepared
 ```
 
-This prepares a request only. `batch_size=1` permits replaying individual plain
-sampling replicates and reduces peak memory, at the cost of batching speed.
-To execute an authorized run, remove `--dry-run` and use a new output directory.
+`batch_size=1` allows ordinary sampling replicates to use the documented
+incrementing seeds. Changing batching changes replay behavior.
 
-For three independent searches, start from example 06 and set the same three
-sampling fields. Keep `thinking_medium` and checkpoints `[0,30,60]`; do not
-equate three replicates with three returned beam designs.
+## Prepare search
 
-## Export a response saved by Nam's script
+To prepare a search using the same public structure, add a `search` object
+as described in [parameters](parameters.md), using metric keys supported by
+that deployment. For the published interchain hydrogen-bond reward example:
+
+```python
+payload["sampling"].update(num_replicates=3, batch_size=1, seed=42)
+payload["search"] = {
+    "step_checkpoints": [0, 30, 60],
+    "n_branch": 2,
+    "beam_width": 2,
+    "reward_metrics_tags": ["interchain_interactions"],
+    "weights": {"interchain_interactions.hbond_atom_pair_count_coi": 1.0},
+    "clip_values": {"interchain_interactions.hbond_atom_pair_count_coi": {"max": 6.0}},
+}
+Path("search-request.json").write_text(json.dumps(payload, indent=2) + "\n")
+```
+
+This is a skill-authored adaptation of the public input and schema, not a
+captured successful search. Check reward availability and whether its chain of
+interest matches the intended binder. Use `--dry-run` when only preparation was
+requested. Final survivors and retained intermediates can outnumber replicates;
+replay the entire search to reproduce a result.
+
+## Other design problems
+
+The [public model card](https://build.nvidia.com/ipd/rfd4-proteina/modelcard)
+and [Deploy tab](https://build.nvidia.com/ipd/rfd4-proteina/deploy) describe
+motif, enzyme, small-molecule, antibody, nanobody, partial-diffusion, and
+inverse-folding designs. Supply a complete input expressing those conditions;
+changing the PD-1 example's task name does not create a valid input for another
+problem. For a user-provided condition spec, follow [the API reference](request-api.md).
+
+## Extract a saved response
 
 ```bash
 python scripts/design.py \
-  --request assets/requests/01_annotated_cif_enzyme.json \
+  --request /path/to/original-request.json \
   --response-json /path/to/response.json \
-  --output-dir /tmp/rfd4-enzyme-extracted
+  --output-dir /tmp/rfd4-extracted
 ```
 
 This performs no network request and records `source=saved_response`. Supply
-the exact request that produced the response; the helper can check basic
+the actual request that produced the response; the helper checks basic
 consistency but cannot independently authenticate that relationship.
-
-## More specialized upstream examples
-
-`sample_requests/07` and `08` demonstrate oracle search/refolding and require
-an enabled oracle; they are not stock-staging success examples. The upstream
-folder also contains peptide–MHC and TCR cases, RASA/H-bond/centroid conditions,
-reward overrides, retained search intermediates, and metric aggregation.
-Read their inputs and requirements at the source revision before using them.
-They are intentionally not all loaded into the skill entrypoint.

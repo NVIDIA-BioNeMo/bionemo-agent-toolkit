@@ -4,89 +4,70 @@
 
 Read `transport.json` first. `prepared_not_submitted`, `pending`, and `failed`
 are not completed inference. `source=saved_response` means extraction only.
-For a live run, retain the actual endpoint, timestamps, request/response hashes,
-HTTP status, and returned request IDs. Do not replace error bodies with example
-output or report a previous directory's artifacts as a new run.
+For a live run, retain the endpoint, timestamps, request/response hashes,
+HTTP status, and returned request IDs. Report actual generated artifacts,
+not example output or a previous directory's results.
 
 `summary.json` must have no `validation_errors`. The client checks nonempty
-designs, task consistency, plain-sampling count, origins, model/runtime/schedule
-objects, expected output presence, a basic mmCIF header, sequence text, and
-`diagnostics.all_coordinates_finite is true`. It does not parse the complete
-CIF or independently prove physical validity. Failed output remains available
-for diagnosis with `status=failed_validation`.
+designs, task consistency, ordinary-sampling count, origins, model/runtime/
+schedule objects, requested output presence, a basic mmCIF header, sequence
+text, and `diagnostics.all_coordinates_finite is true`. It does not parse the
+full CIF or independently prove physical validity. Failed output remains
+available with `status=failed_validation`.
 
-Verify each saved file exists and opens with a mmCIF-aware parser. Check that
-`_atom_site.Cartn_x/y/z` values are finite and atom/residue counts are plausible.
-Preserve annotated mmCIF for motif mapping; conversion to PDB can discard
-provenance, molecular context, and condition annotations.
+Open each structure with an mmCIF-aware parser. Check that atom-site coordinates
+are finite and atom/residue counts are plausible. Preserve annotated mmCIF for
+condition mapping; conversion to PDB can discard annotations and molecular
+context. The [public API](https://build.nvidia.com/ipd/rfd4-proteina) defines the
+response fields; the [model card](https://build.nvidia.com/ipd/rfd4-proteina/modelcard)
+explains the scope of its own functional tests.
 
 ## Biological conditions
 
-- Confirm target/framework coordinates and fixed identities were retained.
-  Check the conditions actually present in the request, not just its task name.
-- Designed chains can be renumbered. Follow annotations such as
-  `annotation_src-component_1_atom`, `mapped_to_coordinate_conditioned_region`,
-  and `is_unindexed_insertion` to find held motifs and insertions.
-- For binders, identify binder/target chains in the structure before reading
-  contact metrics or extracting sequences. `chain_of_interest` qualifies
-  `*_coi` results; an incompletely held target can influence them.
-- For antibodies, verify framework retention and loop changes. A missing
-  sidechain cannot be held at finite coordinates merely because the residue
-  exists; the upstream HER2 example leaves an unresolved sidechain free while
-  preserving its sequence.
-- For partial diffusion and inverse folding, inspect reported
-  `input_ca_rmsd_angstrom` and `sequence_recovery` when available. Their null
-  values are not zero RMSD or zero recovery. The input backbone's quality
-  limits what inverse folding can produce.
+- Confirm that the target, framework, and held motif coordinates and identities
+  were retained according to the actual input conditions.
+- Use input/output annotations to identify mapped residues and insertions;
+  generated chains can be renumbered. Do not derive chain identities from an
+  opaque design ID or assume the first returned sequence is only the binder.
+- For binders, establish target/binder chain mapping before interpreting contacts
+  or chain-specific metrics. Check whether `chain_of_interest` names the intended
+  designed chain.
+- For antibody or nanobody design, verify framework retention and loop changes.
+  Unresolved source atoms cannot be held at finite coordinates merely because
+  the residue appears in the input; preserve identity separately where needed.
+- For partial diffusion and inverse folding, inspect `input_ca_rmsd_angstrom`
+  and `sequence_recovery` when available. Null values mean unavailable results,
+  not zero RMSD or zero recovery. Compare requested and returned schedules and
+  report inconsistencies without guessing their cause.
 
-## Metrics and quality
+## Metrics and scientific quality
 
-Report returned geometry and condition-adherence metrics without inventing
-universal thresholds. In particular inspect clashes, unreasonable bond-length
-fractions, motif RMSD, sequence violations, and hotspot/contact adherence when
-those families apply. An all-finite structure can still have serious clashes,
-poor geometry, unsuitable sequence composition, or unmet design conditions.
+Report relevant geometry, clash, bond-length, motif, sequence-adherence, and
+interface metrics without inventing universal thresholds. Finite coordinates
+alone do not establish a physically sound or experimentally useful design.
 
-An empty metrics dictionary despite requested tags deserves a warning, even
-when the service supplied none. A dictionary of null values is also not a
-successful measurement. Upstream metrics can fail independently of generation;
-some tags have historically emptied the full dictionary, while others returned
-nulls. Inspect actual responses rather than assuming all historical failures
-remain present in the deployed version.
+An empty metrics dictionary despite requested tags deserves a warning. A null
+metric is not a measurement. `aggregated_metrics[].n` counts contributing
+values and may be smaller than the returned design count; include both counts.
+A `.pass` aggregate from two of ten designs is not a ten-design success rate.
 
-`aggregated_metrics[].n` counts contributing values. Missing/indeterminate
-values are excluded; when all values are unavailable, the aggregate row can
-be absent entirely. A `.pass` mean with `n=2` from ten designs describes those
-two, not a ten-design success rate. Include both denominator and total count.
+Keep final search survivors and retained intermediates separate. Compare search
+rewards only under compatible metric/weight configurations. Selection by a
+reward does not independently validate that same reward or experimental binding.
 
-Compare search rewards only within a compatible reward configuration. Keep
-`search_final` and `search_intermediate` separate. Search selection against a
-metric is not independent validation of that metric or of experimental binding.
+The documented API has no built-in refolding oracle. Inspect `model.oracle`
+and actual predictor results before reporting refolding confidence. Independent
+refolding, interface analysis, and experiments are separate evidence. Do not
+infer pLDDT from a search reward, a generic score, or a B-factor column.
 
-Independent refolding, interface analysis, and experiments are separate evidence.
-Do not infer pLDDT from a search reward, generic score, or the B-factor column.
-No stock refolding oracle means no built-in refolding result.
+## Report and reproduce
 
-## Reproduce and report
+Report request identity, destination and live/offline status, actual design
+count, artifact paths, backend and schedule, warnings, failed replicates,
+metric values with denominators, and whether independent validation ran.
+Keep full sequences in FASTA and label any displayed truncation as a preview.
 
-Report request identity, actual design count, structure/FASTA/summary paths,
-returned schedule and backend, warnings, failed replicates, relevant metric
-values and denominators, and whether independent validation was actually run.
-Keep full sequences in FASTA; label any displayed truncation as a preview.
-
-For reruns preserve the input bytes, weights, runtime, batch size, and seed.
-Search requires replaying the whole search. Save an edited request as a new
-artifact rather than silently changing the original.
-
-## Observed BioIR metadata caveat
-
-Sample 09 requested `partial.trajectory_fraction_steps=0.4` with the 60-step
-named schedule. Its response reported `kind=partial`, `num_steps=60`,
-`trunk_passes=185`, and `start_times=null`. The nominal fraction corresponds
-to 24 steps under the request contract. The inspected
-`nim/api/pipeline/bioir.py` response builder reports the full sampling bands
-and hardcodes null start times. Thus these fields do not establish actual
-partial-trajectory work. Report both request and returned metadata, identify
-the discrepancy, and avoid claiming either that all 60 steps executed or
-that partial conditioning was ignored. Independent mmCIF parsing and
-finite-coordinate checks passed, which is a separate observation.
+For reruns, preserve input bytes, weights, runtime, batch size, schedule, and
+seeds. Search requires replaying the whole search. Save an edited request as a
+new artifact and use a new output directory. Preserve pending/error diagnostics
+and establish service state before deciding to submit again.
