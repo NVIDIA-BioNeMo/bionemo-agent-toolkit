@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "batch_id": "current",
+  "candidates": [
+    "stale",
+    "timeout",
+    "missing"
+  ]
+}

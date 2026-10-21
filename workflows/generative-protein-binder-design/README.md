@@ -4,7 +4,7 @@ Two composable skills for de novo protein binder design. Each resolves a target 
 hotspots, generates binders, then runs an **independent** structure-prediction co-fold
 and ranks by interface metrics (ipTM / ipSAE / pLDDT / apo↔holo RMSD):
 
-- **[`complexa-binder-design/`](complexa-binder-design/SKILL.md)** — NVIDIA
+- **[`complexa-binder-design/`](../../workflow-skills/generative-protein-binder-design/complexa-binder-design/SKILL.md)** — NVIDIA
   **Proteina-Complexa** reward-guided co-design (binder sequence + structure together)
   with an AF2-reward gate, validated independently with Boltz2 / OpenFold3.
 - **[`protein-binder-design/`](protein-binder-design/SKILL.md)** — **RFdiffusion +

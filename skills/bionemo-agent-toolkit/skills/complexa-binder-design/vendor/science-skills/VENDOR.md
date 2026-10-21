@@ -36,7 +36,12 @@ package installed via `uv` inline-script metadata. To run standalone here with
   `fetch_json` / `fetch_bytes` / `stream_lines`, `HttpResponse`, `HttpError`
   interface), aliased as `http_client` so the rest of each file is unchanged.
 
-All AFDB / UniProt query logic is otherwise upstream-verbatim. Each modified file
+On 2026-10-08, the UniProt adapter was further modified to enforce bounded
+records, pages, response/decompressed bytes, mapping polls and request rate.
+Its `stream` command now uses bounded search pages and accepts `--limit`.
+The UniProt README was condensed to describe these local limits and Python-only
+usage, retaining links to the data terms and documenting the campaign notice.
+AFDB query logic is otherwise upstream-verbatim. Each modified file
 carries a `# MODIFIED for bionemo-nim-skills` note. `analyze_*.py` are verbatim.
 
 ## Structural changes

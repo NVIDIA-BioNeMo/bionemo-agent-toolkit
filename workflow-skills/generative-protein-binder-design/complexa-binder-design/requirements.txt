@@ -1,0 +1,4 @@
+# Tested helper environment (Python 3.12+); install Complexa itself separately.
+numpy==2.5.1
+biotite==1.7.1
+PyYAML==6.0.3
