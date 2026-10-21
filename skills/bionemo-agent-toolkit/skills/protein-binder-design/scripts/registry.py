@@ -1,6 +1,14 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
-"""Benchmark target registry loader (reads assets/targets.json)."""
+"""Benchmark target registry loader (default: the empty assets/targets.json template).
+
+Usage: Import load_registry or get_target; no command-line API.
+Arguments: Optional registry JSON path; get_target also takes a target name or alias.
+Output: Parsed registry or matching target dictionary; no files are written.
+Exit codes: Not applicable to this library; missing targets raise KeyError,
+    malformed JSON and unreadable paths raise their standard Python exceptions.
+"""
 from __future__ import annotations
 
 import json

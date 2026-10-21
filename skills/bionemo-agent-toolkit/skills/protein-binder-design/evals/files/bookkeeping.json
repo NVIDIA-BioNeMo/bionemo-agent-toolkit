@@ -1,0 +1,125 @@
+{
+  "provenance": "Synthetic software bookkeeping fixture. Scores and thresholds are illustrative, not predictions or scientific validation. No target structure, biological sequences, model output, or endpoint access is represented.",
+  "target": {
+    "name": "synthetic bookkeeping fixture"
+  },
+  "profiles": [
+    {
+      "name": "iptm",
+      "rank_by": "iptm",
+      "filters": {
+        "iptm_min": 0.8,
+        "binder_plddt_min": 80,
+        "self_consistency_rmsd_max": 2.0
+      },
+      "candidates": [
+        {
+          "id": "boundary",
+          "scores": {
+            "iptm": 0.8,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "below",
+          "scores": {
+            "iptm": 0.79,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "best",
+          "scores": {
+            "iptm": 0.9,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "control",
+          "scores": {
+            "iptm": 0.99,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": true,
+          "control_type": "scrambled"
+        },
+        {
+          "id": "pending",
+          "scores": {
+            "iptm": 0.95
+          },
+          "is_control": false
+        }
+      ]
+    },
+    {
+      "name": "boltz2",
+      "rank_by": "boltz2_confidence",
+      "filters": {
+        "iptm_min": null,
+        "binder_plddt_min": 80,
+        "self_consistency_rmsd_max": 2.0,
+        "boltz2_confidence_min": 0.8
+      },
+      "candidates": [
+        {
+          "id": "boundary",
+          "scores": {
+            "boltz2_confidence": 0.8,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "below",
+          "scores": {
+            "boltz2_confidence": 0.79,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "best",
+          "scores": {
+            "boltz2_confidence": 0.9,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": false,
+          "control_type": null
+        },
+        {
+          "id": "control",
+          "scores": {
+            "boltz2_confidence": 0.99,
+            "binder_plddt": 85,
+            "self_consistency_rmsd": 1.0
+          },
+          "is_control": true,
+          "control_type": "scrambled"
+        },
+        {
+          "id": "pending",
+          "scores": {
+            "boltz2_confidence": 0.95
+          },
+          "is_control": false
+        }
+      ]
+    }
+  ]
+}

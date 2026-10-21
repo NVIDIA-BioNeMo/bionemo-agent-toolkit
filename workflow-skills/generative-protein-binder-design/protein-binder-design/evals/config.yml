@@ -1,0 +1,18 @@
+schema_version: 1
+
+harbor:
+  task_source: evals_json
+  # Use the existing sandbox image; install identical CPU dependencies into a
+  # writable virtual environment in both conditions before the agent starts.
+  pre_agent_setup:
+    - python3 /workspace/input/setup_eval_env.py
+  agents:
+    claude-code:
+      model: aws/anthropic/bedrock-claude-opus-5
+  # The active dataset uses staged synthetic bookkeeping and workflow inputs only.
+  # Deferred live campaigns must supply fixtures before they are re-enabled.
+
+grading:
+  mode: aces_plus_custom
+  custom_metrics:
+    - artifact_correctness

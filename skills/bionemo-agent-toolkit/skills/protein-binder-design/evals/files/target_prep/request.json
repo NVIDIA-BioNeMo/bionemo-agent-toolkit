@@ -1,0 +1,22 @@
+{
+  "provenance": "Synthetic toy PDB, no real target or inference.",
+  "structure": "target.pdb",
+  "chain": "E",
+  "requests": [
+    {
+      "id": "present",
+      "hotspots": [
+        "42",
+        "77"
+      ]
+    },
+    {
+      "id": "missing",
+      "hotspots": [
+        "43"
+      ]
+    }
+  ],
+  "model": 1,
+  "alternate_location_policy": "Prefer blank; otherwise highest occupancy; break ties by lexicographic altloc."
+}

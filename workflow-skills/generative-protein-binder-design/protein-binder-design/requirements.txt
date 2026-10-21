@@ -1,0 +1,4 @@
+# Tested helper environment (Python 3.10-3.13); matches Tier 3 pre-agent setup.
+numpy==2.2.6
+biotite==1.2.0
+requests==2.34.2
