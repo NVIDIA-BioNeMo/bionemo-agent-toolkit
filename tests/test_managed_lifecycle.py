@@ -188,7 +188,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.provider.calls,1)
 
     def test_identity_get_failure_releases_without_power_mutation(self):
-        from brev_control import NotDispatched
+        from brev_provider import NotDispatched
         with patch.object(self.provider,'dispatch',side_effect=NotDispatched('identity_unverified','No mutation sent')):
             with self.assertRaises(NotDispatched):self.service.execute_start(self.op,self.review['review_checksum'])
         result=self.service.managed.operation(self.op)

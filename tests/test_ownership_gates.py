@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from service import Service
-from core import Backend
+from service import Backend
 from executor_ownership import checksum
 from ownership_operation import OwnershipRequired
 
@@ -50,7 +50,7 @@ class OwnershipGateTests(unittest.TestCase):
     def test_ownership_change_after_review_blocks_job_acceptance(self):
         self.remote_owner=self.b.ownership_identity(self.ids[1]);plan=self.plan(self.b)
         self.remote_owner=self.a.ownership_identity(self.ids[0])
-        with patch.object(self.b,'check_compute',return_value={'state':'ready'}),patch('core.subprocess.Popen') as spawn:
+        with patch.object(self.b,'check_compute',return_value={'state':'ready'}),patch('service.subprocess.Popen') as spawn:
             with self.assertRaisesRegex(OwnershipRequired,'different executor'):self.b.execute(plan['snapshot_id'],plan['plan_checksum'])
             spawn.assert_not_called()
         self.assertFalse((self.b.state/plan['snapshot_id']/'job.json').exists())

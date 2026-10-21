@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
-from core import Backend,safe_id
+from service import Backend, safe_id
 
 
 def run_worker(root, job_id, *, accepted_plan_checksum=None):

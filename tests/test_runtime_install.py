@@ -1,8 +1,41 @@
-import json,sys,tempfile,unittest
+import hashlib,json,sys,tempfile,unittest,zipfile
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
+from runtime_setup import bootstrap
+
+class BootstrapTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);self.wheel=self.root/'source.whl'
+        with zipfile.ZipFile(self.wheel,'w') as z:
+            z.writestr('release.data/scripts/uv',b'pinned-executable')
+            z.writestr('../../must-not-extract',b'bad')
+        self.spec={'url':'https://example.invalid/pinned.whl','size':self.wheel.stat().st_size,
+                   'digests':{'sha256':hashlib.sha256(self.wheel.read_bytes()).hexdigest()},
+                   'binary_member':'release.data/scripts/uv','binary_size':len(b'pinned-executable'),
+                   'binary_sha256':hashlib.sha256(b'pinned-executable').hexdigest()}
+    def download(self,url,dest,expected):dest.write_bytes(self.wheel.read_bytes())
+    def test_only_verified_binary_is_published_and_reused(self):
+        output=bootstrap(self.root/'tools',self.spec,self.download)
+        self.assertEqual(output.read_bytes(),b'pinned-executable')
+        self.assertEqual(output.stat().st_mode & 0o777,0o700)
+        self.assertFalse((self.root/'must-not-extract').exists())
+        self.assertEqual(bootstrap(self.root/'tools',self.spec,self.download),output)
+    def test_modified_binary_and_archive_cannot_execute(self):
+        wrong=dict(self.spec,binary_sha256='0'*64)
+        with self.assertRaisesRegex(ValueError,'checksum'):bootstrap(self.root/'tools',wrong,self.download)
+        self.assertFalse((self.root/'tools/uv').exists())
+        wrong=dict(self.spec,digests={'sha256':'0'*64})
+        with self.assertRaisesRegex(ValueError,'pinned release'):bootstrap(self.root/'tools',wrong,self.download)
+    def test_existing_symlink_not_overwritten(self):
+        tools=self.root/'tools';tools.mkdir();(tools/'uv').symlink_to(self.wheel)
+        with self.assertRaisesRegex(ValueError,'symlink'):bootstrap(tools,self.spec,self.download)
+        self.assertTrue((tools/'uv').is_symlink())
+
+import json,sys,tempfile,unittest
 from unittest.mock import Mock,patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
-import runtime_install as installer
+import runtime_setup as installer
 
 class LockedInstallTests(unittest.TestCase):
  def setUp(self):
@@ -115,3 +148,47 @@ class PublicDependencyProfileTests(unittest.TestCase):
    artifact=profile['native_wheel_artifacts'][name]
    self.assertIn('cp312-cp312-manylinux_2_28_x86_64.whl',artifact['filename'])
    self.assertIn('--hash=sha256:'+artifact['sha256'],installer.LOCK.read_text())
+
+"""Real CPU parser checks; run with the Studio/Biotite environment."""
+import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
+from runtime_setup import VALIDATE
+
+@unittest.skipUnless(importlib.util.find_spec('biotite'), 'Requires the Studio Biotite environment')
+class SmokeParserTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);self.output=self.root/'output';self.output.mkdir()
+    def make_cif(self,finite=True):
+        import biotite.structure as structure
+        from biotite.structure.io.pdbx import CIFFile,set_structure
+        atoms=structure.AtomArray(1)
+        atoms.coord[:]=[[1,2,3] if finite else [float('nan'),2,3]]
+        atoms.chain_id[:]='A';atoms.res_id[:]=1;atoms.res_name[:]='GLY'
+        atoms.atom_name[:]='CA';atoms.element[:]='C';atoms.hetero[:]=False
+        cif=CIFFile();set_structure(cif,atoms);cif.write(self.output/'design.cif')
+    def validate(self):
+        return subprocess.run([sys.executable,'-c',VALIDATE,str(self.output)],capture_output=True,text=True)
+    def test_real_cif_is_parsed_and_hashed(self):
+        self.make_cif();result=self.validate()
+        self.assertEqual(result.returncode,0,result.stderr)
+        evidence=json.loads(result.stdout)['structures'][0]
+        self.assertEqual(evidence['atoms'],1);self.assertEqual(len(evidence['sha256']),64)
+    def test_nonfinite_coordinates_fail(self):
+        self.make_cif(False);self.assertNotEqual(self.validate().returncode,0)
+    def test_missing_output_fails(self):
+        self.assertNotEqual(self.validate().returncode,0)
+    def test_malformed_output_fails(self):
+        (self.output/'design.cif').write_text('not a structure')
+        self.assertNotEqual(self.validate().returncode,0)
+    def test_symlink_output_fails(self):
+        self.make_cif();(self.output/'design.cif').rename(self.root/'external.cif')
+        (self.output/'design.cif').symlink_to(self.root/'external.cif')
+        self.assertNotEqual(self.validate().returncode,0)
+
+if __name__ == "__main__": unittest.main()

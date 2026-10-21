@@ -10,7 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomwork
 from service import Service
 from setup_operation import setup_expected,checksum
 from execution_payload import publish_payload
-from toolchain_launch import BUNDLE_FILES
+from toolchain_process import BUNDLE_FILES
 from ownership_test_support import assume_owned
 
 DRIVER=r'''

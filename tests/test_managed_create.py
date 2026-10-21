@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from service import Service
-from brev_control import creation_payload
+from brev_provider import creation_payload
 
 SPEC={'type':'available-a100','cloudCredId':'cloud-ref','provider':None,'location':None,'subLocation':None,'basePrice':{'currency':'USD','amount':'2.0'},'supportedStorage':[],'supportedGpus':[{'name':'A100','count':1,'memoryBytes':{'value':'80','unit':'GB'}}],'supportedArchitectures':['x86_64'],'stoppable':True}
 
@@ -29,7 +29,7 @@ class CreationTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.s=Service(self.temp.name);self.provider=Provider()
-        patcher=patch('create_operation.Brev',return_value=self.provider);patcher.start();self.addCleanup(patcher.stop)
+        patcher=patch('lifecycle.Brev',return_value=self.provider);patcher.start();self.addCleanup(patcher.stop)
         self.op=self.s.begin_setup('demo')['id']
         self.review=self.s.prepare_compute_creation(self.op,'org','available-a100')
     def execute(self):return self.s.execute_compute_creation(self.op,self.review['review_checksum'])

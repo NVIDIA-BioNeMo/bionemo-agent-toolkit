@@ -65,7 +65,7 @@ class Compute:
 
     def compute_config_path(self, session_id=None):
         if session_id is None: return self.root/'config.json'
-        from core import safe_session
+        from service import safe_session
         directory = self.root/'sessions'
         directory.mkdir(exist_ok=True, mode=0o700)
         return directory/(safe_session(session_id)+'.compute.json')
@@ -106,12 +106,12 @@ class Compute:
     def target_exec(self,cfg,command,timeout=60):
         kind=cfg.get('kind','brev')
         if kind in ('brev','ssh'):
-            from ssh_transport import execute
+            from registry import execute
             return execute(cfg,command,self.run,timeout)
         return self.run(['bash','-lc',command],timeout)
 
     def refresh_compute_access(self,operation_id,machine_id):
-        from access_refresh import refresh
+        from registry import refresh
         return refresh(self,operation_id,machine_id)
 
     def refresh_selected_compute_access(self,session_id,expected_revision):
@@ -124,13 +124,13 @@ class Compute:
         return self.refresh_compute_access(operation['id'],cfg['target_id'])
 
     def recover_compute_access(self,operation_id):
-        from access_refresh import recover
+        from registry import recover
         return recover(self,operation_id)
 
     def target_copy(self,cfg,source,destination,download=False,timeout=180):
         kind=cfg.get('kind','brev')
         if kind in ('brev','ssh'):
-            from ssh_transport import copy
+            from registry import copy
             return copy(cfg,source,destination,download,self.run,timeout)
         src,dst=Path(source),Path(destination)
         if src.is_dir(): shutil.copytree(src,dst/src.name,dirs_exist_ok=True)
@@ -171,7 +171,7 @@ class Compute:
         operation=data['machines'][machine_id].get('runtime_setup_operation')
         if not operation:return False
         op=data['operations'].get(operation,{})
-        acceptance=data['machines'][machine_id].get('setup_acceptance',{})
+        acceptance=data['machines'][machine_id].get('setup_operation',{})
         return (op.get('state')!='succeeded' or op.get('review',{}).get('phase')=='prepare_archives'
                 or acceptance.get('operation_id')!=operation or acceptance.get('stage')!='accepted'
                 or acceptance.get('ready') is not True)
@@ -225,7 +225,7 @@ class Compute:
                 'detail': 'Inspect the selected saved machine and continue the intended connection/setup action. A prior shutdown does not cancel a new request. A running dedicated Brev machine can use dedicated-user execution without a privileged ownership claim; verify its physical identity and live runtime. Existing ownership-bound machines and historical jobs keep their committed-owner checks. Stopped-machine lifecycle safeguards are unchanged; provider visibility or a reused name is insufficient. This request does not authorize claiming, provisioning or stopping.'}
 
     def check_compute(self, session_id=None):
-        from core import REVISION
+        from service import REVISION
         selection, cfg = self.selected_compute(session_id)
         if cfg is None:
             return self.compute_status(session_id)

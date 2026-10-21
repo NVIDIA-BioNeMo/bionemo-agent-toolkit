@@ -115,6 +115,13 @@ transparent green-eye/white-wordmark SVG; NVIDIA branding remains subject to tra
 terms (source attribution in the development integration's `host/BRANDING.md`). Build provenance and third-party notices must
 remain with the bundled viewer.
 
+The Python controller is organized by responsibility: `service.py` owns planning
+and submission; `registry.py`, `brev_provider.py` and `lifecycle.py` handle compute;
+`editor_app.py` wraps the CPU editor. Runtime setup, frozen payloads and privileged
+helpers retain separate execution boundaries. Related tests use the same feature
+groupings. Authored source/test files stay below 1,000 lines; generated viewer assets
+and dependency locks are retained intact.
+
 ## Validation scope
 
 Real Codex testing passed on the existing Brev A100: connect/readiness,

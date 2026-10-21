@@ -35,7 +35,7 @@ class ManagedSetupTests(unittest.TestCase):
         return [str(Path(self.review['remote_root'])/'model-bundle'/item['name'])
                 for item in self.review['recipe']['model_bundle']['files']]
     def receipt(self):
-        from setup_acceptance import REQUIRED
+        from setup_operation import REQUIRED
         return {'operation_id':self.op,'recipe_id':self.review['recipe_id'],'recipe_checksum':self.review['recipe_checksum'],
                 'stage':'accepted','ready':True,
                 'weight_paths':self.bundle_paths(),
@@ -216,7 +216,7 @@ class ManagedSetupTests(unittest.TestCase):
         self.assertEqual(len(self.s.managed.machine(self.machine)['config']['weight_paths']),2)
 
     def test_public_bundle_paths_are_accepted_only_for_the_reviewed_bundle(self):
-        from setup_acceptance import validate
+        from setup_operation import validate
         expected=self.bundle_paths()
         self.assertEqual(validate(self.review,self.receipt()),expected)
         self.assertEqual(expected,['/srv/rfd4/model-bundle/config.json',
@@ -231,7 +231,7 @@ class ManagedSetupTests(unittest.TestCase):
                     validate(self.review,receipt)
 
     def test_incomplete_smoke_evidence_cannot_commit_readiness(self):
-        from setup_acceptance import validate
+        from setup_operation import validate
         changes=[lambda x:x.pop('recipe_checksum'),
                  lambda x:x.pop('post_smoke_evidence'),
                  lambda x:x['post_smoke_evidence']['checks'].update(source=False),

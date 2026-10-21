@@ -65,7 +65,7 @@ class PublicSetupContractTests(unittest.TestCase):
             review=service.prepare_runtime_setup(operation,machine)
         self.assertEqual(review['recipe']['install_mode'],'public_wheels')
         self.assertFalse(review['prerequisite_requires_sudo'])
-        for name in ('generation.py','public_model_bundle.py','public_prerequisite.py'):
+        for name in ('runtime_recipe.py','public_model_bundle.py','public_prerequisite.py'):
             self.assertIn(name,review['files'])
         frozen=service.state/operation/'setup-payloads'/review['review_checksum']
         isolated=self.root/'remote-payload'
@@ -74,9 +74,9 @@ class PublicSetupContractTests(unittest.TestCase):
         result=subprocess.run([sys.executable,'-I','-B','-c',code,str(isolated),review['review_checksum'],review['remote_root'],operation],check=True,capture_output=True,text=True,cwd=self.root)
         self.assertIn('imports and validates',result.stdout)
         # This must detect precisely the staging omission found during migration.
-        (isolated/'generation.py').unlink()
+        (isolated/'runtime_recipe.py').unlink()
         missing=subprocess.run([sys.executable,'-I','-B','-c',code,str(isolated),review['review_checksum'],review['remote_root'],operation],capture_output=True,text=True,cwd=self.root)
         self.assertNotEqual(missing.returncode,0)
-        self.assertIn('generation',missing.stderr)
+        self.assertIn('runtime_recipe',missing.stderr)
 
 if __name__=='__main__':unittest.main()

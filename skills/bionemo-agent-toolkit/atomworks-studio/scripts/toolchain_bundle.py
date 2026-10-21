@@ -7,7 +7,7 @@ import shutil
 import stat
 import uuid
 from toolchain_paths import protected_directory
-from toolchain_launch import BUNDLE_FILES,verify_bundle
+from toolchain_process import BUNDLE_FILES, verify_bundle
 
 
 def publish_bundle(base,source,hashes):

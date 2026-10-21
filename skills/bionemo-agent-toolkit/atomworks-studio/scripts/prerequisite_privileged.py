@@ -8,9 +8,7 @@ import json
 from pathlib import Path
 import subprocess
 
-MODULES=('toolchain_paths','remote_job','toolchain_plan','toolchain_review',
-         'toolchain_archives','toolchain_scope','toolchain_stage','toolchain_launch',
-         'toolchain_bundle','toolchain_owner','toolchain_recovery')
+MODULES=('toolchain_paths','remote_job','toolchain_review','toolchain_process','toolchain_bundle')
 
 BOOTSTRAP=r'''
 import sys,json,hashlib,types,os
@@ -27,11 +25,11 @@ for name in payload['modules']:
     sys.modules[name]=module
     exec(compile(payload['sources'][name],module.__file__,'exec'),module.__dict__)
 from toolchain_paths import protected_directory,read_record
-from toolchain_launch import BUNDLE_FILES,launch
+from toolchain_process import BUNDLE_FILES,launch
 from toolchain_bundle import publish_bundle
-from toolchain_owner import publish
-from toolchain_recovery import recover_preparation
-from toolchain_scope import observe
+from toolchain_process import publish
+from toolchain_process import recover_preparation
+from toolchain_process import observe
 from remote_job import pending_machine_package
 base=Path('/var/lib/bionemo-rfd4/prerequisites')
 bundles=Path('/var/lib/bionemo-rfd4/helpers')

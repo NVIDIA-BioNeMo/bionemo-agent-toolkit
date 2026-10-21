@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 import runtime_recipe
-from generation import runtime_overrides
+from runtime_recipe import runtime_overrides
 import test_runtime_recipe as legacy_tests
 
 class PublicProbeContractTests(legacy_tests.RecipeTests):

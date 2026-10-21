@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from service import Service
-from studio_bridge import validate_route
+from editor_app import validate_route
 
 class ComputeContract(unittest.TestCase):
     def setUp(self):

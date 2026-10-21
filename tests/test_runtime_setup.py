@@ -246,7 +246,7 @@ class SetupTests(unittest.TestCase):
 class SetupReviewBindingTests(unittest.TestCase):
     def setUp(self):
         from runtime_recipe import RECIPE
-        from toolchain_launch import BUNDLE_FILES
+        from toolchain_process import BUNDLE_FILES
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name);self.scripts=self.root/'scripts';self.scripts.mkdir()
         source=Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'
@@ -276,7 +276,7 @@ class SetupReviewBindingTests(unittest.TestCase):
     def test_changed_source_or_symlink_is_rejected(self):
         path=self.scripts/'runtime_setup.py';path.write_text('changed')
         with self.assertRaisesRegex(ValueError,'source changed'):self.validate()
-        path.unlink();path.symlink_to(self.scripts/'toolchain_stage.py')
+        path.unlink();path.symlink_to(self.scripts/'toolchain_process.py')
         with self.assertRaisesRegex(ValueError,'source changed'):self.validate()
     def test_profile_helper_drift_and_path_escape_are_rejected(self):
         self.review['prerequisites']['profile_sha256']='0'*64

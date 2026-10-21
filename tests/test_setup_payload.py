@@ -10,7 +10,7 @@ import base64,shlex
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from setup_operation import setup_payload
 from service import Service
-import ownership_adapter
+import ownership_operation as ownership_adapter
 
 class SetupPayloadTests(unittest.TestCase):
     def test_exact_snapshot_and_local_copy_layout(self):

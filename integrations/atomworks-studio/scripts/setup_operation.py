@@ -1,6 +1,53 @@
-"""Managed setup preparation; runtime mutation is bound to a reviewed recipe."""
+# Validate setup evidence against the immutable reviewed recipe.
 import hashlib
 import json
+from pathlib import PurePosixPath
+import re
+
+REQUIRED={'platform','python','revision','source','dependencies','entrypoint','weights','cuda','gpu'}
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
+
+def validate(review, receipt):
+    recipe=review.get('recipe')
+    if not isinstance(recipe,dict) or digest(recipe)!=review.get('recipe_checksum'):
+        raise ValueError('Reviewed setup recipe is missing or changed')
+    if receipt.get('operation_id')!=review['operation_id'] or receipt.get('recipe_checksum')!=review['recipe_checksum'] or receipt.get('recipe_id')!=recipe['id'] or receipt.get('stage')!='accepted' or receipt.get('ready') is not True:
+        raise ValueError('Setup receipt does not match the reviewed recipe and operation')
+    evidence=receipt.get('evidence',{})
+    checks=evidence.get('checks',{})
+    if evidence.get('recipe_id')!=recipe['id'] or set(checks)!=REQUIRED or any(value is not True for value in checks.values()):
+        raise ValueError('Setup receipt lacks successful runtime verification')
+    post=receipt.get('post_smoke_evidence',{})
+    if post.get('recipe_id')!=recipe['id'] or set(post.get('checks',{}))!=REQUIRED or any(value is not True for value in post['checks'].values()):
+        raise ValueError('Setup receipt lacks successful post-inference runtime verification')
+    root=PurePosixPath(review['remote_root'])
+    expected=([str(root/'model-bundle'/w['name']) for w in recipe['model_bundle']['files']]
+              if recipe.get('model_bundle') else [str(root/'model/data_path'/w['directory']/w['name']) for w in recipe['weights']])
+    if receipt.get('weight_paths')!=expected:
+        raise ValueError('Verified checkpoint paths differ from the reviewed recipe')
+    smoke=receipt.get('smoke',{})
+    output=PurePosixPath(smoke.get('output_dir',''))
+    if smoke.get('operation_id')!=review['operation_id'] or smoke.get('recipe_checksum')!=review['recipe_checksum'] or smoke.get('example')!='monomer-short' or '..' in output.parts or output.parent!=root/'setup-smoke':
+        raise ValueError('Smoke evidence has the wrong operation or output identity')
+    structures=smoke.get('structures')
+    if not isinstance(structures,list) or not structures:
+        raise ValueError('Smoke evidence lacks validated structures')
+    seen=set()
+    for entry in structures:
+        if not isinstance(entry,dict):raise ValueError('Malformed smoke structure evidence')
+        path=PurePosixPath(entry.get('path',''))
+        if path.is_absolute() or '..' in path.parts or path.suffix!='.cif' or str(path) in seen:
+            raise ValueError('Invalid smoke artifact path')
+        seen.add(str(path))
+        if type(entry.get('atoms')) is not int or entry['atoms']<1 or type(entry.get('size')) is not int or entry['size']<1 or not re.fullmatch('[0-9a-f]{64}',entry.get('sha256','')):
+            raise ValueError('Invalid smoke artifact integrity evidence')
+    return expected
+
+
+# Managed setup preparation; runtime mutation is bound to a reviewed recipe.
 from pathlib import Path
 import tempfile
 from runtime_recipe import RECIPE
@@ -10,7 +57,7 @@ CHECKSUM_TOKEN='__RFD4_REVIEW_CHECKSUM__'
 
 def setup_template(scripts, review, remote):
     import shlex
-    import ownership_adapter
+    import ownership_operation as ownership_adapter
     guard=ownership_adapter.command('require_execution_scope',review['executor_ownership']['owner'],
                                     proof=review['executor_ownership'],files=review['ownership_guard_files'],scripts=scripts)
     return '#!/bin/bash\nset -e\nexport PYTHONDONTWRITEBYTECODE=1\n'+guard+'\nexec '+shlex.join([
@@ -61,7 +108,7 @@ class SetupOperation:
         if RECIPE.get("install_mode") == "public_wheels" or RECIPE["id"] == "rfd4-public-c7c6cac-wheels-v1":
             from public_prerequisite import probe_script,bind_review
         else:
-            from prerequisite_review import probe_script,bind_review
+            from prerequisite_setup import probe_script, bind_review
         cfg=dict(machine['config'],target_id=machine['id'])
         self.verify_target(cfg)
         return bind_review(json.loads(self.target_exec(cfg,shlex.join(['python3','-I','-c',probe_script()]),timeout=180)))
@@ -92,14 +139,20 @@ class SetupOperation:
         ownership=self.require_execution_scope(cfg)
         prerequisites=self.review_prerequisites(machine)
         preparation=prerequisites.get('status')=='preparation_required'
-        files=['runtime_setup.py','runtime_install.py','runtime_install_profile.json','runtime_dependencies.lock','runtime_bootstrap.py','source_stage.py','source_integrity.py','runtime_recipe.py','runtime_recipe.json','runtime_download.py','runtime_smoke.py','generation.py','public_model_bundle.py','remote_job.py','toolchain_paths.py','executor_ownership.py','ownership_adapter.py','execution_payload.py']
-        files+=['prerequisite_privileged.py','prerequisite_setup.py','prerequisite_review.py','toolchain_profile.json','toolchain_review.py','toolchain_plan.py']
-        files+=['toolchain_download.py','toolchain_bundle.py','toolchain_owner.py','toolchain_recovery.py']
-        from toolchain_launch import BUNDLE_FILES
+        files = [
+            'runtime_setup.py', 'runtime_install_profile.json', 'runtime_dependencies.lock',
+            'source_stage.py', 'source_integrity.py', 'runtime_recipe.py', 'runtime_recipe.json',
+            'runtime_download.py', 'public_model_bundle.py', 'remote_job.py',
+            'toolchain_paths.py', 'executor_ownership.py', 'ownership_operation.py',
+            'execution_payload.py', 'prerequisite_privileged.py', 'prerequisite_setup.py',
+            'toolchain_profile.json', 'toolchain_review.py', 'toolchain_bundle.py',
+            'toolchain_process.py',
+        ]
+        from toolchain_process import BUNDLE_FILES
         if prerequisites.get("kind") == "public_wheels":
             files += ["public_prerequisite.py"]
         files=sorted(set(files)|BUNDLE_FILES)
-        import ownership_adapter
+        import ownership_operation as ownership_adapter
         review={'operation_id':operation_id,'action':'setup','machine_id':machine_id,'executor_ownership':ownership,
                 'ownership_guard_files':ownership_adapter.manifest(scripts),
                 'machine_revision':machine['revision'],'selection_revision':op['selection_revision'],
@@ -124,7 +177,7 @@ class SetupOperation:
         else:
             review['effect']+=(' The prerequisite review contains '+str(len(prerequisites['changes']))+' operating-system package changes requiring sudo.'
                                if prerequisites['changes'] else ' Operating-system prerequisites conform; no privileged package installation is planned.')
-        import execution_adapter
+        import run_payload as execution_adapter
         review['publication_bundle']=execution_adapter.bundle(scripts)
         review['publication_files']=execution_adapter.manifest(review['publication_bundle'])
         if any(review['publication_files'].get(name)!=review['files'][name] for name in (module+'.py' for module in execution_adapter.MODULES)):
@@ -198,7 +251,7 @@ class SetupOperation:
             jobs=self.machine_jobs(op['machine_id'])
             if jobs['active_jobs'] or jobs['unresolved_active_jobs']:
                 raise ValueError('Active or unresolved jobs on the verified host block runtime mutation')
-            import uuid,execution_adapter
+            import uuid, run_payload as execution_adapter
             from execution_payload import canonical
             expected=setup_expected(review,review_checksum)
             attempt=remote+'/uploads/'+uuid.uuid4().hex
@@ -257,7 +310,7 @@ class SetupOperation:
                                         release_reservation=True)
             if journal.get('operation_id')!=operation_id or journal.get('recipe_id')!=op['review']['recipe_id'] or journal.get('stage')!='accepted' or journal.get('ready') is not True or not journal.get('smoke',{}).get('structures'):
                 raise ValueError('Setup completion lacks matching smoke acceptance evidence')
-            from setup_acceptance import validate
+            pass
             paths=validate(op['review'],journal)
             return state.complete_setup(operation_id,checksum(op['review']),journal,paths)
         if result.get('package_stage') and op['review'].get('prerequisites',{}).get('changes'):

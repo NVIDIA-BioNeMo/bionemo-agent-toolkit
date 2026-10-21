@@ -25,7 +25,7 @@ class Plans(unittest.TestCase):
             return self.service.prepare('session')
     def test_plan_launch_and_retry_dispatch_once(self):
         plan = self.plan()
-        with patch('core.subprocess.Popen') as spawn:
+        with patch('service.subprocess.Popen') as spawn:
             first = self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
             second = self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
         self.assertEqual(first,second)
@@ -74,7 +74,7 @@ class Plans(unittest.TestCase):
         self.assertEqual(self.plan()['issues'][0]['severity'],'warning')
     def test_collect_uses_original_target_after_switch(self):
         plan=self.plan()
-        with patch('core.subprocess.Popen'):
+        with patch('service.subprocess.Popen'):
             job=self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
         job.update(status='completed',remote_dir='/srv/rfd4/runs/'+job['job_id']); self.service.save_job(job)
         self.service.register_compute('brev','different',self.cfg['remote_root'],self.cfg['studio_url'],
@@ -97,11 +97,11 @@ class GenerationContract(unittest.TestCase):
     setUp = Plans.setUp
     plan = Plans.plan
     def test_nondefault_settings_survive_review_and_submission(self):
-        from generation import overrides
+        from runtime_recipe import overrides
         chosen = {'thinking':'high','backbone_noise':0.25,'latent_noise':0.45}
         with patch.object(self.service,'studio',return_value=self.export):
             plan = self.service.prepare('session',generation=chosen)
-        with patch('core.subprocess.Popen'):
+        with patch('service.subprocess.Popen'):
             job = self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
         self.assertEqual(job['generation'], chosen)
         with patch.object(self.service,'verify_target'), patch.object(self.service,'target_exec'), patch.object(self.service,'target_copy'):
@@ -125,7 +125,7 @@ class GenerationContract(unittest.TestCase):
     def test_results_archive_and_input_switch_use_saved_artifacts(self):
         import base64, io, zipfile
         plan = self.plan()
-        with patch('core.subprocess.Popen'):
+        with patch('service.subprocess.Popen'):
             job = self.service.execute(plan['snapshot_id'],plan['plan_checksum'])
         job.update(status='completed',remote_dir='/srv/rfd4/runs/'+job['job_id']); self.service.save_job(job)
         directory = self.service.state/job['job_id']/'results'; directory.mkdir()

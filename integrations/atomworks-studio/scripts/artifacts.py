@@ -70,7 +70,7 @@ def verify(directory, manifest):
 
 
 def collect(backend, job_id):
-    from core import safe_id
+    from service import safe_id
     directory = backend.state / safe_id(job_id)
     with (directory / 'collection.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)

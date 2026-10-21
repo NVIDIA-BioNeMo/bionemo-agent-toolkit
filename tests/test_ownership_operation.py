@@ -5,7 +5,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
 from service import Service
 from executor_ownership import checksum
-import ownership_adapter
+import ownership_operation as ownership_adapter
 
 class OwnershipOperationTests(unittest.TestCase):
     def setUp(self):

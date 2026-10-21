@@ -103,7 +103,7 @@ class OfflineUpgradeTests(unittest.TestCase):
 
     def test_setup_only_legacy_root_blocks_backend_and_editor_without_writes(self):
         from service import Service
-        from editor_runtime import ensure_editor
+        from editor_app import ensure_editor
         from types import SimpleNamespace
         root=self.base/'setup-only';(root/'setup').mkdir(parents=True)
         (root/'setup/request.json').write_text('{"stage":"installing"}')

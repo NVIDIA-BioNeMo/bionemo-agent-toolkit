@@ -52,7 +52,7 @@ class PublicPrerequisiteTests(unittest.TestCase):
                 self.command=command
                 return json.dumps(result)
         controller=Controller()
-        with patch('setup_operation.RECIPE',{'id':'rfd4-public-c7c6cac-wheels-v1'}), patch('prerequisite_review.probe_script',side_effect=AssertionError('APT probe forbidden')):
+        with patch('setup_operation.RECIPE',{'id':'rfd4-public-c7c6cac-wheels-v1'}), patch('prerequisite_setup.probe_script',side_effect=AssertionError('APT probe forbidden')):
             bound=controller.review_prerequisites({'id':'machine','config':{}})
         self.assertEqual(bound['kind'],'public_wheels')
         self.assertNotIn('sudo',controller.command)

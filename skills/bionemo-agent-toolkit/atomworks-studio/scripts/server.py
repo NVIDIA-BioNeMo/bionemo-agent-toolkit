@@ -99,7 +99,7 @@ if mode == 'app':
     @mcp.tool(meta=APP, annotations=WRITE)
     def studio_request(method: str, path: str, body: dict | None=None, form: list[dict] | None=None) -> dict:
         """Run an allowlisted Studio editor operation against the configured loopback service."""
-        from studio_bridge import request
+        from editor_app import request
         return request(service,method,path,body,form)
 
     @mcp.tool(title='RFD4-Proteina Studio', meta={'ui/resourceUri':URI,'openai/outputTemplate':URI,'openai/widgetAccessible':True,'ui':{'resourceUri':URI,'visibility':['app','model'],'supportsFullscreen':True}}, annotations=READ)

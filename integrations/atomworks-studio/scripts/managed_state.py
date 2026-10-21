@@ -380,7 +380,7 @@ class State:
             actual=hashlib.sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
             if op['action']!='setup' or not op['dispatched'] or op['state'] not in ('dispatched','needs_attention') or actual!=review_checksum:
                 raise ValueError('Setup operation changed before completion')
-            from setup_acceptance import validate
+            from setup_operation import validate
             if validate(review,acceptance)!=weight_paths:
                 raise ValueError('Setup checkpoint paths changed')
             machine=data['machines'][op['machine_id']]
@@ -391,7 +391,7 @@ class State:
                 raise ValueError('Setup acceptance does not match the reviewed runtime')
             machine['config'].update(weight_paths=list(weight_paths),runtime_recipe=review['recipe_id'])
             machine['revision']+=1
-            machine['setup_acceptance']=acceptance
+            machine['setup_operation']=acceptance
             op['attempts'].append({'from':op['state'],'to':'succeeded','at':now(),'evidence':{'kind':'setup_smoke_accepted','acceptance':acceptance}})
             op.update(state='succeeded',updated_at=now())
             del data['reservations'][machine['id']]

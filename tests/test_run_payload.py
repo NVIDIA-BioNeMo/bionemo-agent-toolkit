@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
-import execution_adapter
+import run_payload as execution_adapter
 import execution_payload
 import run_payload
 from executor_ownership import checksum
@@ -39,7 +39,7 @@ class RunPayloadTests(unittest.TestCase):
         sources=self.root/'sources'
         original=Path(run_payload.__file__).parent
         sources.mkdir()
-        for name in {module+'.py' for module in execution_adapter.MODULES}|{'remote_job.py','ownership_adapter.py'}:
+        for name in {module+'.py' for module in execution_adapter.MODULES}|{'remote_job.py','ownership_operation.py'}:
             shutil.copyfile(original/name,sources/name)
         frozen=self.freeze(scripts=sources)
         (sources/'remote_job.py').write_text('changed package after review')

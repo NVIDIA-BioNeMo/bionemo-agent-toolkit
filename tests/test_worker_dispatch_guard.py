@@ -6,7 +6,7 @@ import json,multiprocessing,subprocess,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
-from core import Backend
+from service import Backend
 from service import Service
 from executor_ownership import checksum
 from ownership_operation import OwnershipRequired
@@ -41,7 +41,7 @@ class WorkerDispatchGuardTests(unittest.TestCase):
         with self.s.managed.transaction() as data:data['machines'][self.machine]['executor_ownership']={'owner':owner,'owner_checksum':checksum(owner),'brev':None,'operation_id':'prior'}
         observed=patch.object(self.s,'ownership_status',return_value={'state':'owned','owner':owner,'owner_checksum':checksum(owner)});observed.start();self.addCleanup(observed.stop)
         with patch.object(self.s,'studio',return_value={'cif':'data_fixture\n_atom_site.id 1\n','revision':1,'issues':[]}):self.plan=self.s.prepare('s')
-        with patch.object(self.s,'check_compute',return_value={'state':'ready'}),patch('core.subprocess.Popen'):
+        with patch.object(self.s,'check_compute',return_value={'state':'ready'}),patch('service.subprocess.Popen'):
             self.job=self.s.execute(self.plan['snapshot_id'],self.plan['plan_checksum'])
         self.id=self.job['job_id'];self.directory=self.s.state/self.id
 
@@ -124,7 +124,7 @@ class WorkerDispatchGuardTests(unittest.TestCase):
         # Another approved plan, after ending this fixture's undispatched lease.
         record=self.s.read(self.id,'job.json');self.s.fail_undispatched(record,'fixture ended');self.s.status(self.id)
         with patch.object(self.s,'studio',return_value={'cif':'data_new\n_atom_site.id 1\n','revision':1,'issues':[]}):plan=self.s.prepare('s')
-        with patch.object(self.s,'check_compute',return_value={'state':'ready'}),patch('core.subprocess.Popen',side_effect=OSError('spawn refused')):
+        with patch.object(self.s,'check_compute',return_value={'state':'ready'}),patch('service.subprocess.Popen',side_effect=OSError('spawn refused')):
             with self.assertRaisesRegex(OSError,'spawn refused'):self.s.execute(plan['snapshot_id'],plan['plan_checksum'])
         failed=self.s.read(plan['snapshot_id'],'job.json')
         self.assertTrue(failed['dispatch_not_started']);self.assertFalse(failed['remote_dispatch_started'])

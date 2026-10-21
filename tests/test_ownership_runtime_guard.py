@@ -6,7 +6,7 @@ executor_ownership's protected filesystem behavior has separate tests.
 import os,shlex,subprocess,sys,tempfile,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/atomworks-studio/scripts'))
-import ownership_adapter as adapter
+import ownership_operation as adapter
 from executor_ownership import checksum
 
 class OwnershipRuntimeGuardTests(unittest.TestCase):
