@@ -199,6 +199,13 @@ export async function saveDraft() {
     document.getElementById('rfd-draft-status').textContent = 'Draft saved';
   return draft;
 }
+export async function saveBeforeRestore() {
+  try { await saveDraft(); return false; }
+  catch (error) {
+    if (!error.message.includes('EDITOR_SESSION_EXPIRED:')) throw error;
+    return true;
+  }
+}
 function renderCompute(c) {
   const labels = {unregistered:'Not connected', registered:'Configured', ready:'Ready', ownership_required:'Ownership needed', needs_setup:'RFD4 setup needed', disconnected:'Not connected', connecting:'Connecting', checking:'Checking readiness', setting_up:'Setting up'};
   const label = c.active_jobs?.length && c.state === 'ready' ? 'Running' : labels[c.state] || 'Status unavailable';
@@ -261,8 +268,7 @@ async function setupCompute(targetId = null, intent = 'manage') {
   setupPending = true;
   const session = activeSession;
   try {
-    clearTimeout(draftTimer);
-    const draft = await saveDraft();
+    // Compute management does not replace or mutate the editor document.
     if (session !== activeSession) return;
     const current = await tool('get_compute_status', {session_id: session});
     if (session !== activeSession) return;
@@ -302,7 +308,7 @@ async function registeredTargets() {
     choices.disabled = true; button.disabled = true;
     renderCompute({...computeState, state:'connecting', transport:'unverified', gpu:'', checked_at:null});
     try {
-      await connectSavedCompute({targetId:choices.value, session, current, saveDraft, tool,
+      await connectSavedCompute({targetId:choices.value, session, current, tool,
         render(c) { computeState = c; renderCompute(c); },
         accept(c) { connectionUncertain = false; invalidate(); computeState = c; renderCompute(c); }});
     } catch(error) {
@@ -417,12 +423,13 @@ async function drafts() {
       button.disabled = true;
       try {
         const current = beginNavigation();
-        clearTimeout(draftTimer); await saveDraft();
+        clearTimeout(draftTimer); const expired = await saveBeforeRestore();
         if (!current()) return;
         const v = await tool('restore_draft',{draft_id:d.draft_id});
         if (!current()) return;
         await openStudioSession(v.session_id, current, {...v, source:'saved_draft'});
         await compute();
+        if (expired && current()) message('Restored the saved draft. The previous editor session expired; unsaved edits could not be recovered.');
       } catch(e) { message(e.message); } finally { button.disabled = false; }
     };
     box.append(button);

@@ -68,6 +68,19 @@ setup path requires no APT/compiler installation. Use a separate runtime root fo
 this release; setup refuses to replace a different checkout revision. Model weights,
 private source, credentials, local state and evaluation bundles are not packaged.
 
+Fresh Brev images may have an older NVIDIA driver even when the machine has an
+A100. The preliminary setup check requires driver major version 580 or newer for
+this pinned runtime; passing that check alone does not establish readiness. If it
+fails, ask chat to inspect the selected machine's OS and `nvidia-smi` output.
+Choose a compatible provider image, or review a driver upgrade on that machine
+using NVIDIA's official packages. A driver upgrade may require a reboot and must
+wait until active work is finished. The plugin does not silently upgrade drivers,
+reboot, or create a replacement machine. After an approved upgrade/reboot,
+reconnect the same machine, repeat setup, and require all runtime checks plus the
+setup smoke test to pass before generating a design. The fresh A100 UAT image
+required a manual upgrade from 565.57.01 to 580.196.07; fresh provisioning is not
+qualified as an unattended workflow.
+
 Historical workspaces require the existing offline upgrade helper. Disable the old
 installation and stop its controllers/workers; finish or resolve outstanding work.
 Run `python scripts/upgrade_state.py --legacy /absolute/old-root --new /absolute/new-root --old-installation-disabled`,

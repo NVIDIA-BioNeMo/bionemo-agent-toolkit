@@ -21,8 +21,8 @@ function harness({connected=true, result={state:'ready',transport:'reachable'}, 
 }
 test('Connect preserves the draft, selects the exact saved target, then verifies live readiness',async()=>{
   const h=harness();await connectSavedCompute(h.args);
-  assert.deepEqual(h.calls.map(c=>c[0]),['save_draft','get_compute_status','select_compute','inspect_compute_target','check_compute']);
-  assert.deepEqual(h.calls[2][1],{target_id:'saved-brev',session_id:'draft-session',expected_revision:7});
+  assert.deepEqual(h.calls.map(c=>c[0]),['get_compute_status','select_compute','inspect_compute_target','check_compute']);
+  assert.deepEqual(h.calls[1][1],{target_id:'saved-brev',session_id:'draft-session',expected_revision:7});
   assert.deepEqual(h.frames.map(f=>f.state),['connecting','connecting','checking']);
   assert.ok(h.frames.every(f=>!f.gpu && !f.checked_at));
   assert.ok(h.frames.filter(f=>f.state==='connecting').every(f=>f.transport!=='reachable'));
@@ -71,4 +71,9 @@ test('failed selection never probes or silently falls back to another machine',a
   const h=harness({failure:{name:'select_compute',message:'Selection changed'}});
   await assert.rejects(connectSavedCompute(h.args),/Selection changed/);
   assert.equal(h.calls.at(-1)[0],'select_compute');assert.equal(h.accepted.length,0);
+});
+
+test('expired editor cannot block compute connection', async()=>{
+ const h=harness(); h.args.saveDraft=async()=>{throw Error('EDITOR_SESSION_EXPIRED: expired');};
+ await connectSavedCompute(h.args); assert.equal(h.accepted[0].state,'ready');
 });

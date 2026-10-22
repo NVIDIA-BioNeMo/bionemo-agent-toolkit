@@ -471,7 +471,12 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
         if image_base64:
             if len(image_base64)>14000000 or not base64.b64decode(image_base64,validate=True).startswith(b'\x89PNG\r\n\x1a\n'):
                 raise ValueError('Use a PNG under 10 MB')
-        exported=self.studio('POST',f'sessions/{session_id}/export')
+        try:
+            exported=self.studio('POST',f'sessions/{session_id}/export')
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 404 and 'session not found or expired' in error.response.text:
+                raise ValueError('EDITOR_SESSION_EXPIRED: Restore a saved draft to continue. Existing saved drafts are unchanged.') from error
+            raise
         from datetime import datetime, timezone
         record={'draft_id':session_id,'revision':exported['revision'],'cif':exported['cif'],'note':note,'image_base64':image_base64,'settings':settings,'saved_at':datetime.now(timezone.utc).isoformat()}
         selection = self.managed.selection(session_id)

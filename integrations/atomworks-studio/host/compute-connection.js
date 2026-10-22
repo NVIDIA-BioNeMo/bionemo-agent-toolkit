@@ -1,8 +1,8 @@
 // Select only a saved machine. Power, provisioning and access changes stay in chat.
-export async function connectSavedCompute({targetId, session, current, saveDraft, tool, render, accept}) {
+export async function connectSavedCompute({targetId, session, current, tool, render, accept}) {
   const pending = value => ({...value, state:'connecting', transport:'unverified',
     gpu:'', checked_at:null, checks:{}});
-  await saveDraft();
+  // Connecting changes compute selection only; it must not depend on editor lifetime.
   if (!current()) return;
   const before = await tool('get_compute_status', {session_id:session});
   if (!current()) return;

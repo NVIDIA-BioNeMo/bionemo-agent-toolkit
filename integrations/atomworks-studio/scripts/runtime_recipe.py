@@ -104,8 +104,8 @@ def options(value=None):
 def overrides(value=None):
     v = options(value)
     return [f'recycle_strategy=thinking_{v["thinking"]}',
-            f'runtime_recipe.model.bb_ca.simulation_step_params.sc_scale_noise={v["backbone_noise"]}',
-            f'runtime_recipe.model.local_latents.simulation_step_params.sc_scale_noise={v["latent_noise"]}']
+            f'generation.model.bb_ca.simulation_step_params.sc_scale_noise={v["backbone_noise"]}',
+            f'generation.model.local_latents.simulation_step_params.sc_scale_noise={v["latent_noise"]}']
 
 
 def runtime_overrides(root):

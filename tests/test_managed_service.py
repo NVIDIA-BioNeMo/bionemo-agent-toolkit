@@ -53,6 +53,20 @@ class ManagedServiceTests(unittest.TestCase):
         self.assertEqual(selection['previous_machine_id'], self.service.config('demo')['target_id'])
         self.assertEqual(result['note'], 'preserve me')
 
+    def test_expired_editor_does_not_overwrite_saved_draft(self):
+        import httpx
+        with patch.object(self.service, 'studio', return_value={'revision': 3, 'cif': 'preserved'}):
+            self.service.save_draft('demo', 'original')
+        before = {str(p): p.read_bytes() for p in (Path(self.tmp.name) / 'drafts').rglob('*') if p.is_file()}
+        for code, text, expected in [(404, 'session not found or expired', ValueError), (404, 'other missing resource', httpx.HTTPStatusError), (500, 'server failure', httpx.HTTPStatusError)]:
+            response = httpx.Response(code, text=text, request=httpx.Request('POST', 'http://localhost/export'))
+            error = httpx.HTTPStatusError(text, request=response.request, response=response)
+            with patch.object(self.service, 'studio', side_effect=error), self.assertRaises(expected) as raised:
+                self.service.save_draft('demo', 'replacement')
+            if expected is ValueError:
+                self.assertIn('EDITOR_SESSION_EXPIRED:', str(raised.exception))
+            self.assertEqual(before, {str(p): p.read_bytes() for p in (Path(self.tmp.name) / 'drafts').rglob('*') if p.is_file()})
+
     def test_legacy_draft_does_not_reapply_target(self):
         drafts = Path(self.tmp.name) / 'drafts'
         drafts.mkdir()
