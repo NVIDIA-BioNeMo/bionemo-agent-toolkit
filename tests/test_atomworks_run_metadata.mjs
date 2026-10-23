@@ -15,7 +15,7 @@ globalThis.fetch=async(url,options)=>{const request=JSON.parse(options.body);
  return {json:async()=>({structuredContent:request.name==='get_compute_status'?{state:'unregistered',selection:{revision:0}}:{draft_id:request.arguments.session_id}})};
 };
 addEventListener('rfd-open-session',event=>requests.push(event.detail));
-const {openStudioSession,studioEvent,saveDraft,beginNavigation}=await import('../integrations/atomworks-studio/host/bridge.js');
+const {openStudioSession,studioEvent,saveDraft,beginNavigation,restoreDraft}=await import('../integrations/atomworks-studio/host/bridge.js');
 const settings={samples:3,seed:321,generation:{thinking:'high',backbone_noise:0.2,latent_noise:0.4}};
 const metadata=(source,note)=>({source,note,image_base64:'iVBORw0KGgo=',settings});
 async function finish(token,source){
@@ -77,4 +77,41 @@ test('invalid metadata fails before navigation or changing current values',async
  for (const invalid of [{...settings,seed:-1},0,false,''])
   await assert.rejects(openStudioSession('invalid',beginNavigation(),{...metadata('saved_run','bad'),settings:invalid}),/settings are invalid/);
  assert.equal(requests.length,count);assert.equal(document.getElementById('rfd-note').value,'safe');assert.equal(document.body.inert,false);
+});
+
+function recoveryResponses(failure='EDITOR_SESSION_EXPIRED: Restore a saved draft.') {
+ const value=metadata('saved_draft','recovered note');let restores=0;
+ globalThis.fetch=async(_url,options)=>{
+  const {name,arguments:args}=JSON.parse(options.body);
+  if(name==='save_draft' && args.session_id==='expired') return {json:async()=>({isError:true,content:[{type:'text',text:failure}]})};
+  if(name==='restore_draft'){restores++;return {json:async()=>({structuredContent:{...value,session_id:'recovered'}})};}
+  if(name==='save_draft')saves.push(args);
+  return {json:async()=>({structuredContent:name==='get_compute_status'?{state:'unregistered',selection:{revision:0}}:{draft_id:args.session_id}})};
+ };
+ return {value,restores:()=>restores};
+}
+test('expired restore announces recovery after the new session commits',async()=>{
+ studioEvent('selected','expired');const h=recoveryResponses();const count=requests.length;
+ const restoring=restoreDraft('saved');
+ for(let i=0;requests.length===count && i<50;i++)await Promise.resolve();
+ assert.equal(requests.length,count+1);
+ await finish(requests.at(-1),h.value);await restoring;
+ assert.match(document.getElementById('rfd-message').textContent,/Restored the saved draft.*previous editor session expired/);
+ assert.equal(document.getElementById('rfd-note').value,'recovered note');
+});
+test('other save failures still block draft replacement and recovery notice',async()=>{
+ studioEvent('selected','expired');const h=recoveryResponses('Disk full');const count=requests.length;
+ document.getElementById('rfd-message').textContent='';
+ await assert.rejects(restoreDraft('saved'),/Disk full/);
+ assert.equal(h.restores(),0);assert.equal(requests.length,count);
+ assert.equal(document.getElementById('rfd-message').textContent,'');
+});
+test('failed replacement never reports successful expired-session recovery',async()=>{
+ studioEvent('selected','expired');recoveryResponses();const count=requests.length;
+ document.getElementById('rfd-message').textContent='';const restoring=restoreDraft('saved');
+ for(let i=0;requests.length===count && i<50;i++)await Promise.resolve();
+ const token=requests.at(-1);
+ dispatchEvent(new CustomEvent('rfd-session-opened',{detail:{id:token.id,requestId:token.requestId,error:'load failed'}}));
+ await assert.rejects(restoring,/load failed/);
+ assert.equal(document.getElementById('rfd-message').textContent,'');
 });

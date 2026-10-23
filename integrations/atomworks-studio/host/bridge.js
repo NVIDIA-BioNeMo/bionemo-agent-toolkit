@@ -5,6 +5,8 @@ let hostCapabilities = {}, computeState = null, saving = Promise.resolve(), draf
 let watchedRun = null, checkingRun = false, uploadGeneration = 0;
 let navigationGeneration = 0, navigationCommitting = false;
 let freshDocumentRequest = null;
+// Compute changes invalidate reviewed plans, but do not change draft contents.
+let draftEpoch = 0;
 let documentMetadataRequest = null;
 const lastProbe = new Map();
 let connectionPending = false, computeGeneration = 0;
@@ -178,24 +180,24 @@ export async function attachImage(file) {
 }
 function queueDraft() {
   clearTimeout(draftTimer);
-  const session = activeSession, epoch = editEpoch;
+  const session = activeSession, epoch = ++draftEpoch;
   document.getElementById('rfd-draft-status').textContent = 'Unsaved changes';
   draftTimer = setTimeout(() => {
-    if (session !== activeSession || epoch !== editEpoch) return;
+    if (session !== activeSession || epoch !== draftEpoch) return;
     saveDraft().catch(e => {
-      if (session === activeSession && epoch === editEpoch)
+      if (session === activeSession && epoch === draftEpoch)
         document.getElementById('rfd-draft-status').textContent = 'Draft not saved: '+e.message;
     });
   }, 1500);
 }
 export async function saveDraft() {
   if (!activeSession) return null;
-  const session = activeSession, epoch = editEpoch;
+  const session = activeSession, epoch = draftEpoch;
   const args = {session_id: activeSession, note: document.getElementById('rfd-note').value, image_base64: imageNote, settings: settings()};
   // Serialize exports so an older response cannot replace the newest draft.
   saving = saving.catch(() => {}).then(() => tool('save_draft', args));
   const draft = await saving;
-  if (session === activeSession && epoch === editEpoch)
+  if (session === activeSession && epoch === draftEpoch)
     document.getElementById('rfd-draft-status').textContent = 'Draft saved';
   return draft;
 }
@@ -412,6 +414,18 @@ export async function nativeFileNavigation(operation, {freshDocument = false} = 
     navigationCommitting = false;
   }
 }
+// A successful replacement changes the session and edit epoch by design. Report
+// recovery at its commit acknowledgment, before a slow compute refresh.
+export async function restoreDraft(draftId) {
+  const current = beginNavigation();
+  clearTimeout(draftTimer); const expired = await saveBeforeRestore();
+  if (!current()) return;
+  const v = await tool('restore_draft', {draft_id:draftId});
+  if (!current()) return;
+  await openStudioSession(v.session_id, current, {...v, source:'saved_draft'});
+  if (expired) message('Restored the saved draft. The previous editor session expired; unsaved edits could not be recovered.');
+  await compute();
+}
 async function drafts() {
   const box = document.getElementById('rfd-drafts'); box.replaceChildren();
   const data = await tool('list_drafts');
@@ -422,14 +436,7 @@ async function drafts() {
     button.onclick = async () => {
       button.disabled = true;
       try {
-        const current = beginNavigation();
-        clearTimeout(draftTimer); const expired = await saveBeforeRestore();
-        if (!current()) return;
-        const v = await tool('restore_draft',{draft_id:d.draft_id});
-        if (!current()) return;
-        await openStudioSession(v.session_id, current, {...v, source:'saved_draft'});
-        await compute();
-        if (expired && current()) message('Restored the saved draft. The previous editor session expired; unsaved edits could not be recovered.');
+        await restoreDraft(d.draft_id);
       } catch(e) { message(e.message); } finally { button.disabled = false; }
     };
     box.append(button);
