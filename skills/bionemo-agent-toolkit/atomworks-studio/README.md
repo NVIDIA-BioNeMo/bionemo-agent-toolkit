@@ -141,7 +141,10 @@ and opened the 1,454-atom result in the localhost editor. The existing machine
 remains running. This is source/localhost evidence, not an installed-plugin pass.
 
 The current release still requires an installed-plugin generation, chat handoff
-and export pass. A separate new-machine UAT is in progress. Earlier installed
+and export pass. A separate new A100 passed after an explicitly approved driver upgrade to
+580.196.07 and reboot: all nine runtime checks, one 866-atom short-monomer
+design, recovery from a fresh client, collection and offline ZIP export. The
+new machine was stopped after collection; the existing A100 stayed running. Earlier installed
 release results do not qualify this changed submission path. The broad runtime
 profile remains `candidate_not_qualified`; ChatGPT.com deployment is separately
 unqualified. Test evidence and outstanding checks are recorded in PR #58.
