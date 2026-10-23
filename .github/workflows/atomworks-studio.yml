@@ -1,0 +1,41 @@
+name: atomworks-studio
+on:
+  pull_request:
+    paths:
+      - 'integrations/atomworks-studio/**'
+      - 'tests/**'
+      - 'skills/bionemo-agent-toolkit/atomworks-studio/**'
+      - '.gitignore'
+      - '.github/workflows/atomworks-studio.yml'
+  push:
+    branches: [main]
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Git-distributed Studio assets
+        run: python -m unittest discover -s tests -p test_studio_distribution.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts && node --check host/bridge.js && node --check build-upstream.mjs
+        working-directory: integrations/atomworks-studio
+      - uses: actions/checkout@v4
+        with:
+          repository: RosettaCommons/atomworks-studio
+          ref: 4b419ebd327405035c8cf6ccde7f333d0878888e
+          path: .studio-upstream
+      - run: node test-public-import.mjs
+        working-directory: integrations/atomworks-studio
+        env:
+          ATOMWORKS_STUDIO_SOURCE: ${{ github.workspace }}/.studio-upstream
+      - run: node --test tests/test_atomworks*.mjs tests/test_studio_autoload.mjs
+      - run: pip install -r integrations/atomworks-studio/requirements.txt -r tests/requirements-rfd4-rosetta.txt
+      - run: python -m unittest discover -s tests
+      - name: Verify canonical RFD4 helpers
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_rosetta_helpers.py tests/test_campaign_workflows.py tests/test_setup_preflight.py

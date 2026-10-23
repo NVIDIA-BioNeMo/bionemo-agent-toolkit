@@ -1,0 +1,37 @@
+.rfd-toolbar-menu{position:relative;font:12px system-ui;flex:none;color:#e5e8ed}
+.rfd-toolbar-menu>summary{display:inline-flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;min-height:32px;margin:0;list-style:none;cursor:pointer;padding:7px 10px;border:1px solid var(--border-strong);border-radius:4px;color:var(--text-secondary);background:var(--surface-raised);font:500 12px/16px var(--font-ui);white-space:nowrap}
+.rfd-toolbar-menu>summary::-webkit-details-marker{display:none}
+.rfd-toolbar-menu>summary:after{content:' ▾';color:#aeb9ca}
+.rfd-toolbar-menu>summary:focus-visible{outline:2px solid #88adff;outline-offset:2px}
+.app-shell>header .header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#rfd-help{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:32px;margin:0;padding:7px 10px;border:1px solid var(--border-strong);border-radius:4px;color:var(--text-secondary);background:var(--surface-raised);font:500 12px/16px var(--font-ui);text-decoration:none;white-space:nowrap}
+#rfd-help:hover{color:var(--text);border-color:var(--text-muted)}#rfd-help:focus-visible{outline:2px solid #88adff;outline-offset:2px}
+@media(max-width:600px){.app-shell>header .header-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.rfd-toolbar-menu>summary{padding:7px 6px}}
+
+.rfd-toolbar-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:1500;box-sizing:border-box;width:min(360px,calc(100vw - 24px));max-height:65vh;overflow:auto;padding:14px;display:grid;gap:10px;background:var(--surface-panel);border:1px solid var(--border-strong);border-radius:6px;box-shadow:0 12px 40px #0009;color:var(--text);font:12px/1.5 var(--font-ui);text-align:left}
+.rfd-toolbar-panel>button,.rfd-toolbar-panel>.file-button{width:100%;justify-content:flex-start;box-sizing:border-box;text-align:left}
+.rfd-toolbar-panel details>summary{margin:0;cursor:pointer}.rfd-toolbar-panel details[open]>summary{margin-bottom:10px}.rfd-toolbar-panel details{min-width:0}
+.rfd-toolbar-panel .load-options-popover{position:static;box-sizing:border-box;width:100%;box-shadow:none;margin-top:8px;max-height:none;overflow:visible}
+.rfd-toolbar-panel label{display:grid;gap:5px;margin:8px 0}.rfd-toolbar-panel input{width:100%;min-width:0;box-sizing:border-box}.rfd-toolbar-panel p{color:var(--text-muted)}
+#rfd-drafts{max-height:32vh;overflow:auto}#rfd-drafts button{white-space:normal;overflow-wrap:anywhere;padding:8px;text-align:left}#rfd-runs>div{display:grid;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)}
+.rfd-toolbar-panel [hidden],#rfd-generate-section [hidden]{display:none}
+/* A wrapped toolbar cannot anchor a full-width panel to its first button. */
+@media(max-width:900px){
+  .app-shell>header .header-actions{position:relative}
+  .rfd-toolbar-menu{position:static}
+  .rfd-toolbar-panel{max-width:100%;overflow-wrap:anywhere}
+}
+#rfd-generate-section>summary{margin:0;font-weight:600}#rfd-generate-section[open]>summary{margin-bottom:12px}
+#rfd-generation{padding:0;background:none;border:0}#rfd-generation .rfd-generation-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#rfd-generation fieldset{grid-column:1/-1;min-width:0}#rfd-generation fieldset label{padding:6px 8px;margin-right:4px}#rfd-generation .rfd-sampling{flex-direction:column;gap:12px}#rfd-generation details>summary{margin:0}#rfd-plan{margin-top:12px;font-size:12px}#rfd-generate{margin-top:10px;width:100%}
+#rfd-host:has(#rfd-message:empty):has(#rfd-chat-prompt[hidden]){display:none}
+.header-identity .header-logo{width:108px;height:24px;object-fit:contain;flex:none}
+.app-shell>header .header-identity{margin-right:auto}#document-name{display:none}
+.rfd-brand{display:grid;gap:3px}.rfd-brand h1{margin:0;font-size:17px;font-weight:600;line-height:1.15}.rfd-brand>span{font:10px/1.3 var(--font-ui);color:var(--text-muted);white-space:nowrap}
+
+.status-bar #guide-link{margin-left:auto;flex:none;color:var(--text-muted);font:10px/1.3 var(--font-ui);text-decoration:none;white-space:nowrap}.status-bar #guide-link:hover{color:var(--text);text-decoration:underline}.status-bar #guide-link:focus-visible{outline:2px solid #88adff;outline-offset:3px}
+
+.rfd-brand h1 .rfd-beta{display:inline-block;vertical-align:middle;margin-left:5px;padding:2px 5px;border:1px solid var(--border-strong);border-radius:4px;background:var(--surface-raised);color:var(--text-secondary);font:500 10px/1.2 var(--font-ui);letter-spacing:.04em;text-transform:uppercase}
+
+#rfd-run-target{font:12px/1.4 var(--font-ui);color:var(--text-muted);max-width:280px;overflow-wrap:anywhere}
+#rfd-draft-status{color:#b9c6bd;font-size:11px}
+#rfd-drafts button{display:block;width:100%;text-align:left;margin-top:6px}
