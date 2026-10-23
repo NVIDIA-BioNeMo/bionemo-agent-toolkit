@@ -74,6 +74,39 @@ class ExecutionTests(unittest.TestCase):
         self.assertIn('StrictHostKeyChecking=yes', ssh_options())
         self.assertNotIn('StrictHostKeyChecking=no', ssh_options())
 
+    def test_network_calls_do_not_hold_submission_lock(self):
+        import fcntl
+        def unlocked():
+            with (self.service.state/self.id/'submission.lock').open('a') as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        def ready(destination):
+            unlocked()
+            return {'ready':True,'machine_identity':hashlib.sha256(self.machine.encode()).hexdigest()}
+        uploaded={}
+        def copy(args,timeout=60):
+            unlocked();uploaded.update(json.loads(Path(args[-2]).read_text()));return ''
+        def execute(host,command,timeout=60):
+            unlocked()
+            if shlex.split(command)[0]=='mkdir':return ''
+            return json.dumps({'state':'running','launch_checksum':uploaded['launch_checksum']})
+        with patch.object(self.service,'check_named_target',side_effect=ready),patch.object(self.service,'run',side_effect=copy),patch.object(self.service,'named_exec',side_effect=execute):
+            self.assertEqual(self.service.submit_design_request(self.id,HOST)['status'],'running')
+
+    def test_upload_failure_remains_confirmed_prelaunch(self):
+        with patch.object(self.service,'run',side_effect=RuntimeError('connection closed during upload')),patch.object(self.service,'named_exec',return_value='') as execute:
+            with self.assertRaisesRegex(RuntimeError,'upload'):
+                self.service.submit_design_request(self.id,HOST)
+            self.assertEqual(execute.call_count,1)  # mkdir only; no launch command
+        record=self.service.read(self.id,'job.json')
+        self.assertFalse(record['remote_dispatch_started'])
+        self.assertEqual(record['status'],'prepared')
+
+    def test_missing_runtime_weights_or_cuda_prevents_upload(self):
+        for missing in ('entrypoint','weights','cuda'):
+            with self.subTest(missing=missing),patch.object(self.service,'check_named_target',return_value={'ready':False,'checks':{missing:False}}),patch.object(self.service,'run',side_effect=AssertionError('must not upload')):
+                with self.assertRaisesRegex(ValueError,missing):self.service.submit_design_request(self.id,HOST)
+                self.assertFalse(self.service.read(self.id,'job.json')['remote_dispatch_started'])
+
     def terminal_job(self):
         record = dict(job_id=self.id, snapshot_id=self.id, runtime_protocol=4,
             target=HOST, status='failed', remote_dispatch_started=True,
