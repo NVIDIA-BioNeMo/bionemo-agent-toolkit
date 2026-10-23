@@ -15,11 +15,7 @@
         "CODEX_HOME"
       ],
       "default_tools_approval_mode": "auto",
-      "tools": {
-        "refresh_selected_compute_access": {
-          "approval_mode": "prompt"
-        }
-      }
+      "tools": {}
     },
     "rfd4-studio": {
       "command": "./atomworks-studio/start_server",
@@ -36,25 +32,7 @@
         "CODEX_HOME"
       ],
       "tools": {
-        "refresh_compute_access": {
-          "approval_mode": "prompt"
-        },
-        "execute_rfd4_plan": {
-          "approval_mode": "prompt"
-        },
-        "recover_queued_rfd4_job": {
-          "approval_mode": "prompt"
-        },
-        "execute_compute_creation": {
-          "approval_mode": "prompt"
-        },
-        "execute_compute_start": {
-          "approval_mode": "prompt"
-        },
-        "execute_compute_stop": {
-          "approval_mode": "prompt"
-        },
-        "execute_runtime_setup": {
+        "submit_design_request": {
           "approval_mode": "prompt"
         }
       },

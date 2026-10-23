@@ -1,74 +1,38 @@
 import assert from 'node:assert/strict';
-import {test} from 'node:test';
-const elements = new Map();
-globalThis.window = {localToken:'test'};
-globalThis.addEventListener = () => {};
-globalThis.document = {getElementById(id) { if(!elements.has(id)) elements.set(id,{dataset:{},textContent:'',hidden:false}); return elements.get(id); }};
-const {compute, studioEvent} = await import('../integrations/atomworks-studio/host/bridge.js');
-function responses(values) {
-  const calls=[];
-  globalThis.fetch=async (_url, options) => {
-    calls.push(JSON.parse(options.body).name);
-    const value=values.shift();
-    if(value instanceof Error) throw value;
-    return {json:async()=>({structuredContent:value})};
-  };
-  return calls;
+import test from 'node:test';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../integrations/atomworks-studio/host/bridge.js',import.meta.url),'utf8')
+  .replace(/^import .*;\n/gm,'').replace(/export \{[^}]+\};/,'').replace(/export (?=(?:async )?function)/g,'');
+function harness() {
+ const elements=new Map(),calls=[];
+ const values={'rfd-note':'saved notes','rfd-samples':'1','rfd-seed':'42','rfd-backbone-noise':'0.3','rfd-latent-noise':'0.1'};
+ const document={getElementById(id){if(!elements.has(id))elements.set(id,{value:values[id],hidden:true});return elements.get(id);},querySelector(){return {value:'medium'};}};
+ const c=vm.createContext({window:{},document,addEventListener(){}});vm.runInContext(source,c);
+ c.transport=async(name,args)=>{calls.push({name,args});return {request_id:'a'.repeat(32),sha256:'b'.repeat(64),samples:1,seed:42,generation:{thinking:'medium',backbone_noise:0.3,latent_noise:0.1},issues:[{message:'Missing atoms warning'}]};};
+ vm.runInContext("tool=transport; activeSession='editor';",c);
+ return {calls,elements,c,run:code=>vm.runInContext(code,c)};
 }
-test('stale evidence refreshes itself and shows Ready', async()=>{
-  const calls=responses([{state:'registered',name:'GPU',kind:'ssh',fingerprint:'stale'},{state:'ready',name:'GPU',kind:'ssh',fingerprint:'stale'}]);
-  await compute();
-  assert.deepEqual(calls,['get_compute_status','check_compute']);
-  assert.equal(elements.get('rfd-compute-label').textContent,'Ready');
+test('review freezes a request without querying any compute',async()=>{
+ const h=harness();await h.run('reviewDesign()');
+ assert.deepEqual(h.calls.map(x=>x.name),['prepare_design_request']);
+ assert.match(h.elements.get('rfd-plan-text').textContent,/Missing atoms warning/);
+ assert.equal(h.elements.get('rfd-plan').hidden,false);
 });
-test('opening the app does not probe unconfigured or freshly checked compute',async()=>{
-  const calls=responses([{state:'unregistered'},{state:'ready',name:'GPU',kind:'ssh',fingerprint:'fresh'}]);
-  await compute();await compute();
-  assert.deepEqual(calls,['get_compute_status','get_compute_status']);
+test('failed chat handoff keeps saved request and never starts watching a submitted job',async()=>{
+ const h=harness();await h.run('reviewDesign()');h.c.deliver=async()=>false;h.run('ask=deliver');
+ await h.run('generateDesign()');
+ assert.equal(h.run('watchedRun'),null);assert.equal(h.run('plan.request_id'),'a'.repeat(32));
 });
-test('ownership-required status explains the gate and offers no stop or automatic probe',async()=>{
-  const calls=responses([{state:'ownership_required',name:'GPU',kind:'brev',power:'running',selection:{machine_id:'machine'},detail:'Review this installation ownership in chat.'}]);
-  await compute();
-  assert.deepEqual(calls,['get_compute_status']);
-  assert.equal(elements.get('rfd-compute-label').textContent,'Ownership needed');
-  assert.equal(elements.get('rfd-compute-detail').textContent,'Review this installation ownership in chat.');
-  assert.equal(elements.get('rfd-stop').hidden,true);
+test('repeated Generate uses the same immutable request identity',async()=>{
+ const h=harness();await h.run('reviewDesign()');const messages=[];
+ h.c.deliver=async text=>{messages.push(text);return true;};h.run('ask=deliver');
+ await h.run('generateDesign()');await h.run('generateDesign()');
+ assert.equal(messages[0],messages[1]);assert.equal(h.calls.length,1);
+ assert.equal(h.run('watchedRun.jobId'),'a'.repeat(32));
 });
-test('a failed refresh cannot cause a probe on every status poll',async()=>{
-  const calls=responses([{state:'registered',name:'GPU',kind:'ssh',fingerprint:'failure'},new Error('offline'),{state:'registered',name:'GPU',kind:'ssh',fingerprint:'failure'}]);
-  await compute();
-  assert.equal(elements.get('rfd-compute-label').textContent,'Not connected');
-  await compute();
-  assert.deepEqual(calls,['get_compute_status','check_compute','get_compute_status']);
-});
-test('overlapping polls share the existing in-flight request',async()=>{
-  let finish;let count=0;
-  globalThis.fetch=()=>{count++;return new Promise(resolve=>{finish=()=>resolve({json:async()=>({structuredContent:{state:'ready',name:'GPU',kind:'ssh',fingerprint:'overlap'}})});});};
-  const first=compute(); await compute(); finish(); await first;
-  assert.equal(count,1);
-});
-test('stop review appears only for running Brev and blocks active work',async()=>{
-  responses([
-    {state:'ready',name:'GPU',kind:'brev',power:'running',selection:{machine_id:'machine'},fingerprint:'stop-review'},
-    {state:'ready',name:'GPU',kind:'brev',power:'running',selection:{machine_id:'machine'},active_jobs:['run'],fingerprint:'stop-review'},
-    {state:'ready',name:'GPU',kind:'ssh',power:'unknown',selection:{machine_id:'machine'},fingerprint:'ssh-stop'}
-  ]);
-  await compute();
-  assert.equal(elements.get('rfd-stop').hidden,false);
-  assert.equal(elements.get('rfd-stop').disabled,false);
-  assert.equal(elements.get('rfd-stop').textContent,'Show stop request');
-  await compute();assert.equal(elements.get('rfd-stop').disabled,true);
-  await compute();assert.equal(elements.get('rfd-stop').hidden,true);
-});
-
-test('late failed check cannot overwrite the newly opened session',async()=>{
-  studioEvent('selected','old-session');
-  let rejectRequest;
-  globalThis.fetch=()=>new Promise((_resolve,reject)=>{rejectRequest=reject;});
-  const pending=compute();
-  studioEvent('selected','new-session');
-  elements.get('rfd-compute-label').textContent='New session';
-  rejectRequest(new Error('Old machine unavailable'));
-  await pending;
-  assert.equal(elements.get('rfd-compute-label').textContent,'New session');
+test('edits during review cannot expose a stale request',async()=>{
+ const h=harness();h.c.transport=async()=>{h.run('invalidate()');return {};};h.run('tool=transport');
+ await assert.rejects(h.run('reviewDesign()'),/changed during review/);
+ assert.equal(h.run('plan'),null);
 });

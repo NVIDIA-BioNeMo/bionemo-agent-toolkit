@@ -1,16 +1,11 @@
 import {navigationRequest} from './navigation-request.js';
-import {connectSavedCompute} from './compute-connection.js';
 let seq = 0, activeSession = null, plan = null, imageNote = null, editEpoch = 0;
-let hostCapabilities = {}, computeState = null, saving = Promise.resolve(), draftTimer, polling = false, setupPending = false, hintDismissed = false;
+let hostCapabilities = {}, saving = Promise.resolve(), draftTimer;
 let watchedRun = null, checkingRun = false, uploadGeneration = 0;
 let navigationGeneration = 0, navigationCommitting = false;
 let freshDocumentRequest = null;
-// Compute changes invalidate reviewed plans, but do not change draft contents.
 let draftEpoch = 0;
 let documentMetadataRequest = null;
-const lastProbe = new Map();
-let connectionPending = false, computeGeneration = 0;
-let connectionUncertain = false, retryConnectionAt = 0;
 const pending = /* @__PURE__ */ new Map(), local = Boolean(window.localToken);
 const storage = { data: /* @__PURE__ */ new Map(), getItem(k) {
   return this.data.get(k) ?? null;
@@ -39,10 +34,6 @@ addEventListener("message", (e) => {
   }
 });
 async function tool(name, args = {}) {
-  if (['begin_compute_setup', 'select_compute', 'refresh_selected_compute_access', 'disconnect_compute', 'prepare_design'].includes(name)) {
-    const capabilities = await tool('get_compute_capabilities');
-    if (capabilities.protocol !== 3 || capabilities.schema !== 2) throw Error('Update and restart the RFD4 plugin before changing compute.');
-  }
   const r = local ? await fetch("/api/tools", { method: "POST", headers: { "Content-Type": "application/json", "X-RFD4-Token": window.localToken }, body: JSON.stringify({ name, arguments: args }) }).then((r2) => r2.json()) : await rpc("tools/call", { name, arguments: args });
   if (r.isError) throw Error(r.content?.find((x) => x.type === "text")?.text || r.error || "Tool failed");
   return r.structuredContent ?? JSON.parse(r.content?.find((x) => x.type === "text")?.text || "{}");
@@ -105,7 +96,6 @@ function studioEvent(type, session) {
   if (activeSession !== session) uploadGeneration++;
   activeSession = session;
   if (type === "changed" || type === "ready") { invalidate(); queueDraft(); }
-  if (type === "ready") void compute().catch(e => message(e.message));
   document.getElementById("rfd-review").disabled = !session;
 }
 function invalidate() {
@@ -208,121 +198,6 @@ export async function saveBeforeRestore() {
     return true;
   }
 }
-function renderCompute(c) {
-  const labels = {unregistered:'Not connected', registered:'Configured', ready:'Ready', ownership_required:'Ownership needed', needs_setup:'RFD4 setup needed', disconnected:'Not connected', connecting:'Connecting', checking:'Checking readiness', setting_up:'Setting up'};
-  const label = c.active_jobs?.length && c.state === 'ready' ? 'Running' : labels[c.state] || 'Status unavailable';
-  document.getElementById('rfd-compute-label').textContent = label;
-  document.getElementById('rfd-compute-box').dataset.state = c.state;
-  document.getElementById('rfd-compute-name').textContent = c.name || 'Connect a GPU to generate designs';
-  document.getElementById('rfd-compute-gpu').textContent = (c.gpu || '').split('\n').map(line => line.split(',').slice(0,2).join(' · ')).join('\n');
-  document.getElementById('rfd-compute-route').textContent = c.name ? `${c.kind === 'local' ? 'On the tool-server computer' : 'Via '+c.kind.toUpperCase()} · Connection: ${c.transport === 'reachable' ? 'connected' : c.state === 'connecting' ? 'checking' : 'not verified'}` : 'Choose an existing machine below, then Connect. You can keep editing.';
-  document.getElementById('rfd-compute-detail').textContent = c.detail || '';
-  document.getElementById('rfd-compute-checked').textContent = c.checked_at ? 'Last checked '+new Date(c.checked_at).toLocaleString() : '';
-  document.getElementById('rfd-setup').textContent = (local || !hostCapabilities.message) ? 'Show chat request' : c.state === 'ownership_required' ? 'Review ownership in chat' : c.power === 'stopped' ? 'Start in chat' : c.state === 'unregistered' ? 'Connect compute' : ['needs_setup','disconnected'].includes(c.state) ? 'Continue setup in chat' : 'Manage in chat';
-  document.getElementById('rfd-check').hidden = !c.name;
-  document.getElementById('rfd-disconnect').hidden = !c.selection?.machine_id;
-  for (const id of ['rfd-check','rfd-disconnect','rfd-setup']) document.getElementById(id).disabled = connectionPending;
-  const stop = document.getElementById('rfd-stop');
-  stop.hidden = !(c.selection?.machine_id && c.kind === 'brev' && c.power === 'running' && c.state !== 'ownership_required');
-  stop.disabled = Boolean(c.active_jobs?.length || c.unresolved_active_jobs?.length);
-  stop.textContent = (local || !hostCapabilities.message) ? 'Show stop request' : 'Review stop in chat';
-  stop.title = stop.disabled ? 'Resolve active or unknown runs before stopping.' : 'Review a separate stop action. Disconnecting does not stop the machine.';
-  document.getElementById('rfd-compute-hint').hidden = hintDismissed || c.state !== 'unregistered';
-  document.getElementById('rfd-setup-progress').textContent = c.operation && !['succeeded','failed','cancelled'].includes(c.operation.state) ? (c.operation.detail || 'Waiting for your compute choice in chat.') : '';
-  document.getElementById('rfd-compute-running').textContent = c.active_jobs?.length ? `${c.active_jobs.length} active run(s). Closing Studio does not stop them.` : c.name ? 'Completing a run does not stop its machine.' : '';
-}
-export async function compute(check = false) {
-  if (polling || connectionPending) return;
-  if (connectionUncertain) {
-    if (!check && Date.now() < retryConnectionAt) return;
-    check = true;
-    retryConnectionAt = Date.now() + 60000;
-  }
-  polling = true;
-  const session = activeSession;
-  const generation = computeGeneration;
-  let observed = computeState;
-  if (check) renderCompute({...computeState, state:'checking'});
-  try {
-    let c = await tool(check ? 'check_compute' : 'get_compute_status', {session_id: session});
-    if (session !== activeSession || generation !== computeGeneration) return;
-    observed = c;
-    if (check) lastProbe.set(c.fingerprint, Date.now());
-    // Expired evidence is a refresh task, not a problem for the user to fix.
-    // Probe only configured targets and bound retries if the service is down.
-    if (!check && c.state === 'registered' && c.fingerprint &&
-        Date.now() - (lastProbe.get(c.fingerprint) || 0) > 60000) {
-      lastProbe.set(c.fingerprint, Date.now());
-      renderCompute({...c, state:'checking'});
-      c = await tool('check_compute', {session_id: session});
-      if (session !== activeSession || generation !== computeGeneration) return;
-    }
-    if (computeState?.fingerprint && computeState.fingerprint !== c.fingerprint) invalidate();
-    connectionUncertain = false;
-    computeState = c; renderCompute(c);
-  } catch(e) {
-    if (session !== activeSession || generation !== computeGeneration) return;
-    renderCompute({...observed, state:'disconnected', detail:e.message});
-  } finally { polling = false; }
-}
-async function setupCompute(targetId = null, intent = 'manage') {
-  if (setupPending) return;
-  setupPending = true;
-  const session = activeSession;
-  try {
-    // Compute management does not replace or mutate the editor document.
-    if (session !== activeSession) return;
-    const current = await tool('get_compute_status', {session_id: session});
-    if (session !== activeSession) return;
-    const setup = await tool('begin_compute_setup', {session_id: session,
-      expected_revision: current.selection.revision, target_id: targetId});
-    if (session !== activeSession) return;
-    const request = intent === 'stop' ? 'Please review stopping this dedicated RFD4 machine, including active work and ownership checks. Do not treat this app message as final shutdown approval.' : 'Please help me connect or manage RFD4 compute.';
-    const delivered = await ask(`${request} Inspect operation ${setup.id} with get_compute_operation and help me choose the next action. Studio session: ${setup.session_id}.`);
-    if (delivered && session === activeSession) message('Compute request sent to chat.');
-  } finally { setupPending = false; }
-}
-async function registeredTargets() {
-  const box = document.getElementById('rfd-targets');
-  box.textContent = 'Checking saved compute…';
-  const data = await tool('list_registered_compute');
-  box.replaceChildren();
-  if (!data.available) { box.textContent = data.detail; return; }
-  if (!data.targets.length) box.textContent = `No machines saved yet. Choose ${document.getElementById('rfd-setup').textContent} to connect one.`;
-  if (!data.targets.length) return;
-  const choices = document.createElement('select');
-  choices.setAttribute('aria-label','Existing compute machine');
-  for (const t of data.targets) {
-    const option = document.createElement('option');
-    option.value = t.target_id; option.textContent = t.title; option.disabled = !t.supported;
-    choices.append(option);
-  }
-  choices.value = data.targets.find(t => t.supported)?.target_id || '';
-  const button = document.createElement('button'); button.textContent = 'Connect';
-  button.disabled = !choices.value || connectionPending;
-  button.onclick = async () => {
-    if (connectionPending || !choices.value) return;
-    connectionPending = true;
-    connectionUncertain = true;
-    retryConnectionAt = Date.now() + 60000;
-    const session = activeSession, generation = ++computeGeneration;
-    const current = () => session === activeSession && generation === computeGeneration;
-    choices.disabled = true; button.disabled = true;
-    renderCompute({...computeState, state:'connecting', transport:'unverified', gpu:'', checked_at:null});
-    try {
-      await connectSavedCompute({targetId:choices.value, session, current, tool,
-        render(c) { computeState = c; renderCompute(c); },
-        accept(c) { connectionUncertain = false; invalidate(); computeState = c; renderCompute(c); }});
-    } catch(error) {
-      if (current()) { renderCompute({...computeState,state:'disconnected',detail:error.message}); message(error.message); }
-    } finally {
-      connectionPending = false; choices.disabled = false; button.disabled = !choices.value;
-      for (const id of ['rfd-check','rfd-disconnect','rfd-setup']) document.getElementById(id).disabled = false;
-      if (!current()) { connectionUncertain = false; void compute(); }
-    }
-  };
-  box.append(choices, button);
-}
 export function beginNavigation() {
   if (navigationCommitting) throw Error('Wait for the current structure to finish opening.');
   const generation = ++navigationGeneration, session = activeSession, epoch = editEpoch;
@@ -424,7 +299,6 @@ export async function restoreDraft(draftId) {
   if (!current()) return;
   await openStudioSession(v.session_id, current, {...v, source:'saved_draft'});
   if (expired) message('Restored the saved draft. The previous editor session expired; unsaved edits could not be recovered.');
-  await compute();
 }
 async function drafts() {
   const box = document.getElementById('rfd-drafts'); box.replaceChildren();
@@ -491,9 +365,10 @@ async function initialize() {
   document.querySelector('.editor-document').after(generateSection);
   for (const name of ['backbone','latent']) document.getElementById(`rfd-${name}-noise`).addEventListener('input', e => { document.getElementById(`rfd-${name}-value`).value = e.target.value; });
 
-  const computeBox = document.createElement('details');
-  computeBox.id = 'rfd-compute-box';
-  computeBox.innerHTML = `<summary>Compute · <span id="rfd-compute-label">Checking</span></summary><div class="rfd-compute-panel"><strong id="rfd-compute-name"></strong><div id="rfd-compute-gpu"></div><p id="rfd-compute-route"></p><p id="rfd-compute-checked"></p><p id="rfd-compute-running"></p><p id="rfd-setup-progress" role="status"></p><div class="rfd-compute-actions"><button id="rfd-setup">Set up in chat</button><button id="rfd-check">Check connection</button><button id="rfd-disconnect">Disconnect this session</button></div><details id="rfd-existing"><summary>Use an existing machine</summary><div id="rfd-targets"></div></details><details><summary>Details</summary><p id="rfd-compute-detail"></p><button id="rfd-stop" hidden>Review stop in chat</button></details></div>`;
+  const runTarget = document.createElement('span');
+  runTarget.id = 'rfd-run-target';
+  runTarget.setAttribute('role', 'status');
+  runTarget.textContent = 'Run on: choose in chat';
   const toolbar = document.querySelector('.header-actions');
   const menu = (id, title) => {
     const box = document.createElement('details');
@@ -510,8 +385,8 @@ async function initialize() {
   const runsMenu = menu('rfd-runs-menu', 'Runs');
   runsMenu.panel.append(document.getElementById('rfd-runs-refresh'), document.getElementById('rfd-runs'));
   document.getElementById('rfd-run-history').remove();
-  toolbar.append(fileMenu.box, draftMenu.box, runsMenu.box, computeBox, help);
-  const menus = [fileMenu.box, draftMenu.box, runsMenu.box, computeBox];
+  toolbar.append(fileMenu.box, draftMenu.box, runsMenu.box, runTarget, help);
+  const menus = [fileMenu.box, draftMenu.box, runsMenu.box];
   for (const box of menus) box.addEventListener('toggle', () => {
     if (!box.open) return;
     for (const other of menus) if (other !== box) other.open = false;
@@ -525,25 +400,9 @@ async function initialize() {
     activeMenu?.querySelector('summary')?.focus();
   });
   document.addEventListener('click', e => { for (const box of menus) if (!box.contains(e.target)) box.open = false; });
-  const hint = document.createElement('div'); hint.id = 'rfd-compute-hint'; hint.hidden = true;
-  hint.innerHTML = `Connect a GPU when you’re ready to generate. <button id="rfd-hint-setup">Set up in chat</button> <button id="rfd-hint-dismiss" aria-label="Dismiss compute reminder">×</button>`;
-  generation.append(hint);
-  if (local || !hostCapabilities.message) document.getElementById('rfd-hint-setup').textContent = 'Show chat request';
-  action('rfd-setup', () => setupCompute());
-  action('rfd-hint-setup', () => setupCompute());
-  action('rfd-check', () => compute(true));
-  action('rfd-stop', () => setupCompute(computeState.selection?.machine_id, 'stop'));
-  action('rfd-disconnect', async () => {
-    const session = activeSession;
-    const result = await tool('disconnect_compute', {session_id: session, expected_revision: computeState.selection.revision});
-    if (session !== activeSession) return;
-    invalidate(); message(result.detail); await compute();
-  });
   action('rfd-drafts-refresh', drafts);
-  document.getElementById('rfd-hint-dismiss').onclick = () => { hintDismissed = true; hint.hidden = true; };
-  document.getElementById('rfd-existing').ontoggle = e => { if (e.target.open) registeredTargets().catch(error => message(error.message)); };
-  setInterval(() => { if (!document.hidden) { void compute(); void pollRun(); } }, 15000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { void compute(); void pollRun(); } });
+  setInterval(() => { if (!document.hidden) void pollRun(); }, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void pollRun(); });
   for (const id of ["rfd-note", "rfd-samples", "rfd-seed", "rfd-thinking", "rfd-backbone-noise", "rfd-latent-noise"]) document.getElementById(id).oninput = () => {
     document.getElementById('rfd-generation-origin').hidden = true;
     invalidate(); queueDraft();
@@ -551,22 +410,24 @@ async function initialize() {
   document.getElementById("rfd-image").onchange = e => {
     void attachImage(e.target.files[0]).catch(error => message(error.message));
   };
-  action("rfd-review", async () => {
-    if (!computeState?.name) { document.getElementById("rfd-compute-box").open = true; message("Connect compute before reviewing a run. You can keep editing and saving your draft."); return; }
+  action("rfd-review", reviewDesign);
+  action("rfd-generate", generateDesign);
+  action("rfd-runs-refresh", refreshRuns);
+}
+export async function reviewDesign() {
     const epoch = editEpoch;
-    const p = await tool("prepare_design", { session_id: activeSession, note: document.getElementById("rfd-note").value, samples: Number(document.getElementById("rfd-samples").value), seed: Number(document.getElementById("rfd-seed").value), image_base64: imageNote, generation: { thinking: document.querySelector('input[name="thinking"]:checked').value, backbone_noise: Number(document.getElementById("rfd-backbone-noise").value), latent_noise: Number(document.getElementById("rfd-latent-noise").value) } });
+    const p = await tool("prepare_design_request", { session_id: activeSession, note: document.getElementById("rfd-note").value, samples: Number(document.getElementById("rfd-samples").value), seed: Number(document.getElementById("rfd-seed").value), image_base64: imageNote, generation: { thinking: document.querySelector('input[name="thinking"]:checked').value, backbone_noise: Number(document.getElementById("rfd-backbone-noise").value), latent_noise: Number(document.getElementById("rfd-latent-noise").value) } });
     if (epoch !== editEpoch) throw Error("The design changed during review; review it again.");
     plan = p;
-    document.getElementById("rfd-plan-text").textContent = `${p.samples} design(s), seed ${p.seed}, thinking ${p.generation.thinking}, noise ${p.generation.backbone_noise} / ${p.generation.latent_noise}, ${p.instance}. Saved input ${p.sha256.slice(0, 12)}. ${(p.issues || []).map((x) => x.message).join(" ")}`;
+    document.getElementById("rfd-plan-text").textContent = `${p.samples} design(s), seed ${p.seed}, thinking ${p.generation.thinking}, noise ${p.generation.backbone_noise} / ${p.generation.latent_noise}, choose a machine in chat. Saved input ${p.sha256.slice(0, 12)}. ${(p.issues || []).map((x) => x.message).join(" ")}`;
     document.getElementById("rfd-plan").hidden = false;
-  });
-  action("rfd-generate", () => {
+}
+export async function generateDesign() {
     if (!plan) throw Error("Review the current design first");
-    watchedRun = {jobId: plan.snapshot_id, session: activeSession, epoch: editEpoch};
-    return ask(`Generate the reviewed RFD4 design using execute_rfd4_plan with plan_id ${plan.snapshot_id} and plan_checksum ${plan.plan_checksum}. Use this exact saved plan (${plan.samples} designs, seed ${plan.seed}, ${plan.instance}).`);
-  });
-  action("rfd-runs-refresh", refreshRuns);
-  await compute().catch((e) => message(e.message));
+    const request = plan, session = activeSession, epoch = editEpoch;
+    const delivered = await ask(`Please run saved RFD4 design request ${request.request_id}. Read it with get_design_request and follow the RFD4 Studio chat workflow. Choose the execution host with me if it is unclear.`);
+    if (delivered && plan === request && session === activeSession && epoch === editEpoch)
+      watchedRun = {jobId: request.request_id, session, epoch};
 }
 // Only the most recently submitted plan may replace the current input.
 // Edits, navigation and another submission invalidate that permission.
@@ -580,7 +441,8 @@ async function pollRun() {
   try {
     const workspace = await tool('get_workspace');
     let job = workspace.jobs.find(job => job.job_id === run.jobId);
-    if (!job) return; // The chat may still be waiting for execution approval.
+    if (!job) return; // The chat may still be choosing a host.
+    document.getElementById('rfd-run-target').textContent = `Run on: ${job.machine_name || job.instance || job.target?.ssh_alias || 'chosen in chat'} · ${job.status}`;
     if (['queued', 'submitted', 'submitting', 'submission_unknown', 'running'].includes(job.status)) {
       job = await tool('check_rfd4_job', {job_id: run.jobId});
     }
@@ -623,6 +485,7 @@ async function refreshRuns() {
       try {
         if (job.status === "completed") {
           watchedRun = null;
+          document.getElementById('rfd-run-target').textContent = `Run on: ${job.machine_name || job.instance || 'original host'} · ${job.status}`;
           await showResults(job.job_id, row);
         } else {
           const observed = await tool("check_rfd4_job", { job_id: job.job_id });

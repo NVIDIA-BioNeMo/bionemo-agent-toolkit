@@ -2,7 +2,7 @@
 
 An embedded MCP App for BioNeMo Agent Toolkit. It packages AtomWorks Studio's
 existing molecular editor with a preloaded PD-L1 example, 3D annotations, saved
-drafts, reviewed RFD4 generation, results and self-contained compute management.
+drafts, reviewed RFD4 generation, results and chat-led execution on a named SSH host.
 Image notes accompany the input; they do not become model constraints automatically.
 The app uses a bundled frontend rather than an HTTP iframe. No NGS plugin is required.
 
@@ -28,35 +28,35 @@ restart. `RFD4_STUDIO_HOME` selects persistent state (default
 Ask chat to open **RFD4-Proteina Studio**, then:
 
 1. Load the PD-L1 example, realize its editable segment and annotate residues.
-2. Open **Compute**, select an existing machine and click **Connect**. The app
-   checks connectivity, GPU, pinned runtime and weights before displaying Ready.
-   If no machine is registered, **Manage in chat** requests setup assistance.
-3. Choose thinking, design count, seed and optional sampling settings. Review
-   freezes the annotated CIF and settings; approve execution in chat.
+2. Choose thinking, design count, seed and optional sampling settings. Review
+   freezes the annotated CIF and settings without needing compute.
+3. Choose **Generate in chat**. Chat reads the saved request and asks for an SSH
+   host when the destination is unclear, verifies readiness, and submits it.
 4. Open the completed design from **Runs**. Use **File → Save CIF** or the run's
    ZIP export. When Codex cannot download directly, chat retrieves the verified
    local export and returns a file link.
 
-Drafts preserve annotations, notes and settings. Disconnect detaches the session
-without stopping its machine or jobs; reconnect reuses the saved target. Opening
-a result saves the current draft and does not reconnect compute. Unsupported host
-messaging or failed exports produce an error instead of silently succeeding.
+Drafts preserve annotations, notes and settings. Opening a result saves the current
+draft. The toolbar reports the run's machine and job state. Unsupported chat
+handoff preserves the request and explains how to continue; it never reports a
+successful submission.
 
 ## Compute and runtime
 
-Agent tools can register local Linux GPU, existing SSH and Brev targets. Registration
-is separate from connection and model readiness; readiness expires after 15 minutes.
-Switching targets invalidates run reviews, while existing jobs retain their original
-machine and frozen inputs. Ambiguous dispatch is never automatically repeated.
+Compute is user-managed. The plugin checks a named SSH host, submits immutable
+requests, checks jobs and collects results/logs. It does not provision, start,
+stop or own machines. The `rfd4-studio-chat` skill guides host choice and setup.
+If Brev CLI is installed, chat can offer existing or new compute through that CLI.
+Creation requires a price and shutdown policy reviewed in chat. Existing machines
+stay running unless separately requested. No Brev installation, driver upgrade or
+reboot happens silently.
 
-Brev uses immutable organization/instance identity and direct SSH/SCP. Explicit
-access refresh can remember a first-use key with OpenSSH `accept-new`; changed
-keys are refused. Subsequent execution/copies and generic SSH use strict checking.
-Refresh does not start or provision machines. Dedicated Brev setup/design uses
-`dedicated_brev_user` scope without a privileged ownership marker; existing protected
-owners and historical ownership-bound jobs retain their checks. Existing creation,
-Start/Stop, setup and queued-job recovery remain agent-only reviewed operations.
-Stop requires its existing activity/ownership checks; do not bypass a refusal.
+SSH host and TLS verification stay enabled. Brev first-use trust can be approved
+in chat; changed keys are refused. Launch validation, upload and acknowledgement
+happen inside the active tool call. Only remote execution is detached. Durable
+receipts prevent duplicate inference after retries or interruption. Closing chat
+does not stop remote work or billing; resume in chat to collect and complete any
+authorized shutdown. Verified collected results remain available after stopping.
 
 Public model source is pinned to `RosettaCommons/RFD4-Proteina` at
 `c7c6cacbc617ab074b4e234448bed6581840949f`; the Hugging Face bundle is pinned at
@@ -81,13 +81,9 @@ setup smoke test to pass before generating a design. The fresh A100 UAT image
 required a manual upgrade from 565.57.01 to 580.196.07; fresh provisioning is not
 qualified as an unattended workflow.
 
-Historical workspaces require the existing offline upgrade helper. Disable the old
-installation and stop its controllers/workers; finish or resolve outstanding work.
-Run `python scripts/upgrade_state.py --legacy /absolute/old-root --new /absolute/new-root --old-installation-disabled`,
-then point `RFD4_STUDIO_HOME` to the new root. The helper preserves old bytes and
-backups and refuses live writers/unresolved work. Resume an interrupted upgrade
-with the same arguments; never restore backups over newer state. Existing queued
-jobs require explicit recovery with their original accepted plan checksum.
+Existing drafts, annotations, inputs and results are preserved in place. Legacy
+job records retain their original reader and are never replayed through the new
+submission path. Legacy compute records are suggestions only, not active selections.
 
 ## Build and package
 
@@ -128,29 +124,25 @@ transparent green-eye/white-wordmark SVG; NVIDIA branding remains subject to tra
 terms (source attribution in the development integration's `host/BRANDING.md`). Build provenance and third-party notices must
 remain with the bundled viewer.
 
-The Python controller is organized by responsibility: `service.py` owns planning
-and submission; `registry.py`, `brev_provider.py` and `lifecycle.py` handle compute;
-`editor_app.py` wraps the CPU editor. Runtime setup, frozen payloads and privileged
-helpers retain separate execution boundaries. Related tests use the same feature
-groupings. Authored source/test files stay below 1,000 lines; generated viewer assets
-and dependency locks are retained intact.
+The Python adapter is organized by responsibility: `service.py` keeps editor,
+drafts and result operations; `design_request.py` freezes requests;
+`chat_execution.py` handles named-host submission and collection; `ssh_job.py`
+provides remote execution receipts. `registry.py` retains shared SSH transport,
+and `brev_provider.py` only reads provider identity for a named Brev target.
+There is no machine registry, provisioning service, ownership claim or local
+submission worker. Authored source/test files stay below 1,000 lines; generated
+viewer assets and dependency locks are retained intact.
 
 ## Validation scope
 
-Real Codex testing passed on the existing Brev A100: connect/readiness,
-disconnect/reconnect, annotation/draft preservation, one annotated public PD-L1
-design, result viewing and CIF/ZIP exports. The result contained 1,403 atoms with
-finite coordinates. A separate short-monomer setup smoke passed all nine checks
-before and after inference. A real expired Brev login blocked readiness and normal
-CLI sign-in restored it. Other unavailable-machine/dependency/stale-response cases
-have regression coverage; isolated OpenSSH testing verifies first-use persistence
-and changed-key refusal. CI covers Python/JavaScript contracts, packaging, upstream
-imports and canonical RFD4 helpers.
+The chat-led path has completed one public PD-L1 design on the existing Brev
+A100, recovered it from a fresh client process, collected its results and logs,
+and opened the 1,454-atom result in the localhost editor. The existing machine
+remains running. This is source/localhost evidence, not an installed-plugin pass.
 
-This establishes the tested Codex/A100 workflow, not every GPU, preset, provisioning
-or shutdown path. The broad runtime profile remains `candidate_not_qualified`;
-ChatGPT.com deployment is separately unqualified. Legacy privileged prerequisite
-qualification applies only to its pinned Ubuntu/A100 profile, not other images.
-Recheck the actual embedded host after frontend/host changes: localhost rendering
-alone does not prove WASM, chat messaging or download support in that host.
+The current release still requires an installed-plugin generation, chat handoff
+and export pass. A separate new-machine UAT is in progress. Earlier installed
+release results do not qualify this changed submission path. The broad runtime
+profile remains `candidate_not_qualified`; ChatGPT.com deployment is separately
+unqualified. Test evidence and outstanding checks are recorded in PR #58.
 Inference success is not scientific validation; use the canonical evaluation skills.

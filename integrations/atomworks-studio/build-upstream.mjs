@@ -31,6 +31,8 @@ const adapter = { name: "studio-host-adapter", setup(b) {
       s = adaptSessionFileController(s, bridge);
     }
     if (a.path === path.join(web, "src/main.ts")) {
+      // CPU editor startup may take 90 seconds on a cold first launch.
+      s = replaceOnce(s, 'api<StudioSchema>("/api/schema")', 'api<StudioSchema>("/api/schema", {timeoutMs: 120_000})');
       s = replaceOnce(s, 'element("document-name").textContent = summary.name;', 'element("document-name").textContent = summary.name === "protein_binder" ? "PD-L1 binder demo" : summary.name;');
       s = replaceOnce(s, '${escapeHtml(summary.name)}', '${escapeHtml(summary.name === "protein_binder" ? "PD-L1 binder demo" : summary.name)}');
       s = `import {studioEvent} from ${JSON.stringify(bridge)};

@@ -54,8 +54,6 @@ import sys
 
 def default_editor_url(root):
     """Persist one loopback endpoint per workspace, shared by both MCP servers."""
-    from upgrade_state import require_workspace_activation
-    require_workspace_activation(root)
     root = Path(root)
     with (root/'editor-config.lock').open('a') as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
@@ -77,8 +75,6 @@ def default_editor_url(root):
 
 
 def ensure_editor(service):
-    from upgrade_state import require_workspace_activation
-    require_workspace_activation(service.root)
     python=os.environ.get('RFD4_EDITOR_PYTHON')
     url=service.studio_url()
     parsed=urlsplit(url)
@@ -176,11 +172,9 @@ def create_app():
     directory=os.environ.get('ANNOTATION_STUDIO_SESSION_DIR')
     if not directory: raise ValueError('The managed editor requires an explicit session directory')
     from pathlib import Path
-    from upgrade_state import require_workspace_activation
     root=Path(os.environ.get('RFD4_STUDIO_HOME',str(Path(directory).parent)))
     if Path(directory).resolve()!=root.resolve()/'editor-sessions':
         raise ValueError('Managed editor sessions must belong to the configured workspace')
-    require_workspace_activation(root)
     owner=store_identity(directory)
     from atomworks_studio_editing import document
     from atomworks.io.utils.atom_array_plus import concatenate_atom_array_plus

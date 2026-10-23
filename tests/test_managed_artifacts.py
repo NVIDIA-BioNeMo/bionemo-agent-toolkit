@@ -35,7 +35,7 @@ class ArtifactTests(unittest.TestCase):
         for method,value in [('verify_target', lambda *a: None), ('target_exec', lambda *a, **kw: json.dumps(self.manifest)), ('target_copy', copy)]:
             mocked = patch.object(self.service, method, side_effect=value)
             mocked.start(); self.addCleanup(mocked.stop)
-        no_launch = patch.object(self.service, 'launch', side_effect=AssertionError('Must never rerun inference'))
+        no_launch = patch.object(self.service, 'submit_design_request', side_effect=AssertionError('Must never rerun inference'))
         no_launch.start(); self.addCleanup(no_launch.stop)
 
     def test_complete_manifest_reused_without_download(self):

@@ -34,22 +34,13 @@ class EditorRuntimeTests(unittest.TestCase):
         self.health=httpx.Response(200,json={'version':'0.0.1'},request=httpx.Request('GET','http://localhost'))
         self.receipt={'adapter':'rfd4-editor-1','sources':EXPECTED_SOURCE,'store_identity':store_identity(self.root/'editor-sessions')}
     def response(self):return httpx.Response(200,json=self.receipt)
-    def test_legacy_workspace_refuses_before_editor_lock_or_network(self):
-        (self.root/'config.json').write_text('{}')
-        from upgrade_state import inventory
-        before=inventory(self.root)
-        with patch('editor_app.httpx.get') as request,patch('editor_app.subprocess.Popen') as launch:
-            with self.assertRaisesRegex(ValueError,'requires offline upgrade'):ensure_editor(self.service)
-        request.assert_not_called();launch.assert_not_called()
-        self.assertEqual(inventory(self.root),before)
+    def test_legacy_compute_config_does_not_block_or_change_editor(self):
+        legacy=self.root/'config.json';legacy.write_text('{"instance":"preserve-me"}')
+        with patch('editor_app.httpx.get',side_effect=[self.health,self.response()]),patch('editor_app.subprocess.Popen') as launch:
+            ensure_editor(self.service)
+        launch.assert_not_called()
+        self.assertEqual(legacy.read_text(),'{"instance":"preserve-me"}')
 
-    def test_editor_app_refuses_before_session_identity_creation(self):
-        from editor_app import create_app
-        (self.root/'config.json').write_text('{}')
-        with patch.dict(os.environ,{'RFD4_STUDIO_HOME':str(self.root),
-                'ANNOTATION_STUDIO_SESSION_DIR':str(self.root/'editor-sessions')},clear=True),patch('editor_app.store_identity') as owner:
-            with self.assertRaisesRegex(ValueError,'requires offline upgrade'):create_app()
-        owner.assert_not_called()
     def test_receipt_precedes_public_static_catchall_and_replaces_stale_registration(self):
         from editor_app import install_compatibility_route
         from starlette.applications import Starlette

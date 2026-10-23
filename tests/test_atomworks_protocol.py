@@ -22,15 +22,14 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     names={tool.name for tool in tools}
                     resources=(await session.list_resources()).resources
                     self.assertEqual(resources[0].meta['ui']['csp']['frameDomains'],[])
-                    self.assertEqual('execute_rfd4_plan' in names,mode=='agent')
-                    self.assertEqual('recover_queued_rfd4_job' in names,mode=='agent')
+                    self.assertEqual('submit_design_request' in names,mode=='agent')
+                    self.assertEqual('check_named_target' in names,mode=='agent')
+                    self.assertIn('get_design_request', names)
+                    self.assertIn('prepare_design_request', names)
+                    for obsolete in ('execute_rfd4_plan', 'recover_queued_rfd4_job', 'refresh_selected_compute_access',
+                                     'execute_compute_creation', 'execute_compute_stop', 'prepare_executor_claim', 'select_compute'):
+                        self.assertNotIn(obsolete, names)
                     if mode=='app':
-                        self.assertIn('refresh_selected_compute_access',names)
-                        refresh=next(t for t in tools if t.name=='refresh_selected_compute_access')
-                        self.assertFalse(refresh.annotations.readOnlyHint)
-                        config=json.loads((repo/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
-                        app=next(value for value in config['mcpServers'].values() if value.get('args')==['app'])
-                        self.assertEqual(app['tools']['refresh_selected_compute_access']['approval_mode'],'prompt')
                         exported=await session.call_tool('save_rfd4_export',{'filename':'uat.cif','mime_type':'chemical/x-mmcif','text':'data_preserved\n'})
                         self.assertFalse(exported.isError)
                         saved=json.loads(exported.content[0].text)
@@ -56,13 +55,12 @@ class Protocol(unittest.IsolatedAsyncioTestCase):
                     else:
                         self.assertNotIn('save_rfd4_export',names)
                         self.assertIn('get_rfd4_export',names)
-                        execute=next(t for t in tools if t.name=='execute_rfd4_plan')
-                        self.assertEqual(execute.meta['ui']['visibility'],['model'])
-                        recovery=next(t for t in tools if t.name=='recover_queued_rfd4_job')
-                        self.assertEqual(recovery.meta['ui']['visibility'],['model'])
+                        execute=next(t for t in tools if t.name=='submit_design_request')
+                        self.assertFalse(execute.annotations.readOnlyHint)
+                        self.assertTrue(execute.annotations.openWorldHint)
                         config=json.loads((repo/'skills/bionemo-agent-toolkit/.mcp.json').read_text())
-                        agent=next(value for value in config['mcpServers'].values() if 'execute_rfd4_plan' in value.get('tools',{}))
-                        self.assertEqual(agent['tools']['recover_queued_rfd4_job']['approval_mode'],'prompt')
+                        agent=next(value for value in config['mcpServers'].values() if value.get('args')==['agent'])
+                        self.assertEqual(agent['tools'], {'submit_design_request': {'approval_mode':'prompt'}})
     async def test_app(self): await self.check_mode('app')
     async def test_agent(self): await self.check_mode('agent')
     async def test_packaged_app(self): await self.check_mode('app', packaged=True)

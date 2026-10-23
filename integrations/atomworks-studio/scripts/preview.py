@@ -25,13 +25,19 @@ def import_structure(cif): return service.viewer_payload(service.import_cif(cif)
 def open_result(job_id):
     service.collect(job_id)
     return service.viewer_payload(service.open_result(job_id))
-def execute_plan(**arguments): return service.public_job(service.execute(**arguments))
 def job_status(job_id): return service.public_job(service.status(job_id))
-ALLOWED = {'get_compute_capabilities':service.capabilities,'select_compute':lambda **kw:service.register_registry_compute(**kw),'inspect_compute_target':service.inspect_compute_target,'disconnect_compute':service.disconnect_compute,'open_run_structure':service.open_run_structure,'list_results':service.results,'download_results':service.download_results,'load_demo':load_demo,'import_structure':import_structure,'open_result':open_result,
-           'refresh_selected_compute_access':service.refresh_selected_compute_access,'begin_compute_setup':service.begin_setup,'save_draft':service.save_draft,'list_drafts':service.list_drafts,'restore_draft':service.restore_draft,'list_registered_compute':service.available_compute,
-           'get_workspace':service.overview,'resolve_selection':service.resolve_selection,
-           'set_condition':service.set_condition,'prepare_design':service.prepare,
-           'studio_request':lambda **kw: __import__('editor_app').request(service,**kw),'get_compute_status':service.compute_status,'check_compute':service.check_compute,'execute_rfd4_plan':execute_plan,'check_rfd4_job':job_status}
+ALLOWED = {
+    'prepare_design_request':service.prepare_design_request,
+    'get_design_request':service.get_design_request,
+    'open_run_structure':service.open_run_structure, 'list_results':service.results,
+    'download_results':service.download_results, 'load_demo':load_demo,
+    'import_structure':import_structure, 'open_result':open_result,
+    'save_draft':service.save_draft, 'list_drafts':service.list_drafts,
+    'restore_draft':service.restore_draft, 'get_workspace':service.overview,
+    'resolve_selection':service.resolve_selection, 'set_condition':service.set_condition,
+    'studio_request':lambda **kw: __import__('editor_app').request(service,**kw),
+    'check_rfd4_job':job_status,
+}
 
 async def index(request):
     asset=Path(__file__).parents[1]/'assets/studio-upstream.html'

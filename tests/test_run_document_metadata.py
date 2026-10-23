@@ -14,16 +14,14 @@ class RunDocumentMetadataTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.service=Service(self.tmp.name,runner=lambda *a,**k:self.fail('external command'))
-        from ownership_test_support import assume_owned
-        assume_owned(self,self.service,skip_transport_identity=True)
-        self.service.register_compute('brev','fixture','/srv/rfd4','http://127.0.0.1',
-            instance_id='fixed',organization_id='org',session_id='demo')
         self.image=base64.b64encode(b'\x89PNG\r\n\x1a\nfixture').decode()
         with patch.object(self.service,'studio',return_value={'cif':'data_fixture\n_atom_site.id 1\n','revision':1,'issues':[]}):
-            public=self.service.prepare('demo',note='The saved run note',samples=2,seed=123,
+            public=self.service.prepare_design_request('demo',note='The saved run note',samples=2,seed=123,
                 image_base64=self.image,generation={'thinking':'low','backbone_noise':0.2,'latent_noise':0.4})
         self.id=public['snapshot_id'];self.folder=self.service.state/self.id
-        self.plan=json.loads((self.folder/'plan.json').read_text())
+        self.plan=dict(public,target={'kind':'brev','instance':'fixture','instance_id':'fixed','organization_id':'org','remote_root':'/srv/rfd4','studio_url':'http://127.0.0.1'})
+        self.plan['plan_checksum']=self.service.checksum(self.plan)
+        (self.folder/'plan.json').write_text(json.dumps(self.plan))
         self.job={key:self.plan[key] for key in ('snapshot_id','samples','seed','generation','target')}
         self.job.update(job_id=self.id,status='completed');self.service.save_job(self.job)
 
@@ -81,6 +79,6 @@ class RunDocumentMetadataTests(unittest.TestCase):
                 value=self.service.open_run_structure(self.id,index)
                 self.assertEqual(value['session_id'],session)
                 self.assertEqual(value['document_metadata']['note'],self.plan['note'])
-                self.assertIsNone(self.service.managed.selection(session)['machine_id'])
+                self.assertFalse((self.service.root/'state.json').exists())
 
 if __name__=='__main__':unittest.main()

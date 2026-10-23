@@ -33,42 +33,14 @@ def safe_session(value: str) -> str:
     return value
 
 from compute import Compute
-from ownership_operation import OwnershipOperation
 
-class Backend(OwnershipOperation, Compute):
+class Backend(Compute):
     def __init__(self, root=ROOT, runner=subprocess.run):
         self.root = Path(root)
-        from upgrade_state import require_workspace_activation
-        require_workspace_activation(self.root)
         self.state = self.root / 'state'
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.runner = runner
         self.lock = threading.Lock()
-
-    @property
-    def managed(self):
-        from upgrade_state import require_workspace_activation
-        require_workspace_activation(self.root)
-        from managed_state import State
-        state = State(self.root)
-        return state
-
-    def selected_compute(self, session_id=None):
-        state = self.managed
-        with state.transaction() as data:
-            selection = dict(state._selection(data, session_id or 'workspace'))
-            if not selection['machine_id']:
-                return selection, None
-            machine = data['machines'][selection['machine_id']]
-            cfg = self.validate_config(dict(machine['config'], target_id=machine['id'],
-                    machine_revision=machine['revision'], selection_revision=selection['revision']))
-            return selection, cfg
-
-    def config(self, session_id=None):
-        _, cfg = self.selected_compute(session_id)
-        if cfg is None:
-            raise ValueError('No compute selected for this session. Connect a saved machine in chat.')
-        return cfg
 
     def run(self, args, timeout=60, *, pass_fds=()):
         inherited={'pass_fds':pass_fds} if pass_fds else {}
@@ -83,15 +55,6 @@ class Backend(OwnershipOperation, Compute):
             raise RuntimeError((result.stderr or result.stdout)[-4000:])
         return result.stdout
 
-    def brev(self, cfg, *args, timeout=60):
-        output = self.run([cfg.get('brev_executable', 'brev'), *args], timeout)
-        # Brev exec appends the instance name for its pipeable workflow.
-        if args and args[0] == 'exec':
-            lines = output.rstrip().splitlines()
-            if output.rstrip().endswith(cfg['instance']):
-                output = output.rstrip()[:-len(cfg['instance'])].rstrip()
-        return output
-
     def verify_target(self, cfg):
         import registry
         expected = cfg.get('ssh_access') or cfg.get('registry_target', {}).get('host_access')
@@ -104,16 +67,15 @@ class Backend(OwnershipOperation, Compute):
             row = provider.check_context(cfg['organization_id'], cfg['instance_id'])
             if row.get('name') != cfg['instance']:
                 raise ValueError('Brev machine name changed; refresh its saved access before execution')
-        if cfg.get('target_id'):
-            if cfg.get('kind','brev')=='brev':
-                identity=registry.machine_identity_from_output(self.target_exec(cfg,'cat /etc/machine-id',timeout=15))
-            else:
-                identity=registry.linux_machine_identity(cfg,self.run)
-            self.managed.bind_physical_identity(cfg['target_id'],identity)
-
-
-    def preflight(self):
-        return self.check_compute()
+        if cfg.get('target_id') and (self.root / 'state.json').exists():
+            # Preserve historical physical-host checks without reviving the registry.
+            data = json.loads((self.root / 'state.json').read_text())
+            machine = data.get('machines', {}).get(cfg['target_id'], {})
+            expected = machine.get('physical_identity') or machine.get('identity', {}).get('linux_machine_id_sha256')
+            if expected:
+                physical = self.target_exec(cfg, 'cat /etc/machine-id', timeout=15).strip()
+                if hashlib.sha256(physical.encode()).hexdigest() != expected:
+                    raise ValueError('Original legacy host identity changed; preserve the run and inspect its original executor')
 
     def studio_url(self):
         # Editor service can be CPU-only and independent of any GPU target.
@@ -208,114 +170,18 @@ class Backend(OwnershipOperation, Compute):
     def read(self, item_id, filename):
         return json.loads((self.state / safe_id(item_id) / filename).read_text())
 
-    def launch(self, snapshot_id, samples=1, seed=42, request_id=None, target=None, generation=None, executor_ownership=None, plan_checksum=None, execution_payload=None):
-        if type(samples) is not int or not 1 <= samples <= 16 or type(seed) is not int or not 0 <= seed < 2**31:
-            raise ValueError('samples must be 1–16 and seed a nonnegative 31-bit integer')
-        generation = options(generation)
-        cfg = target if target is not None else self.config()
-        safe_id(snapshot_id)
-        snap = self.read(snapshot_id, 'snapshot.json')
-        source = self.state / snapshot_id / 'input.cif'
-        if hashlib.sha256(source.read_bytes()).hexdigest() != snap['sha256']:
-            raise ValueError('Snapshot was modified; export again')
-        job_id = safe_id(request_id or uuid.uuid4().hex)
-        with self.lock:
-            jobdir = self.state / job_id
-            record = {'machine_id': cfg.get('target_id'), 'job_id': job_id, 'snapshot_id': snapshot_id, 'samples': samples, 'seed': seed, 'generation': generation, 'instance': cfg['instance'], 'status': 'queued', 'target': cfg,'remote_dispatch_started':False,'plan_checksum':plan_checksum,'execution_payload':execution_payload}
-            if (jobdir / 'job.json').exists():
-                existing = self.read(job_id, 'job.json')
-                if options(existing.get('generation')) != generation or any(existing[k] != record[k] for k in ('snapshot_id', 'samples', 'seed', 'instance', 'target')):
-                    raise ValueError('Request ID already used with different parameters')
-                return existing
-            # Service.execute already verified the frozen proof before its
-            # short acceptance transaction. Never take a state lock or perform
-            # network I/O recursively inside that transaction. The detached
-            # worker independently rechecks this proof before its first write.
-            record['executor_ownership']=(executor_ownership if executor_ownership is not None
-                                          else self.require_execution_scope(cfg))
-            jobdir.mkdir(mode=0o700, exist_ok=True)
-            self.save_job(record)
-        import sys
-        worker_log = (jobdir / 'worker.log').open('a')
-        try:
-            subprocess.Popen([sys.executable, str(Path(__file__).with_name('worker.py')), str(self.root), job_id], stdin=subprocess.DEVNULL, stdout=worker_log, stderr=worker_log, start_new_session=True)
-        except Exception as error:
-            self.fail_undispatched(record,'Worker could not be spawned: '+str(error))
-            raise
-        finally:
-            worker_log.close()
-        return record
-
     def save_job(self, job):
         from registry import atomic
         target = self.state / job['job_id'] / 'job.json'
         atomic(target,job)
 
-    def fail_undispatched(self, record, reason):
-        if record.get('status')!='queued' or record.get('remote_dispatch_started') is True:
-            raise ValueError('A possibly dispatched run cannot be classified as safely undispatched')
-        record.update(status='failed',error=reason,remote_dispatch_started=False,dispatch_not_started=True)
-        self.save_job(record)
-        return record
-
-    def _submit(self, cfg, record, source):
-        if record.get('status')!='queued':return record
-        if record.get('remote_dispatch_started') is True:
-            raise ValueError('Queued run has prior dispatch evidence; reconcile it without staging again')
-        record['remote_dispatch_started']=False
-        try:
-            if not record.get('executor_ownership'):
-                raise ValueError('Queued run has no reviewed executor ownership proof; preserve it and review a new run.')
-            self.require_execution_scope(cfg,record['executor_ownership'])
-            from run_payload import verified
-            import run_payload as execution_adapter
-            from execution_payload import canonical, validate_manifest
-            review=record.get('execution_payload')
-            if not review or not record.get('plan_checksum'):
-                raise ValueError('Queued run predates immutable execution publication; preserve its history and review a new run')
-            payload=verified(Path(source).parent,review)
-            root = cfg['remote_root']
-            remote = f"{root}/runs/{record['job_id']}"
-            record['remote_dir'] = remote
-            attempt=remote+'/uploads/'+uuid.uuid4().hex
-            self.target_exec(cfg, f'test -x {shlex.quote(root + "/model/.venv/bin/rfd4-generate")} && test "$(git -C {shlex.quote(root + "/model")} rev-parse HEAD)" = {REVISION} && mkdir -p {shlex.quote(attempt)}')
-            self.target_copy(cfg,payload,attempt,timeout=180)
-            expected=validate_manifest(review['files'],{'kind':'run','id':record['job_id'],
-                'review_checksum':record['plan_checksum'],'executor_ownership':record['executor_ownership']})
-            receipt=json.loads(self.target_exec(cfg,execution_adapter.command(attempt+'/'+payload.name,remote+'/payload',expected,record['job_id'],
-                reviewed_bundle=review['publication_bundle'],reviewed_files=review['publication_files']),timeout=180))
-            if receipt.get('path')!=remote+'/payload' or receipt.get('manifest_sha256')!=hashlib.sha256(canonical(expected)).hexdigest():
-                raise ValueError('Published execution receipt differs from accepted run')
-            record['runtime_protocol'] = 3
-            record['published_payload']=expected
-            record['status'] = 'submitting'
-            record['remote_dispatch_started']=True
-            record.pop('dispatch_not_started',None)
-            self.save_job(record)
-            # Never automatically retry this launch if the network outcome is ambiguous.
-            output = self.target_exec(cfg, shlex.join([root + '/model/.venv/bin/python','-B', remote + '/payload/remote_job.py', 'launch-published', remote, record['job_id'],canonical(expected).decode()]))
-            receipt = json.loads(output)
-            if receipt.get('job_id') != record['job_id']:
-                raise ValueError('Remote launch receipt identity mismatch')
-            record['status'] = 'submitted'
-        except Exception as error:
-            if record.get('remote_dispatch_started') is True:
-                record.update(status='submission_unknown',error=str(error))
-            else:
-                self.fail_undispatched(record,str(error))
-        self.save_job(record)
-        if record.get('dispatch_not_started') is True:self.status(record['job_id'])
-        return record
-
     def status(self, job_id):
         record = self.read(job_id, 'job.json')
+        if record.get('runtime_protocol') == 4:
+            return self.check_chat_job(job_id)
         if record['status'] not in ('submitted', 'submitting', 'submission_unknown', 'running'):
-            if record.get('status')=='failed' and record.get('dispatch_not_started') is True and record.get('remote_dispatch_started') is False and record.get('machine_id'):
-                self.managed.reconcile_undispatched_run(record)
-            if record.get('status')=='queued':
-                if record.get('execution_payload') and record.get('remote_dispatch_started') is False and record.get('plan_checksum'):
-                    return dict(record,recovery_action='recover_queued_rfd4_job',detail='Waiting for the original worker. If this run stays queued, ask chat to continue this saved run; do not submit another design.')
-                return dict(record,detail='This older run has no durable dispatch proof. Inspect its original executor in chat; do not replay it.')
+            if record.get('status') == 'queued':
+                return dict(record, detail='Legacy queued run: inspect its original executor. This release never replays legacy jobs.')
             return record
         if not record.get('remote_dir'):
             return dict(record,detail='No durable remote dispatch path is recorded. Preserve this unresolved run and its machine reservation; inspect the original executor rather than replaying it.')
@@ -340,15 +206,12 @@ class Backend(OwnershipOperation, Compute):
             elif value.isdigit(): record.update(status='failed', exit_code=int(value))
             elif value == 'RUNNING': record['status'] = 'running'
             else: record['status'] = 'submission_unknown'
-        if record['status'] in ('completed', 'failed') and record.get('machine_id'):
-            state = self.managed
-            reservation = state.snapshot()['reservations'].get(record['machine_id'])
-            if reservation and reservation['owner_id'] == record['job_id']:
-                state.release(record['machine_id'], record['job_id'], 'Remote terminal job state verified')
         self.save_job(record)
         return record
 
     def collect(self, job_id):
+        if self.read(job_id, 'job.json').get('runtime_protocol') == 4:
+            return self.collect_chat_job(job_id)
         from artifacts import collect
         return collect(self, job_id)
 
@@ -370,35 +233,16 @@ class Backend(OwnershipOperation, Compute):
         result['result_file'] = path.name
         return result
 
-
 # Checksum-bound planning and process-safe submission around the Studio adapter.
 import fcntl
 from runtime_recipe import options
 
+from design_request import DesignRequests
+from chat_execution import ChatExecution
 
-from lifecycle import Lifecycle
-from setup_operation import SetupOperation
-from lifecycle import CreateOperation
-
-class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
+class Service(ChatExecution, DesignRequests, Backend):
     def plans(self):
         return [json.loads(p.read_text()) for p in sorted(self.state.glob('*/plan.json'), key=lambda p:p.stat().st_mtime, reverse=True)]
-
-    def prepare(self, session_id, note='', samples=1, seed=42, image_base64=None, generation=None):
-        if type(samples) is not int or not 1 <= samples <= 16 or type(seed) is not int or not 0 <= seed < 2**31:
-            raise ValueError('Use 1–16 designs and a nonnegative 31-bit seed')
-        generation = options(generation)
-        snapshot = self.snapshot(session_id, note, {'image_base64': image_base64} if image_base64 else None)
-        selection, target = self.selected_compute(session_id)
-        if target is None:
-            raise ValueError('Connect compute before reviewing a run')
-        ownership=self.require_execution_scope(target)
-        from run_payload import freeze
-        execution=freeze(self.state/snapshot['snapshot_id'],target,snapshot,samples,seed,generation,ownership)
-        plan = dict(snapshot, selection=selection, session_id=session_id, samples=samples, seed=seed, generation=generation, target=target, executor_ownership=ownership, execution_payload=execution)
-        plan['plan_checksum'] = self.checksum(plan)
-        (self.state / plan['snapshot_id'] / 'plan.json').write_text(json.dumps(plan, indent=2))
-        return self.public_plan(plan)
 
     @staticmethod
     def checksum(plan):
@@ -407,61 +251,6 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
     @staticmethod
     def public_plan(plan):
         return {k:v for k,v in plan.items() if k not in ('target', 'image_markup', 'execution_payload')} | {'instance':plan['target']['instance'], 'instance_id':plan['target'].get('instance_id', '')}
-
-    def execute(self, plan_id, plan_checksum):
-        plan = self.read(plan_id, 'plan.json')
-        if plan_checksum != plan['plan_checksum'] or self.checksum(plan) != plan_checksum:
-            raise ValueError('Plan changed; prepare and review again')
-        source = self.state / safe_id(plan_id) / 'input.cif'
-        if hashlib.sha256(source.read_bytes()).hexdigest() != plan['sha256']:
-            raise ValueError('Snapshot was modified; prepare and review again')
-        # One stable job per approved plan, even across separate MCP processes.
-        with (self.state / 'submission.lock').open('a') as handle:
-            fcntl.flock(handle, fcntl.LOCK_EX)
-            # Reopening/retrying an existing run must never submit it elsewhere.
-            if (self.state/plan_id/'job.json').exists():
-                return self.read(plan_id, 'job.json')
-            if not plan.get('execution_payload'):
-                raise ValueError('This older plan has no frozen execution payload. Prepare and review a new plan; existing runs remain available.')
-            if plan.get('selection') != self.managed.selection(plan.get('session_id') or 'workspace'):
-                raise ValueError('Compute selection changed; prepare and review again')
-            if plan['target'] != self.config(plan.get('session_id')):
-                raise ValueError('Compute configuration changed; prepare and review again')
-            state = self.managed
-            machine_id = plan['target']['target_id']
-            activity = self.compute_status(plan.get('session_id'))
-            if activity.get('active_jobs') or activity.get('unresolved_active_jobs'):
-                raise ValueError('Existing or unresolved run must be reconciled before another submission')
-            state.reserve(machine_id, plan_id, 'run')
-            try:
-                status = self.check_compute(plan.get('session_id'))
-                if status['state'] != 'ready':
-                    raise ValueError('Compute is not ready: '+status['detail'])
-                if not plan.get('executor_ownership'):
-                    raise ValueError('Plan predates required executor ownership; review a new plan.')
-                ownership=self.require_execution_scope(plan['target'],plan['executor_ownership'])
-                activity=self.machine_jobs(machine_id)
-                if activity['active_jobs'] or activity['unresolved_active_jobs']:
-                    raise ValueError('Active or unresolved jobs on the verified host block submission')
-                # Linearization point: once the durable job is accepted, a later
-                # disconnect leaves it running. Before this point it invalidates approval.
-                with state.transaction() as data:
-                    if plan['selection'] != state._selection(data, plan.get('session_id') or 'workspace'):
-                        raise ValueError('Compute selection changed; prepare and review again')
-                    return self.launch(plan_id, plan['samples'], plan['seed'], request_id=plan_id,
-                                       target=plan['target'], generation=plan.get('generation'), executor_ownership=ownership, plan_checksum=plan['plan_checksum'], execution_payload=plan['execution_payload'])
-            except Exception:
-                job_path = self.state/plan_id/'job.json'
-                if not job_path.exists() or self.read(plan_id, 'job.json')['status'] == 'failed':
-                    state.release(machine_id, plan_id, 'No remote dispatch; submission preparation failed')
-                raise
-
-    def recover_queued_job(self, job_id, accepted_plan_checksum):
-        """Explicit continuation of an accepted job, never a new plan or run."""
-        if not isinstance(accepted_plan_checksum,str) or len(accepted_plan_checksum)!=64:
-            raise ValueError('Provide the original accepted plan checksum')
-        from worker import run_worker
-        return run_worker(self.root,safe_id(job_id),accepted_plan_checksum=accepted_plan_checksum)
 
     def save_draft(self, session_id, note='', image_base64=None, settings=None):
         """Save even incomplete designs; validation is required only for review."""
@@ -479,8 +268,6 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
             raise
         from datetime import datetime, timezone
         record={'draft_id':session_id,'revision':exported['revision'],'cif':exported['cif'],'note':note,'image_base64':image_base64,'settings':settings,'saved_at':datetime.now(timezone.utc).isoformat()}
-        selection = self.managed.selection(session_id)
-        record['previous_machine_id'] = selection['machine_id'] or selection['previous_machine_id']
         directory=self.root/'drafts'; directory.mkdir(exist_ok=True,mode=0o700)
         path=directory/(session_id+'.json')
         serialized=json.dumps(record)
@@ -496,14 +283,6 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
             raise ValueError('The saved draft changed; save and review the document again')
         record=json.loads(serialized)
         result=self.import_cif(record['cif'])
-        # Restoring scientific work never reconnects compute, including legacy drafts.
-        previous = record.get('previous_machine_id')
-        if previous:
-            state = self.managed
-            with state.transaction() as data:
-                if previous in data['machines']:
-                    selection = state._selection(data, result['session_id'])
-                    data['sessions'][result['session_id']] = dict(selection, previous_machine_id=previous)
         return {'session_id':result['session_id'],'note':record['note'],'image_base64':record.get('image_base64'),'settings':record.get('settings')}
 
     def overview(self):
@@ -519,12 +298,8 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
                     or ('Command ' in value and ' timed out' in value)):
                 result[field]='An earlier command failed or timed out. Ask chat to inspect the original operation; do not resubmit an uncertain run.'
         result['machine_name']=job.get('instance') or 'Original machine'
-        if job.get('status')=='queued':
-            if job.get('execution_payload') and job.get('remote_dispatch_started') is False and job.get('plan_checksum'):
-                result['detail']='Waiting for the original worker. If this run stays queued, ask chat to continue this saved run; do not submit another design.'
-                result['recovery_action']='recover_queued_rfd4_job'
-            else:
-                result['detail']='This older run has no durable dispatch proof. Inspect its original executor in chat; do not replay it.'
+        if job.get('status') == 'queued':
+            result['detail'] = 'Legacy queued run: inspect its original executor. This release never replays legacy jobs.'
         return result
 
     def viewer_payload(self, result):
@@ -586,6 +361,13 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
         """Restore provenance from the accepted input, never the currently open draft."""
         snapshot_id = safe_id(job.get('snapshot_id', job['job_id']))
         directory = self.state / snapshot_id
+        if job.get('runtime_protocol') == 4:
+            request = self.get_design_request(snapshot_id)
+            if request['request_checksum'] != job.get('request_checksum'):
+                raise ValueError('Run provenance changed')
+            image = base64.b64encode((directory / 'annotation.png').read_bytes()).decode() if request.get('image_sha256') else None
+            return {'source': 'saved_run', 'note': request.get('note', ''), 'image_base64': image,
+                    'settings': {key: request[key] for key in ('samples', 'seed', 'generation')}}
         path = directory / 'plan.json'
         if not path.exists():
             return {'source':'unavailable', 'note':'', 'image_base64':None, 'settings':None}
@@ -607,7 +389,6 @@ class Service(CreateOperation, SetupOperation, Lifecycle, Backend):
         image_path = directory/'annotation.png'
         image_unavailable = image_path.exists() and not plan.get('image_sha256')
         if plan.get('image_sha256'):
-            import base64
             raw = image_path.read_bytes()
             if (len(raw)>10_500_000 or not raw.startswith(b'\x89PNG\r\n\x1a\n')
                     or hashlib.sha256(raw).hexdigest()!=plan['image_sha256']):
