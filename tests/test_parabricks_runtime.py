@@ -148,23 +148,23 @@ esac
         return [line for line in path.read_text().splitlines() if line.startswith("run ")] if path.exists() else []
 
     def test_version_alone_does_not_launch_a_container(self):
-        process = self.run_probe("--parabricks-version", "4.7.1-1")
+        process = self.run_probe("--parabricks-version", "4.8.0-1")
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(self.container_calls(), [])
         self.assertEqual(json.loads(process.stdout)["checks"]["parabricks_container"]["status"], "not_checked")
 
     def test_cuda_opt_in_does_not_authorize_parabricks_probe(self):
-        process = self.run_probe("--run-container-check", "--parabricks-version", "4.7.1-1")
+        process = self.run_probe("--run-container-check", "--parabricks-version", "4.8.0-1")
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(len(self.container_calls()), 1)
         self.assertIn("nvidia-smi", self.container_calls()[0])
         self.assertNotIn("pbrun", self.container_calls()[0])
 
     def test_parabricks_opt_in_launches_only_selected_probe(self):
-        process = self.run_probe("--run-parabricks-check", "--parabricks-version=4.7.1-1")
+        process = self.run_probe("--run-parabricks-check", "--parabricks-version=4.8.0-1")
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(self.container_calls(), [
-            "run --rm --gpus all nvcr.io/nvidia/clara/clara-parabricks:4.7.1-1 pbrun --help"
+            "run --rm --gpus all nvcr.io/nvidia/clara/clara-parabricks:4.8.0-1 pbrun --help"
         ])
         self.assertEqual(json.loads(process.stdout)["checks"]["parabricks_container"]["status"], "ok")
 
@@ -184,7 +184,7 @@ esac
         self.assertEqual(self.container_calls(), [f"run --rm --gpus all {image} pbrun --help"])
 
     def test_conflicting_image_selectors_fail_before_any_probe(self):
-        process = self.run_probe("--parabricks-version", "4.7.1-1", "--parabricks-image", "example:tag")
+        process = self.run_probe("--parabricks-version", "4.8.0-1", "--parabricks-image", "example:tag")
         self.assertEqual(process.returncode, 2)
         self.assertFalse((self.tmp / "docker-calls").exists())
 
@@ -197,7 +197,7 @@ esac
                     process = self.run_probe(option, image)
                     self.assertEqual(process.returncode, 2, process.stderr)
                     self.assertFalse((self.tmp / "docker-calls").exists())
-        for tag in ("latest", "4.7.1-1 --privileged", "bad/tag", "-option"):
+        for tag in ("latest", "4.8.0-1 --privileged", "bad/tag", "-option"):
             with self.subTest(tag=tag):
                 process = self.run_probe("--parabricks-version", tag)
                 self.assertEqual(process.returncode, 2, process.stderr)
@@ -219,7 +219,7 @@ esac
 
     def test_missing_docker_reports_gap_without_attempting_container(self):
         (self.bin / "docker").unlink()
-        process = self.run_probe("--run-parabricks-check", "--parabricks-version", "4.7.1-1")
+        process = self.run_probe("--run-parabricks-check", "--parabricks-version", "4.8.0-1")
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(json.loads(process.stdout)["checks"]["parabricks_container"]["status"], "missing")
         self.assertEqual(self.container_calls(), [])
@@ -276,7 +276,7 @@ esac
         )
         (self.bin / "df").chmod(0o755)
         args = ("--run-container-check", "--run-parabricks-check",
-                "--parabricks-version", "4.7.1-1", "--path", str(path))
+                "--parabricks-version", "4.8.0-1", "--path", str(path))
         ready = self.run_probe(*args)
         self.assertEqual(ready.returncode, 0, ready.stderr)
         report = json.loads(ready.stdout)

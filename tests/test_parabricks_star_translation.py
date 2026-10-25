@@ -45,9 +45,11 @@ def option_values(argv):
 class TranslationTests(unittest.TestCase):
     def test_supported_releases_preserve_the_same_argument_contract(self):
         first = translation.translate(request(version="4.7.0"))
-        second = translation.translate(request(version="4.7.1"))
-        self.assertEqual(first, second)
-        self.assertEqual(second["status"], "draft")
+        for version in ("4.7.1", "4.8.0"):
+            with self.subTest(version=version):
+                later = translation.translate(request(version=version))
+                self.assertEqual(first, later)
+                self.assertEqual(later["status"], "draft")
 
     def test_invalid_version_types_are_reported_without_crashing(self):
         for version in [None, [], {}, 4.7]:

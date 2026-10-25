@@ -48,9 +48,10 @@ DeepVariant calling. The DeepVariant small model is enabled by default; use
 | `pbrun pacbio_germline` option | Why it has no direct baseline equivalent |
 | --- | --- |
 | `--pbmm2`, `--pbmm2-unmapped` | Parabricks compatibility controls for pbmm2-style output. |
-| `--standalone-bqsr`, `--out-qc-metrics-dir` | Parabricks pipeline mode/output controls. |
+| `--standalone-bqsr` | Parabricks pipeline mode control. |
 | DeepVariant channel/allele-counter flags exposed directly by Parabricks | Parabricks first-class controls for DeepVariant internals. |
-| `--nstreams`, `--max-queue-*`, `--chunk-size`, `--chaining-on-gpu` | Parabricks minimap2 GPU pipeline controls. `--chaining-on-gpu` may help CPU-bound alignment. |
+| `--nstreams`, `--max-queue-*`, `--chunk-size`, `--estimated-*`, `--stage2-large-chaining-size` | Parabricks minimap2 GPU pipeline tuning controls; set values only for benchmarked tuning. |
+| `--seeding-chaining-on-gpu` | `on` may help CPU-bound alignment (`auto` keeps PacBio presets on CPU). Replaces 4.7.1's bare `--chaining-on-gpu` switch, now a deprecated alias that requires a value. |
 | `--disable-small-model` | Opt-out for the default-on DeepVariant small model. |
 | `--low-memory` | Parabricks memory-reduction mode. |
 

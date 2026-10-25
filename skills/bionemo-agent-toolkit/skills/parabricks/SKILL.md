@@ -6,7 +6,7 @@ description: >-
 license: CC-BY-4.0 AND Apache-2.0
 metadata:
   author: "Angel Pizarro <apizarro@nvidia.com>"
-  version: "1.3.0"
+  version: "1.4.0"
   tags:
     - parabricks
     - genomics
@@ -85,9 +85,9 @@ clinical interpretation, or promise exact runtime without benchmark data.
 
 ## Instructions
 
-1. Identify the requested release. The option references cover v4.7.1; examples
+1. Identify the requested release. The option references cover v4.8.0; examples
    from another release are labeled. A software version and image tag can
-   differ: NVIDIA's 4.7.1 image is tagged `4.7.1-1`. Preserve the user's verified
+   differ: NVIDIA's 4.8.0 image is tagged `4.8.0-1`. Preserve the user's verified
    image selection; use [command-conventions.md](references/command-conventions.md)
    for the shared launch and validation contract.
 2. Classify the request:
@@ -209,3 +209,5 @@ the `pbrun` portion; the shared container envelope is documented once in
   <https://docs.nvidia.com/clara/parabricks/get-started>
 - Overview:
   <https://docs.nvidia.com/clara/parabricks/about-parabricks>
+- 4.8.0 release notes (changes from 4.7.1):
+  <https://docs.nvidia.com/clara/parabricks/v4.8.0/about-parabricks/release-notes/4-8-0-1-release-notes>

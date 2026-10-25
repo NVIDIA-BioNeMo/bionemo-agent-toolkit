@@ -36,6 +36,7 @@ to several upstream commands rather than one single tool.
 | Baseline option | `pbrun minimap2` equivalent | Notes |
 | --- | --- | --- |
 | `minimap2 <reference>` | `--ref` | Required reference FASTA path. |
+| `minimap2 <reference> <R1> <R2>` paired-end FASTQ | `--in-fq <R1> <R2>` | Two files per `--in-fq` are aligned as a pair; one file is single-end. Interleaved FASTQ is not supported. Pairing is new in 4.8.0; do not rely on it in 4.7.1. |
 | BAM/CRAM input for preprocessing workflow | `--in-bam` | Parabricks input BAM/CRAM mode. |
 | `minimap2 -x` | `--preset` | Parabricks supports documented presets such as `map-pbmm2`, `map-hifi`, `map-ont`, `lr:hq`, `splice`, `splice:hq`, and `splice:sr`. |
 | `minimap2 -t` | `--num-threads` | Processing thread count. |
@@ -60,8 +61,8 @@ to several upstream commands rather than one single tool.
 | `--pbmm2`, `--pbmm2-unmapped` | Parabricks compatibility mode for pbmm2-style output and unmapped records. |
 | `--out-qc-metrics-dir` | Parabricks workflow output for QC metrics. |
 | `--standalone-bqsr` | Parabricks mode control for running BQSR after sorted BAM generation. |
-| `--nstreams`, `--max-queue-chunks`, `--max-queue-reads`, `--chunk-size` | Parabricks GPU/CPU pipeline queue and chunk controls. |
-| `--chaining-on-gpu` | GPU offload for minimap2 chaining; may help CPU-bound runs. |
+| `--nstreams`, `--max-queue-chunks`, `--max-queue-reads`, `--chunk-size`, `--estimated-read-length`, `--estimated-anchor-per-read`, `--stage2-large-chaining-size` | Parabricks GPU/CPU pipeline tuning controls. `--nstreams` and `--chunk-size` default to `auto`, tuned from device memory and preset; set values only for benchmarked tuning. |
+| `--seeding-chaining-on-gpu on\|off\|auto` | GPU seeding and chaining; `auto` uses the GPU only for `splice:sr`, so `on` may help CPU-bound runs with other presets. Replaces 4.7.1's bare `--chaining-on-gpu` switch, now a deprecated alias that requires a value. |
 | `--low-memory` | Parabricks memory-reduction mode. |
 
 ## Validation

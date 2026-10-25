@@ -20,9 +20,10 @@ establish support in another. The release verification rules in
 | `--regions` | `--interval` or `--interval-file` | Separates inline intervals from BED interval files. | `deepsomatic`, `deepvariant` |
 | Paired-end FASTQ inputs | `--in-fq <read1> <read2>` | Repeat for multiple pairs; keep each optional read group with its pair. | `germline` |
 | `bwa mem -R <read-group>` / BWA-Meth `--read-group` | read group string after FASTQ inputs, or `--read-group-*` flags | Preserve supplied per-lane tags; do not invent values. | `deepvariant_germline`, `fq2bam_meth`, `germline` |
-| `bwa mem -M`, `-Y`, `-C`, `-T`, `-B`, `-U`, `-L`, `-I`, `-K` | `--bwa-options` | Pass supported BWA-MEM options as one string. | `deepvariant_germline`, `fq2bam`, `fq2bam_meth`, `germline` |
+| `bwa mem -M`, `-Y`, `-C`, `-T`, `-B`, `-U`, `-L`, `-I`, `-K`, `-S`, `-P`, `-5`, `-q` | `--bwa-options` | Pass supported BWA-MEM options as one string. | `deepvariant_germline`, `fq2bam`, `fq2bam_meth`, `germline`, `somatic` |
+| BWA-MEM before 0.7.16 (no `MC` tags) | `--no-mate-cigar` | Parabricks targets BWA-MEM 0.7.17 and adds mate-CIGAR tags to paired records; this flag omits them. Cannot be combined with `--fix-mate`. | `deepvariant_germline`, `fq2bam`, `fq2bam_meth`, `germline`, `somatic` |
 | — | `--max-read-length`, `--min-read-length`, `--filter-flag`, `--skip-multiple-hits` | Pipeline read/SAM filtering controls. | `deepvariant_germline`, `germline` |
-| — | `--bwa-nstreams`, `--bwa-cpu-thread-pool`, `--bwa-primary-cpus`, `--bwa-normalized-queue-capacity` | CPU/GPU alignment scheduling controls. | `deepvariant_germline`, `germline` |
+| — | `--bwa-nstreams`, `--bwa-cpu-thread-pool`, `--bwa-primary-cpus`, `--bwa-normalized-queue-capacity` | CPU/GPU alignment scheduling controls; BWA stream and thread defaults are in [performance.md](performance.md). | `deepvariant_germline`, `germline`, `somatic` |
 | GATK/Picard `SortSam --OUTPUT`, `-O` | `--out-bam` | Final BAM/CRAM output path. | `fq2bam`, `fq2bam_meth` |
 | GATK/Picard sorted, duplicate-marked BAM output | `--out-bam` | Required alignment output alongside the variant output. | `germline` |
 | — | `--max-read-length`, `--min-read-length` | FASTQ filtering/alignment bounds. | `fq2bam`, `fq2bam_meth`, `giraffe` |
@@ -48,7 +49,7 @@ establish support in another. The release verification rules in
 | GATK `BaseRecalibrator --intervals`, `-L` | `--interval`, `--interval-file` | Separates inline intervals from interval files. | `fq2bam`, `fq2bam_meth`, `minimap2` |
 | GATK `BaseRecalibrator --interval-padding`, `-ip` | `--interval-padding`, `-ip` | Same padding role. | `fq2bam`, `fq2bam_meth`, `minimap2` |
 | — | `--out-qc-metrics-dir` | Workflow output for QC metrics. | `fq2bam`, `fq2bam_meth`, `minimap2` |
-| — | `--standalone-bqsr`, `--out-qc-metrics-dir` | Pipeline mode/output controls. | `ont_germline`, `pacbio_germline` |
+| — | `--standalone-bqsr` | Pipeline mode control. | `ont_germline`, `pacbio_germline` |
 | GATK `BaseRecalibrator --known-sites` | `--knownSites` | Repeatable known-sites VCF input when BQSR is used. | `pacbio_germline`, `somatic` |
 
 ## Variant calling and models
@@ -59,15 +60,15 @@ establish support in another. The release verification rules in
 | `--reads` | `--in-bam` | Prepared aligned reads for variant calling. | `deepvariant` |
 | `--output_gvcf` | `--gvcf` plus `--out-variants` | Also produces the corresponding VCF; see the tool reference for partitioning restrictions. | `deepvariant` |
 | `--model_type` | `--mode`, `--use-wes-model`, or selected model file | The manual documents short-read, PacBio, and ONT modes plus WES/model-file controls. | `deepsomatic`, `deepvariant` |
-| `--customized_model` | `--pb-model-file` | Non-default Parabricks model file. | `deepsomatic`, `deepvariant` |
+| `--customized_model` | `--pb-model-file` | Non-default Parabricks model file; build it with TensorRT 11.3.0.99 (10.14.1.48 for 4.7.1) to match the shipped engines. | `deepsomatic`, `deepvariant` |
 | — | `--disable-use-window-selector-model` | Inverse/compatibility control for window selector behavior. | `deepsomatic`, `deepvariant` |
 | DeepVariant `--output_vcf` | `--out-variants` | VCF/gVCF output. | `deepvariant_germline`, `ont_germline`, `pacbio_germline`, `pangenome_aware_deepvariant`, `pangenome_germline` |
 | DeepVariant `--output_gvcf` / gVCF mode | `--gvcf` plus `--out-variants` | Output path extension controls VCF/gVCF naming. | `deepvariant_germline`, `ont_germline`, `pacbio_germline` |
-| DeepVariant custom model | `--pb-model-file`, `--pb-small-model-file` | TensorRT model files. | `deepvariant_germline`, `ont_germline`, `pacbio_germline` |
+| DeepVariant custom model | `--pb-model-file`, `--pb-small-model-file` | TensorRT model files built for the selected release. | `deepvariant_germline`, `ont_germline`, `pacbio_germline` |
 | minimap2 reference / DeepVariant `--ref` | `--ref` | Required reference FASTA path. | `ont_germline`, `pacbio_germline` |
 | — | DeepVariant channel/allele-counter flags exposed directly by Parabricks | First-class controls for DeepVariant internals. | `ont_germline`, `pacbio_germline`, `pangenome_germline` |
-| DeepVariant `--output_gvcf` / gVCF mode | `--gvcf` plus `--out-variants` | Output path extension controls VCF/gVCF naming when documented. | `pangenome_aware_deepvariant`, `pangenome_germline` |
-| DeepVariant custom model | `--pb-model-file`, `--pb-small-model-file` | TensorRT model files where supported. | `pangenome_aware_deepvariant`, `pangenome_germline` |
+| DeepVariant `--output_gvcf` / gVCF mode | No direct equivalent | These tools do not expose `--gvcf`. | `pangenome_aware_deepvariant`, `pangenome_germline` |
+| DeepVariant custom model | `--pb-model-file`, `--pb-small-model-file` | TensorRT model files built for the selected release, where supported. | `pangenome_aware_deepvariant`, `pangenome_germline` |
 
 ## Execution controls
 
@@ -84,7 +85,7 @@ establish support in another. The release verification rules in
 | — | `--align-only`, `--standalone-bqsr`, `--fix-mate` | Pipeline mode controls. | `deepvariant_germline`, `germline` |
 | — | `--monitor-usage`, `--no-warnings` | Runtime reporting controls. | `deepvariant_germline`, `germline` |
 | — | `--cigar-on-gpu`, `--gpuwrite`, `--gpuwrite-deflate-algo`, `--gpusort`, `--use-gds` | GPU-accelerated write/sort/storage controls. | `deepvariant_germline`, `germline` |
-| — | `--memory-limit`, `--low-memory` | Host/GPU memory controls. | `deepvariant_germline`, `germline` |
+| — | `--memory-limit`, `--low-memory` | Host/GPU memory controls. | `deepvariant_germline`, `germline`, `somatic` |
 | — | `--no-warnings` | Warning suppression. | `fq2bam`, `fq2bam_meth` |
 | — | `--filter-flag` | SAM flag-based filtering during output generation. | `fq2bam`, `fq2bam_meth` |
 | — | `--skip-multiple-hits` | SA-tag-based output filtering. | `fq2bam`, `fq2bam_meth` |
