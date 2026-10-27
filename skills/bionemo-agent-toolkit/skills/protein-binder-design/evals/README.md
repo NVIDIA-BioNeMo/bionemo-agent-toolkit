@@ -34,13 +34,21 @@ Setup leaves system Python packages untouched and needs no root privileges.
 When `uv` is already installed on `PATH`, setup uses it to create the environment
 and install wheels without requiring Python's `venv`, `ensurepip`, or `pip`
 modules. It selects the installed interpreter explicitly and disables Python
-downloads. Without `uv`, setup uses `python -m venv` and the environment's pip.
-Both paths use the same package pins and import checks, bounded network retries,
-and subprocess timeouts. Setup does not download or install `uv`.
+downloads. Without `uv`, setup uses `python -m venv --without-pip`, then downloads
+the universal pip 25.3 wheel from its fixed PyPI URL. It verifies the published
+SHA-256 digest and a size limit before running the wheel with the virtual
+environment's Python. This works when the sandbox omits both `ensurepip` and
+`pip`; it does not install either into system Python. Installer files are
+temporary and removed on success or failure. Both paths use the same package
+pins and import checks, bounded network retries, and subprocess timeouts.
+The installer subprocesses receive an explicit list of path, proxy, certificate,
+and package-index settings; agent/model credentials and `PYTHONPATH` are not
+forwarded. Setup does not download or install `uv`.
 There is no custom `evals/environment/Dockerfile`, so Astra uses its existing
 sandbox image without invoking the managed image builder or requiring its token.
 The standard sandbox must provide Python 3.10-3.13 plus either `uv` or
-`venv`/`ensurepip`, a writable workspace, and package-index access for setup.
+`venv`, a writable workspace, and package-index access for setup. The pip
+fallback also needs HTTPS access to `files.pythonhosted.org`.
 Setup downloads packages; the subsequent exercises
 make no network calls. Normal sandbox and agent API access are still required.
 Installation or import failures stop environment preflight before agent trials.
@@ -51,11 +59,12 @@ as `Healthcheck failed (rc=...)`. The setup helper uses distinct failure codes:
 | Exit code | Failed phase | Check |
 | --- | --- | --- |
 | 10 | Interpreter selection | An installed Python 3.10-3.13 is discoverable. |
-| 11 | Virtual environment creation | The workspace is writable; either uv is on PATH or Python has venv/ensurepip. |
-| 12 | Dependency installation | The selected installer can reach the package index and install the pinned wheels within the timeout. |
+| 11 | Virtual environment creation | The workspace is writable; either uv is on PATH or Python has venv. |
+| 12 | Installer bootstrap or dependency installation | The pip wheel passes its digest check, and the selected installer can reach the package index and install the pinned wheels within the timeout. |
 | 13 | Import verification | The installed NumPy and Biotite versions import successfully. |
 
-All four failures stop preflight; only verified imports return zero. These codes
+All four failures stop preflight; only verified imports in an isolated Python
+environment return zero. These codes
 identify the failing phase, not the underlying cause. The setup helper saves the
 bootstrap interpreter version, phase messages, and child-process stdout/stderr
 to `/logs/artifacts/pbd-eval-setup.log`. Harbor collects that directory into the
@@ -89,6 +98,12 @@ Run the bundled regression tests without model access:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+The environment tests include a real Linux interpreter/stdlib fixture with
+`pip` and `ensurepip` absent. They execute virtual-environment creation and stop
+at the download boundary, so a regression to pip-seeded venv creation fails
+without needing network access. The installer tests also reject altered and
+oversized bootstrap wheels before execution and check credential isolation.
 
 ## Deterministic artifact checks
 

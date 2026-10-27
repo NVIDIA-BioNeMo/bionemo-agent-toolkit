@@ -3,7 +3,7 @@ name: protein-binder-design
 description: >
   Use when designing RFdiffusion/ProteinMPNN binders or validating and resuming binder campaigns. Not for code or report review.
 license: Apache-2.0
-compatibility: "Python>=3.12 with requirements.txt; Bash for hosted_env.sh"
+compatibility: "Python 3.10-3.13 with requirements.txt; Bash for hosted_env.sh"
 metadata:
   author: "NVIDIA BioNeMo <bionemofeedback@nvidia.com>"
   tags: [protein-design, binder-design, bionemo]

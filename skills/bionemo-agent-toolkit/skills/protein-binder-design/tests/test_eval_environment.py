@@ -3,11 +3,15 @@
 """Ensure failed dependency setup cannot be reported as a ready evaluation."""
 
 import contextlib
+import hashlib
 import importlib.util
 import io
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -24,6 +28,113 @@ class EvaluationEnvironmentTests(unittest.TestCase):
         self.find_tool = patch.object(setup.shutil, "which", return_value=None)
         self.find_tool.start()
         self.addCleanup(self.find_tool.stop)
+        # Unit tests never download or execute an installer. The complete setup
+        # is also exercised separately with real minimal Python distributions.
+        self.download = patch.object(
+            setup, "download_pip_wheel", return_value=Path("/verified/pip.whl"),
+        )
+        self.download.start()
+        self.addCleanup(self.download.stop)
+
+    def test_installer_receives_only_installation_settings(self):
+        with patch.dict(os.environ, {
+            "OPENAI_API_KEY": "synthetic-agent-secret",
+            "NGC_API_KEY": "synthetic-nim-secret",
+            "AWS_SECRET_ACCESS_KEY": "synthetic-cloud-secret",
+            "PYTHONPATH": "/unrelated/agent/code",
+            "HTTPS_PROXY": "http://proxy.invalid:8080",
+            "PIP_INDEX_URL": "https://packages.invalid/simple",
+        }):
+            environment = setup.installer_environment()
+        for key in ("OPENAI_API_KEY", "NGC_API_KEY", "AWS_SECRET_ACCESS_KEY", "PYTHONPATH"):
+            self.assertNotIn(key, environment)
+        self.assertEqual(environment["HTTPS_PROXY"], "http://proxy.invalid:8080")
+        self.assertEqual(environment["PIP_INDEX_URL"], "https://packages.invalid/simple")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "minimal Linux sandbox regression")
+    def test_real_venv_creation_without_ensurepip_or_pip(self):
+        # Copy the executable and link its stdlib without pip/ensurepip, matching
+        # a minimal distro. The venv subprocess is real; stop at the subsequent
+        # download boundary so this regression test needs no network access.
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "python"
+            executable = base / "bin/python3"
+            executable.parent.mkdir(parents=True)
+            shutil.copyfile(sys.executable, executable)
+            executable.chmod(0o755)
+            stdlib = Path(sysconfig.get_path("stdlib"))
+            library = base / "lib" / stdlib.name
+            library.mkdir(parents=True)
+            for source in stdlib.iterdir():
+                if source.name not in {"ensurepip", "site-packages", "__pycache__"}:
+                    (library / source.name).symlink_to(source, target_is_directory=source.is_dir())
+            for source in (Path(sys.base_prefix) / "lib").glob("libpython*.so*"):
+                (base / "lib" / source.name).symlink_to(source)
+            environment = Path(directory) / "eval-venv"
+            with (
+                patch.object(setup, "select_python", return_value=str(executable)),
+                patch.object(setup, "download_pip_wheel", side_effect=RuntimeError("offline download boundary")),
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(io.StringIO()) as errors,
+            ):
+                self.assertEqual(setup.setup(environment), setup.EXIT_INSTALL)
+            self.assertIn("offline download boundary", errors.getvalue())
+            subprocess.run([
+                str(environment / "bin/python"), "-I", "-c",
+                "import sys, importlib.util; assert sys.prefix != sys.base_prefix; "
+                "assert importlib.util.find_spec('ensurepip') is None; "
+                "assert importlib.util.find_spec('pip') is None",
+            ], check=True, timeout=10)
+
+    def test_pipless_environment_uses_the_verified_installer_with_its_own_python(self):
+        environment = Path("/workspace/test-venv")
+        with (
+            patch.object(setup, "select_python", return_value="/python3.12"),
+            patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(setup.setup(environment), 0)
+        create, install, verify = run.call_args_list
+        self.assertIn("--without-pip", create.args[0])
+        self.assertEqual(install.args[0][:3], [str(environment / "bin/python"), "/verified/pip.whl/pip", "install"])
+        self.assertIn("--no-cache-dir", install.args[0])
+        self.assertEqual(install.args[0][-2:], list(setup.DEPENDENCIES))
+        self.assertEqual(verify.args[0][0], str(environment / "bin/python"))
+
+    def test_unverified_installer_never_starts_installation_or_imports(self):
+        self.download.stop()
+        with (
+            patch.object(setup, "select_python", return_value="/python3.12"),
+            patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"corrupt wheel")),
+            patch.object(setup.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run,
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()) as errors,
+        ):
+            self.assertEqual(setup.setup(), setup.EXIT_INSTALL)
+        run.assert_called_once()
+        self.assertIn("SHA-256 mismatch", errors.getvalue())
+
+    def test_installer_download_requires_the_exact_published_digest(self):
+        self.download.stop()
+        contents = b"wheel fixture"
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(contents)),
+                patch.object(setup, "PIP_WHEEL_SHA256", hashlib.sha256(contents).hexdigest()),
+            ):
+                wheel = setup.download_pip_wheel(directory)
+            self.assertEqual(wheel.read_bytes(), contents)
+
+    def test_oversized_installer_is_rejected_without_writing_a_wheel(self):
+        self.download.stop()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"too large")),
+                patch.object(setup, "PIP_WHEEL_MAX_BYTES", 4),
+                self.assertRaisesRegex(RuntimeError, "size limit"),
+            ):
+                setup.download_pip_wheel(directory)
+            self.assertEqual(list(Path(directory).iterdir()), [])
 
     def test_install_failure_stops_before_import_check(self):
         errors = io.StringIO()
