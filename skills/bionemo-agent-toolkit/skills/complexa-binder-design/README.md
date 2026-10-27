@@ -15,7 +15,7 @@ complexa-binder-design/
 ├── references/
 │   ├── target-and-hotspots.md  # Stage 1: structure resolution + evidence-based hotspots + crop
 │   ├── complexa-cli.md         # how to drive the open `complexa` CLI (overrides, search, outputs)
-│   ├── pipeline.md             # stage-by-stage orchestration + run-until-N-validated loop
+│   ├── pipeline.md             # stage-by-stage orchestration + bounded two-round loop
 │   └── validation.md           # independent holo/apo refold, metrics, gate
 ├── scripts/
 │   ├── pipeline.py          # Stage-1 resolution + Stage-2 generation (open CLI) + scoring
@@ -66,7 +66,12 @@ Then plan a target with **no GPU**:
 
 ```bash
 python scripts/preflight_design.py <target>  # name, UniProt accession, or PDB; READY / NEEDS-ATTENTION verdict
+python scripts/preflight_design.py complex.pdb --chain B --partner-chain A --out prepared
 ```
+
+Verify the chain IDs for your structure. Choose one partner when several are
+present; `--out` saves the prepared target, final hotspots, and report for the
+generation handoff in `references/pipeline.md`.
 
 ## Run (from an agent)
 
@@ -86,3 +91,10 @@ re-folds each binder independently, gates, and writes `runs/<target>_<date>/`
 ## License
 
 Apache-2.0 (see `LICENSE`); third-party components keep their own licenses (`NOTICE`).
+
+## Offline checks
+
+Use Python 3.12+ for the pinned helper dependencies in `requirements-dev.txt`.
+Install them in a virtual environment, then run `python -m pytest tests`. These
+tests use temporary structures and mocked inference; no GPU or API key is needed.
+The helper code can run on Python 3.10+ with compatible dependency versions.

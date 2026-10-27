@@ -1,14 +1,16 @@
 # Vendored: ipsae.py (Dunbrack lab)
 
-`ipsae.py` is vendored **verbatim, unmodified** so the pipeline's interface score
+`ipsae.py` is fetched **verbatim, unmodified**, not bundled, so the pipeline's interface score
 (ipSAE) comes from the canonical reference implementation rather than a re-derivation.
 
 | | |
 |---|---|
 | **Source** | https://github.com/DunbrackLab/IPSAE |
-| **File** | `https://raw.githubusercontent.com/DunbrackLab/IPSAE/main/ipsae.py` |
+| **File** | `https://raw.githubusercontent.com/dunbracklab/IPSAE/6174cf9e71cb1bd660cc805856a18c4871a6dec3/ipsae.py` |
+| **Commit** | `6174cf9e71cb1bd660cc805856a18c4871a6dec3` |
+| **SHA-256** | `10cf9b08c68c91e06cb28526cf2026f47a3980c9048fd3226d13e3304eaf1c27` |
 | **Version** | v4 (header dated "January 3, 2026: Fixed Boltz2 issues") |
-| **Retrieved** | 2026-06-10 |
+| **Pin verified** | 2026-10-02; `fetch_ipsae.sh` checks the digest before installing |
 | **License** | MIT (per the script header: free to modify/redistribute for non-commercial and commercial use, provided the header information is reproduced) |
 | **Paper** | Dunbrack, "Rēs ipSAE loquunt: What's wrong with AlphaFold's ipTM score and how to fix it", bioRxiv 2025.02.10.637595 |
 

@@ -1,0 +1,89 @@
+{
+  "evidence_kind": "synthetic",
+  "hotspot_conditioned": true,
+  "requested": 5,
+  "refolder": "Boltz2 (simulated metrics, no model run)",
+  "scores": [
+    {
+      "name": "high_reward_bad_contact",
+      "ipsae_min": 0.65,
+      "iptm": 0.99,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.0,
+      "generator_reward": 1.0
+    },
+    {
+      "name": "tie_lower",
+      "ipsae_min": 0.65,
+      "iptm": 0.85,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.8
+    },
+    {
+      "name": "unstable",
+      "ipsae_min": 0.65,
+      "iptm": 0.98,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 3.0,
+      "hotspot_contact_frac": 0.8
+    },
+    {
+      "name": "tie_higher",
+      "ipsae_min": 0.75,
+      "iptm": 0.85,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.8
+    },
+    {
+      "name": "missing_apo",
+      "ipsae_min": 0.65,
+      "iptm": 0.97,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.8
+    },
+    {
+      "name": "invalid_score",
+      "ipsae_min": 0.65,
+      "iptm": "0.99",
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.8
+    },
+    {
+      "name": "boundary",
+      "ipsae_min": 0.45,
+      "iptm": 0.65,
+      "binder_plddt": 0.7,
+      "complex_plddt": 0.7,
+      "apo_binder_plddt": 0.7,
+      "binder_rmsd": 2.5,
+      "hotspot_contact_frac": 0.2
+    },
+    {
+      "name": "failed_prediction",
+      "ipsae_min": 0.65,
+      "iptm": 0.999,
+      "binder_plddt": 0.9,
+      "complex_plddt": 0.9,
+      "apo_binder_plddt": 0.9,
+      "binder_rmsd": 1.0,
+      "hotspot_contact_frac": 0.8,
+      "failure_reason": "holo prediction failed: synthetic timeout"
+    }
+  ]
+}

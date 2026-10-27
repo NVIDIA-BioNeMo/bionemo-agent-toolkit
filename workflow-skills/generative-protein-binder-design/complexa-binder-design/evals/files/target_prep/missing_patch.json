@@ -1,0 +1,9 @@
+{
+  "source": "supplied_synthetic_patch",
+  "hotspot_residues": [
+    {
+      "chain": "B",
+      "position": 999
+    }
+  ]
+}

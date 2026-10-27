@@ -22,7 +22,7 @@ and ranks by interface metrics (ipTM / ipSAE / pLDDT / apo↔holo RMSD).
 
 ## Choose a route
 
-- **`complexa-binder-design/`** — NVIDIA **Proteina-Complexa** reward-guided co-design
+- **[`complexa-binder-design/`](../../workflow-skills/generative-protein-binder-design/complexa-binder-design/SKILL.md)** — NVIDIA **Proteina-Complexa** reward-guided co-design
   (binder sequence + structure together) with an AF2-reward gate, validated independently
   with Boltz2 / OpenFold3. Prefer when the user wants Proteina-Complexa specifically, or
   reward-guided test-time search (best-of-n / beam / FK-steering / MCTS).
