@@ -56,14 +56,13 @@ to several upstream commands rather than one single tool.
 
 ## minimap2 Options Without minimap2/GATK Equivalents
 
+Pipeline modes and GPU tuning shared with the long-read callers are in
+[minimap2-controls.md](minimap2-controls.md). Memory and output controls are in
+[shared-options.md](shared-options.md); use rows scoped to `minimap2`.
+
 | `pbrun minimap2` option | Why it has no direct baseline equivalent |
 | --- | --- |
-| `--pbmm2`, `--pbmm2-unmapped` | Parabricks compatibility mode for pbmm2-style output and unmapped records. |
 | `--out-qc-metrics-dir` | Parabricks workflow output for QC metrics. |
-| `--standalone-bqsr` | Parabricks mode control for running BQSR after sorted BAM generation. |
-| `--nstreams`, `--max-queue-chunks`, `--max-queue-reads`, `--chunk-size`, `--estimated-read-length`, `--estimated-anchor-per-read`, `--stage2-large-chaining-size` | Parabricks GPU/CPU pipeline tuning controls. `--nstreams` and `--chunk-size` default to `auto`, tuned from device memory and preset; set values only for benchmarked tuning. |
-| `--seeding-chaining-on-gpu on\|off\|auto` | GPU seeding and chaining; `auto` uses the GPU only for `splice:sr`, so `on` may help CPU-bound runs with other presets. Replaces 4.7.1's bare `--chaining-on-gpu` switch, now a deprecated alias that requires a value. |
-| `--low-memory` | Parabricks memory-reduction mode. |
 
 ## Validation
 

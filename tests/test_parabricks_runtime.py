@@ -104,6 +104,22 @@ class GpuProbeTests(FakeHostTests):
                 self.assertIsNone(report["gpus"][0]["memory_free_gb"])
                 self.assertIn("could not be read", report["detail"])
 
+    def test_gpu_fields_trim_outer_whitespace_and_preserve_literal_characters(self):
+        report, _ = self.probe(
+            ' \tGPU [test] "quoted" \\ model\t , 81920\t, \t80000 , 580.173.02\t, 8.0 \r\n'
+            '  Second GPU  , 16384, N/A, 580.173.02, 8.6\n'
+        )
+        self.assertEqual(report["status"], "ok")
+        self.assertEqual(len(report["gpus"]), 2)
+        gpu = report["gpus"][0]
+        self.assertEqual(gpu["name"], 'GPU [test] "quoted" \\ model')
+        self.assertEqual(gpu["driver_version"], "580.173.02")
+        self.assertEqual(gpu["compute_capability"], "8.0")
+        self.assertEqual(gpu["memory_total_gb"], 80)
+        self.assertEqual(gpu["memory_free_gb"], 78.12)
+        self.assertEqual(report["gpus"][1]["name"], "Second GPU")
+        self.assertIsNone(report["gpus"][1]["memory_free_gb"])
+
     def test_failed_query_remains_failed(self):
         report, calls = self.probe("", query_returncode=1)
         self.assertEqual(report["status"], "failed")

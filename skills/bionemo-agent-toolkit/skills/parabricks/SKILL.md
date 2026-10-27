@@ -49,13 +49,13 @@ or wiring optional GPU branches. For pipeline-level work, use
 - **Execution:** The documented Docker commands require a supported Linux host,
   an NVIDIA GPU with sufficient memory, a compatible NVIDIA driver, Docker,
   NVIDIA Container Toolkit, and access to the selected Parabricks image.
-  Pulling the image may require an NGC API key for authentication to `nvcr.io`.
+  Pulling the image may require an NGC API key for authentication to [nvcr.io](https://nvcr.io).
   See [runtime-environment.md](references/runtime-environment.md) for
   version-specific requirements and checks.
 
 Tool scope: read this skill's references and user-supplied manifests; write only
 requested command artifacts. Use the bundled helpers for translation or an
-authorized host inspection. Documentation lookups use `docs.nvidia.com`; image
+authorized host inspection. Documentation lookups use [docs.nvidia.com](https://docs.nvidia.com); image
 access uses the selected registry only for authorized container execution.
 These instructions do not grant tool permissions; the host's permission policy
 still applies to shell, file, network and optional documentation MCP access.
