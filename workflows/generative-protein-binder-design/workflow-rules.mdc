@@ -26,7 +26,7 @@ and ranks by interface metrics (ipTM / ipSAE / pLDDT / apo↔holo RMSD).
   (binder sequence + structure together) with an AF2-reward gate, validated independently
   with Boltz2 / OpenFold3. Prefer when the user wants Proteina-Complexa specifically, or
   reward-guided test-time search (best-of-n / beam / FK-steering / MCTS).
-- **`protein-binder-design/`** — **RFdiffusion + ProteinMPNN + Boltz2 / OpenFold3** BioNeMo
+- **[protein-binder-design](../../workflow-skills/generative-protein-binder-design/protein-binder-design/SKILL.md)** — **RFdiffusion + ProteinMPNN + Boltz2 / OpenFold3** BioNeMo
   NIM orchestration (backbones → sequences → co-fold → filter). Prefer the classic
   diffusion + inverse-folding NIM pipeline.
 

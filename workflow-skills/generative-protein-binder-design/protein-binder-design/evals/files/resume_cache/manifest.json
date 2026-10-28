@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.0",
+  "campaign": "protein-binder-design",
+  "mode": "offline-bookkeeping",
+  "run_dir": ".",
+  "provenance": "Synthetic offline software fixture. Toy coordinates and scores are invented; no live inference or biological validity.",
+  "target": {
+    "name": "synthetic target",
+    "structure": {
+      "path": "target.pdb",
+      "sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10"
+    }
+  },
+  "params": {
+    "rank_by": "iptm"
+  },
+  "filters": {
+    "iptm_min": 0.8,
+    "binder_plddt_min": 80,
+    "self_consistency_rmsd_max": 2
+  },
+  "stages": [
+    {
+      "stage": "cofold",
+      "status": "interrupted",
+      "attempts": 1
+    }
+  ],
+  "candidates": [
+    {
+      "id": "done",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {
+        "iptm": 0.9,
+        "binder_plddt": 90,
+        "self_consistency_rmsd": 0
+      },
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb",
+        "complex": "done.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "done",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/done.json",
+          "sha256": "94b16fe78c2cea20d2f2179d1a763feb98ec9de71e0222825cb2cc4bd1f1669f"
+        },
+        "sample_index": 0,
+        "complex_sha256": "038c31607d7610be18bf20022f25adb00866733c70d26d372458d7d73e516b86",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "below",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {
+        "iptm": 0.7,
+        "binder_plddt": 85,
+        "self_consistency_rmsd": 0
+      },
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb",
+        "complex": "below.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "below",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/below.json",
+          "sha256": "9486ff3d9be5100cacbf77d25a604c27db8caa89e3ee82d161056138ae45db0c"
+        },
+        "sample_index": 0,
+        "complex_sha256": "038c31607d7610be18bf20022f25adb00866733c70d26d372458d7d73e516b86",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "recoverable",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {
+        "iptm": 0.86
+      },
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "recoverable",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/recoverable.json",
+          "sha256": "214ee2ae319ad54656a6a3406ecacc571bee992c178881d61199d35c9f8d81af"
+        },
+        "sample_index": 0,
+        "complex_sha256": "038c31607d7610be18bf20022f25adb00866733c70d26d372458d7d73e516b86",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "missing",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "missing",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/missing.json",
+          "sha256": "5ed61eea6199299dba8ef59ffea5fa7fc23e0e54c81d1792a75551e09e7c8c8e"
+        },
+        "sample_index": 0,
+        "complex_sha256": "038c31607d7610be18bf20022f25adb00866733c70d26d372458d7d73e516b86",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "failed",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "failure_reason": "HTTP 503: retries exhausted",
+      "attempts": 3
+    },
+    {
+      "id": "control",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {
+        "iptm": 0.99,
+        "binder_plddt": 88
+      },
+      "is_control": true,
+      "artifacts": {},
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "control",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/control.json",
+          "sha256": "7c074850d88c42357c6983784e8c7d28dcc14fa728dc3b9ea278ee0167b14b94"
+        },
+        "sample_index": 0,
+        "complex_sha256": "038c31607d7610be18bf20022f25adb00866733c70d26d372458d7d73e516b86",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    }
+  ]
+}

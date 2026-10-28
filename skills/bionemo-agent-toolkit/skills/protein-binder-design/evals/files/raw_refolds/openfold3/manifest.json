@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "campaign": "protein-binder-design",
+  "mode": "offline-bookkeeping",
+  "run_dir": ".",
+  "provenance": "Synthetic offline software fixture. Toy coordinates and scores are invented; no live inference or biological validity.",
+  "target": {
+    "name": "synthetic target",
+    "structure": {
+      "path": "target.pdb",
+      "sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10"
+    }
+  },
+  "params": {
+    "rank_by": "iptm"
+  },
+  "filters": {
+    "iptm_min": 0.8,
+    "binder_plddt_min": 80,
+    "self_consistency_rmsd_max": null
+  },
+  "stages": [
+    {
+      "stage": "cofold",
+      "status": "interrupted",
+      "attempts": 1
+    }
+  ],
+  "candidates": [
+    {
+      "id": "selected",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "selected",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/selected.json",
+          "sha256": "605dd0759e2642108810f6a88baef0f12427a86f2e5acfe3349f19d9a4b7399b"
+        },
+        "sample_index": 1,
+        "complex_sha256": "a0b0b48b1a155ac4a12fc720db0e7d18afb08052035a84d60abc1e98999cf355",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "composite_only",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "composite_only",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/composite_only.json",
+          "sha256": "5123c9b20050bc54cdb559537b2ffc32d3d630d8683af02746bad5a234a133c4"
+        },
+        "sample_index": 0,
+        "complex_sha256": "2c33a2375e2be4a7ffe87376f45952734d46ce9e03209a6cfe363366cb8cf045",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    },
+    {
+      "id": "poor_binder",
+      "sequence": "AAA",
+      "backbone_id": "toy-backbone",
+      "scores": {},
+      "is_control": false,
+      "artifacts": {
+        "backbone_pdb": "backbone.pdb"
+      },
+      "prediction": {
+        "provider": "openfold3",
+        "candidate_id": "poor_binder",
+        "sequence_sha256": "cb1ad2119d8fafb69566510ee712661f9f14b83385006ef92aec47f523a38358",
+        "target_sha256": "c8d7a6f455e0a524ec91d0689377243becb1f9395b5d83d51fc7089c091f9d10",
+        "response": {
+          "path": "responses/poor_binder.json",
+          "sha256": "119c9a8719156a0d169d9258bc52dabe4ad497fffdfa0ab0c3497bc1dec32fb1"
+        },
+        "sample_index": 0,
+        "complex_sha256": "3bc1ef048158c2b026eb491a4e916b2d9fa5fb0d8571f0fe7679b4aff5437f95",
+        "binder_chain": "B",
+        "target_chain": "T",
+        "plddt_scale": "0-1",
+        "backbone": {
+          "path": "backbone.pdb",
+          "sha256": "217f6524bd2ce0e9ddac2cf44fc2c3ef091768bf8539f269be520f4fad5de764"
+        },
+        "backbone_chain": "D"
+      }
+    }
+  ]
+}
