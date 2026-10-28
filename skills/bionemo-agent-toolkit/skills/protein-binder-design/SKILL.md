@@ -126,7 +126,7 @@ flags unchanged:
 ```python
 from pathlib import Path
 
-m.apply_filters()
+m.apply_filters()                           # also saves filter results to manifest.json
 rank_by = m.data["params"].get("rank_by", "iptm")
 ranked = m.rank(by=rank_by, descending=True, passed_only=True, include_controls=False)
 run_dir = Path(m.data["run_dir"])
@@ -136,7 +136,9 @@ print(m.summary())                           # controls excluded from candidate/
 print([candidate["id"] for candidate in ranked])
 ```
 
-`rank()` returns a new list; it does not reorder or shrink the manifest.
+`apply_filters()` saves `passed_filter`, `filter_metrics`, and `filter_exemptions`
+before returning. No extra save is needed for those changes. `rank()` returns a
+new list; it does not reorder or shrink the manifest.
 `to_csv()` without `candidates=ranked` writes **all** entries in insertion order.
 Pass an empty ranked list through unchanged: zero survivors means a header-only
 `candidates.csv`, while the audit CSV and manifest retain every entry. A high
@@ -202,6 +204,8 @@ controls = sourced published binders re-scored through the same pipeline. The
 bundled `assets/targets.json` is an empty control template, not a positive-control
 dataset. Use user-provided sequences with citations, or retrieve and verify an
 exact sequence from a primary publication or structure before registering it.
+Record the target, source location, exact sequence and verification evidence
+using the [positive-control checklist](references/validation.md#positive-control-provenance).
 If none is available, record `positive_controls_unavailable`, complete the
 computational screen with negatives, and label it **uncalibrated screening**;
 do not claim positive-control benchmarking or calibrated binder success. A
@@ -214,8 +218,12 @@ metric definitions: `references/validation.md`.
 - Reuse target, epitope/hotspots, binder length range, and hosted-vs-local
   choices already supplied by the user. Ask only for unresolved inputs before
   generating backbones.
-- Co-folding is the expensive stage: co-fold a capped shortlist, review, then
-  expand. State hosted vs local once and reuse it across all NIM calls.
+- Before live co-folding, save `params.validation_budget` with
+  `initial_shortlist`, `max_refold_calls`, and `max_elapsed_seconds`. Reuse supplied
+  limits and ask only for missing limits; count controls and retries in the totals.
+  Select and review each batch using the [cost funnel](references/pipeline.md#cost-funnel),
+  then expand only within the saved budget. Report unscored work when a limit is
+  reached. State hosted vs local once and reuse it across all NIM calls.
 
 ## Responsible use
 
@@ -268,6 +276,11 @@ Per-NIM paths, request/response schemas, and worked `curl`/Python examples live 
   `references/manifest.md` to execute only missing stages. A finite below-threshold
   score is complete, not a reason to repeat inference. Reuse saved predictions
   for missing metrics; preserve completed candidates and explicit failure records.
+  Offline requests never retry inference: a previously failed candidate without
+  a usable cached response stays blocked. For authorized live work, follow the
+  [bounded retry policy](references/pipeline.md#request-failures-and-partial-batches),
+  record the retry decision and remaining budget, and append new attempts without
+  overwriting earlier failures.
 
 ## Available Scripts
 

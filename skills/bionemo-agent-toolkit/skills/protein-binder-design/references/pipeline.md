@@ -171,9 +171,35 @@ m.add_artifact("bb003_seq02", "complex_cif", "runs/.../complexes/bb003_seq02.cif
 ```
 
 ### Cost funnel
-Co-folding is the expensive stage. Co-fold a **capped shortlist** first (e.g.
-best ProteinMPNN NLL per backbone), review, then expand. Reserve high
-`diffusion_samples` / `recycling_steps` for the final survivors.
+Before live co-folding, save positive integer counts and a finite positive time
+limit in `params.validation_budget`: `initial_shortlist` (candidate count),
+`max_refold_calls` (all co-fold requests,
+including controls and retries), and `max_elapsed_seconds` (wall time for this
+co-folding stage). Reuse limits already supplied by the user or saved campaign;
+resolve missing limits before submitting calls. Save the remaining allowance on
+interruption so resume does not reset an exhausted budget.
+Reserve required control requests and retry allowance before selecting a design
+batch. If the budget cannot cover the requested controls, report that limitation
+and resolve the scope before inference. Cap request timeouts and retry waits by
+the remaining wall-time allowance.
+
+Use the user's selection rule when supplied. Otherwise order each backbone's
+sequences by ascending finite `proteinmpnn_nll`, break ties by candidate ID, and
+take one sequence per backbone in backbone-ID order before taking a second.
+Stop the first batch at `initial_shortlist` or the remaining call allowance,
+whichever is smaller. Record selected IDs and the selection rule. Missing NLL
+does not mean zero: recover it from the saved MPNN response or leave that candidate
+pending selection. This is a sampling rule, not a confidence or binding cutoff.
+
+After each batch, verify response identity, required metrics, artifact integrity,
+and control results, then report missing metrics and the passing fraction. Resolve
+systematic response or provenance failures before expanding. Low finite scores
+remain completed results; do not resubmit them to obtain passers. Continue the
+next batch only within the authorized candidate pool and remaining call/time
+allowance. Stop on completion or an exhausted limit, retain pending candidates,
+and obtain a new budget decision before further inference. Reserve high
+`diffusion_samples` / `recycling_steps` for explicitly selected final survivors
+and count those requests against the same limits.
 
 ## 5. Self-consistency RMSD
 
@@ -204,7 +230,7 @@ For sequence-only controls without a designed backbone, RMSD is not applicable;
 ```python
 from pathlib import Path
 
-m.apply_filters()                       # uses the saved campaign criteria
+m.apply_filters()                       # applies saved criteria and persists filter results
 rank_by = m.data["params"].get("rank_by", "iptm")
 ranked = m.rank(by=rank_by, descending=True, passed_only=True, include_controls=False)
 top = ranked[:20]

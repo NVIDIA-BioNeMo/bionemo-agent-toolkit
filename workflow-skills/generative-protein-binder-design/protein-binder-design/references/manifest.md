@@ -69,6 +69,9 @@ disabling that criterion for the campaign, and disclose the override. A composit
 confidence field does not satisfy an ipTM requirement. Sequence-only controls
 without `artifacts.backbone_pdb` skip only RMSD, with the reason saved under
 `filter_exemptions`. `filter_metrics` records the criteria actually evaluated.
+The method calls `save()` before returning, so these fields and `passed_filter`
+are persisted in `manifest.json` even when no candidate passes. `rank()` and
+`to_csv()` do not change that saved candidate set.
 
 ### Boltz2-only filtering and ranking
 

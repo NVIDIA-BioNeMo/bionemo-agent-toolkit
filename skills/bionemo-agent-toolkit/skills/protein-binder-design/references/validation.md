@@ -43,13 +43,35 @@ m.upsert_candidate("ctrl_neg_01", is_control=True, control_type="scrambled", seq
   marked `control_type="published"`.
 
 The bundled registry is a template and contains no published binder sequences.
-Use cited user inputs or verify exact sequences against a primary paper/structure
-and register the target, binder sequence, and source with `scripts/registry.py`.
+Use cited user inputs or verify exact sequences against a primary paper/structure,
+then record the target, binder sequence, and source in a user-supplied registry
+JSON file. `scripts/registry.py` only loads and looks up entries; it does not write
+them or verify their authenticity.
 If none can be sourced, record `positive_controls_unavailable`; return an
 **uncalibrated computational screen** with negative controls and disclose that the
 positive-control comparison was not performed. Do not invent a positive or label
 the missing comparison as successful. If calibrated benchmarking was requested,
 that portion remains blocked.
+
+### Positive-control provenance
+
+Before labeling a sequence as a published positive control:
+
+1. Check that the primary source reports binding to the campaign's target and
+   record the target construct or accession. A model prediction alone is not
+   evidence of measured binding.
+2. Match the exact sequence to its source location: supplementary table/record,
+   or structure accession, chain and residue range. Record tags, mutations and
+   truncations; an unexplained sequence difference prevents verified-control use.
+3. Save the source URL/accession, source location, sequence SHA-256, target identity,
+   and how the match was checked in a `positive_control_verification` stage via
+   `m.log_stage()`. Bind this record to the control's candidate ID and keep the
+   original citation or supplied evidence with the campaign.
+
+This is a source-verification step performed by the operator or agent, not an
+automatic guarantee from the registry loader. An unavailable source or unresolved
+identity match stays `positive_control_unverified`; disclose it and do not count
+that sequence as a verified positive benchmark.
 
 Sequence-only controls have no RFdiffusion backbone. Leave their self-consistency
 RMSD absent, and do not attach a parent's backbone merely to satisfy the filter.
