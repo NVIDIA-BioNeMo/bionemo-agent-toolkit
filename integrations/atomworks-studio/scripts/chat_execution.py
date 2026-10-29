@@ -270,9 +270,14 @@ print(json.dumps(logs))
                 fcntl.flock(lock, fcntl.LOCK_EX)
                 result_dir = directory / 'results'
                 if manifest:
-                    if result_dir.exists():
-                        verify(result_dir, manifest)
-                    else:
+                    if result_dir.exists() or result_dir.is_symlink():
+                        try:
+                            # A concurrent collector may have already repaired the cache.
+                            verify(result_dir, manifest)
+                        except (OSError, ValueError):
+                            # Preserve the bad cache before publishing the verified download.
+                            result_dir.rename(directory / ('.previous-results-' + uuid.uuid4().hex))
+                    if not result_dir.exists():
                         (staging / 'inference_samples').rename(result_dir)
                 log_dir = directory / 'logs'
                 log_dir.mkdir(exist_ok=True)
