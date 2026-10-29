@@ -124,11 +124,16 @@ class Backend(Compute):
         safe_session(session_id)
         if condition not in ('hotspot', 'sequence', 'coordinate'):
             raise ValueError('Use hotspot, sequence, or coordinate; inspect other conditions in Studio')
+        # Capture before resolving indices so edits in either gap invalidate the mutation.
+        revision = self.studio('GET', f'sessions/{session_id}')['structure']['revision']
+        if type(revision) is not int or revision < 0:
+            raise ValueError('Studio returned an invalid document revision; no annotation applied')
         selection = self.studio('POST', f'sessions/{session_id}/selections/query', json={'expression': expression})
         indices = selection['atom_indices']
         if not indices:
             raise ValueError('Selection matched no atoms; no annotation applied')
-        return self.studio('POST', f'sessions/{session_id}/conditions', json={'atom_indices': indices, 'condition': condition})
+        return self.studio('POST', f'sessions/{session_id}/conditions', json={
+            'atom_indices': indices, 'condition': condition, 'expected_revision': revision})
 
     def snapshot(self, session_id, note='', markup=None):
         safe_session(session_id)
