@@ -35,7 +35,7 @@ jobs:
         env:
           ATOMWORKS_STUDIO_SOURCE: ${{ github.workspace }}/.studio-upstream
       - run: node --test tests/test_atomworks*.mjs tests/test_studio_autoload.mjs
-      - run: pip install -r integrations/atomworks-studio/requirements.txt -r tests/requirements-rfd4-rosetta.txt
+      - run: pip install -r integrations/atomworks-studio/requirements.txt -r tests/requirements-rfd4-rosetta.txt -r tests/requirements-cuequivariance.txt
       - run: python -m unittest discover -s tests
       - name: Verify canonical RFD4 helpers
         run: python -B -m pytest -q -p no:cacheprovider tests/test_rosetta_helpers.py tests/test_campaign_workflows.py tests/test_setup_preflight.py
