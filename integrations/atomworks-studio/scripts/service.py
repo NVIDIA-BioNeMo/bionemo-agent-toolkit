@@ -362,12 +362,12 @@ class Service(ChatExecution, DesignRequests, Backend):
         self.result_files(job_id)
         return dict(self.viewer_payload(self.open_result(job_id, index)), document_metadata=metadata)
 
-    def saved_run_metadata(self, job):
+    def saved_run_metadata(self, job, *, input_bytes=None):
         """Restore provenance from the accepted input, never the currently open draft."""
         snapshot_id = safe_id(job.get('snapshot_id', job['job_id']))
         directory = self.state / snapshot_id
         if job.get('runtime_protocol') == 4:
-            request = self.get_design_request(snapshot_id)
+            request = self.get_design_request(snapshot_id, input_bytes=input_bytes)
             if request['request_checksum'] != job.get('request_checksum'):
                 raise ValueError('Run provenance changed')
             image = base64.b64encode((directory / 'annotation.png').read_bytes()).decode() if request.get('image_sha256') else None
@@ -377,9 +377,11 @@ class Service(ChatExecution, DesignRequests, Backend):
         if not path.exists():
             return {'source':'unavailable', 'note':'', 'image_base64':None, 'settings':None}
         plan = json.loads(path.read_text())
+        if input_bytes is None:
+            input_bytes = (directory / 'input.cif').read_bytes()
         if (plan.get('snapshot_id') != snapshot_id
                 or self.checksum(plan) != plan.get('plan_checksum')
-                or hashlib.sha256((directory/'input.cif').read_bytes()).hexdigest() != plan.get('sha256')):
+                or hashlib.sha256(input_bytes).hexdigest() != plan.get('sha256')):
             raise ValueError('Saved run plan or input changed; preserve the run and reconcile its provenance before opening')
         generation = options(plan.get('generation'))
         if (type(plan.get('samples')) is not int or not 1 <= plan['samples'] <= 16
@@ -407,6 +409,13 @@ class Service(ChatExecution, DesignRequests, Backend):
         import base64
         import io
         import zipfile
+        job = self.read(job_id, 'job.json')
+        snapshot_id = safe_id(job.get('snapshot_id', job_id))
+        # Verify and archive the same bytes, even if the saved file changes later.
+        input_bytes = (self.state / snapshot_id / 'input.cif').read_bytes()
+        metadata = self.saved_run_metadata(job, input_bytes=input_bytes)
+        if metadata['source'] != 'saved_run':
+            raise ValueError('Saved run provenance unavailable; cannot verify the input for export')
         files = self.result_files(job_id)
         if not files or sum(p.stat().st_size for p in files) > 20_000_000:
             raise ValueError('Result archive unavailable or too large for inline transfer')
@@ -414,6 +423,6 @@ class Service(ChatExecution, DesignRequests, Backend):
         with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
             for i,p in enumerate(files):
                 archive.write(p, f'design-{i+1}/{p.name}')
-            archive.write(self.state / safe_id(job_id) / 'input.cif', 'input.cif')
+            archive.writestr('input.cif', input_bytes)
         return {'filename': f'rfd4-{safe_id(job_id)}.zip', 'mime_type': 'application/zip',
                 'base64': base64.b64encode(data.getvalue()).decode()}

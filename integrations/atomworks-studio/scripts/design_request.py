@@ -32,7 +32,8 @@ class DesignRequests:
             json.dump(request, handle, indent=2, allow_nan=False)
         return request
 
-    def get_design_request(self, request_id):
+    def get_design_request(self, request_id, *, input_bytes=None):
+        """Verify the request against captured input bytes, or read its saved input."""
         if not isinstance(request_id, str) or not re.fullmatch('[0-9a-f]{32}', request_id):
             raise ValueError('Invalid design request ID')
         directory = self.state / request_id
@@ -41,7 +42,9 @@ class DesignRequests:
                 or request.get('snapshot_id') != request_id
                 or checksum(request) != request.get('request_checksum')):
             raise ValueError('Saved design request changed; review the design again')
-        if hashlib.sha256((directory / 'input.cif').read_bytes()).hexdigest() != request['sha256']:
+        if input_bytes is None:
+            input_bytes = (directory / 'input.cif').read_bytes()
+        if hashlib.sha256(input_bytes).hexdigest() != request['sha256']:
             raise ValueError('Saved design input changed; review the design again')
         if request.get('image_sha256'):
             if hashlib.sha256((directory / 'annotation.png').read_bytes()).hexdigest() != request['image_sha256']:
