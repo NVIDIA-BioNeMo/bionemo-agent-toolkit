@@ -134,7 +134,16 @@ def validate_route(method,path):
     allowed=(method=='GET' and (re.fullmatch(r'/api/v1/(?:schema|health|ready|examples(?:/[A-Za-z0-9_-]+/cif)?)',p) or re.fullmatch(session+r'(?:/'+READ_SUFFIX+r')?',p))) or (method=='POST' and (p in ('/api/v1/sessions','/api/v1/import/inspect') or re.fullmatch(session+'/'+WRITE_SUFFIX,p)))
     allowed = allowed or (method=='DELETE' and re.fullmatch(session,p))
     if not allowed: raise ValueError('Unsupported Studio editor operation')
-    if url.query and (not p.endswith('/atom-distance') or set(parse_qs(url.query))-{'atom1','atom2'}): raise ValueError('Unsupported Studio query')
+    if url.query:
+        allowed_query = set()
+        if method == 'GET' and re.fullmatch(session + '/atom-distance', p):
+            allowed_query = {'atom1', 'atom2'}
+        elif method == 'GET' and re.fullmatch(session + '/bonds', p):
+            allowed_query = {'atom_index'}
+        elif method == 'POST' and re.fullmatch(session + '/validate', p):
+            allowed_query = {'full'}
+        if not allowed_query or set(parse_qs(url.query, keep_blank_values=True)) - allowed_query:
+            raise ValueError('Unsupported Studio query')
 
 def request(service, method, path, body=None, form=None):
     validate_route(method,path)
