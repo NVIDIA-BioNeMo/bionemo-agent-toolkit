@@ -18,17 +18,21 @@ verification to work around unavailable source.
 From the verified model root, following that revision's installation manual:
 
 ```bash
-make setup          # native CUDA 13, Python 3.12, Linux x86_64
+bash setup.sh --native --skip-search-envs  # CUDA 13, Python 3.12, Linux x86_64
 source .venv/bin/activate
 ```
 
-Setup installs AtomWorks through pip from the Git revision pinned in
+Setup installs AtomWorks through pip at the version pinned in
 `pyproject.toml`. It creates `.venv` with the native dependencies and copies
 `.env.local.example` only when neither `.env.local` nor `.env` exists. Existing
-settings are preserved and shell startup files are not edited. Setup also downloads
-the released checkpoint pair into `DATA_PATH` (default `./data_path`), recording
+settings are preserved and shell startup files are not edited. Public setup downloads
+the configured Hugging Face bundle at its pinned revision into the Hub cache
+(`HF_HOME` can select the cache). It sets `DATA_PATH` for ancillary data, recording
 the default in the active environment file if no path is configured. Existing
-checkpoints are reused. Use `bash setup.sh --skip-weights` to install only the environment.
+downloads are reused. Use `bash setup.sh --skip-weights --skip-search-envs` to install only the environment.
+
+Studio uses a separate locked profile. Follow the skill's **Studio runtime** path;
+ordinary upstream setup is insufficient for Studio's exact readiness checks.
 
 Edit `.env.local` for data paths and optional tool settings. The loader falls
 back to `.env` if `.env.local` is absent; the files are not merged. If setup
@@ -36,8 +40,10 @@ preserves an existing `.env`, edit that file or rename it to `.env.local`.
 Exported shell values take precedence. Treat configuration files as data: do not
 source them as shell programs, print their contents, or copy credentials into reports.
 The skill's preflight accepts exported `DATA_PATH` or an explicit `--data-path`;
-it does not load these files. Supply the actual resolved data directory selected
-during setup. Relative paths resolve against the model root, independently of
+it does not load these files. For the public bundle, it defaults ancillary data
+to `data_path` when unset and checks the already downloaded Hub cache offline.
+For legacy weights, supply the actual data directory selected during setup.
+Relative paths resolve against the model root, independently of
 the directory containing the skill.
 
 Installed commands such as `rfd4-generate` use the Python environment where

@@ -68,6 +68,27 @@ setup path requires no APT/compiler installation. Use a separate runtime root fo
 this release; setup refuses to replace a different checkout revision. Model weights,
 private source, credentials, local state and evaluation bundles are not packaged.
 
+To prepare a selected host, copy this integration's `scripts` directory (including
+the JSON profiles and lock) there, outside the model checkout. Set
+`RFD4_STUDIO_DIR` to the directory containing that `scripts` folder on the host:
+
+```sh
+python3 "$RFD4_STUDIO_DIR/scripts/runtime_setup.py" \
+  --runtime-root /absolute/runtime-root --output-root /absolute/output-root
+```
+
+Use the same roots in the Studio target. This explicit command stages the pinned
+source, installs the hashed dependency lock with the pinned Python/uv versions,
+downloads and verifies the local bundle, runs the same nine checks as
+`check_named_target`, then generates and parses a short-monomer smoke CIF. It
+preserves existing checkouts at other revisions and earlier smoke outputs. Setup
+refuses while a job holds the chosen output root's execution lock; use that same
+output root for every job sharing the runtime. `--check` only repeats readiness
+without installing or sampling. Require setup success and repeat
+`check_named_target` on the selected SSH host before submitting a request.
+Ordinary upstream `make setup` uses a Hub cache and a fresh dependency resolution,
+so it does not establish Studio readiness.
+
 Fresh Brev images may have an older NVIDIA driver even when the machine has an
 A100. The preliminary setup check requires driver major version 580 or newer for
 this pinned runtime; passing that check alone does not establish readiness. If it

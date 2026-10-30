@@ -17,8 +17,25 @@ never substitute a different input or settings without a new reviewed request.
 Ask the user to name an SSH host if the destination is unclear. A previously
 chosen host is a convenience only: verify access and RFD4 readiness again. Do
 not silently choose among machines. Keep the run's immutable target identity.
-Use the canonical public RFD4 setup skill for missing runtime or weights;
+For missing runtime or weights, use the **Studio runtime** path in the canonical
+RFD4 setup skill. Ordinary upstream `make setup` is not Studio setup: it can
+resolve different dependency versions and keeps weights in the Hub cache.
+Locate the installed plugin's `atomworks-studio/scripts` directory and copy it
+with its JSON profiles and dependency lock to the chosen SSH host, outside the
+model checkout. On that host run:
+
+```bash
+python3 "$RFD4_STUDIO_DIR/scripts/runtime_setup.py" \
+  --runtime-root /absolute/runtime-root --output-root /absolute/output-root
+```
+
+Use exactly the roots selected for `check_named_target`. The command stages the
+pinned source, installs locked dependencies and a verified local bundle, runs
+all nine Studio readiness checks, then generates and validates a short-monomer
+smoke result. Preserve its logs and CIF path. A failed stage blocks submission;
 report an incompatible driver with a concrete setup step instead of changing it.
+After setup, repeat `check_named_target` on the same selected host. Generic
+canonical preflight alone does not establish Studio readiness.
 
 If Brev CLI is already installed, offer to use an existing machine or guide the
 user through creating one with the CLI. Do not install Brev automatically. Use

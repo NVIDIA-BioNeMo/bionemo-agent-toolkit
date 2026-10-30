@@ -12,7 +12,7 @@ metadata:
 
 ## Purpose
 
-Install the RFD4-Proteína model runtime and released checkpoint pair, then prove
+Install the RFD4-Proteína model runtime and configured weights, then prove
 readiness with preflight and one generated monomer. Use this for native model
 setup and troubleshooting; an already-running NIM has a different deployment
 workflow.
@@ -33,6 +33,10 @@ interpreter, and oracle or scheduler settings. Exported values take precedence
 over configuration-file defaults.
 
 ## Instructions
+
+For a Studio request, start with **Studio runtime** in step 2. That installer
+already identifies and stages the pinned public source; a pre-existing model
+checkout is not required. Steps 1 and 3–5 describe standalone upstream setup.
 
 ### 1. Locate the model and preserve the workspace
 
@@ -59,6 +63,34 @@ and safe environment-file handling, read [environment](references/environment.md
 
 ### 2. Check the host, then install
 
+#### Studio runtime
+
+For a request from **RFD4 Studio**, use the installed plugin's
+`atomworks-studio/scripts/runtime_setup.py`, rather than ordinary upstream setup.
+The Studio integration requires its exact Python/dependency profile and a local
+checksum-verified bundle with a revision receipt. Locate that directory in the
+plugin, copy its scripts, JSON profiles and lock together to the selected host
+outside the model checkout, and set `RFD4_STUDIO_DIR` to the integration directory
+on that host. Run:
+
+```bash
+python3 "$RFD4_STUDIO_DIR/scripts/runtime_setup.py" \
+    --runtime-root /absolute/runtime-root --output-root /absolute/output-root
+```
+
+The roots must match the Studio target. Setup refuses incompatible hosts,
+different or modified source revisions, and active execution under that output
+root. It stages the pinned public source under `runtime-root/model`, installs
+the hashed dependency lock, downloads the public bundle to
+`runtime-root/model-bundle`, then requires all nine Studio checks and a real
+short-monomer CIF smoke result. It preserves previous smoke results. It installs
+no OS packages and makes no driver changes. Repeat Studio's `check_named_target`
+on the same host before submission. `--check` runs the same readiness probe
+without installation or sampling; it does not establish successful inference.
+Follow the remaining steps below for standalone upstream setup only.
+
+#### Standalone upstream runtime
+
 Check the selected execution host's GPU visibility (for example `nvidia-smi -L`),
 storage, and required platform against its installation manual. On a cluster,
 inspect the requested GPU allocation rather than treating a login node as the
@@ -70,7 +102,7 @@ From the verified model checkout, use its maintained installation recipe:
 
 ```bash
 cd "$RFPROTEINA_ROOT"
-make setup
+bash setup.sh --native --skip-search-envs
 source .venv/bin/activate
 ```
 
@@ -79,7 +111,7 @@ missing dependencies. Run the later `rfd4-generate` command from the same
 environment that preflight checks.
 
 The documented native setup creates `.venv` and installs AtomWorks at the
-revision pinned in `pyproject.toml`. It preserves existing environment files
+version pinned in `pyproject.toml`. It preserves existing environment files
 and does not edit shell startup files. Inspect the chosen revision's manual
 before adapting these commands. Diagnose installation failures from their logs;
 do not disable TLS verification, substitute import stubs, or patch model code
@@ -87,9 +119,13 @@ to manufacture a successful preflight.
 
 ### 3. Resolve data paths and checkpoints
 
-The documented setup downloads both released checkpoints into `DATA_PATH`,
-defaulting to `./data_path`, and reuses existing files. Set a custom `DATA_PATH`
-before setup. `bash setup.sh --skip-weights` installs only the environment.
+The current public setup downloads `config.json` and `model.safetensors` for
+`hf_ckpt_path` at `hf_ckpt_revision` into the Hugging Face cache. This portable
+bundle includes the model and autoencoder; it does not create the legacy
+`flow_checkpoints` / `ae_checkpoints` pair. Set `HF_HOME` before setup to choose
+the cache location. `DATA_PATH` (default `./data_path`) holds ancillary data and
+legacy checkpoints. `bash setup.sh --skip-weights --skip-search-envs` installs
+only the environment.
 A missing checkpoint is a download/configuration problem, not evidence that
 the checkout is absent.
 
@@ -113,8 +149,11 @@ bash "$RFD4_SETUP_SKILL/scripts/preflight.sh" --repo-root "$RFPROTEINA_ROOT"
 
 The helper uses explicit `RFPROTEINA_PYTHON` when supplied, otherwise the
 checkout's executable dispatcher if present, otherwise its native
-`.venv/bin/python`. It checks imports, CUDA, and nonempty released checkpoint
-files. `--data-path` overrides exported `DATA_PATH`; relative data paths resolve
+`.venv/bin/python`. It checks imports, CUDA, and the configured weights: a local
+or already cached Hugging Face bundle when `hf_ckpt_path` is set, otherwise the
+legacy checkpoint pair. It performs no downloads. For bundles, absent `DATA_PATH`
+defaults to the checkout's `data_path`; legacy checkpoints require an explicit
+data setting. `--data-path` overrides exported `DATA_PATH`; relative paths resolve
 against the model root. A nonzero exit blocks the
 smoke test. Report the actual failed check and remedy instead of replacing the
 checkout or calling setup complete.
@@ -131,7 +170,7 @@ rfd4-generate inputs=data/benchmarks/monomer \
 Use an unused output directory; preserve earlier runs if `runs/smoke` already
 contains results. Confirm command success and a nonempty annotated CIF under
 the actual output directory's `inference_samples/`. Report the checkout,
-interpreter, checkpoint pair, preflight result, and resulting CIF path. A
+interpreter, bundle revision or checkpoint pair, preflight result, and resulting CIF path. A
 passing preflight alone does not establish successful generation. Hand off to
 **rfd4-proteina-generate** for larger design requests.
 
