@@ -214,6 +214,80 @@ def test_failed_gpu_or_weights_never_reports_success(checker, model, monkeypatch
     assert snapshot(model) == before
 
 
+def bundle_files(directory):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "config.json").write_text(json.dumps({
+        "model_type": "rfd4_proteina", "format_version": 1,
+        "config": {"autoencoder_config": {"nn_ae": {}}},
+    }))
+    (directory / "model.safetensors").write_bytes(b"fixture weights")
+
+
+def test_public_hub_bundle_uses_pinned_cache_without_legacy_checkpoints(checker, model, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    cache = tmp_path / "hub-cache/snapshot"
+    bundle_files(cache)
+    snapshot_download = Mock(return_value=str(cache))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download))
+    config = {"hf_ckpt_path": "nvidia/RFD4-Proteina", "hf_ckpt_revision": "a" * 40}
+    checker.check_weights(model, config, model / "data")
+    snapshot_download.assert_called_once_with(
+        repo_id="nvidia/RFD4-Proteina", revision="a" * 40,
+        allow_patterns=["config.json", "model.safetensors"], local_files_only=True,
+    )
+    assert not (model / "data").exists()
+
+
+@pytest.mark.parametrize("relative", [False, True])
+def test_local_bundle_resolves_against_model_without_hub_access(checker, model, monkeypatch, relative):
+    from unittest.mock import Mock
+    from types import SimpleNamespace
+
+    bundle = model / "local-bundle"
+    bundle_files(bundle)
+    download = Mock(side_effect=AssertionError("Local bundle must not access Hub"))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=download))
+    checker.check_weights(model, {"hf_ckpt_path": "./local-bundle" if relative else str(bundle)}, model / "data")
+    download.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["missing", "empty", "wrong-format", "bad-json"])
+def test_invalid_bundle_never_falls_back_to_legacy_files(checker, model, failure):
+    bundle = model / "bundle"
+    bundle_files(bundle)
+    if failure == "missing":
+        (bundle / "model.safetensors").unlink()
+    elif failure == "empty":
+        (bundle / "model.safetensors").write_bytes(b"")
+    else:
+        (bundle / "config.json").write_text('{}' if failure == "wrong-format" else 'invalid JSON')
+    for directory, name in [("flow_checkpoints", "flow.ckpt"), ("ae_checkpoints", "ae.ckpt")]:
+        file = model / "data" / directory / name
+        file.parent.mkdir(parents=True)
+        file.write_bytes(b"legacy weights")
+    with pytest.raises((RuntimeError, ValueError)):
+        checker.check_weights(model, {"hf_ckpt_path": str(bundle)}, model / "data")
+
+
+def test_public_environment_passes_without_legacy_data_path(checker, model, monkeypatch, capsys):
+    from types import SimpleNamespace
+
+    bundle_files(model / "bundle")
+    (model / "configs/inference.yaml").write_text("hf_ckpt_path: ./bundle\n")
+    conditions = SimpleNamespace(__file__="fixture/conditions.py")
+    monkeypatch.setitem(sys.modules, "rfproteina", SimpleNamespace(conditions=conditions))
+    monkeypatch.setitem(sys.modules, "rfproteina.conditions", conditions)
+    monkeypatch.setitem(sys.modules, "atomworks", SimpleNamespace(__file__="fixture/atomworks.py"))
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(cuda=SimpleNamespace(
+        is_available=lambda: True, get_device_name=lambda index: "fixture GPU")))
+    monkeypatch.delenv("DATA_PATH", raising=False)
+    assert checker.main(["--repo-root", str(model)]) == 0
+    assert "PREFLIGHT PASSED" in capsys.readouterr().out
+    assert os.environ["DATA_PATH"] == str(model / "data_path")
+
+
 @pytest.mark.parametrize("state", ["missing-source", "no-gpu-tool", "gpu-error", "no-devices", "ready"])
 def test_live_eval_admission_checks_actual_prerequisites(model, tmp_path, state):
     config = yaml.safe_load((SKILL / "evals/config.yml").read_text())

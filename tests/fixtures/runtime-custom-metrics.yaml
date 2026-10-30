@@ -1,0 +1,12 @@
+# @package metrics
+#
+# Git-ignored: register your own custom metrics here without touching tracked
+# files. See docs/how-to/advanced/custom-metrics.md for the full guide.
+#
+# inline_metrics:
+#   my_metric:
+#     _target_: rfproteina.metrics.custom_metrics.my_module.MyMetric
+#
+# refolding_metrics:
+#   my_refolding_metric:
+#     _target_: rfproteina.metrics.custom_metrics.my_module.MyRefoldingMetric

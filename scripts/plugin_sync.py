@@ -47,7 +47,7 @@ SOURCE_ROOTS = ["nim-skills", "library-skills", "open-models-skills", "workflows
 EXCLUDE_SEGMENTS = {"plugins", "vendor", "evals", "node_modules", ".git"}
 # Files/dirs ignored when copying/comparing (never part of the payload).
 # `.skillsource.json` is skills.sh metadata that the generator strips from the payload.
-JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
+JUNK = {".DS_Store", "__pycache__", ".skillsource.json", "node_modules"}
 # Subdirectories of a skill that are stripped from the aggregate payload.
 # Empty: the aggregate is a full copy. ``evals/`` is intentionally kept because
 # NVCARPS Tier 3 (live agent eval) validates the aggregate and requires the
@@ -148,6 +148,41 @@ def compatibility_symlink_problem() -> str | None:
     return None
 
 
+def studio_runtime_files(source: Path) -> set[Path]:
+    """Installed files only; frontend host sources are already bundled in HTML."""
+    files = {Path(name) for name in (
+        'README.md', 'start_server', 'requirements.txt', 'editor-requirements.txt',
+        'assets/studio-upstream.html', 'assets/studio-upstream.provenance.json',
+        'assets/studio-upstream.NOTICES.txt', 'assets/STUDIO_LICENSE.md',
+    )}
+    for pattern in ('scripts/*.py', 'scripts/*.json', 'scripts/*.lock'):
+        files.update(p.relative_to(source) for p in source.glob(pattern))
+    files.discard(Path('scripts/preview.py'))
+    return files
+
+
+def sync_studio_runtime(write_files: bool) -> list[str]:
+    """Ship runtime files and attribution, excluding build/development material."""
+    src = REPO / 'integrations' / 'atomworks-studio'
+    dst = AGGREGATE_ROOT / 'atomworks-studio'
+    files = studio_runtime_files(src)
+    if write_files:
+        if dst.exists():
+            shutil.rmtree(dst)
+        for relative in sorted(files):
+            target = dst / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src / relative, target)
+        return []
+    expected = {str(p): hashlib.sha256((src / p).read_bytes()).hexdigest() for p in files}
+    actual = _file_map(dst, set())
+    differences = [f'missing in payload: {p}' for p in sorted(expected.keys() - actual.keys())]
+    differences += [f'extra in payload: {p}' for p in sorted(actual.keys() - expected.keys())]
+    differences += [f'content differs: {p}' for p in sorted(expected.keys() & actual.keys())
+                    if expected[p] != actual[p]]
+    return ['[studio runtime] ' + d for d in differences]
+
+
 def check() -> int:
     source = discover_source_skills()
     listed = config_skill_names()
@@ -182,6 +217,8 @@ def check() -> int:
         diffs = compare(source[name], AGGREGATE_SKILLS / name)
         for d in diffs:
             problems.append(f"[freshness] {name}: {d}")
+
+    problems.extend(sync_studio_runtime(False))
 
     if problems:
         print("Aggregate sync check FAILED:\n")
@@ -239,6 +276,8 @@ def write() -> int:
             shutil.rmtree(p)
             removed += 1
             print(f"  - removed orphan aggregate skill: {p.name}")
+
+    sync_studio_runtime(True)
 
     print(f"Rebuilt {rebuilt} skill(s) in the aggregate; removed {removed} orphan(s).")
 
