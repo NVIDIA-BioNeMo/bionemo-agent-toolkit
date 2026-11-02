@@ -78,9 +78,9 @@ and record the creation, spending limit and shutdown authorization in the run
 Do not create a replacement machine automatically. The plugin itself has no
 Brev lifecycle controls; use the CLI in chat.
 
-Keep TLS verification enabled. Keep SSH host verification enabled, with approved
-Brev first-use trust only for unseen keys. Reject changed keys. Do not disable
-verification to work around connection failures.
+TLS certificate and SSH host verification must remain enabled, including during
+connection troubleshooting. Approved Brev first-use trust applies only to unseen
+keys. Reject changed keys and resolve the connection failure before proceeding.
 
 ### 3. Submit, monitor and collect
 
