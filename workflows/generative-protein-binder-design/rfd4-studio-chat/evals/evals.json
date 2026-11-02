@@ -1,0 +1,20 @@
+{
+  "skill_name": "rfd4-studio-chat",
+  "evals": [
+    {
+      "id": "recover-uncertain-submission",
+      "prompt": "I returned to RFD4 Studio after chat timed out during submission. The saved request and job ID is 7b3262f5f9d94c14a9bf98d574a26c03, the SSH alias is rfd4-a100, the runtime root is /srv/rfd4, and the output root is /srv/rfd4/runs. The machine already existed and I have not authorized stopping it. I cannot tell whether the design is running or completed. Give me the concrete recovery procedure, including the plugin tool names and identifiers to retain. Explain the procedure only; do not connect to a host, run commands, submit a design, or stop compute.",
+      "expected_output": "A recovery procedure that reads the original saved request, checks the existing job and remote receipt, and resumes monitoring or collection on the recorded target. It uses get_design_request, check_rfd4_job and collect_design_results with the saved identifiers as appropriate. An unknown or running submission never triggers a duplicate design or a new machine. Verified results and logs are retrieved before considering any separately authorized shutdown; this existing machine stays running.",
+      "files": [],
+      "assertions": [
+        "Honors the explanation-only request and does not connect, run commands, submit work, provision a machine, or stop compute",
+        "Names get_design_request and check_rfd4_job, retaining the saved request/job ID 7b3262f5f9d94c14a9bf98d574a26c03 for recovery",
+        "Keeps the recorded SSH alias, runtime root, output root, reviewed input and settings; does not silently select another target or create another request",
+        "Checks the existing job and remote launch receipt after the timeout; does not infer that a timeout means the design failed or never launched",
+        "Does not call submit_design_request again while submission is unknown, running or completed; a retry requires a confirmed failure before launch to be resolved",
+        "Uses collect_design_results to retrieve completed results and logs and reports verified collected paths, without claiming artifacts were actually collected during this explanation",
+        "Leaves the existing machine running because shutdown was not authorized, and explains that remote execution and billing can continue after chat closes"
+      ]
+    }
+  ]
+}
