@@ -26,6 +26,10 @@ function rpc(method, params) {
 }
 addEventListener("message", (e) => {
   if (e.source !== parent || e.data?.jsonrpc !== "2.0") return;
+  // In a standalone tab, postMessage can echo our request back to this listener.
+  // Only response envelopes may settle a pending call.
+  if (Object.hasOwn(e.data, 'method') ||
+      (!Object.hasOwn(e.data, 'result') && !Object.hasOwn(e.data, 'error'))) return;
   const p = pending.get(e.data.id);
   if (p) {
     clearTimeout(p.timer);
@@ -316,12 +320,20 @@ async function drafts() {
     box.append(button);
   }
 }
-async function initialize() {
-  if (!local) {
-    const host = await rpc("ui/initialize", { appInfo: { name: "AtomWorks Studio for RFD4", version: "0.3.0" }, appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] }, protocolVersion: "2026-01-26" });
-    hostCapabilities = host.hostCapabilities || {};
-    parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} }, "*");
+async function initializeHost() {
+  if (local) return;
+  if (parent === window) {
+    throw Error('Open Studio from the BioNeMo plugin, or run scripts/preview.py and open its localhost URL for a local preview. The bundled HTML cannot run on its own.');
   }
+  const host = await rpc("ui/initialize", { appInfo: { name: "AtomWorks Studio for RFD4", version: "0.3.0" }, appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] }, protocolVersion: "2026-01-26" });
+  if (!host || typeof host !== 'object' || Array.isArray(host)) {
+    throw Error('The host returned an invalid Studio initialization response. Reopen Studio from the BioNeMo plugin.');
+  }
+  hostCapabilities = host.hostCapabilities || {};
+  parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} }, "*");
+}
+async function initialize() {
+  await initializeHost();
   storage.setItem("annotation-studio-viewer-v2", "molstar");
   storage.setItem("annotation-studio-pending-example", "protein_binder");
   const help = document.createElement('a');

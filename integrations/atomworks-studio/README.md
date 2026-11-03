@@ -125,6 +125,13 @@ ATOMWORKS_STUDIO_SOURCE=/path/to/atomworks-studio node test-public-import.mjs
 RFD4_STUDIO_HOME=/path/to/dev-state RFD4_PREVIEW_PORT=8769 python scripts/preview.py
 ```
 
+Open the localhost URL printed by `preview.py` for a standalone preview. The
+bundled HTML also runs inside an MCP App host, but cannot run directly from a
+file or a static web server: it needs either the preview server's local
+configuration or the MCP host's initialization response. Standalone startup
+without that configuration shows instructions instead of attempting a host
+handshake with itself.
+
 The tracked HTML, provenance, Studio license and dependency notices make Git
 installations self-contained. The installed payload includes only the server,
 Python helpers/profiles/locks, runtime requirements, this README and bundled
