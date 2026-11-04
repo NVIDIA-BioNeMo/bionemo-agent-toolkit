@@ -34,8 +34,18 @@ jobs:
           python-version: "3.12"
       - name: Test scan selection and failure handling
         run: python -m unittest discover -s tests -p test_scan_skills.py
-      - name: Install SkillSpector
-        run: pip install "git+https://github.com/NVIDIA/skillspector.git"
+      - name: Install pinned SkillSpector
+        # SkillSpector 2.13.3, matching the NVCARPS SkillEvaluator 1.6.6 scan.
+        # Pin the release commit so GitHub main changes cannot alter this check.
+        run: |
+          pip install "git+https://github.com/NVIDIA/skillspector.git@38a1dfe93325d2f8bfcd4f8d0241eed706334915"
+          python - <<'PY'
+          from importlib.metadata import version
+          actual = version("skillspector")
+          print(f"SkillSpector {actual}")
+          if actual != "2.13.3":
+              raise SystemExit("Expected SkillSpector 2.13.3")
+          PY
       - name: Scan selected skills (offline)
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}

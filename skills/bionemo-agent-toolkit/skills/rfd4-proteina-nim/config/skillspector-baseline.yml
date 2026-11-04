@@ -1,0 +1,19 @@
+# Reviewed 2026-11-04: expected hosted API authentication.
+# This fingerprint covers the public NIM client included by the PR merge.
+# It binds the entire client file, finding evidence, and scanner version.
+# Any change requires review; no rule-wide suppressions are applied.
+version: 2
+scanner_version: 2.13.3
+rules: []
+fingerprints:
+  - hash: sha256:bf002a1a7a2f6a80ef2e58c3d3721f391774a82b6be53ef244622eb9bbb6de79
+    rule_id: TT3
+    file: scripts/design.py
+    reason: >-
+      Reviewed expected hosted NIM authentication: NVIDIA_API_KEY (or NGC_API_KEY)
+      is sent only as an Authorization bearer header to the fixed HTTPS
+      health.api.nvidia.com endpoint. CLI hosted mode rejects alternate destinations,
+      local mode sends no API key, and NoRedirect refuses redirects. The key is
+      absent from saved artifacts and logs. These boundaries are covered by
+      tests/test_design.py. This exact fingerprint binds the complete client source,
+      finding evidence, and SkillSpector 2.13.3; a source or scanner change requires review.

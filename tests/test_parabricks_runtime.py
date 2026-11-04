@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import signal
 import subprocess
 import sys
@@ -237,10 +238,21 @@ esac
         self.assertIsNotNone(timer, "tests require GNU coreutils timeout")
         for name in ("timeout", "gtimeout"):
             (self.bin / name).unlink(missing_ok=True)
-        (self.bin / "gtimeout").symlink_to(timer)
+        # Preserve the host timer's executable name: multicall binaries can
+        # select their command from argv[0] and reject a gtimeout symlink.
+        wrapper = self.bin / "gtimeout"
+        wrapper.write_text(
+            '#!/bin/sh\nprintf "%s\\n" "$*" >> "$FAKE_DIR/gtimeout-calls"\n'
+            f'exec {shlex.quote(timer)} "$@"\n'
+        )
+        wrapper.chmod(0o755)
         process = self.run_probe("--timeout", "1")
         self.assertEqual(process.returncode, 0, process.stderr)
-        self.assertEqual(json.loads(process.stdout)["checks"]["docker"]["status"], "ok")
+        docker = json.loads(process.stdout)["checks"]["docker"]
+        self.assertEqual(docker["status"], "ok", docker)
+        calls = (self.tmp / "gtimeout-calls").read_text().splitlines()
+        self.assertTrue(any("docker --version" in call for call in calls), calls)
+        self.assertTrue(any("docker info" in call for call in calls), calls)
 
     def test_hung_probe_is_killed_even_if_it_ignores_termination(self):
         (self.bin / "docker").write_text("#!/bin/sh\ntrap '' TERM\nexec sleep 30\n")
