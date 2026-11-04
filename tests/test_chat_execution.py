@@ -1,11 +1,13 @@
 """Named-host execution never invokes lifecycle operations or a local worker."""
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 from pathlib import Path
 import shlex
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -54,6 +56,142 @@ class ExecutionTests(unittest.TestCase):
             check.assert_called_once_with(self.id)
         with self.assertRaisesRegex(ValueError, 'another run or target'):
             self.service.submit_design_request(self.id, dict(HOST, ssh_alias='other-host'))
+
+    def test_missing_receipt_during_launch_keeps_polling_and_prevents_redispatch(self):
+        launching = threading.Event()
+        finish_launch = threading.Event()
+        launches = []
+        states = iter(['not_launched', 'not_launched', 'not_launched', 'completed'])
+
+        def execute(host, command, timeout=60):
+            if command == 'cat /etc/machine-id':
+                return self.machine
+            args = shlex.split(command)
+            if args[0] == 'mkdir':
+                return ''
+            digest = self.service.read(self.id, 'job.json')['launch_checksum']
+            if args[4] == 'launch-file':
+                launches.append(command)
+                launching.set()
+                self.assertTrue(finish_launch.wait(10))
+                return json.dumps({'state': 'running', 'launch_checksum': digest})
+            return json.dumps({'state': next(states), 'launch_checksum': digest})
+
+        with patch.object(self.service, 'run', return_value=''), patch.object(self.service, 'named_exec', side_effect=execute):
+            with ThreadPoolExecutor(max_workers=1) as workers:
+                submission = workers.submit(self.service.submit_design_request, self.id, HOST)
+                try:
+                    self.assertTrue(launching.wait(10))
+                    for _ in range(2):
+                        job = self.service.check_chat_job(self.id)
+                        self.assertTrue(job['remote_dispatch_started'])
+                        self.assertIn(job['status'], ('submitting', 'submission_unknown'))
+                    retry = self.service.submit_design_request(self.id, HOST)
+                    self.assertTrue(retry['remote_dispatch_started'])
+                    self.assertEqual(len(launches), 1)
+                finally:
+                    finish_launch.set()
+                self.assertEqual(submission.result(timeout=10)['status'], 'running')
+            self.assertEqual(self.service.check_chat_job(self.id)['status'], 'completed')
+
+    def test_delayed_missing_receipt_cannot_overwrite_launch_acknowledgement(self):
+        launching = threading.Event()
+        finish_launch = threading.Event()
+        polling = threading.Event()
+        finish_poll = threading.Event()
+
+        def execute(host, command, timeout=60):
+            if command == 'cat /etc/machine-id':
+                return self.machine
+            args = shlex.split(command)
+            if args[0] == 'mkdir':
+                return ''
+            digest = self.service.read(self.id, 'job.json')['launch_checksum']
+            if args[4] == 'launch-file':
+                launching.set()
+                self.assertTrue(finish_launch.wait(10))
+                state = 'running'
+            else:
+                polling.set()
+                self.assertTrue(finish_poll.wait(10))
+                state = 'not_launched'
+            return json.dumps({'state': state, 'launch_checksum': digest})
+
+        with patch.object(self.service, 'run', return_value=''), patch.object(self.service, 'named_exec', side_effect=execute):
+            with ThreadPoolExecutor(max_workers=2) as workers:
+                submission = workers.submit(self.service.submit_design_request, self.id, HOST)
+                try:
+                    self.assertTrue(launching.wait(10))
+                    observation = workers.submit(self.service.check_chat_job, self.id)
+                    self.assertTrue(polling.wait(10))
+                    finish_launch.set()
+                    self.assertEqual(submission.result(timeout=10)['status'], 'running')
+                    finish_poll.set()
+                    job = observation.result(timeout=10)
+                finally:
+                    finish_launch.set()
+                    finish_poll.set()
+        self.assertEqual(job['status'], 'running')
+        self.assertTrue(job['remote_dispatch_started'])
+        receipt = {'state': 'completed', 'launch_checksum': job['launch_checksum']}
+        with patch.object(self.service, 'named_exec', side_effect=[self.machine, json.dumps(receipt)]) as execute:
+            self.assertEqual(self.service.check_chat_job(self.id)['status'], 'completed')
+            self.assertEqual(execute.call_count, 2)
+
+    def test_delayed_launch_error_cannot_overwrite_newer_running_status(self):
+        launching = threading.Event()
+        finish_launch = threading.Event()
+
+        def execute(host, command, timeout=60):
+            if command == 'cat /etc/machine-id':
+                return self.machine
+            args = shlex.split(command)
+            if args[0] == 'mkdir':
+                return ''
+            if args[4] == 'launch-file':
+                launching.set()
+                self.assertTrue(finish_launch.wait(10))
+                raise TimeoutError('launch acknowledgement lost')
+            digest = self.service.read(self.id, 'job.json')['launch_checksum']
+            return json.dumps({'state': 'running', 'launch_checksum': digest})
+
+        with patch.object(self.service, 'run', return_value=''), patch.object(self.service, 'named_exec', side_effect=execute):
+            with ThreadPoolExecutor(max_workers=1) as workers:
+                submission = workers.submit(self.service.submit_design_request, self.id, HOST)
+                try:
+                    self.assertTrue(launching.wait(10))
+                    self.assertEqual(self.service.check_chat_job(self.id)['status'], 'running')
+                finally:
+                    finish_launch.set()
+                self.assertEqual(submission.result(timeout=10)['status'], 'running')
+        self.assertEqual(self.service.read(self.id, 'job.json')['status'], 'running')
+
+    def test_missing_receipt_after_interrupted_launch_can_retry_same_request(self):
+        with patch.object(self.service, 'run', return_value=''), patch.object(self.service, 'named_exec', side_effect=['', TimeoutError('launch did not reach host')]):
+            job = self.service.submit_design_request(self.id, HOST)
+        receipt = {'state': 'not_launched', 'launch_checksum': job['launch_checksum']}
+        with patch.object(self.service, 'named_exec', side_effect=[self.machine, json.dumps(receipt)]):
+            job = self.service.check_chat_job(self.id)
+        self.assertEqual(job['status'], 'prepared')
+        self.assertFalse(job['remote_dispatch_started'])
+        receipt['state'] = 'running'
+        with patch.object(self.service, 'run', return_value=''), patch.object(self.service, 'named_exec', side_effect=['', json.dumps(receipt)]):
+            retry = self.service.submit_design_request(self.id, HOST)
+        self.assertEqual(retry['job_id'], self.id)
+        self.assertEqual(retry['status'], 'running')
+
+    def test_missing_receipt_after_client_exit_recovers_existing_record(self):
+        # Older saved records have no revision. A dead client holds no dispatch lock.
+        job = dict(job_id=self.id, snapshot_id=self.id, runtime_protocol=4,
+            target=HOST, status='submitting', remote_dispatch_started=True,
+            remote_dir=HOST['output_root'] + '/' + self.id, launch_checksum='d' * 64,
+            machine_identity=hashlib.sha256(self.machine.encode()).hexdigest())
+        self.service.save_job(job)
+        receipt = {'state': 'not_launched', 'launch_checksum': job['launch_checksum']}
+        with patch.object(self.service, 'named_exec', side_effect=[self.machine, json.dumps(receipt)]):
+            recovered = self.service.check_chat_job(self.id)
+        self.assertEqual(recovered['status'], 'prepared')
+        self.assertFalse(recovered['remote_dispatch_started'])
 
     def test_readiness_failure_can_retry_same_request_before_launch(self):
         with patch.object(self.service, 'check_named_target', return_value={'ready':False,'checks':{'cuda':False}}):

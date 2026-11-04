@@ -109,7 +109,8 @@ class ChatExecution:
                 record = dict(job_id=request_id, snapshot_id=request_id, runtime_protocol=4,
                               target=destination, instance=destination['ssh_alias'], status='prepared', compute_note=compute_note,
                               request_checksum=request['request_checksum'], samples=request['samples'],
-                              seed=request['seed'], generation=request['generation'], remote_dispatch_started=False)
+                              seed=request['seed'], generation=request['generation'], remote_dispatch_started=False,
+                              status_revision=0)
                 atomic(path, record)
         if record['remote_dispatch_started']:
             return self.check_chat_job(request_id)
@@ -141,28 +142,36 @@ class ChatExecution:
             self.run(['scp', *ssh_options(), '--', str(upload), destination['ssh_alias'] + ':' + remote_upload], 120)
         finally:
             upload.unlink(missing_ok=True)
-        with (directory / 'submission.lock').open('a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            record = json.loads((directory / 'job.json').read_text())
-            if record['remote_dispatch_started']:
-                # Another caller owns this dispatch. Reconcile outside the lock.
+        # This separate lock spans launch acknowledgement, not job-state writes.
+        # Pollers must not conclude "not launched" while a dispatch is in flight.
+        # A client exit releases it so a later check can still recover for retry.
+        with (directory / 'dispatch.lock').open('a') as dispatch_lock:
+            try:
+                fcntl.flock(dispatch_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
                 dispatch = False
             else:
-                record.update(status='submitting', remote_dispatch_started=True, remote_dir=remote,
-                              launch_checksum=digest, machine_identity=readiness['machine_identity'])
-                atomic(directory / 'job.json', record)
-                dispatch = True
-        if not dispatch:
-            return self.check_chat_job(request_id)
-        atomic(self.root / 'last-chat-target.json', destination)
-        command = shlex.join(['python3', '-B', '-c', helper, 'launch-file', remote, remote_upload])
-        try:
-            observed = json.loads(self.named_exec(destination, command, 120))
-            return self.accept_chat_observation(record, observed)
-        except Exception as error:
-            # Launch may have happened. Leave the original record for reconciliation.
-            record.update(status='submission_unknown', detail=str(error))
-            return self.save_chat_job(record)
+                with (directory / 'submission.lock').open('a') as lock:
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    record = json.loads((directory / 'job.json').read_text())
+                    if record['remote_dispatch_started']:
+                        dispatch = False
+                    else:
+                        record.update(status='submitting', remote_dispatch_started=True, remote_dir=remote,
+                                      launch_checksum=digest, machine_identity=readiness['machine_identity'],
+                                      status_revision=record.get('status_revision', 0) + 1)
+                        atomic(directory / 'job.json', record)
+                        dispatch = True
+                if dispatch:
+                    atomic(self.root / 'last-chat-target.json', destination)
+                    command = shlex.join(['python3', '-B', '-c', helper, 'launch-file', remote, remote_upload])
+                    try:
+                        observed = json.loads(self.named_exec(destination, command, 120))
+                        return self.accept_chat_observation(record, observed)
+                    except Exception as error:
+                        # Launch may have happened. Preserve any newer observation.
+                        return self.save_chat_job(dict(record, status='submission_unknown', detail=str(error)))
+        return self.check_chat_job(request_id)
 
     def accept_chat_observation(self, record, observed):
         if observed.get('launch_checksum') != record['launch_checksum']:
@@ -170,11 +179,19 @@ class ChatExecution:
         state = observed.get('state')
         if state not in ('running', 'completed', 'failed', 'submission_unknown', 'not_launched'):
             raise ValueError('Invalid remote job state')
-        record.update(status='prepared' if state == 'not_launched' else state, receipt=observed)
         if state == 'not_launched':
-            record['remote_dispatch_started'] = False
-            record['detail'] = 'Original host confirms no launch receipt. The same request can retry; remote locking prevents duplicate execution.'
-        elif observed.get('detail'):
+            directory = self.state / record['job_id']
+            with (directory / 'dispatch.lock').open('a') as dispatch_lock:
+                try:
+                    fcntl.flock(dispatch_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    # No receipt yet does not rule out an in-flight launch.
+                    return self.read(record['job_id'], 'job.json')
+                return self.save_chat_job(dict(record, status='prepared', receipt=observed,
+                    remote_dispatch_started=False,
+                    detail='Original host confirms no launch receipt. The same request can retry; remote locking prevents duplicate execution.'))
+        record = dict(record, status=state, receipt=observed)
+        if observed.get('detail'):
             record['detail'] = observed['detail']
         else:
             record.pop('detail', None)
@@ -185,8 +202,12 @@ class ChatExecution:
         with (directory / 'submission.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             current = json.loads((directory / 'job.json').read_text())
-            if current['status'] in ('completed', 'failed'):
+            # Each observation belongs to the snapshot read before its SSH call.
+            # Reject stale replies (including launch errors), not just terminal downgrades.
+            if (current['status'] in ('completed', 'failed') or
+                    current.get('status_revision', 0) != record.get('status_revision', 0)):
                 return current
+            record = dict(record, status_revision=current.get('status_revision', 0) + 1)
             atomic(directory / 'job.json', record)
             return record
 
