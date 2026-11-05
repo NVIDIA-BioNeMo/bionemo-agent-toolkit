@@ -1,0 +1,7 @@
+{
+  "instance": "YOUR-BREV-INSTANCE",
+  "instance_id": "YOUR-INSTANCE-ID",
+  "remote_root": "/home/ubuntu/rfd4-plugin",
+  "studio_url": "http://127.0.0.1:18764",
+  "brev_executable": "brev"
+}

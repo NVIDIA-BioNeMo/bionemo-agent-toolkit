@@ -75,15 +75,22 @@ if [ -n "${RFPROTEINA_PYTHON:-}" ]; then
     model_python="$(cd "$(dirname "$model_python")" && pwd)/$(basename "$model_python")"
 fi
 
+# Bash 3.2 treats an empty array as unset under nounset. Positional args
+# preserve zero optional arguments without disabling strict checking.
+set --
+if [ "${#data_args[@]}" -gt 0 ]; then
+    set -- "${data_args[@]}"
+fi
+
 cd -- "$repo_root"
 export RFPROTEINA_ROOT="$PWD"
 export PYTHONDONTWRITEBYTECODE=1
 if [ -n "$model_python" ]; then
-    exec "$model_python" "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "${data_args[@]}"
+    exec "$model_python" "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "$@"
 elif [ -x "$RFPROTEINA_ROOT/scripts/rfproteina_exec.sh" ]; then
-    exec "$RFPROTEINA_ROOT/scripts/rfproteina_exec.sh" training "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "${data_args[@]}"
+    exec "$RFPROTEINA_ROOT/scripts/rfproteina_exec.sh" training "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "$@"
 elif [ -x "$RFPROTEINA_ROOT/.venv/bin/python" ]; then
-    exec "$RFPROTEINA_ROOT/.venv/bin/python" "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "${data_args[@]}"
+    exec "$RFPROTEINA_ROOT/.venv/bin/python" "$script_dir/preflight.py" --repo-root "$RFPROTEINA_ROOT" "$@"
 else
     printf 'FAIL: Model checkout found at %s, but its Python runtime is not installed.\n' "$RFPROTEINA_ROOT" >&2
     printf '%s\n' 'Run the checkout setup or set RFPROTEINA_PYTHON to its installed interpreter.' >&2

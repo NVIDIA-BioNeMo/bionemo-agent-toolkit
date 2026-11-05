@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -n "${RFD4_STUDIO_PYTHON:-}" ]; then
+  exec "$RFD4_STUDIO_PYTHON" "$HERE/scripts/server.py" "${1:-app}"
+fi
+exec uv run --no-project --python 3.12 --with-requirements "$HERE/requirements.txt" --with-requirements "$HERE/editor-requirements.txt" python "$HERE/scripts/server.py" "${1:-app}"

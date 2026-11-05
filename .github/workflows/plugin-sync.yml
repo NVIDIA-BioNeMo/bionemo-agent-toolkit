@@ -14,6 +14,7 @@ on:
       - "library-skills/**"
       - "open-models-skills/**"
       - "workflows/**"
+      - "integrations/**"
       - "skills/**"
       - "plugins"
       - "skills.sh.json"
