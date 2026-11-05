@@ -4,9 +4,8 @@
 The canonical aggregate under ``skills/bionemo-agent-toolkit/`` is a *generated*
 copy of the source skills, and the marketplace catalogs ship that payload
 directly. The temporary ``plugins -> skills`` symlink preserves the old plugin
-path for compatibility. Nothing in the repo regenerates the aggregate
-automatically, so it silently drifts (e.g. a skill added to source but never
-added to the aggregate).
+path for compatibility. The nightly source sync rebuilds the aggregate; local
+source edits also need a rebuild to keep the distributed payload current.
 
 This script enforces two invariants:
 
@@ -22,8 +21,13 @@ Modes:
            skills.sh.json is a human decision; --check will tell you.)
 
 Usage:
+  python -m pip install -r scripts/requirements-plugin-sync.txt
   python scripts/plugin_sync.py --check
   python scripts/plugin_sync.py --write
+
+Skills registered in components.d mirror their catalog copies, including
+signing/eval artifacts. Native skills retain validation artifacts generated
+directly in the aggregate by BAT's signing service.
 """
 from __future__ import annotations
 
@@ -53,13 +57,11 @@ JUNK = {".DS_Store", "__pycache__", ".skillsource.json"}
 # NVCARPS Tier 3 (live agent eval) validates the aggregate and requires the
 # eval dataset there — stripping it makes Tier 3 skip → coverage invalid → gate block.
 STRIP_FROM_AGGREGATE: set[str] = set()
-# Generated artifacts the NVSkills signing/eval pipeline writes into the aggregate
-# only — never authored in source. The signing service commits skill.oms.sig
-# (plus its BENCHMARK.md / skill-card.md) straight into
-# skills/bionemo-agent-toolkit/skills/<skill>/, so they are not part of the
-# source→aggregate sync
-# contract: they must not count as drift in --check, and must survive a --write
-# rebuild rather than being wiped. Matched at the skill-root only.
+# The NVSkills pipeline can generate these files directly in the aggregate for
+# native skills. Preserve those files, excluding them from freshness checks.
+# Components registered in components.d mirror the source's artifacts instead,
+# as NVIDIA/skills does when copying its catalog into plugins.
+# Matched at the skill-root only.
 AGGREGATE_ONLY_ARTIFACTS = {"skill.oms.sig", "BENCHMARK.md", "skill-card.md"}
 
 
@@ -102,7 +104,7 @@ def config_skill_names() -> list[str]:
     return names
 
 
-def _file_map(root: Path, strip_top: set[str]) -> dict[str, str]:
+def _file_map(root: Path, strip_top: set[str], aggregate_only: set[str]) -> dict[str, str]:
     """relpath -> sha256 for files under root, skipping junk and stripped top dirs."""
     out: dict[str, str] = {}
     for p in root.rglob("*"):
@@ -113,20 +115,43 @@ def _file_map(root: Path, strip_top: set[str]) -> dict[str, str]:
             continue
         if any(part in JUNK for part in rel.parts):
             continue
-        # Skill-root signing/eval artifacts live only in the payload; they are
-        # generated, not synced, so they take no part in the freshness compare.
-        if str(rel) in AGGREGATE_ONLY_ARTIFACTS:
+        if str(rel) in aggregate_only:
             continue
         out[str(rel)] = hashlib.sha256(p.read_bytes()).hexdigest()
     return out
 
 
-def compare(source_dir: Path, payload_dir: Path) -> list[str]:
+def source_artifact_roots() -> tuple[Path, ...]:
+    """Read upstream-owned catalog directories from the existing registry."""
+    # Keep discovery usable by the offline scanner without this CLI dependency.
+    try:
+        import yaml
+    except ImportError as exc:
+        raise SystemExit("Install sync dependencies first: python -m pip install "
+                         "-r scripts/requirements-plugin-sync.txt") from exc
+
+    roots = []
+    for manifest in sorted((REPO / "components.d").glob("*.yml")):
+        component = yaml.safe_load(manifest.read_text())
+        for skill in component.get("skills", []):
+            root = (REPO / skill["catalog_dir"]).resolve()
+            if root == REPO.resolve() or not root.is_relative_to(REPO.resolve()):
+                raise SystemExit(f"ERROR: {manifest}: catalog_dir must be inside the repository")
+            roots.append(root)
+    return tuple(roots)
+
+
+def source_owns_artifacts(source_dir: Path, roots: tuple[Path, ...]) -> bool:
+    return any(source_dir == root or root in source_dir.parents for root in roots)
+
+
+def compare(source_dir: Path, payload_dir: Path, source_artifacts: bool = False) -> list[str]:
     """Return list of human-readable differences (empty == in sync)."""
     if not payload_dir.exists():
         return ["missing from aggregate payload entirely"]
-    src = _file_map(source_dir, STRIP_FROM_AGGREGATE)
-    dst = _file_map(payload_dir, set())
+    aggregate_only = set() if source_artifacts else AGGREGATE_ONLY_ARTIFACTS
+    src = _file_map(source_dir, STRIP_FROM_AGGREGATE, aggregate_only)
+    dst = _file_map(payload_dir, set(), aggregate_only)
     diffs = []
     for rel in sorted(set(src) - set(dst)):
         diffs.append(f"missing in payload: {rel}")
@@ -149,6 +174,7 @@ def compatibility_symlink_problem() -> str | None:
 
 
 def check() -> int:
+    artifact_roots = source_artifact_roots()
     source = discover_source_skills()
     listed = config_skill_names()
     listed_set = set(listed)
@@ -179,7 +205,8 @@ def check() -> int:
     for name in listed:
         if name not in source:
             continue  # already reported as stale-config
-        diffs = compare(source[name], AGGREGATE_SKILLS / name)
+        diffs = compare(source[name], AGGREGATE_SKILLS / name,
+                        source_owns_artifacts(source[name], artifact_roots))
         for d in diffs:
             problems.append(f"[freshness] {name}: {d}")
 
@@ -202,6 +229,7 @@ def write() -> int:
     if symlink_problem:
         raise SystemExit(f"ERROR: {symlink_problem}")
 
+    artifact_roots = source_artifact_roots()
     source = discover_source_skills()
     listed = config_skill_names()
     listed_set = set(listed)
@@ -217,14 +245,13 @@ def write() -> int:
             print(f"  ! skip '{name}': listed in skills.sh.json but no source skill found")
             continue
         dst = AGGREGATE_SKILLS / name
-        # Preserve aggregate-only signing artifacts across the rebuild — the
-        # signing service, not this script, owns them, and rmtree+copytree
-        # from source would otherwise delete a committed signature.
+        # Registered components mirror their catalog files, including removals.
+        # Native skills retain the aggregate signing service's artifacts.
         preserved: dict[str, bytes] = {}
         if dst.exists():
             for art in AGGREGATE_ONLY_ARTIFACTS:
                 ap = dst / art
-                if ap.is_file():
+                if ap.is_file() and not source_owns_artifacts(src, artifact_roots):
                     preserved[art] = ap.read_bytes()
             shutil.rmtree(dst)
         shutil.copytree(src, dst, ignore=_ignore)

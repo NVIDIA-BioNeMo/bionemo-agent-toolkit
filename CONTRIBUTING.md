@@ -56,6 +56,13 @@ copy directly; run `python scripts/plugin_sync.py --write` after changing a
 source skill. The root `plugins -> skills` symlink is a temporary compatibility
 path for existing plugin consumers.
 
+Install the generator's YAML dependency once with
+`python -m pip install -r scripts/requirements-plugin-sync.txt`.
+The generator reads `components.d` to identify sourced skills and mirrors their
+catalog files into the aggregate, including signatures, benchmarks, and skill
+cards. Native skills retain validation artifacts generated directly in the
+aggregate by BAT's signing service. The nightly sync uses the same commands.
+
 ### Onboarding a source repo
 
 Add `components.d/<slug>.yml`, meet the requirements below, and open a PR:
@@ -71,7 +78,7 @@ skills:
 
 ### Source-repo requirements — what can be ingested
 
-Tagged `SRC-*` (referenced in review and in `docs/sync-findings.md`). These are
+Tagged `SRC-*` for reference during review. These are
 the same conventions `NVIDIA/skills` uses, so a compliant repo is ingestible by
 **both** this toolkit and `NVIDIA/skills` (verified against `rapidsai/cudf`,
 `NVIDIA-NeMo/RL`, `NVIDIA/cuopt`, `nvidia-holoscan/holoscan-sdk`).
@@ -94,14 +101,12 @@ the same conventions `NVIDIA/skills` uses, so a compliant repo is ingestible by
   Eval definitions for a **sourced** skill must live under `evals/` **in the
   source component repo** — never authored into the catalog copy here. The sync
   overwrites vendored dirs (`rsync --delete`), so catalog-only evals are
-  silently wiped on the next run. (This is exactly what happened to the KERMT
-  evals — they had been added to the catalog and had to be moved upstream into
-  `evals/` in the KERMT repo. See `docs/sync-findings.md`.)
+  silently wiped on the next run.
 - **SRC-11 · Signed + carded** — `skill.oms.sig` (OpenSSF model signature) + `skill-card.md`, via NVIDIA `nvskills-ci`.
 
 > This toolkit is currently **tolerant**: it syncs skills that don't yet meet
-> SRC-2/5/6/9/10/11 and records the gaps in `docs/sync-findings.md` for upstream
-> fixing — the reviewed sync PR is the gate. `NVIDIA/skills` **enforces** the full
+> SRC-2/5/6/9/10/11; the reviewed sync PR is the gate.
+> `NVIDIA/skills` **enforces** the full
 > set. Aim for full compliance so a skill is ready for both.
 
 ## Signing Your Work

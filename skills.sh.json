@@ -24,6 +24,8 @@
       "title": "CUDA-X Libraries",
       "skills": [
         "cuequivariance",
+        "cuequivariance-jax",
+        "cuequivariance-torch",
         "genomics-workflow-acceleration",
         "nvmolkit-usage",
         "parabricks"

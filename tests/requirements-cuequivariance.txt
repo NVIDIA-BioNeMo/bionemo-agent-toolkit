@@ -1,2 +1,2 @@
-# Match the version advertised by the cuEquivariance skill examples.
-cuequivariance==0.12.0
+# Use the CPU dependency revision shipped with the upstream skill.
+-r ../library-skills/cuequivariance/scripts/requirements.txt

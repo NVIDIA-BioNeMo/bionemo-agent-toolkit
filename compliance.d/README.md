@@ -4,8 +4,7 @@
 Skills vendored from a source repo are rsynced with `--delete` (see
 [`../.github/workflows/sync-skills.yml`](../.github/workflows/sync-skills.yml)),
 so **a file committed directly into a sourced catalog dir is deleted on the next
-nightly sync.** That is what happened to the KERMT evals (see
-[`../docs/sync-findings.md`](../docs/sync-findings.md)).
+nightly sync.**
 
 This directory holds `skill-card.md` files for sourced skills, mirroring the
 catalog path, outside every rsync target and every prune root:

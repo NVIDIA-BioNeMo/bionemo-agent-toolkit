@@ -4,7 +4,7 @@ name: plugin-sync
 # has drifted from the source skills — e.g. a skill was added to source but
 # never added to skills.sh.json / regenerated into the aggregate.
 #
-# No secrets, no Docker, no external tooling: it enforces the invariant that
+# No secrets or Docker: it enforces the invariant that
 # each aggregate skill folder equals its source folder.
 
 on:
@@ -17,7 +17,10 @@ on:
       - "skills/**"
       - "plugins"
       - "skills.sh.json"
+      - "components.d/**"
       - "scripts/plugin_sync.py"
+      - "scripts/requirements-plugin-sync.txt"
+      - "tests/test_plugin_sync.py"
       - ".github/workflows/plugin-sync.yml"
   push:
     branches: [main]
@@ -30,5 +33,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install aggregate sync dependencies
+        run: python -m pip install -r scripts/requirements-plugin-sync.txt
       - name: Check aggregate payload is in sync with source skills
         run: python scripts/plugin_sync.py --check
+      - name: Test source and aggregate artifact ownership
+        run: python -m unittest discover -s tests -p test_plugin_sync.py -v
