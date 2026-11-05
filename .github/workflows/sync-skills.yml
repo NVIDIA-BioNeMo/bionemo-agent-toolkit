@@ -163,12 +163,20 @@ jobs:
             echo "- compliance backfill" >> /tmp/changed-components.txt
           fi
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install aggregate sync dependencies
+        run: python3 -m pip install -r scripts/requirements-plugin-sync.txt
+
       - name: Rebuild aggregate payload
         # Regenerate skills/bionemo-agent-toolkit/ so the sync PR ships sources +
         # aggregate together and stays plugin-sync green. The legacy plugins/
         # path is a symlink and must not be used as the git-status pathspec.
         run: |
           python3 scripts/plugin_sync.py --write
+          python3 scripts/plugin_sync.py --check
           if [ -n "$(git status --porcelain -- skills/bionemo-agent-toolkit/)" ]; then
             echo "- aggregate payload" >> /tmp/changed-components.txt
           fi
@@ -211,7 +219,7 @@ jobs:
             fi
             echo ""
             echo "Sourced content changes + any pruning are shown in the diff. Native"
-            echo "skills (NIM, workflows, parabricks, genomics, cuEquivariance) are untouched."
+            echo "skills (NIM, workflows, parabricks, genomics) are untouched."
             echo "Review the diff and merge — nothing merges unattended."
             echo 'EOFBODY'
           } >> "$GITHUB_OUTPUT"

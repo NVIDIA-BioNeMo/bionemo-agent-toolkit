@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
+# Copyright (c) 2026 NVIDIA Corporation. All rights reserved.
+
+name: cuEquivariance
+repo: NVIDIA/cuEquivariance
+ref: main
+description: >-
+  Build equivariant descriptors and custom group representations, and execute
+  equivariant operations with JAX and PyTorch.
+skills:
+  - path: skills/cuequivariance
+    catalog_dir: library-skills/cuequivariance
+  - path: skills/cuequivariance-jax
+    catalog_dir: library-skills/cuequivariance-jax
+  - path: skills/cuequivariance-torch
+    catalog_dir: library-skills/cuequivariance-torch

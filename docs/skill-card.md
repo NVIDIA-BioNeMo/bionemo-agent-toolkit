@@ -149,8 +149,7 @@ it — 31 of 31 skills covered: <br>
 Eval **definitions** are committed and reproducible; eval **run results** are
 regenerated per run and git-ignored (`**/evals/results/`), so no aggregate scores
 are published in-repo. A consolidated `BENCHMARK.md` report (`SRC-10`) is not yet
-present and is tracked as an open compliance gap in
-[`docs/sync-findings.md`](sync-findings.md). <br>
+present. <br>
 
 Skills were admitted to the catalog only after their evals passed in the reviewed
 sync/merge gate. SkillSpector runs advisory (non-blocking) on every PR and on

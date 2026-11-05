@@ -60,7 +60,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **CodonFM** | Open codon foundation models: set up public Encodon checkpoints, extract coding-sequence embeddings, score masked-codon variants, and fine-tune on labeled data. | [`codonfm-setup`](open-models-skills/codonfm/codonfm-setup), [`codonfm-embed`](open-models-skills/codonfm/codonfm-embed), [`codonfm-score`](open-models-skills/codonfm/codonfm-score), [`codonfm-finetune`](open-models-skills/codonfm/codonfm-finetune) |
 | **Parabricks** | Agent-ready skills built on Parabricks for accelerated genomic analysis and workflows. | [`parabricks`](library-skills/parabricks), [`genomics-workflow-acceleration`](library-skills/genomics-workflow-acceleration) |
 | **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvmolkit-usage) |
-| **cuEquivariance** | Build equivariant neural-network primitives (segmented tensor products, CG coefficients). | [`cuequivariance`](library-skills/cuequivariance) |
+| **cuEquivariance** | Build equivariant descriptors and custom group representations, and execute equivariant operations with JAX and PyTorch. | [`cuequivariance`](library-skills/cuequivariance), [`cuequivariance-jax`](library-skills/cuequivariance-jax), [`cuequivariance-torch`](library-skills/cuequivariance-torch) |
 
 ## Evaluating NIM Skill Lift
 
