@@ -29,18 +29,31 @@ UA = "bionemo-nim-skills-colabfold-client/1.0"
 AA3 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",
        "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
        "MET": "M", "PHE": "F", "PRO": "P", "SER": "S", "THR": "T", "TRP": "W",
-       "TYR": "Y", "VAL": "V"}
+       "TYR": "Y", "VAL": "V",
+       # Selenomethionine: a standard Se-SAD/MAD phasing substitution for Met,
+       # always recorded as HETATM (never ATOM) even though it's part of the
+       # polymer chain -- the line filter below must match it too.
+       "MSE": "M"}
 
 
 def seq_from_pdb(pdb: str, chain: str) -> str:
     out, seen = [], set()
     for ln in open(pdb):
-        if ln.startswith("ATOM") and ln[12:16].strip() == "CA" and ln[21] == chain:
+        # MSE (selenomethionine) is always HETATM, never ATOM, even though it's
+        # part of the polymer chain -- but a blanket "any HETATM" match would
+        # also pick up a Ca2+ ion (resName "CA", atom name "CA" -- the same
+        # four characters as a protein alpha-carbon). Only trust a HETATM line
+        # when its residue name is a modified amino acid we actually recognize.
+        res_name = ln[17:20].strip()
+        is_residue_line = ln.startswith("ATOM") or (
+            ln.startswith("HETATM") and res_name in AA3
+        )
+        if is_residue_line and ln[12:16].strip() == "CA" and ln[21] == chain:
             key = ln[22:26]
             if key in seen:
                 continue
             seen.add(key)
-            out.append(AA3.get(ln[17:20].strip(), "X"))
+            out.append(AA3.get(res_name, "X"))
     return "".join(out)
 
 
