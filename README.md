@@ -61,6 +61,7 @@ flow as well. Skills are also discoverable by partner harnesses directly from th
 | **Parabricks** | Agent-ready skills built on Parabricks for accelerated genomic analysis and workflows. | [`parabricks`](library-skills/parabricks), [`genomics-workflow-acceleration`](library-skills/genomics-workflow-acceleration) |
 | **nvMolKit** | GPU-accelerated cheminformatics library for molecular fingerprinting, Tanimoto/cosine similarity, Butina clustering, conformer generation (ETKDGv3), MMFF geometry optimization, and substructure search. | [`nvmolkit-usage`](library-skills/nvmolkit-usage) |
 | **cuEquivariance** | Build equivariant descriptors and custom group representations, and execute equivariant operations with JAX and PyTorch. | [`cuequivariance`](library-skills/cuequivariance), [`cuequivariance-jax`](library-skills/cuequivariance-jax), [`cuequivariance-torch`](library-skills/cuequivariance-torch) |
+| **cuPotential** | Install cuPotential, integrate it with OpenMM, implement custom pair potentials, validate energies and forces, and benchmark simulations. | [`cupotential-install`](library-skills/cupotential/cupotential-install), [`cupotential-openmm`](library-skills/cupotential/cupotential-openmm), [`cupotential-custom-potentials`](library-skills/cupotential/cupotential-custom-potentials), [`cupotential-validate`](library-skills/cupotential/cupotential-validate), [`cupotential-benchmark`](library-skills/cupotential/cupotential-benchmark) |
 
 ## Evaluating NIM Skill Lift
 
