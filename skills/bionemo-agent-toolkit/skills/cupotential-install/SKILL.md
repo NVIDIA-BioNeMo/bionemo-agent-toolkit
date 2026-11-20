@@ -64,6 +64,17 @@ Return the interpreter, resolved versions, installation command, executed probe
 and result, and any remaining limitation. Without CUDA execution, report the
 installation or code preparation achieved and leave the GPU probe unverified.
 
+### CPU-only verification fallback
+
+If a CPU fallback is permitted, use a separate stock OpenMM `CPU` or `Reference`
+energy/force control to verify the available Python/OpenMM setup. Install stock
+OpenMM in a new isolated environment only when allowed. Record its interpreter,
+versions, platform and observed numbers separately from the cuPotential install.
+Do not replace a requested release or interpreter to make that installation pass.
+Report cuPotential installation and CUDA verification independently; a successful
+stock CPU control leaves the cuPotential GPU probe unverified. If GPU execution
+was required, the original verification remains incomplete.
+
 ### Bundled helper
 
 | Script | Inputs and output |

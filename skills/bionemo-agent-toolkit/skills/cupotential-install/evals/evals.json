@@ -3,21 +3,23 @@
   "evals": [
     {
       "id": "install-isolated-cuda",
-      "prompt": "Install the published cuPotential 0.3.5 OpenMM plugin in a new Python 3.12 virtual environment under /workspace/output/install-env, using the package route. Do not change the base interpreter's packages. Resolve and record the actual package/dependency versions and import paths. Then run a small neutral periodic system on OpenMM's CUDA platform and save its numerical energy and forces plus the executed commands under /workspace/output/install-check. An import-only check is insufficient. If this runner lacks a compatible interpreter, release asset, driver or GPU, report the observed blocker and leave CUDA verification incomplete; do not substitute a CPU result or invent a successful run.",
-      "expected_output": "An isolated installation and a real finite, nonzero CUDA energy/force result, with interpreter, resolved versions, module paths, platform and commands recorded. An unavailable prerequisite is reported honestly as incomplete execution and does not satisfy the successful CUDA-execution criterion.",
+      "prompt": "Assess the available interpreter/runtime and install the published cuPotential 0.3.5 OpenMM plugin in a new Python 3.12 environment under /workspace/output/install-env when that compatible interpreter and package route are available. Preserve base packages and record actual resolved versions/import paths. When CUDA is available, actually execute a neutral periodic energy/force probe and save finite nonzero results and commands under /workspace/output/install-check. CPU fallback is explicitly permitted when the required interpreter, plugin or GPU is absent: retain the exact cuPotential installation/CUDA blocker, create a separate isolated stock OpenMM CPU-reference environment using an available supported interpreter, and actually run a small neutral periodic stock CPU or Reference energy/force control. Record the selected CPU interpreter and its differences from the requested cuPotential environment. CPU installation/control success is a separate result; do not substitute another cuPotential release or mark its installation/CUDA probe verified. Retain failures, hashes, commands and observed versions. If neither branch executes, report incomplete rather than invent a successful probe.",
+      "expected_output": "Observed isolated cuPotential installation and CUDA energy/forces when prerequisites exist, or a documented cuPotential blocker plus an actually executed isolated stock OpenMM CPU control. CPU environment/control success is separate from unverified cuPotential installation/CUDA verification.",
       "assertions": [
-        "Package changes are confined to the requested virtual environment, and installation and verification use that same interpreter.",
-        "The package is nv-openmm-plugin at the requested published release, and the imported module is nv_openmm_plugin; unresolved documentation placeholders are not used as assets.",
-        "The agent actually executes a neutral periodic energy/force probe on the CUDA platform with supported precision and records its numerical output.",
-        "The recorded energy and all force components are finite, and at least one force component is nonzero.",
-        "Interpreter, resolved versions, module paths, commands and platform evidence are retained; import success, simulated output or CPU execution is not presented as CUDA verification.",
-        "A successful task requires the observed CUDA probe; missing prerequisites and skipped execution remain explicitly incomplete."
+        "Package changes stay in newly isolated environments and use their recorded interpreters; base packages remain untouched.",
+        "The native target remains nv-openmm-plugin 0.3.5 with import nv_openmm_plugin. Missing compatible release/interpreter is recorded rather than silently substituted.",
+        "An actual energy/force probe executes on CUDA when available, or on stock OpenMM CPU/Reference as the expressly permitted control.",
+        "The executed probe's energy/force components are finite with a nonzero force component, and its actual platform is recorded.",
+        "Interpreter/version/module paths, commands and failures are retained; CPU fallback records its separate interpreter/environment and never claims CUDA verification.",
+        "Native installation and CUDA verification remain unverified/incomplete if blocked, even when the separate stock CPU control passes. If both branches lack execution, neither is reported complete."
       ]
     },
     {
       "id": "install-loader-assessment",
       "prompt": "Assess the cuPotential loading problem described in /workspace/input/loader-report.txt. This is a supplied synthetic support report, not the environment running this evaluation. Explain what the evidence establishes, what remains unknown and which read-only checks the application owner should run with the selected interpreter. Do not install packages, alter library paths or change either environment. Write /workspace/output/loader-assessment.md. Do missing wheel metadata or the CUDA number in nvidia-smi alone explain this failure?",
-      "files": ["files/loader-report.txt"],
+      "files": [
+        "files/loader-report.txt"
+      ],
       "expected_output": "An evidence-based loader assessment identifying the reported unresolved libnvJitLink dependency, distinguishing module discovery, distribution metadata and execution, and proposing interpreter-specific read-only checks without claiming the exact repair is already known.",
       "assertions": [
         "The assessment uses the supplied report rather than treating the evaluation host as the affected application environment.",

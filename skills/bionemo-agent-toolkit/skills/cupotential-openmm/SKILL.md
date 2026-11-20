@@ -40,6 +40,21 @@ conversion with its fixed numerical policy; it does not accept arbitrary pinned
 meshes or accuracy targets. Explain incompatible requirements before changing
 them. Geometry restrictions also need checking for the supplied box and cutoff.
 
+### CPU reference fallback
+
+When CUDA/cuPotential is unavailable and a CPU fallback is permitted, run a
+separate stock OpenMM control on `CPU` or `Reference`, preserving the input model.
+Keep the stock integrator, COM remover and, for NPT, stock barostat in that control.
+The [CPU procedure](references/simulation.md#cpu-reference-control) and bundled
+`scripts/run_cpu_reference.py` exercise energy/forces and a fresh-process restart.
+An isolated stock OpenMM installation is an option when package changes are allowed.
+
+Label its result `CPU_REFERENCE_PASS` or `CPU_REFERENCE_FAILED` and record
+cuPotential/CUDA as `NOT_RUN`. A stock checkpoint does not test native cuPotential
+serialization, COM transfer or barostat state. Prepare those conversions separately.
+If the request requires CUDA, the requested cuPotential execution remains incomplete.
+Retain failed attempts; use `python -B` to avoid bytecode cache cleanup.
+
 ### Adapt and execute
 
 Construct each replacement before removing its source force, and replace it once.

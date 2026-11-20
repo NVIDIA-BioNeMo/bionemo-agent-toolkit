@@ -40,6 +40,17 @@ or a benchmark in an installed-plugin application. Source checkout and committed
 golden results are optional. Verify fixed-configuration accuracy against an
 appropriate independent reference before recommending a faster configuration.
 
+### CPU-only fallback
+
+When CPU fallback is permitted, exercise a stock OpenMM `CPU` or `Reference`
+control with the same supplied model and report its platform explicitly. Check
+finite energy/forces, actual step counts and the timing protocol; an isolated
+stock OpenMM environment is an option if installation is allowed. Prepare the
+cuPotential arms, but mark their CUDA accuracy checks, timings and speedups
+`NOT_RUN`. CPU throughput is a control measurement, not a cuPotential or GPU
+benchmark, and cannot establish a GPU speedup or hardware comparison.
+Keep an explicitly requested GPU benchmark incomplete until its arms execute.
+
 ### Measure the workload
 
 Measure installation/build work, cold startup/Context/JIT, and warm execution

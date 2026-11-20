@@ -82,6 +82,42 @@ Complete force/integrator/barostat configuration before constructing a CUDA
 Context. Use explicit supported precision. For an existing simulation, avoid
 resetting time, step count or velocities while attaching reporters.
 
+## CPU reference control
+
+This control uses stock OpenMM only. It exercises the bundled synthetic model's
+physical settings, finite energy/forces, step counts and a fresh-process binary
+checkpoint restart. It never imports cuPotential or creates a CUDA Context.
+Its stock integrator retains the explicit COM remover. Its NPT control uses
+stock `MonteCarloBarostat`; native cuPotential policies still need GPU testing.
+
+If stock OpenMM is absent and an isolated installation is permitted, use the
+selected compatible interpreter to create a new environment, for example:
+
+```bash
+python3 -m venv /workspace/output/openmm-cpu-env
+/workspace/output/openmm-cpu-env/bin/python -m pip install 'openmm==8.4.0.post2'
+```
+
+The base OpenMM package suffices; CUDA extras are unnecessary for this control.
+Resolve the helper from the installed skill directory. The output must be a new
+directory; preserve earlier results and their failures:
+
+```bash
+python -B /path/to/cupotential-openmm/scripts/run_cpu_reference.py run \
+  --model /workspace/input/system.json \
+  --output /workspace/output/nvt-cpu-reference \
+  --ensemble nvt --steps 100 --resume-steps 40
+```
+
+For NPT use `--ensemble npt --resume-steps 50`. `--platform Reference` is an
+explicit alternative to `CPU`. The helper writes input hashes, definitions,
+force inventory, declared restoration criteria, raw states, checkpoint,
+subprocess evidence and status. It compares physical state before continuing;
+it does not certify identical future stochastic trajectories. A CPU pass leaves
+cuPotential CUDA execution and candidate-versus-reference accuracy untested.
+If CPU execution also fails, retain the exception and report that check as failed
+or unavailable; prepared code alone is not a completed CPU run.
+
 ## Save and resume
 
 Keep a compatible System definition, integrator definition and binary checkpoint

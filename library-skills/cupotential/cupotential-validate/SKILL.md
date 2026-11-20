@@ -23,6 +23,11 @@ match version-specific behavior to the user's selected runtime.
 
 ## Instructions
 
+Snapshot comparison and analytic checks can run on CPU. If generating a stock
+OpenMM reference on `CPU` or `Reference`, record that platform explicitly and
+keep it separate from cuPotential CUDA results. Missing candidate GPU results
+remain unavailable; CPU reference success cannot establish candidate agreement.
+
 ### Choose the question and reference
 
 Separate preservation of the requested physical model, numerical evaluation

@@ -47,6 +47,21 @@ contract provision, the implementation/protocol decision, and remaining evidence
 needs. Importing packages, installing software and running a simulation are
 unnecessary for this mode.
 
+### CPU reference fallback
+
+If CPU fallback is permitted, execute independent analytic/finite-difference
+checks and, when stock OpenMM is available, a separate stock `CPU` or `Reference`
+definition. For WCA, retain unequal-particle mixing, nonzero and outside-support
+controls, exclusions and the reversible strength sequence. For a fused expression,
+the stock control must retain full LJ, electrostatics and the addition.
+An isolated stock OpenMM installation is an option only when package changes are allowed.
+
+Record CPU results separately from the prepared cuPotential definition. Label
+cuPotential CUDA evaluation, live native parameter updates and native-versus-stock
+comparisons `NOT_RUN` until actually exercised. If CUDA was required, the requested
+execution remains incomplete. Keep failed checks and temporary caches rather than
+cleaning away evidence; `python -B` avoids creating bytecode caches.
+
 ### Define the interaction before implementing it
 
 Establish the complete pair energy, physical units, symmetric combining rules,
