@@ -104,8 +104,9 @@ def config_skill_names() -> list[str]:
     return names
 
 
-def _file_map(root: Path, strip_top: set[str], aggregate_only: set[str]) -> dict[str, str]:
-    """relpath -> sha256 for files under root, skipping junk and stripped top dirs."""
+def _file_map(root: Path, strip_top: set[str],
+              aggregate_only: set[str] | None = None) -> dict[str, str]:
+    """relpath -> sha256, with an optional skill-root artifact exclusion filter."""
     out: dict[str, str] = {}
     for p in root.rglob("*"):
         if p.is_dir():
@@ -115,7 +116,7 @@ def _file_map(root: Path, strip_top: set[str], aggregate_only: set[str]) -> dict
             continue
         if any(part in JUNK for part in rel.parts):
             continue
-        if str(rel) in aggregate_only:
+        if aggregate_only is not None and str(rel) in aggregate_only:
             continue
         out[str(rel)] = hashlib.sha256(p.read_bytes()).hexdigest()
     return out

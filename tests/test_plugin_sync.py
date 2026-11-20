@@ -12,6 +12,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import plugin_sync
 
 
+class FileMapCompatibilityTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        for relative in ("runtime.py", "skill-card.md", "nested/skill-card.md",
+                         "__pycache__/runtime.pyc"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("fixture\n")
+
+    def test_two_argument_call_keeps_validation_artifact_names(self):
+        self.assertEqual(set(plugin_sync._file_map(self.root, set())),
+                         {"runtime.py", "skill-card.md", "nested/skill-card.md"})
+
+    def test_explicit_artifact_filter_only_excludes_root_files(self):
+        self.assertEqual(set(plugin_sync._file_map(self.root, set(), {"skill-card.md"})),
+                         {"runtime.py", "nested/skill-card.md"})
+
+
 class ArtifactOwnershipTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -30,6 +50,17 @@ class ArtifactOwnershipTests(unittest.TestCase):
         }))
         for directory in (self.source, self.payload):
             (directory / "SKILL.md").write_text("Demo skill\n")
+        # The shared sync also checks Studio's required runtime files.
+        for directory in (self.repo / "integrations/atomworks-studio",
+                          self.payload.parent.parent / "atomworks-studio"):
+            for relative in (
+                "README.md", "start_server", "requirements.txt", "editor-requirements.txt",
+                "assets/studio-upstream.html", "assets/studio-upstream.provenance.json",
+                "assets/studio-upstream.NOTICES.txt", "assets/STUDIO_LICENSE.md",
+            ):
+                path = directory / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("Studio fixture\n")
         self.artifacts = ("BENCHMARK.md", "skill-card.md", "skill.oms.sig")
         for artifact in self.artifacts:
             (self.source / artifact).write_text(f"Upstream {artifact}\n")
