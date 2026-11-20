@@ -3,8 +3,17 @@
 `preflight-then-smoke-monomer` measures a real model installation and one GPU
 generation. It requires an approved RFD4-Proteina source revision in a writable
 checkout, GPU access compatible with that revision, sufficient storage, and
-access to its dependencies and released checkpoint downloads. It cannot be
+access to its dependencies and configured model downloads. It cannot be
 completed in a generic CPU sandbox containing only the skill catalog.
+
+This case exercises standalone upstream setup. It follows the weights selected
+by `configs/inference.yaml`: a public Hugging Face bundle when `hf_ckpt_path`
+is set, otherwise the legacy native checkpoint pair. The public bundle includes
+the autoencoder and lives in the configured local directory or Hub cache, not
+`DATA_PATH/flow_checkpoints` and `DATA_PATH/ae_checkpoints`. Keep `HF_HOME` and
+the model interpreter consistent across download, preflight and generation.
+Studio's separately locked runtime and revision receipt are not prerequisites
+for this standalone case.
 
 Before a live run, configure the operator's GPU-enabled sandbox/template with
 that source checkout. Give every with-skill and baseline trial its own writable

@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": "preflight-then-smoke-monomer",
-      "prompt": "Set up RFProteína on this machine and confirm it can run. Install the environment, download the example checkpoints into a local DATA_PATH, run the setup preflight, and then run a single-design smoke test on the short monomer benchmark. Use the model checkout identified by RFPROTEINA_ROOT and preserve existing workspace files and Git metadata.",
-      "expected_output": "An installed RFProteina environment with released checkpoints in DATA_PATH, preflight exit code 0 and PREFLIGHT PASSED, and at least one annotated monomer-short CIF under ./runs/smoke using the configured release checkpoint pair.",
+      "prompt": "Set up standalone RFProteína on this machine and confirm it can run. Use the model checkout identified by RFPROTEINA_ROOT. Read configs/inference.yaml to identify the active model weights, install the environment, download the configured model bundle or native checkpoints using that revision's documented downloader, run the setup preflight, and then run a single-design smoke test on the short monomer benchmark. Keep the downloader, preflight, and generator in the same model environment and Hub cache. Preserve existing workspace files, configuration, and Git metadata.",
+      "expected_output": "An installed RFProteina environment with the configured model weights available locally, preflight exit code 0 and PREFLIGHT PASSED, and at least one nonempty annotated monomer-short CIF under ./runs/smoke/inference_samples using the model selected by configs/inference.yaml. For the public release, config.json and model.safetensors come from the configured Hugging Face revision; obsolete flow/AE checkpoint files are not required while hf_ckpt_path is set.",
       "files": [],
       "setup": {
         "cwd": "model checkout identified by RFPROTEINA_ROOT",
@@ -13,22 +13,23 @@
           "NVIDIA GPU",
           "git",
           "curl",
-          "~10GB disk"
+          "Enough disk for the selected revision's Python dependencies, model bundle, download cache, and smoke output"
         ]
       },
       "assertions": [
-        "Runs the selected model checkout's documented installer (make setup or bash setup.sh) and activates or explicitly selects its Python environment",
-        "Resolves DATA_PATH from the exported environment or active .env.local/.env file, preserves existing settings, and obtains both released checkpoints if needed",
+        "Runs the selected model checkout's documented native installer and activates or explicitly selects its Python environment; keeps optional refolding/search setup outside this generation smoke test",
+        "When hf_ckpt_path is set, obtains config.json and model.safetensors for hf_ckpt_revision in the configured local bundle or Hub cache, and uses that same HF_HOME/cache for preflight and generation; does not require the obsolete flow/AE checkpoint pair",
+        "When hf_ckpt_path is absent or null, obtains the native flow/AE checkpoint pair selected by configs/inference.yaml under the actual DATA_PATH; preserves existing data and environment settings in either mode",
         "Runs the installed setup skill's preflight.sh against the selected model checkout and it exits 0 (PREFLIGHT PASSED), including native .venv installations without a dispatcher",
         "Runs rfd4-generate inputs=data/benchmarks/monomer subset_to_examples=monomer-short num_replicates=1 out_dir=./runs/smoke",
-        "Uses the release checkpoint pair selected by configs/inference.yaml without a checkpoint override",
+        "Uses the model and revision selected by configs/inference.yaml without substituting another checkpoint or model; reports the actual bundle/cache paths or native checkpoint paths checked",
         "Preserves existing workspace files, Git metadata, data, and environments; does not delete or reset a checkout to make room for a clone",
         "Uses the supplied RFD4-Proteina source and reports actual failures without substituting a different Proteina model, disabling TLS verification, or fabricating dependencies or results",
         "Confirms a successful generation command and a nonempty annotated CIF at the reported output path; preflight alone is not reported as completed generation"
       ],
       "success_criteria": {
         "preflight_exit_code": 0,
-        "artifact_glob": "./runs/smoke/**/*.cif",
+        "artifact_glob": "./runs/smoke/inference_samples/**/*.cif",
         "min_artifacts": 1
       }
     }

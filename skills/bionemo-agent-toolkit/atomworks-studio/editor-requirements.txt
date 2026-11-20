@@ -1,0 +1,2 @@
+# CPU editing runtime; separate from the model/GPU environment.
+atomworks-studio==0.0.1

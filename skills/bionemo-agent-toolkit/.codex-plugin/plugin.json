@@ -37,6 +37,9 @@
             "Predict the structure of insulin with Boltz2",
             "Design a de novo binder for a target with RFdiffusion and ProteinMPNN",
             "Score a BRCA1 variant with Evo2"
-        ]
-    }
+        ],
+        "logo": "./.codex-plugin/assets/logo.png",
+        "composerIcon": "./.codex-plugin/assets/logo.png"
+    },
+    "mcpServers": "./.mcp.json"
 }

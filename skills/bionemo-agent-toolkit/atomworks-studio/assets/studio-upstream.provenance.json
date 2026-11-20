@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/RosettaCommons/atomworks-studio",
+  "tag": "v0.0.1",
+  "commit": "4b419ebd327405035c8cf6ccde7f333d0878888e",
+  "hooks": [
+    "API transport",
+    "session events",
+    "in-memory storage",
+    "inline CIF WASM",
+    "Molstar-only renderer",
+    "disable PWA",
+    "reuse upstream file opening",
+    "defer download URL cleanup"
+  ],
+  "sourceEdited": false
+}

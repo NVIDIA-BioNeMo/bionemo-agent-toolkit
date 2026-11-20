@@ -1,0 +1,15 @@
+{
+  "name": "bionemo-rfd4-studio-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build-upstream.mjs"
+  },
+  "dependencies": {
+    "molstar": "5.13.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

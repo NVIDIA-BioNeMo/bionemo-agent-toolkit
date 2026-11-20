@@ -4,7 +4,7 @@ description: >
   Orchestrate an end-to-end de novo protein binder design campaign against a protein target by composing BioNeMo NIM skills. Use for binder design, minibinder design, de novo binders, RFdiffusion + ProteinMPNN + Boltz2/OpenFold3 pipelines, epitope/hotspot-targeted design, in-silico binder validation, and ranking designs by interface confidence.
 license: Apache-2.0
 compatibility: "numpy>=1.24; requests>=2.28"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash, Read, Write, WebFetch, AskUserQuestion
 ---
 
 # Protein Binder Design (workflow)
@@ -101,6 +101,9 @@ reuse it for every call:
   **profile‑selection gotcha** — some NIMs (e.g. Boltz2) need `NIM_MODEL_PROFILE` pinned
   on GPUs that have no bundled profile, while others (RFdiffusion/ProteinMPNN) auto‑select
   by compute capability): see **`references/local-nim-setup.md`**.
+
+Network access is used to retrieve public target structures and reach the NIM
+endpoints selected for the campaign.
 
 Per-NIM paths, request/response schemas, and worked `curl`/Python examples live in
 `references/pipeline.md`.
