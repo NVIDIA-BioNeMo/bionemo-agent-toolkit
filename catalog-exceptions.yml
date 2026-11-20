@@ -19,6 +19,10 @@ exceptions:
     component: Workflows
 
   # --- native skills inside a SCANNED (sourced) root — MUST be listed or the pruner deletes them ---
+  - dir: library-skills/cupotential
+    reason: Native cuPotential user skills maintained here independently of the upstream library source.
+    owner: omosafi
+    component: cuPotential
   - dir: library-skills/parabricks
     reason: No public GitHub source yet (was gitlab apizarro); native until a public repo exists.
     owner: trvachov

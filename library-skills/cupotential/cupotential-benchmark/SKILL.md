@@ -17,6 +17,10 @@ metadata:
 Deliver measured throughput and timing variation for an explicitly defined
 comparison, together with the accuracy evidence needed to interpret it.
 
+The upstream library is [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+This skill was reviewed against [v0.3.5](https://github.com/NVIDIA/cuPotential/tree/v0.3.5);
+match version-specific behavior to the user's selected runtime.
+
 ## Instructions
 
 ### Define comparable arms

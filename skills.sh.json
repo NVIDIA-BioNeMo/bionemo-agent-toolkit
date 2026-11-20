@@ -26,6 +26,11 @@
         "cuequivariance",
         "cuequivariance-jax",
         "cuequivariance-torch",
+        "cupotential-benchmark",
+        "cupotential-custom-potentials",
+        "cupotential-install",
+        "cupotential-openmm",
+        "cupotential-validate",
         "genomics-workflow-acceleration",
         "nvmolkit-usage",
         "parabricks"

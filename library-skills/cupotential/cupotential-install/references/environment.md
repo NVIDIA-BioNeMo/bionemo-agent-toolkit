@@ -27,11 +27,22 @@ Pin the requested verified release when reproducibility requires it. For an
 existing environment, inspect its constraints before changing OpenMM or CUDA
 dependencies. A successful pip resolver is not an execution test.
 
-For a source checkout, the matching Docker workflow provides the compiler and
-dependencies. From the cuPotential repository root, invoke the repository helper
-with `./run_docker bash` to open an interactive container shell. Keep pip
-installation and verification in that same session: the helper creates disposable
-containers, so changes confined to a container's filesystem are discarded on exit.
+For the source route, use a separate checkout of the selected release. For a
+fresh checkout of the reviewed release, start in the directory where you want
+the library source to live:
+
+```bash
+git clone --branch v0.3.5 https://github.com/NVIDIA/cuPotential.git
+cd cuPotential
+./run_docker bash
+```
+
+If a matching checkout already exists, change to its root and run
+`./run_docker bash` there. The helper and Dockerfile belong to the upstream
+cuPotential checkout. Its Docker workflow provides the compiler and dependencies.
+Keep pip installation and verification in that same session: the helper creates
+disposable containers, so changes confined to a container's filesystem are
+discarded on exit.
 Resolve release filenames from the actual release; source docs containing
 `@RELEASE_VERSION@` are templates. Follow the matching release's build workflow
 instead of patching a build helper from an older blog snippet.

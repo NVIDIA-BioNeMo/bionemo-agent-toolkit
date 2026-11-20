@@ -22,7 +22,18 @@ different experiments; label the chosen protocol and every parameter changed.
 
 ## With a source tree
 
-Discover stages and test selections in the checked-out release. For example:
+Use a separate checkout of [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+For a fresh checkout of the reviewed release, start in the directory where you
+want the library source to live:
+
+```bash
+git clone --branch v0.3.5 https://github.com/NVIDIA/cuPotential.git
+cd cuPotential
+```
+
+If a matching checkout already exists, change to its root instead. The following
+commands run from that cuPotential checkout, which contains `run_test` and
+`run_docker`. Discover stages and test selections in the selected release:
 
 ```bash
 ./run_test --list-stages

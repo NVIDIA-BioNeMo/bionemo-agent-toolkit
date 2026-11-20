@@ -17,6 +17,10 @@ metadata:
 Deliver a reproducible conclusion with the comparison actually performed, its
 acceptance criteria, measured errors, and remaining uncertainty.
 
+The upstream library is [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+This skill was reviewed against [v0.3.5](https://github.com/NVIDIA/cuPotential/tree/v0.3.5);
+match version-specific behavior to the user's selected runtime.
+
 ## Instructions
 
 ### Choose the question and reference

@@ -19,6 +19,10 @@ energy, forces and requested parameter changes. This workflow uses
 `nv_openmm_plugin`; caller-written CUDA evaluators and experimental C ABI
 integration need separate version-specific work.
 
+The upstream library is [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+This skill was reviewed against [v0.3.5](https://github.com/NVIDIA/cuPotential/tree/v0.3.5);
+match version-specific behavior to the user's selected runtime.
+
 ## Instructions
 
 ### Select the requested deliverable
@@ -83,9 +87,12 @@ energy/force response, and returning to the starting value. Rebuild or reinitial
 when the expression/schema changes instead of treating it as a scalar update.
 
 For soft-core work, include endpoint and intermediate-state checks appropriate to
-the requested model. The shipped TYK2 window demonstrates updates and short
-dynamics; a binding free-energy claim additionally needs endpoint sampling,
-overlap/convergence analysis, an estimator, and applicable corrections.
+the requested model. The upstream
+[TYK2 alchemical sample](https://github.com/NVIDIA/cuPotential/tree/v0.3.5/plugins/openmm/samples/alchemical)
+demonstrates parameter updates and short dynamics. It is an optional source
+example in a separate cuPotential checkout. A binding free-energy claim
+additionally needs endpoint sampling, overlap/convergence analysis, an estimator,
+and applicable corrections.
 
 ### Reconcile the evidence before reporting completion
 

@@ -18,6 +18,10 @@ Produce an adapted simulation and evidence for the requested execution or restar
 Use the user's application and selected interpreter; installed-plugin users do
 not need a cuPotential source checkout.
 
+The upstream library is [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+This skill was reviewed against [v0.3.5](https://github.com/NVIDIA/cuPotential/tree/v0.3.5);
+match version-specific behavior to the user's selected runtime.
+
 ## Instructions
 
 ### Establish the simulation contract

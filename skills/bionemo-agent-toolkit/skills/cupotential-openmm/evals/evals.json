@@ -1,0 +1,47 @@
+{
+  "skill_name": "cupotential-openmm",
+  "evals": [
+    {
+      "id": "openmm-preserve-stock-integrator",
+      "prompt": "Use the original synthetic model in /workspace/input/system.json to build a stock OpenMM System, preserve an independent stock copy, and adapt only its standard nonbonded force to cuPotential. Keep the stock LangevinMiddleIntegrator and every requested physical and numerical setting. Use the preinstalled compatible runtime; do not install packages. Run the requested NVT steps on CUDA, recording the input hash, before/after inventories, actual initial energy/forces, step count and output state under /workspace/output/stock-integrator. Preserve the supplied input. If execution is unavailable, save the runnable work and exact blocker but report the simulation as incomplete.",
+      "files": ["files/system.json"],
+      "expected_output": "A stock-integrator cuPotential simulation with exactly one nonbonded replacement, preserved model/settings and independent stock definition, plus observed finite CUDA energy/forces and the requested 100 integrated steps.",
+      "assertions": [
+        "The supplied file is preserved, and masses, particle ordering, constraint, exception, coordinates, box, cutoff, switching and tail settings match the input contract.",
+        "The stock System remains available independently; the adapted System has exactly one intended cuPotential nonbonded force and no retained duplicate of the removed force.",
+        "The stock LangevinMiddleIntegrator retains the requested temperature, friction, timestep and seed policy, and the CMMotionRemover retains frequency 37.",
+        "The agent extracts source properties or constructs replacements before removing OpenMM-owned forces and does not access a deleted source force.",
+        "Actual CUDA output contains finite initial energy and forces and evidence of 100 integrated steps, rather than only code generation or an import.",
+        "Execution failures are retained as incomplete work; integration success is not claimed to establish numerical agreement with stock OpenMM."
+      ]
+    },
+    {
+      "id": "openmm-com-checkpoint-restart",
+      "prompt": "Starting from /workspace/input/system.json, use cuPotential's nonbonded force and LangevinMiddleIntegrator for the requested NVT simulation. Transfer the existing COM-removal policy. Run 100 steps, save compatible System/integrator definitions and a binary checkpoint, then launch a separate Python process to restore it and integrate 40 more steps. Use the preinstalled compatible CUDA runtime without package changes. Save before-save, immediately-after-restore and continued states, parameter values, runtime identity and subprocess evidence under /workspace/output/nvt-restart. Compare restoration before integrating again. Preserve the input; report any unavailable execution as incomplete.",
+      "files": ["files/system.json"],
+      "expected_output": "A native-integrator NVT run using COM frequency 37, followed by a fresh-process binary-checkpoint restoration and 40 additional steps, with independently inspectable restoration and continuation artifacts.",
+      "assertions": [
+        "The native integrator uses COM-removal frequency 37, the separate remover is removed once, and neither the default frequency 100 nor duplicate COM removal is introduced.",
+        "The supplied masses, constraint, exception, force settings, temperature, friction and 0.001 ps timestep are preserved.",
+        "The run saves a binary checkpoint and compatible System/integrator definitions together with runtime and precision identity.",
+        "A separately launched process imports the plugin, reconstructs a compatible Context and loads the checkpoint; rereading state in the original Context does not count as a restart.",
+        "Saved versus restored positions, velocities, box, time, step count and Context parameters are checked before continuation, with any unavailable field or mismatch disclosed.",
+        "Observed output establishes the initial 100 steps and 40 additional resumed steps without resetting restored state, and any failed or skipped run is not called complete."
+      ]
+    },
+    {
+      "id": "openmm-npt-restoration-limits",
+      "prompt": "Use /workspace/input/system.json and its npt section to make a small NPT cuPotential run with the native integrator and native isotropic barostat. First run 100 steps and create a checkpoint in this runtime, then restore it in a fresh process and run 50 more steps. A teammate asks you to certify that future positions and volume changes will be bitwise identical to an uninterrupted continuation. Assess that request separately from state restoration. Use preinstalled packages, preserve the model and save runtime/seed policy, physical-state comparisons and actual execution evidence under /workspace/output/npt-restart. Do not manufacture a preexisting portable checkpoint or claim execution when prerequisites are absent.",
+      "files": ["files/system.json"],
+      "expected_output": "An NPT checkpoint generated and restored in the tested compatible runtime with actual resumed integration and preserved barostat settings, plus a justified distinction between physical-state restoration and exact future stochastic/barostat trajectory replay.",
+      "assertions": [
+        "There is one intended barostat with the requested pressure, temperature, frequency and seed policy, and COM frequency 37 is transferred to the native integrator.",
+        "The model, box, timestep and input file are preserved; the task's runtime-specific checkpoint is actually generated rather than supplied as fabricated binary data.",
+        "The checkpoint is loaded in a fresh compatible process and the saved physical state is compared before further steps.",
+        "Actual evidence records 100 initial and 50 resumed CUDA integration steps, including restored and continued box vectors and time.",
+        "The report does not promise bitwise identical future NPT trajectories solely from seed equality or checkpoint-state equality, and explains the need for version-specific barostat/internal-state evidence.",
+        "Missing execution remains incomplete, and successful restoration is not presented as a numerical-accuracy or ensemble-validation result."
+      ]
+    }
+  ]
+}

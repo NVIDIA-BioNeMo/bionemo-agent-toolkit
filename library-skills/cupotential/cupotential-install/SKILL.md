@@ -18,6 +18,10 @@ Deliver a usable installation in the user's chosen environment, or a precise
 explanation of the requirement preventing execution. The distribution is
 `nv-openmm-plugin`; the Python import is `nv_openmm_plugin`.
 
+The upstream library is [NVIDIA/cuPotential](https://github.com/NVIDIA/cuPotential).
+This skill was reviewed against [v0.3.5](https://github.com/NVIDIA/cuPotential/tree/v0.3.5);
+match version-specific behavior to the user's selected runtime.
+
 ## Instructions
 
 ### Choose an installation route

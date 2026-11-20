@@ -206,12 +206,16 @@ and appropriate ensembles; verify those capabilities before proposing execution.
 Finite-difference energy estimates do not meet a requirement for an analytic
 derivative. Save the decision and evidence needs even when no simulation is run.
 
-The supplied TYK2 example compares a prepared window, changes charge/soft-core
-parameters and performs short NVT dynamics. It is useful as an API example, but
-does not supply a complete RBFE experiment. A subsequent free-energy calculation
-needs a defined thermodynamic cycle, appropriate sampling, overlap/convergence
-analysis, an estimator and relevant corrections. Preserve or disclose any change
-in tail averaging when lowering the user's original forces.
+The upstream
+[TYK2 alchemical sample](https://github.com/NVIDIA/cuPotential/tree/v0.3.5/plugins/openmm/samples/alchemical)
+lives in `plugins/openmm/samples/alchemical/` in a separate cuPotential source
+checkout. Use a checkout matching the selected library release. The sample
+compares a prepared window, changes charge/soft-core parameters and performs
+short NVT dynamics. It is useful as an API example, but does not supply a complete
+RBFE experiment. A subsequent free-energy calculation needs a defined
+thermodynamic cycle, appropriate sampling, overlap/convergence analysis, an
+estimator and relevant corrections. Preserve or disclose any change in tail
+averaging when lowering the user's original forces.
 
 Sources:
 
