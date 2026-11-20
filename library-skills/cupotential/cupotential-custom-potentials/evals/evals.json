@@ -1,0 +1,47 @@
+{
+  "skill_name": "cupotential-custom-potentials",
+  "evals": [
+    {
+      "id": "custom-binary-wca",
+      "prompt": "Implement the binary-mixture WCA model in /workspace/input/wca-model.json using cuPotential's OpenMM expression interface. Use the preinstalled compatible CUDA runtime. Build an independent analytic pair-energy/force reference rather than validating one implementation against itself. Test the supplied separations, an excluded-pair control and the live strength sequence at fixed coordinates. Declare finite-difference steps and numerical budgets before inspecting candidate results. Save executable code, commands, raw energies/forces and comparisons under /workspace/output/wca. Preserve inputs and any failed check. Missing runtime or GPU execution must remain incomplete, even if the expression is prepared correctly.",
+      "files": ["files/wca-model.json"],
+      "expected_output": "An actually exercised cuPotential WCA definition with correct unequal-particle combining rules, pair-specific support, independent nonzero analytic and finite-difference checks, exclusion control and reversible live strength changes.",
+      "assertions": [
+        "The expression uses arithmetic sigma mixing and geometric epsilon mixing, and includes the WCA energy shift and the pair-specific radius 2^(1/6) times sigma.",
+        "The periodic cutoff covers all pair-specific support, units are consistent, and no electrostatic or homogeneous tail contribution is invented.",
+        "Actual CUDA results include a nonzero interior interaction and the zero-energy/zero-force outside-support and excluded-pair controls.",
+        "An independently coded analytic reference and a finite-difference step sweep check force sign, magnitude and equal/opposite pair components away from the boundary.",
+        "Context parameter changes follow strength 1.0, 0.4, 1.0 at fixed geometry, with observed scaling and restoration rather than only rebuilding three definitions.",
+        "Budgets are stated before candidate comparisons, failures are preserved and no successful GPU check is inferred from syntax or import checks."
+      ]
+    },
+    {
+      "id": "custom-fusion-retains-lj",
+      "prompt": "The model in /workspace/input/fusion-model.json contains ordinary periodic Coulomb/LJ plus an additional Gaussian pair term. Construct its independent stock OpenMM definition and a cuPotential definition using setCutoffInteraction. Preserve ordinary LJ, exceptions, exclusions, cutoff, switching and tail conventions. Use the preinstalled compatible CUDA runtime. Inspect the installed interface, state the complete replacement expression, and execute fixed-configuration energy/force comparisons, retaining all failures. Save code, inventories, versions, input hashes and numerical results under /workspace/output/fusion. Do not alter the input model to obtain agreement or claim that a prepared definition proves execution.",
+      "files": ["files/fusion-model.json"],
+      "expected_output": "A fused force whose replacement cutoff expression contains ordinary Lorentz-Berthelot LJ exactly once plus the Gaussian addition, while retaining standard electrostatics and exception laws, with a separate stock definition and observed numerical comparisons.",
+      "assertions": [
+        "The replacement expression includes the full ordinary LJ term plus the requested Gaussian; setCutoffInteraction is not treated as merely adding to native LJ.",
+        "Standard electrostatics remains active once, and no reciprocal Gaussian contribution is fabricated.",
+        "The source exception and custom exclusion for pair 0-1 are retained, with matched particle counts, cutoff, switching disabled and tails disabled.",
+        "Stock and candidate use identical supplied positions, box, units and physical model, and before/after force inventories rule out omissions and double counting.",
+        "Actual finite energy/force results are saved for the independent stock and cuPotential definitions; the report distinguishes approximation differences from a changed physical model.",
+        "The source input and original failures are retained; absent CUDA execution is incomplete and numerical budgets are not relaxed after seeing discrepancies."
+      ]
+    },
+    {
+      "id": "custom-unavailable-derivatives",
+      "prompt": "Review the synthetic installed-API contract in /workspace/input/derivative-contract.txt. My estimator requires analytic dU/dlambda at every sampled configuration. I can change lambda live and restart a short trajectory, so can I declare this runtime's offset path ready for thermodynamic integration and report an RBFE result? Give a concrete implementation/protocol decision in /workspace/output/derivative-assessment.md. Use only the supplied contract and explain remaining evidence needs. Do not install software, invent derivative APIs or claim to have run the estimator.",
+      "files": ["files/derivative-contract.txt"],
+      "expected_output": "A justified incompatibility finding for the requested analytic-derivative estimator on this specified path, with a supported alternative or explicit protocol change and the sampling/analysis requirements needed before any free-energy claim.",
+      "assertions": [
+        "The answer separates live global-parameter updates, coordinate forces, checkpoint restoration and analytic derivatives with respect to lambda.",
+        "It uses the supplied path-specific absence of analytic energy-parameter derivatives and does not generalize that finding to every future cuPotential build or interface.",
+        "It does not invent an API or silently present finite-difference energy estimates as the required analytic derivative.",
+        "Any proposed fallback identifies a runtime/path supporting the required observable or an explicit estimator/protocol change that still needs validation.",
+        "A short single-window run or successful restart is not reported as an RBFE result; thermodynamic cycle, endpoint/intermediate sampling, convergence or overlap, estimator and applicable corrections remain necessary.",
+        "The artifact reports an assessment, with no fabricated software execution or scientific result."
+      ]
+    }
+  ]
+}
