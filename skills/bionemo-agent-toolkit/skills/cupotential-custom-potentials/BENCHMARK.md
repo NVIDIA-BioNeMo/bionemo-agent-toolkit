@@ -1,8 +1,10 @@
 # Skill Benchmark: cupotential-custom-potentials
 
-> ⚠️ **Overall verdict: WARNING — Internal quality advisory**
+> ✅ **Overall verdict: PASS — Recommended for publication**
 
-Tier 3 quality failed after evaluation completed. This is advisory under the internal profile; review the failed results below before using the skill.
+## Publication Recommendation
+
+Recommended for publication based on the completed evaluation evidence in this report.
 
 ## Evaluation Metadata
 
@@ -10,9 +12,9 @@ Tier 3 quality failed after evaluation completed. This is advisory under the int
 - Validation status: `passed`
 - Evaluation date: 2026-11-20
 - Evaluator version: `1.6.10`
-- Agents: Claude Code (`aws/anthropic/bedrock-claude-sonnet-5-5`), Codex (`openai/openai/gpt-6-luna`)
+- Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`), Codex (`openai/openai/gpt-6.1-sol`)
 - Tasks: 3 evaluation tasks (3 positive)
-- Dataset digest: `sha256:5f637c096612eaf3817dbcafc6c255e88bdcc43ba0eb8bb02d56803184f381d0` (skill-evaluator-dataset-snapshot/1)
+- Dataset digest: `sha256:90327961b6859a76206db1436143b70aed177305a82b415478b113ed1369a8f1` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -48,12 +50,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 64.8% — baseline ran, but no comparable score was available; uplift unavailable | 58.8% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 66.7% → 33.3% (-33.4 points) | 33.3% → 33.3% (±0.0 points) |
-| Correctness | 66.7% → 93.3% (+26.6 points) | 73.3% → 86.7% (+13.4 points) |
-| Discoverability | 66.7% — baseline ran, but no comparable score was available; uplift unavailable | 80.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 41.7% → 52.8% (+11.1 points) | 30.6% → 25.0% (-5.6 points) |
-| Efficiency | 78.1% — baseline ran, but no comparable score was available; uplift unavailable | 69.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 84.1% — baseline ran, but no comparable score was available; uplift unavailable | 83.5% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 33.3% → 66.7% (+33.4 points) | 66.7% → 83.3% (+16.6 points) |
+| Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
+| Discoverability | 90.0% — baseline ran, but no comparable score was available; uplift unavailable | 80.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 91.7% → 97.2% (+5.5 points) | 61.1% → 80.6% (+19.5 points) |
+| Efficiency | 66.7% — baseline ran, but no comparable score was available; uplift unavailable | 73.7% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -66,9 +68,9 @@ Shared-source comparisons use the same signals and weights on both conditions. T
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 94.8% → 88.5% (-6.3 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 81.1% → 81.1% (±0.0 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 70.8% → 73.7% (+2.9 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 75.4% → 76.8% (+1.4 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ## Token Usage
 
@@ -76,15 +78,15 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 831,644 | 729,073 | +102,571 | +14.07% | skill 3/3; base 3/3 |
-| claude-code | custom-binary-wca | 342,989 | 192,994 | +149,995 | +77.72% | skill 1/1; base 1/1 |
-| claude-code | custom-fusion-retains-lj | 379,135 | 425,200 | -46,065 | -10.83% | skill 1/1; base 1/1 |
-| claude-code | custom-unavailable-derivatives | 109,520 | 110,879 | -1,359 | -1.23% | skill 1/1; base 1/1 |
-| codex | All cases | 1,715,989 | 2,091,140 | -375,151 | -17.94% | skill 3/3; base 3/3 |
-| codex | custom-binary-wca | 973,549 | 760,842 | +212,707 | +27.96% | skill 1/1; base 1/1 |
-| codex | custom-fusion-retains-lj | 595,456 | 1,198,352 | -602,896 | -50.31% | skill 1/1; base 1/1 |
-| codex | custom-unavailable-derivatives | 146,984 | 131,946 | +15,038 | +11.40% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 2,547,633 | 2,820,213 | -272,580 | -9.67% | skill 6/6; base 6/6 |
+| claude-code | All cases | 2,334,926 | 2,712,990 | -378,064 | -13.94% | skill 3/3; base 3/3 |
+| claude-code | custom-binary-wca | 1,106,761 | 674,695 | +432,066 | +64.04% | skill 1/1; base 1/1 |
+| claude-code | custom-fusion-retains-lj | 1,109,816 | 1,891,571 | -781,755 | -41.33% | skill 1/1; base 1/1 |
+| claude-code | custom-unavailable-derivatives | 118,349 | 146,724 | -28,375 | -19.34% | skill 1/1; base 1/1 |
+| codex | All cases | 1,804,008 | 1,607,993 | +196,015 | +12.19% | skill 3/3; base 3/3 |
+| codex | custom-binary-wca | 840,699 | 828,692 | +12,007 | +1.45% | skill 1/1; base 1/1 |
+| codex | custom-fusion-retains-lj | 863,290 | 672,557 | +190,733 | +28.36% | skill 1/1; base 1/1 |
+| codex | custom-unavailable-derivatives | 100,019 | 106,744 | -6,725 | -6.30% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 4,138,934 | 4,320,983 | -182,049 | -4.21% | skill 6/6; base 6/6 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. Change is `100 * (with - without) / without`; negative means fewer tokens. N/A comparisons include their reason in the coverage column; coverage is never estimated.
 
@@ -94,18 +96,18 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 |---|---|---|---|
 | Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 7 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
-| Tier 3 | Live agent evaluation | **FAIL** | 2 agent(s); 3 task(s) |
+| Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 3 task(s) |
 
 ## Findings and Observations
 
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **LOW** QUALITY/quality_discoverability: Description very long (272 chars, recommend 50-150) (`skills/cupotential-custom-potentials/SKILL.md`)
-- **LOW** QUALITY/quality_discoverability: No '## Purpose' section (`skills/cupotential-custom-potentials/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No prerequisites/requirements documented (`skills/cupotential-custom-potentials/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No limitations documented (`skills/cupotential-custom-potentials/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No troubleshooting section documented (`skills/cupotential-custom-potentials/SKILL.md`)
+- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cupotential-custom-potentials`)
+- **LOW** QUALITY/quality_discoverability: Description very long (253 chars, recommend 50-150) (`skills/bionemo-agent-toolkit/skills/cupotential-custom-potentials/SKILL.md`)
+- **LOW** QUALITY/quality_discoverability: No '## Purpose' section (`skills/bionemo-agent-toolkit/skills/cupotential-custom-potentials/SKILL.md`)
+- **LOW** QUALITY/quality_reliability: No prerequisites/requirements documented (`skills/bionemo-agent-toolkit/skills/cupotential-custom-potentials/SKILL.md`)
+- **LOW** QUALITY/quality_reliability: No limitations documented (`skills/bionemo-agent-toolkit/skills/cupotential-custom-potentials/SKILL.md`)
 - 2 additional finding(s) are available in the full evaluation artifacts.
 
 </details>

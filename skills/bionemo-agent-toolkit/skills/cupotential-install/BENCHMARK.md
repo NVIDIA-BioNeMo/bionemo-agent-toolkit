@@ -12,9 +12,9 @@ Recommended for publication based on the completed evaluation evidence in this r
 - Validation status: `passed`
 - Evaluation date: 2026-11-20
 - Evaluator version: `1.6.10`
-- Agents: Claude Code (`aws/anthropic/bedrock-claude-sonnet-5-5`), Codex (`openai/openai/gpt-6-luna`)
+- Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`), Codex (`openai/openai/gpt-6.1-sol`)
 - Tasks: 2 evaluation tasks (2 positive)
-- Dataset digest: `sha256:51dd77e3a3117da4da628298ec4d4e8a50f5ae744d99db112fe6dda3664b423e` (skill-evaluator-dataset-snapshot/1)
+- Dataset digest: `sha256:5adee186a6f369716433c4ec5aef26ae2e8f8ddb38dea855deb357eee51a864a` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -50,12 +50,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 84.9% — baseline ran, but no comparable score was available; uplift unavailable | 83.5% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 75.0% → 100.0% (+25.0 points) | 75.0% → 75.0% (±0.0 points) |
+| Overall | 89.9% — baseline ran, but no comparable score was available; uplift unavailable | 84.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 75.0% → 75.0% (±0.0 points) | 75.0% → 75.0% (±0.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 70.0% — baseline ran, but no comparable score was available; uplift unavailable | 80.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 83.3% → 87.5% (+4.2 points) | 91.7% → 91.7% (±0.0 points) |
-| Efficiency | 67.0% — baseline ran, but no comparable score was available; uplift unavailable | 70.8% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 82.5% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 95.8% → 100.0% (+4.2 points) | 91.7% → 100.0% (+8.3 points) |
+| Efficiency | 74.3% — baseline ran, but no comparable score was available; uplift unavailable | 62.3% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -68,9 +68,9 @@ Shared-source comparisons use the same signals and weights on both conditions. T
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 89.6% → 96.4% (+6.8 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 90.5% → 91.9% (+1.4 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 75.2% → 85.0% (+9.8 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 65.0% → 80.1% (+15.1 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ## Token Usage
 
@@ -78,13 +78,13 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 302,490 | 406,704 | -104,214 | -25.62% | skill 2/2; base 2/2 |
-| claude-code | install-isolated-cuda | 191,078 | 294,367 | -103,289 | -35.09% | skill 1/1; base 1/1 |
-| claude-code | install-loader-assessment | 111,412 | 112,337 | -925 | -0.82% | skill 1/1; base 1/1 |
-| codex | All cases | 443,954 | 1,082,296 | -638,342 | -58.98% | skill 2/2; base 2/2 |
-| codex | install-isolated-cuda | 339,097 | 713,382 | -374,285 | -52.47% | skill 1/1; base 1/1 |
-| codex | install-loader-assessment | 104,857 | 368,914 | -264,057 | -71.58% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 746,444 | 1,489,000 | -742,556 | -49.87% | skill 4/4; base 4/4 |
+| claude-code | All cases | 552,757 | 776,485 | -223,728 | -28.81% | skill 2/2; base 2/2 |
+| claude-code | install-isolated-cuda | 391,475 | 661,248 | -269,773 | -40.80% | skill 1/1; base 1/1 |
+| claude-code | install-loader-assessment | 161,282 | 115,237 | +46,045 | +39.96% | skill 1/1; base 1/1 |
+| codex | All cases | 614,512 | 917,189 | -302,677 | -33.00% | skill 2/2; base 2/2 |
+| codex | install-isolated-cuda | 460,389 | 646,163 | -185,774 | -28.75% | skill 1/1; base 1/1 |
+| codex | install-loader-assessment | 154,123 | 271,026 | -116,903 | -43.13% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 1,167,269 | 1,693,674 | -526,405 | -31.08% | skill 4/4; base 4/4 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. Change is `100 * (with - without) / without`; negative means fewer tokens. N/A comparisons include their reason in the coverage column; coverage is never estimated.
 
@@ -92,7 +92,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 12 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 13 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
 | Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 2 task(s) |
 
@@ -101,13 +101,13 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/cupotential-install/SKILL.md`)
+- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/cupotential-install/SKILL.md`)
+- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cupotential-install`)
 - **MEDIUM** SECURITY/Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: shell. (LP3): MCP Least Privilege: Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: shell. (`SKILL.md:1`)
 - **MEDIUM** SECURITY/subprocess module call (AST4): Dangerous Code Execution: subprocess.run([executable, *arguments[1:]], capture_output=True,
                                  text=True, timeout=15, check=False, shell=False) (`scripts/inspect_environment.py:62`)
-- **LOW** QUALITY/quality_discoverability: Description very long (265 chars, recommend 50-150) (`skills/cupotential-install/SKILL.md`)
-- **LOW** QUALITY/quality_discoverability: No '## Purpose' section (`skills/cupotential-install/SKILL.md`)
-- 7 additional finding(s) are available in the full evaluation artifacts.
+- **LOW** QUALITY/quality_discoverability: Description very long (265 chars, recommend 50-150) (`skills/bionemo-agent-toolkit/skills/cupotential-install/SKILL.md`)
+- 8 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 

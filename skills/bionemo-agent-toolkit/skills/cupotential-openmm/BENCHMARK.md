@@ -1,8 +1,10 @@
 # Skill Benchmark: cupotential-openmm
 
-> ⚠️ **Overall verdict: WARNING — Internal quality advisory**
+> ✅ **Overall verdict: PASS — Recommended for publication**
 
-Tier 3 quality failed after evaluation completed. This is advisory under the internal profile; review the failed results below before using the skill.
+## Publication Recommendation
+
+Recommended for publication based on the completed evaluation evidence in this report.
 
 ## Evaluation Metadata
 
@@ -10,9 +12,9 @@ Tier 3 quality failed after evaluation completed. This is advisory under the int
 - Validation status: `passed`
 - Evaluation date: 2026-11-20
 - Evaluator version: `1.6.10`
-- Agents: Claude Code (`aws/anthropic/bedrock-claude-sonnet-5-5`), Codex (`openai/openai/gpt-6-luna`)
+- Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`), Codex (`openai/openai/gpt-6.1-sol`)
 - Tasks: 3 evaluation tasks (3 positive)
-- Dataset digest: `sha256:6cb3d57a26db094cc3107f7c90dcd38c2a7ea32642c2e728ca2a664ad4d4e1ce` (skill-evaluator-dataset-snapshot/1)
+- Dataset digest: `sha256:a0d05291c3203b24150e54f253d919eba61ed96edaae46b75714b7371329d3c6` (skill-evaluator-dataset-snapshot/1)
 - Attempts per task: 1
 - Environment: `k8s-sandbox`
 - Tier 2 evidence: required for publication
@@ -48,12 +50,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 65.2% — baseline ran, but no comparable score was available; uplift unavailable | 56.8% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 100.0% → 100.0% (±0.0 points) | 66.7% → 66.7% (±0.0 points) |
-| Correctness | 53.3% → 33.3% (-20.0 points) | 33.3% → 53.3% (+20.0 points) |
-| Discoverability | 90.0% — baseline ran, but no comparable score was available; uplift unavailable | 80.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 8.3% → 19.5% (+11.2 points) | 13.9% → 8.3% (-5.6 points) |
-| Efficiency | 83.1% — baseline ran, but no comparable score was available; uplift unavailable | 75.5% — baseline ran, but no comparable score was available; uplift unavailable |
+| Overall | 90.1% — baseline ran, but no comparable score was available; uplift unavailable | 74.1% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 33.3% → 100.0% (+66.7 points) | 16.7% → 66.7% (+50.0 points) |
+| Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
+| Discoverability | 81.7% — baseline ran, but no comparable score was available; uplift unavailable | 75.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 92.9% → 100.0% (+7.1 points) | 59.9% → 64.3% (+4.4 points) |
+| Efficiency | 69.0% — baseline ran, but no comparable score was available; uplift unavailable | 64.4% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -66,9 +68,9 @@ Shared-source comparisons use the same signals and weights on both conditions. T
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 92.1% → 93.9% (+1.8 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 75.5% → 79.1% (+3.6 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 71.0% → 84.3% (+13.3 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 66.7% → 70.3% (+3.6 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ## Token Usage
 
@@ -76,15 +78,15 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 723,219 | 630,253 | +92,966 | +14.75% | skill 3/3; base 3/3 |
-| claude-code | openmm-com-checkpoint-restart | 239,004 | 220,105 | +18,899 | +8.59% | skill 1/1; base 1/1 |
-| claude-code | openmm-npt-restoration-limits | 244,254 | 224,177 | +20,077 | +8.96% | skill 1/1; base 1/1 |
-| claude-code | openmm-preserve-stock-integrator | 239,961 | 185,971 | +53,990 | +29.03% | skill 1/1; base 1/1 |
-| codex | All cases | 824,391 | 1,317,571 | -493,180 | -37.43% | skill 3/3; base 3/3 |
-| codex | openmm-com-checkpoint-restart | 239,434 | 327,226 | -87,792 | -26.83% | skill 1/1; base 1/1 |
-| codex | openmm-npt-restoration-limits | 252,985 | 461,866 | -208,881 | -45.23% | skill 1/1; base 1/1 |
-| codex | openmm-preserve-stock-integrator | 331,972 | 528,479 | -196,507 | -37.18% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 1,547,610 | 1,947,824 | -400,214 | -20.55% | skill 6/6; base 6/6 |
+| claude-code | All cases | 2,374,300 | 2,670,300 | -296,000 | -11.08% | skill 3/3; base 3/3 |
+| claude-code | openmm-com-checkpoint-restart | 708,799 | 753,924 | -45,125 | -5.99% | skill 1/1; base 1/1 |
+| claude-code | openmm-npt-restoration-limits | 1,172,422 | 1,157,033 | +15,389 | +1.33% | skill 1/1; base 1/1 |
+| claude-code | openmm-preserve-stock-integrator | 493,079 | 759,343 | -266,264 | -35.07% | skill 1/1; base 1/1 |
+| codex | All cases | 2,575,364 | 3,248,476 | -673,112 | -20.72% | skill 3/3; base 3/3 |
+| codex | openmm-com-checkpoint-restart | 829,574 | 966,187 | -136,613 | -14.14% | skill 1/1; base 1/1 |
+| codex | openmm-npt-restoration-limits | 1,059,999 | 1,588,244 | -528,245 | -33.26% | skill 1/1; base 1/1 |
+| codex | openmm-preserve-stock-integrator | 685,791 | 694,045 | -8,254 | -1.19% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 4,949,664 | 5,918,776 | -969,112 | -16.37% | skill 6/6; base 6/6 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. Change is `100 * (with - without) / without`; negative means fewer tokens. N/A comparisons include their reason in the coverage column; coverage is never estimated.
 
@@ -92,21 +94,21 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 
 | Tier | Purpose | Status | Evidence |
 |---|---|---|---|
-| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 7 finding(s) |
+| Tier 1 | Static validation | **PASSED WITH OBSERVATIONS** | 11 validator(s); 16 finding(s) |
 | Tier 2 | Semantic deduplication | **PASSED** | 2 validator(s); 0 finding(s) |
-| Tier 3 | Live agent evaluation | **FAIL** | 2 agent(s); 3 task(s) |
+| Tier 3 | Live agent evaluation | **PASS** | 2 agent(s); 3 task(s) |
 
 ## Findings and Observations
 
 <details>
 <summary>Show detailed findings and successful checks</summary>
 
-- **LOW** QUALITY/quality_discoverability: Description very long (259 chars, recommend 50-150) (`skills/cupotential-openmm/SKILL.md`)
-- **LOW** QUALITY/quality_discoverability: No '## Purpose' section (`skills/cupotential-openmm/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No prerequisites/requirements documented (`skills/cupotential-openmm/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No limitations documented (`skills/cupotential-openmm/SKILL.md`)
-- **LOW** QUALITY/quality_reliability: No troubleshooting section documented (`skills/cupotential-openmm/SKILL.md`)
-- 2 additional finding(s) are available in the full evaluation artifacts.
+- **MEDIUM** QUALITY/quality_correctness: No documented scripts in table format (`skills/bionemo-agent-toolkit/skills/cupotential-openmm/SKILL.md`)
+- **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/cupotential-openmm/SKILL.md`)
+- **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cupotential-openmm`)
+- **MEDIUM** SECURITY/Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: file_read, file_write, shell. (LP3): MCP Least Privilege: Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: file_read, file_write, shell. (`SKILL.md:1`)
+- **MEDIUM** SECURITY/subprocess module call (AST4): Dangerous Code Execution: subprocess.run(command, capture_output=True, text=True, check=False) (`scripts/run_cpu_reference.py:159`)
+- 11 additional finding(s) are available in the full evaluation artifacts.
 
 </details>
 
