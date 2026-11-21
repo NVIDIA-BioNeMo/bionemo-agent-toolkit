@@ -1,7 +1,7 @@
 ---
 name: cupotential-install
 description: Install cuPotential's OpenMM plugin in a selected Python environment, verify CUDA execution, and diagnose driver, package, or shared-library loading problems. Use for installation, upgrade planning, missing nv_openmm_plugin, or a plugin that imports but cannot run.
-license: LicenseRef-NvidiaProprietary
+license: Apache-2.0
 metadata:
   author: Ohad Mosafi <omosafi@nvidia.com>
   tags: [cupotential, openmm, cuda, installation]
@@ -12,7 +12,7 @@ metadata:
 # Install and verify cuPotential
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Deliver a usable installation in the user's chosen environment, or a precise
 explanation of the requirement preventing execution. The distribution is

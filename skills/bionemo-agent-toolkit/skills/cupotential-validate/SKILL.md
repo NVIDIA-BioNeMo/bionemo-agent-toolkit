@@ -1,7 +1,7 @@
 ---
 name: cupotential-validate
 description: Investigate cuPotential energy or force differences, validate a converted simulation, and assess numerical or physical simulation failures. Use for comparison with OpenMM, custom-force finite differences, cutoff artifacts, energy drift, or questionable simulation results.
-license: LicenseRef-NvidiaProprietary
+license: Apache-2.0
 metadata:
   author: Ohad Mosafi <omosafi@nvidia.com>
   tags: [cupotential, openmm, numerical-validation, forces]
@@ -12,7 +12,7 @@ metadata:
 # Validate cuPotential results
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Deliver a reproducible conclusion with the comparison actually performed, its
 acceptance criteria, measured errors, and remaining uncertainty.

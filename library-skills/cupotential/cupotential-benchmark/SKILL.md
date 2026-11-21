@@ -1,7 +1,7 @@
 ---
 name: cupotential-benchmark
 description: Benchmark cuPotential against stock OpenMM on a user's molecular system while checking accuracy and matching simulation settings. Use for speedup measurements, startup overhead, performance regressions, or diagnosing unexpectedly slow cuPotential simulations.
-license: LicenseRef-NvidiaProprietary
+license: Apache-2.0
 metadata:
   author: Ohad Mosafi <omosafi@nvidia.com>
   tags: [cupotential, openmm, molecular-dynamics, benchmarking]
@@ -12,7 +12,7 @@ metadata:
 # Measure cuPotential performance
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Deliver measured throughput and timing variation for an explicitly defined
 comparison, together with the accuracy evidence needed to interpret it.

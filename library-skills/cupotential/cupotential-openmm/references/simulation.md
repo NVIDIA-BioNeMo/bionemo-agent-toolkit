@@ -1,7 +1,7 @@
 # Conversion, execution and restart
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Use the relevant section for force conversion, integration policy or restart.
 The API notes below were checked against source 0.3.5. Verify version-specific

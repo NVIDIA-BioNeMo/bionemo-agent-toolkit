@@ -1,7 +1,7 @@
 # Measuring a comparable workload
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Use the source runner when a matching checkout is available; otherwise benchmark
 the consumer application's actual installed runtime. The following notes target

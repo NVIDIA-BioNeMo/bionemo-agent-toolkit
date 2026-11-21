@@ -1,7 +1,7 @@
 ---
 name: cupotential-openmm
 description: Adapt an OpenMM simulation to cuPotential, run NVT or NPT, and save or resume checkpoints while preserving the supplied force field and simulation settings. Use for nv_openmm_plugin force replacement, simulation setup, parameter changes, and restart problems.
-license: LicenseRef-NvidiaProprietary
+license: Apache-2.0
 metadata:
   author: Ohad Mosafi <omosafi@nvidia.com>
   tags: [cupotential, openmm, molecular-dynamics, checkpoints]
@@ -12,7 +12,7 @@ metadata:
 # Run OpenMM simulations with cuPotential
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Produce an adapted simulation and evidence for the requested execution or restart.
 Use the user's application and selected interpreter; installed-plugin users do

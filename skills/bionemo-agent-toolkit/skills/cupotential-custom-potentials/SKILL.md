@@ -1,7 +1,7 @@
 ---
 name: cupotential-custom-potentials
 description: Build and validate cuPotential custom pair potentials through its OpenMM expression API, including WCA, LJ fusion, soft-core interactions and live globals. Review path-specific support for alchemical estimators and analytic energy-parameter derivatives.
-license: LicenseRef-NvidiaProprietary
+license: Apache-2.0
 metadata:
   author: Ohad Mosafi <omosafi@nvidia.com>
   tags: [cupotential, openmm, pair-potentials, alchemy]
@@ -12,7 +12,7 @@ metadata:
 # Implement a custom pair potential
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Deliver a supported expression, its physical conventions, and checks of its
 energy, forces and requested parameter changes. This workflow uses
