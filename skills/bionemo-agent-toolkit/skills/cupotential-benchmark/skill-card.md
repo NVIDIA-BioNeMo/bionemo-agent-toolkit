@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-LicenseRef-NvidiaProprietary <br>
+Apache-2.0 <br>
 ## Use Case: <br>
 Developers, computational chemists, and engineers use this skill to measure cuPotential speedup, startup overhead, and performance regressions against stock OpenMM on their own molecular systems with matched physical settings and accuracy evidence, or to diagnose unexpectedly slow cuPotential simulations. <br>
 

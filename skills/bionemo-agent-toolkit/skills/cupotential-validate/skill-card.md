@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-LicenseRef-NvidiaProprietary <br>
+Apache-2.0 <br>
 ## Use Case: <br>
 Developers, computational chemists, and engineers use this skill to compare cuPotential results with OpenMM or other converged references, check custom-force finite differences, cutoff artifacts, and energy drift, and state reproducible, evidence-backed conclusions about questionable simulation results. <br>
 

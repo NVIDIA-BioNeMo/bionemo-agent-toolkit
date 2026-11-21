@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-LicenseRef-NvidiaProprietary <br>
+Apache-2.0 <br>
 ## Use Case: <br>
 Developers and computational scientists use this skill to install the cuPotential OpenMM plugin (nv-openmm-plugin) in a chosen Python environment, verify OpenMM CUDA execution with a small energy/force probe, and diagnose missing packages, driver/CUDA compatibility, or shared-library loading failures. <br>
 

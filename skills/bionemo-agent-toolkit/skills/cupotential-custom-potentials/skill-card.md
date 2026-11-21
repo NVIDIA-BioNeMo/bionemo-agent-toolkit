@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-LicenseRef-NvidiaProprietary <br>
+Apache-2.0 <br>
 ## Use Case: <br>
 Developers and computational chemistry/molecular simulation engineers use this skill to implement custom pair potentials (e.g., WCA, LJ fusion, soft-core) with NVIDIA cuPotential's OpenMM plugin, verify their energies, forces and live parameter updates against independent references, and assess whether an API path supports a requested alchemical estimator. <br>
 

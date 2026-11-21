@@ -1,7 +1,7 @@
 # Environment selection and execution probe
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Use this reference when choosing an installation route or investigating a failed
 import/Context. The reviewed contract is cuPotential 0.3.5; resolve matching

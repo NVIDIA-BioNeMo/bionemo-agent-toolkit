@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Run a stock OpenMM CPU control; never evaluates cuPotential or CUDA.
 
 Accepts the bundled synthetic system.json model. Uses only the selected
 interpreter's OpenMM installation and the standard library. Installs nothing.
 """
-# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
 
 import argparse
 import hashlib

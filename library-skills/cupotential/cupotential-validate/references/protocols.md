@@ -1,7 +1,7 @@
 # Reference selection, metrics and saved snapshots
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
-<!-- SPDX-License-Identifier: LicenseRef-NvidiaProprietary -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 Read the section appropriate to model equivalence, static numerical accuracy,
 or trajectory validity. The API context is source 0.3.5; numeric acceptance limits

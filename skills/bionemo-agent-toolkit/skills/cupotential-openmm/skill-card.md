@@ -7,7 +7,7 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-LicenseRef-NvidiaProprietary <br>
+Apache-2.0 <br>
 ## Use Case: <br>
 Developers and computational scientists use this skill to have an agent replace OpenMM forces with nv_openmm_plugin (cuPotential) equivalents, run NVT or NPT simulations, change parameters, and save or resume checkpoints while preserving the supplied model and settings, with a stock OpenMM CPU reference control when CUDA is unavailable. <br>
 
