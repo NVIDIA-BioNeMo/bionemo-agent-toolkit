@@ -10,7 +10,7 @@ Recommended for publication based on the completed evaluation evidence in this r
 
 - Skill: `cupotential-openmm`
 - Validation status: `passed`
-- Evaluation date: 2026-11-20
+- Evaluation date: 2026-11-21
 - Evaluator version: `1.6.10`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`), Codex (`openai/openai/gpt-6.1-sol`)
 - Tasks: 3 evaluation tasks (3 positive)
@@ -50,12 +50,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 90.1% — baseline ran, but no comparable score was available; uplift unavailable | 74.1% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 33.3% → 100.0% (+66.7 points) | 16.7% → 66.7% (+50.0 points) |
+| Overall | 89.0% — baseline ran, but no comparable score was available; uplift unavailable | 68.2% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 33.3% → 100.0% (+66.7 points) | 33.3% → 33.3% (±0.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 81.7% — baseline ran, but no comparable score was available; uplift unavailable | 75.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 92.9% → 100.0% (+7.1 points) | 59.9% → 64.3% (+4.4 points) |
-| Efficiency | 69.0% — baseline ran, but no comparable score was available; uplift unavailable | 64.4% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 86.7% — baseline ran, but no comparable score was available; uplift unavailable | 75.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 92.9% → 95.2% (+2.3 points) | 57.5% → 69.5% (+12.0 points) |
+| Efficiency | 63.3% — baseline ran, but no comparable score was available; uplift unavailable | 63.4% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -68,9 +68,9 @@ Shared-source comparisons use the same signals and weights on both conditions. T
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 75.5% → 79.1% (+3.6 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 72.4% → 78.1% (+5.7 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 66.7% → 70.3% (+3.6 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 68.0% → 70.8% (+2.8 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ## Token Usage
 
@@ -78,15 +78,15 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 2,374,300 | 2,670,300 | -296,000 | -11.08% | skill 3/3; base 3/3 |
-| claude-code | openmm-com-checkpoint-restart | 708,799 | 753,924 | -45,125 | -5.99% | skill 1/1; base 1/1 |
-| claude-code | openmm-npt-restoration-limits | 1,172,422 | 1,157,033 | +15,389 | +1.33% | skill 1/1; base 1/1 |
-| claude-code | openmm-preserve-stock-integrator | 493,079 | 759,343 | -266,264 | -35.07% | skill 1/1; base 1/1 |
-| codex | All cases | 2,575,364 | 3,248,476 | -673,112 | -20.72% | skill 3/3; base 3/3 |
-| codex | openmm-com-checkpoint-restart | 829,574 | 966,187 | -136,613 | -14.14% | skill 1/1; base 1/1 |
-| codex | openmm-npt-restoration-limits | 1,059,999 | 1,588,244 | -528,245 | -33.26% | skill 1/1; base 1/1 |
-| codex | openmm-preserve-stock-integrator | 685,791 | 694,045 | -8,254 | -1.19% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 4,949,664 | 5,918,776 | -969,112 | -16.37% | skill 6/6; base 6/6 |
+| claude-code | All cases | 2,751,742 | 4,010,032 | -1,258,290 | -31.38% | skill 3/3; base 3/3 |
+| claude-code | openmm-com-checkpoint-restart | 797,581 | 1,391,810 | -594,229 | -42.69% | skill 1/1; base 1/1 |
+| claude-code | openmm-npt-restoration-limits | 1,148,803 | 1,525,764 | -376,961 | -24.71% | skill 1/1; base 1/1 |
+| claude-code | openmm-preserve-stock-integrator | 805,358 | 1,092,458 | -287,100 | -26.28% | skill 1/1; base 1/1 |
+| codex | All cases | 3,454,395 | 2,966,116 | +488,279 | +16.46% | skill 3/3; base 3/3 |
+| codex | openmm-com-checkpoint-restart | 863,556 | 1,027,618 | -164,062 | -15.97% | skill 1/1; base 1/1 |
+| codex | openmm-npt-restoration-limits | 1,925,326 | 1,079,675 | +845,651 | +78.32% | skill 1/1; base 1/1 |
+| codex | openmm-preserve-stock-integrator | 665,513 | 858,823 | -193,310 | -22.51% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 6,206,137 | 6,976,148 | -770,011 | -11.04% | skill 6/6; base 6/6 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. Change is `100 * (with - without) / without`; negative means fewer tokens. N/A comparisons include their reason in the coverage column; coverage is never estimated.
 
@@ -107,7 +107,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** QUALITY/quality_correctness: Instructions don't mention 'run_script' (`skills/bionemo-agent-toolkit/skills/cupotential-openmm/SKILL.md`)
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cupotential-openmm`)
 - **MEDIUM** SECURITY/Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: file_read, file_write, shell. (LP3): MCP Least Privilege: Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: file_read, file_write, shell. (`SKILL.md:1`)
-- **MEDIUM** SECURITY/subprocess module call (AST4): Dangerous Code Execution: subprocess.run(command, capture_output=True, text=True, check=False) (`scripts/run_cpu_reference.py:159`)
+- **MEDIUM** SECURITY/subprocess module call (AST4): Dangerous Code Execution: subprocess.run(command, capture_output=True, text=True, check=False) (`scripts/run_cpu_reference.py:160`)
 - 11 additional finding(s) are available in the full evaluation artifacts.
 
 </details>

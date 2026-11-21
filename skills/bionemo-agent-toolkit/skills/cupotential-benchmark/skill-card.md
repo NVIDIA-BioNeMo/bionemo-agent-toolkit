@@ -1,5 +1,5 @@
 ## Description: <br>
-Benchmark cuPotential against stock OpenMM on a user's molecular system while checking accuracy and matching simulation settings. <br>
+Benchmark cuPotential against stock OpenMM on a user's molecular system while checking accuracy and matching simulation settings. Use for speedup measurements, startup overhead, performance regressions, or diagnosing unexpectedly slow cuPotential simulations. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -7,9 +7,9 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-Apache-2.0 <br>
+Apache 2.0 <br>
 ## Use Case: <br>
-Developers, computational chemists, and engineers use this skill to measure cuPotential speedup, startup overhead, and performance regressions against stock OpenMM on their own molecular systems with matched physical settings and accuracy evidence, or to diagnose unexpectedly slow cuPotential simulations. <br>
+Developers, computational chemists, and engineers use this skill to have an agent run fair, accuracy-qualified performance comparisons between cuPotential and stock OpenMM on their own molecular dynamics workloads, measuring startup cost, warm throughput, timing variation, and speedup while keeping physical settings matched. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -32,9 +32,9 @@ Mitigation: Review and scan skill before deployment. <br>
 
 ## Skill Output: <br>
 **Output Type(s):** [Analysis, Code, Shell commands, Files] <br>
-**Output Format:** [Markdown report with benchmark arm definitions, raw trial timings, and inline code blocks] <br>
+**Output Format:** [Markdown report with inline Python/bash code blocks, raw timing data, and saved benchmark artifacts] <br>
 **Output Parameters:** [1D] <br>
-**Other Properties Related to Output:** [Unexecuted GPU measurements are reported as NOT_RUN rather than substituted with published numbers] <br>
+**Other Properties Related to Output:** [Reports arm definitions, input/build/device identities, correctness results, raw trial times, cold/warm summaries, and limitations; unavailable GPU measurements are marked NOT_RUN rather than substituted.] <br>
 
 ## Evaluation Agents Used: <br>
 - Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`) <br>
@@ -43,7 +43,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-3 evaluation tasks (3 positive), 1 attempt per task, each run in its own isolated sandbox pod (`k8s-sandbox`); evaluator version `1.6.10`, evaluation date 2026-11-20. Tasks: benchmark-force-versus-integrated, benchmark-short-lived-startup, benchmark-unlocked-no-golden. <br>
+3 evaluation tasks (3 positive), 1 attempt per task, each attempt run in its own isolated sandbox pod (`k8s-sandbox` environment); each task was also attempted without the skill as a baseline. Evaluation date 2026-11-21, evaluator version `1.6.10`. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -75,27 +75,27 @@ Recommended for publication based on the completed evaluation evidence in this r
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 86.7% — baseline ran, but no comparable score was available; uplift unavailable | 83.6% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 66.7% → 66.7% (±0.0 points) | 83.3% → 83.3% (±0.0 points) |
+| Overall | 87.7% — baseline ran, but no comparable score was available; uplift unavailable | 83.5% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 66.7% → 66.7% (±0.0 points) | 66.7% → 83.3% (+16.6 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
 | Discoverability | 93.3% — baseline ran, but no comparable score was available; uplift unavailable | 81.7% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 97.2% → 97.2% (±0.0 points) | 88.9% → 80.6% (-8.3 points) |
-| Efficiency | 76.1% — baseline ran, but no comparable score was available; uplift unavailable | 72.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 100.0% → 100.0% (±0.0 points) | 94.5% → 75.0% (-19.5 points) |
+| Efficiency | 78.6% — baseline ran, but no comparable score was available; uplift unavailable | 77.3% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
 Example: `47.0% → 92.0% (+45.0 points)` means the skill-assisted run scored 92.0%, 45.0 percentage points above its 47.0% no-skill baseline.
 
-### Comparison details
+#### Comparison details
 
 Shared-source comparisons use the same signals and weights on both conditions. They do not replace the full dimension scores above or change the publication verdict.
 
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 85.1% → 84.8% (-0.3 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 87.1% → 84.8% (-2.3 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 82.1% → 81.5% (-0.6 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 81.2% → 81.0% (-0.2 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ### Tier Status
 

@@ -10,7 +10,7 @@ Recommended for publication based on the completed evaluation evidence in this r
 
 - Skill: `cupotential-install`
 - Validation status: `passed`
-- Evaluation date: 2026-11-20
+- Evaluation date: 2026-11-21
 - Evaluator version: `1.6.10`
 - Agents: Claude Code (`aws/anthropic/bedrock-claude-opus-5-5`), Codex (`openai/openai/gpt-6.1-sol`)
 - Tasks: 2 evaluation tasks (2 positive)
@@ -50,12 +50,12 @@ The three-tier evaluation checks whether the skill:
 
 | Measure | Claude Code (Baseline → Skill Uplift) | Codex (Baseline → Skill Uplift) |
 |---|---:|---:|
-| Overall | 89.9% — baseline ran, but no comparable score was available; uplift unavailable | 84.0% — baseline ran, but no comparable score was available; uplift unavailable |
-| Security | 75.0% → 75.0% (±0.0 points) | 75.0% → 75.0% (±0.0 points) |
+| Overall | 83.8% — baseline ran, but no comparable score was available; uplift unavailable | 82.0% — baseline ran, but no comparable score was available; uplift unavailable |
+| Security | 50.0% → 50.0% (±0.0 points) | 75.0% → 75.0% (±0.0 points) |
 | Correctness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
-| Discoverability | 100.0% — baseline ran, but no comparable score was available; uplift unavailable | 82.5% — baseline ran, but no comparable score was available; uplift unavailable |
-| Effectiveness | 95.8% → 100.0% (+4.2 points) | 91.7% → 100.0% (+8.3 points) |
-| Efficiency | 74.3% — baseline ran, but no comparable score was available; uplift unavailable | 62.3% — baseline ran, but no comparable score was available; uplift unavailable |
+| Discoverability | 90.0% — baseline ran, but no comparable score was available; uplift unavailable | 77.5% — baseline ran, but no comparable score was available; uplift unavailable |
+| Effectiveness | 100.0% → 100.0% (±0.0 points) | 100.0% → 100.0% (±0.0 points) |
+| Efficiency | 79.0% — baseline ran, but no comparable score was available; uplift unavailable | 57.5% — baseline ran, but no comparable score was available; uplift unavailable |
 
 **How to read this table:** baseline is the same task attempted without the target skill. Scores are rounded to one decimal; threshold-adjacent values use additional precision so their displayed band matches the verdict. Uplift is derived from those displayed scores and shown in percentage points.
 
@@ -68,9 +68,9 @@ Shared-source comparisons use the same signals and weights on both conditions. T
 | Agent | Dimension | Basis | Baseline → With skill (uplift) | Explanation |
 | --- | --- | --- | --- | --- |
 | claude-code | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| claude-code | Efficiency | Token-only comparison | 90.5% → 91.9% (+1.4 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| claude-code | Efficiency | Token-only comparison | 89.2% → 89.4% (+0.2 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 | codex | Discoverability | Dimension comparison | N/A | Discoverability is not applicable to the no-skill baseline; there is no installed skill to discover. |
-| codex | Efficiency | Token-only comparison | 65.0% → 80.1% (+15.1 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
+| codex | Efficiency | Token-only comparison | 76.7% → 77.9% (+1.2 points) | Only Token Efficiency is comparable; the full dimension scores use different evaluator sources. |
 
 ## Token Usage
 
@@ -78,13 +78,13 @@ Actual Tier 3 execution usage is reported for every observed agent/case pair and
 
 | Agent | Dataset case | With skill | Without skill | Delta | Change | Coverage |
 |---|---|---:|---:|---:|---:|---|
-| claude-code | All cases | 552,757 | 776,485 | -223,728 | -28.81% | skill 2/2; base 2/2 |
-| claude-code | install-isolated-cuda | 391,475 | 661,248 | -269,773 | -40.80% | skill 1/1; base 1/1 |
-| claude-code | install-loader-assessment | 161,282 | 115,237 | +46,045 | +39.96% | skill 1/1; base 1/1 |
-| codex | All cases | 614,512 | 917,189 | -302,677 | -33.00% | skill 2/2; base 2/2 |
-| codex | install-isolated-cuda | 460,389 | 646,163 | -185,774 | -28.75% | skill 1/1; base 1/1 |
-| codex | install-loader-assessment | 154,123 | 271,026 | -116,903 | -43.13% | skill 1/1; base 1/1 |
-| ALL AGENTS | Dataset aggregate | 1,167,269 | 1,693,674 | -526,405 | -31.08% | skill 4/4; base 4/4 |
+| claude-code | All cases | 844,764 | 816,220 | +28,544 | +3.50% | skill 2/2; base 2/2 |
+| claude-code | install-isolated-cuda | 682,270 | 700,032 | -17,762 | -2.54% | skill 1/1; base 1/1 |
+| claude-code | install-loader-assessment | 162,494 | 116,188 | +46,306 | +39.85% | skill 1/1; base 1/1 |
+| codex | All cases | 635,480 | 511,097 | +124,383 | +24.34% | skill 2/2; base 2/2 |
+| codex | install-isolated-cuda | 496,078 | 399,473 | +96,605 | +24.18% | skill 1/1; base 1/1 |
+| codex | install-loader-assessment | 139,402 | 111,624 | +27,778 | +24.89% | skill 1/1; base 1/1 |
+| ALL AGENTS | Dataset aggregate | 1,480,244 | 1,327,317 | +152,927 | +11.52% | skill 4/4; base 4/4 |
 
 Prompt tokens include cached reads, so total tokens are `prompt + completion` (cached is not added twice). The Efficiency score uses `(prompt - cached) + completion`. Change is `100 * (with - without) / without`; negative means fewer tokens. N/A comparisons include their reason in the coverage column; coverage is never estimated.
 
@@ -105,7 +105,7 @@ Prompt tokens include cached reads, so total tokens are `prompt + completion` (c
 - **MEDIUM** SCHEMA/folder_hierarchy: Unexpected nesting depth for general skill (`skills/bionemo-agent-toolkit/skills/cupotential-install`)
 - **MEDIUM** SECURITY/Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: shell. (LP3): MCP Least Privilege: Skill declares no tool scope ('permissions' or 'allowed-tools') but code capabilities were detected: shell. (`SKILL.md:1`)
 - **MEDIUM** SECURITY/subprocess module call (AST4): Dangerous Code Execution: subprocess.run([executable, *arguments[1:]], capture_output=True,
-                                 text=True, timeout=15, check=False, shell=False) (`scripts/inspect_environment.py:62`)
+                                 text=True, timeout=15, check=False, shell=False) (`scripts/inspect_environment.py:55`)
 - **LOW** QUALITY/quality_discoverability: Description very long (265 chars, recommend 50-150) (`skills/bionemo-agent-toolkit/skills/cupotential-install/SKILL.md`)
 - 8 additional finding(s) are available in the full evaluation artifacts.
 
